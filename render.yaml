@@ -1,0 +1,35 @@
+# Deploy Lune to Render as a hosted service.
+#
+#   1. Push this repository to GitHub.
+#   2. On render.com choose New > Blueprint and point it at the repository.
+#   3. Set OPENAI_API_KEY in the dashboard (never commit it).
+#
+# The disk below is essential: without it every redeploy erases all accounts
+# and conversations, because the database is a file.
+
+services:
+  - type: web
+    name: lune
+    runtime: docker
+    plan: starter          # the free plan has no persistent disk
+    healthCheckPath: /api/health
+    disk:
+      name: lune-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false        # set this by hand in the dashboard
+      - key: LUNE_DATA_DIR
+        value: /data
+      - key: LUNE_HTTPS
+        value: "true"
+      - key: LUNE_USER_DAILY_LIMIT
+        value: "40"
+      - key: LUNE_INSTANCE_DAILY_LIMIT
+        value: "400"
+      - key: LUNE_BURST_PER_MINUTE
+        value: "6"
+      # Uncomment to require an invite code before anyone can sign up.
+      # - key: LUNE_INVITE_CODE
+      #   value: ""

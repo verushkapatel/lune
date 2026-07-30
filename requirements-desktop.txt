@@ -1,0 +1,4 @@
+# Extra dependencies needed only to build the downloadable desktop app.
+-r requirements.txt
+pywebview>=5.0
+pyinstaller>=6.0
