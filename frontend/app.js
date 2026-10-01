@@ -696,6 +696,13 @@ function goHome() {
   closeCoach();
   state.mode = "home";
   showView("home");
+  const browse = $("library-browse");
+  if (browse) {
+    browse.querySelectorAll(".browse-chip").forEach((c) => {
+      c.classList.toggle("on", (c.dataset.browse || "") === "");
+    });
+  }
+  loadLibrary().catch(() => {});
 }
 
 async function loadLibrary(filter = "") {
@@ -747,11 +754,11 @@ async function loadLibrary(filter = "") {
         .sort(),
     ];
     if (!keys.length) {
-      host.innerHTML = `<p class="dim">No scores match that filter.</p>`;
+      host.innerHTML = `<p class="library-empty">Nothing in this browse set.<br>Try another composer chip, or search above.</p>`;
       return;
     }
 
-    // Without a filter, curated piano groups only — full corpus via filter.
+    // Without a browse filter, curated piano groups only — chips / top search for the rest.
     const curated = new Set(order);
     const visibleKeys = filter
       ? keys
@@ -775,7 +782,7 @@ async function loadLibrary(filter = "") {
       const tip = document.createElement("p");
       tip.className = "dim library-tip";
       tip.textContent =
-        "Type a composer (Liszt, Chopin, Scriabin…) or title to search every openable encoding.";
+        "Browse by composer below, or use the search bar above for any title.";
       host.appendChild(tip);
     }
 
@@ -814,14 +821,14 @@ async function loadLibrary(filter = "") {
         const more = document.createElement("p");
         more.className = "dim library-more";
         more.textContent = filter
-          ? `Showing ${shown.length} of ${items.length} — refine the filter.`
-          : `Showing ${shown.length} of ${items.length} — filter by name for the rest.`;
+          ? `Showing ${shown.length} of ${items.length} — pick another chip or search above.`
+          : `Showing ${shown.length} of ${items.length} — browse a composer chip for more.`;
         section.appendChild(more);
       }
       host.appendChild(section);
     }
   } catch {
-    host.innerHTML = `<p class="dim">Library unavailable — use search.</p>`;
+    host.innerHTML = `<p class="library-empty">Library unavailable — use the search bar above.</p>`;
   }
 }
 
@@ -850,12 +857,13 @@ function bind() {
 
   on("btn-home", "click", goHome);
   on("btn-open", "click", () => $("file")?.click());
-  const libFilter = $("library-filter");
-  if (libFilter) {
-    let libTimer;
-    libFilter.addEventListener("input", () => {
-      clearTimeout(libTimer);
-      libTimer = setTimeout(() => loadLibrary(libFilter.value.trim()), 200);
+  const browse = $("library-browse");
+  if (browse) {
+    browse.addEventListener("click", (e) => {
+      const chip = e.target.closest(".browse-chip");
+      if (!chip) return;
+      browse.querySelectorAll(".browse-chip").forEach((c) => c.classList.toggle("on", c === chip));
+      loadLibrary((chip.dataset.browse || "").trim());
     });
   }
   on("btn-discover-home", "click", goHome);
