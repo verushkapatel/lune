@@ -4,60 +4,183 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lune</title>
-  <link rel="stylesheet" href="/static/styles.css?v=fix3">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css?v=18">
 </head>
 <body>
   <div id="app">
     <header class="bar">
-      <div class="brand"><span class="mark"></span>Lune</div>
+      <button type="button" class="brand" id="btn-home" title="Home">
+        <span class="mark" aria-hidden="true"></span>
+        <span class="brand-name">Lune</span>
+      </button>
       <form class="top-search" id="top-search">
-        <input id="q" type="search" placeholder="Search any piece or composer…" autocomplete="off">
-        <button type="submit">Search</button>
+        <input id="q" type="search" placeholder="Search a piece or composer…" autocomplete="off">
+        <button type="submit">Open</button>
       </form>
-      <button type="button" class="quiet" id="btn-open">Open file</button>
+      <button type="button" class="quiet" id="btn-open">Upload</button>
       <input type="file" id="file" accept=".musicxml,.xml,.mxl,.pdf,image/*" hidden>
     </header>
 
     <div class="results" id="results" hidden></div>
 
     <main class="home" id="home">
-      <h1>Find a piece. Click a bar. Get help there.</h1>
-      <p class="lead">Search the catalogue, or open MusicXML / PDF / a photo.</p>
-      <button type="button" class="primary" id="btn-sample">Try Twinkle (demo)</button>
+      <section class="home-hero">
+        <p class="home-brand">Lune</p>
+        <h1>Score studio for the piano</h1>
+        <p class="lead">
+          Open free public-domain scores, listen with a playhead, and ask about any bar.
+        </p>
+      </section>
+
+      <section class="home-library">
+        <div class="section-head">
+          <h2>Library</h2>
+          <p id="library-count">Loading free scores…</p>
+        </div>
+        <div class="library-browse" id="library-browse" role="toolbar" aria-label="Browse library">
+          <button type="button" class="browse-chip on" data-browse="">All</button>
+          <button type="button" class="browse-chip" data-browse="Bach">Bach</button>
+          <button type="button" class="browse-chip" data-browse="Beethoven">Beethoven</button>
+          <button type="button" class="browse-chip" data-browse="Chopin">Chopin</button>
+          <button type="button" class="browse-chip" data-browse="Debussy">Debussy</button>
+          <button type="button" class="browse-chip" data-browse="Liszt">Liszt</button>
+          <button type="button" class="browse-chip" data-browse="Mozart">Mozart</button>
+          <button type="button" class="browse-chip" data-browse="Schubert">Schubert</button>
+          <button type="button" class="browse-chip" data-browse="Scriabin">Scriabin</button>
+          <button type="button" class="browse-chip" data-browse="Satie">Satie</button>
+          <button type="button" class="browse-chip" data-browse="Brahms">Brahms</button>
+          <button type="button" class="browse-chip" data-browse="Joplin">Joplin</button>
+        </div>
+        <div id="library-groups" class="library-groups"></div>
+      </section>
+
+      <footer class="about-maker">
+        <h2>About</h2>
+        <p>
+          Free practice help for pianists — built by <strong>Verushka Patel</strong>,
+          a fifteen-year-old pianist.
+        </p>
+      </footer>
+    </main>
+
+    <main class="discover" id="discover" hidden>
+      <div class="discover-stage">
+        <div class="nav-arrows">
+          <button type="button" class="quiet" id="btn-discover-home">Library</button>
+          <button type="button" class="primary" id="btn-open-piece">Open score</button>
+        </div>
+
+        <div class="composer-hero" id="composer-hero">
+          <div class="composer-photo" id="composer-photo">
+            <img id="composer-hero-img" alt="" hidden>
+            <div class="composer-fallback" id="composer-fallback"></div>
+          </div>
+          <div class="composer-intro">
+            <p class="eyebrow" id="discover-era"></p>
+            <h1 id="discover-title"></h1>
+            <p class="discover-by" id="discover-by"></p>
+            <p class="story-hook" id="discover-hook"></p>
+          </div>
+        </div>
+
+        <div class="journey-steps" aria-hidden="true">
+          <span class="on">Meet</span>
+          <span>Listen</span>
+          <span>Ask</span>
+        </div>
+
+        <div class="discover-chapters" id="discover-chapters"></div>
+
+        <div class="discover-cta">
+          <p class="cta-note">Open the score to hear piano sound, then ask about any bar.</p>
+          <button type="button" class="primary big" id="btn-open-piece-bottom">Open score</button>
+        </div>
+      </div>
     </main>
 
     <main class="studio" id="studio" hidden>
       <section class="score-pane">
-        <div class="piece-head">
-          <h2 id="piece-name"></h2>
-          <p id="piece-meta"></p>
+        <div class="piece-head slim">
+          <div class="piece-head-main">
+            <button type="button" class="quiet ink" id="btn-back-discover">Overview</button>
+            <div class="piece-titles">
+              <h2 id="piece-name"></h2>
+              <p id="piece-meta"></p>
+            </div>
+          </div>
+          <div class="piece-head-actions">
+            <div class="mode-tabs" role="tablist">
+              <button type="button" class="mode-tab on" id="tab-listen" data-mode="listen">Listen</button>
+              <button type="button" class="mode-tab" id="tab-ask" data-mode="ask">Ask</button>
+            </div>
+            <button type="button" class="quiet ink" id="btn-download" hidden>Download</button>
+          </div>
         </div>
 
-        <div class="bars" id="bars" aria-label="Bars"></div>
+        <div class="bars slim-bars" id="bars" aria-label="Bars" hidden></div>
 
-        <div class="score-scroll">
+        <div class="score-scroll" id="score-scroll">
+          <div class="playhead-line" id="playhead-line" hidden></div>
           <div id="osmd" class="score"></div>
           <div id="scan" class="score scan" hidden></div>
         </div>
-      </section>
 
-      <aside class="help" id="help">
-        <div class="help-empty" id="help-empty">
-          <p>Click a bar above the score.</p>
-          <p class="dim">That bar gets its own fingering, letters, voices, and how to play it.</p>
+        <div class="companion-bar" id="companion-bar">
+          <div class="companion-play" id="listen-dock">
+            <div class="listen-ranges" id="listen-ranges">
+              <button type="button" class="range on" data-range="opening">1–4</button>
+              <button type="button" class="range" data-range="phrase">1–8</button>
+              <button type="button" class="range" data-range="page">1–16</button>
+              <button type="button" class="range" data-range="whole">All</button>
+            </div>
+            <button type="button" class="primary" id="btn-play-range">Play</button>
+            <button type="button" class="quiet ink danger" id="btn-stop" hidden>Stop</button>
+            <div class="scrubber">
+              <input type="range" id="scrub" min="0" max="1000" value="0" step="1" aria-label="Playback position">
+              <div class="scrub-meta">
+                <span id="scrub-bar">Bar —</span>
+                <span id="scrub-time">0:00 / 0:00</span>
+              </div>
+            </div>
+          </div>
+          <div class="companion-tools" id="score-toggles">
+            <label class="tog pill"><input type="checkbox" id="tog-letters"> Letters</label>
+            <label class="tog pill"><input type="checkbox" id="tog-fingers"> Fingers</label>
+            <label class="tog pill"><input type="checkbox" id="tog-tips" checked> Tips</label>
+            <label class="tog pill"><input type="checkbox" id="tog-lines" checked> Lines</label>
+          </div>
+          <p class="companion-hint" id="ask-banner" hidden>Tap a bar — help opens beside the score.</p>
+          <span id="stage-label" class="visually-hidden">Listen</span>
+          <button type="button" class="primary" id="btn-to-ask" hidden>Ask a bar</button>
+          <button type="button" class="quiet ink" id="btn-ready-ask">Ask about a bar</button>
         </div>
-        <div id="help-body" hidden></div>
-        <div class="help-actions">
-          <button type="button" class="quiet" id="btn-about">About this piece</button>
-          <button type="button" class="quiet" id="btn-plan" hidden>Practice plan for this bar</button>
-        </div>
-      </aside>
+      </section>
     </main>
   </div>
+
+  <aside class="coach" id="coach" hidden>
+    <div class="coach-handle">
+      <button type="button" class="coach-close" id="coach-close" aria-label="Close">×</button>
+      <div id="help-body"></div>
+    </div>
+    <div class="help-actions">
+      <button type="button" class="primary" id="btn-hear">Hear this bar</button>
+      <button type="button" class="quiet" id="btn-letters">Letters panel</button>
+      <button type="button" class="quiet" id="btn-fingers">Fingers panel</button>
+      <button type="button" class="quiet" id="btn-plan">Practice notes</button>
+      <button type="button" class="quiet" id="btn-stop-bar" hidden>Stop</button>
+    </div>
+  </aside>
 
   <div class="toast" id="toast" hidden></div>
   <script src="/static/vendor/opensheetmusicdisplay.min.js"></script>
   <script src="/static/vendor/pdf.min.js"></script>
-  <script src="/static/app.js?v=fix3"></script>
+  <script src="/static/vendor/Tone.js"></script>
+  <script src="/static/piano.js?v=18"></script>
+  <script src="/static/annotate.js?v=18"></script>
+  <script src="/static/app.js?v=18"></script>
 </body>
 </html>

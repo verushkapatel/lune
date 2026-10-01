@@ -10,6 +10,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -38,7 +39,7 @@ from backend.context import build_score_digest
 from backend.discover import piece_overview, search_catalogue
 from backend.fingering import suggest_fingering
 from backend.limits import guard
-from backend.scoresource import resolve_score
+from backend.scoresource import list_available, resolve_score, search_library
 from backend.lune import (
     Attachment,
     LuneError,
@@ -592,11 +593,23 @@ def _piece_from_path(
     meta = meta or {}
     title = meta.get("title") or payload.get("title") or ""
     composer = meta.get("composer") or payload.get("composer") or ""
-    payload["overview"] = piece_overview(title, composer, payload)
+    epoch = meta.get("epoch") or meta.get("era") or ""
+    portrait = meta.get("portrait") or ""
+    payload["overview"] = piece_overview(
+        title, composer, payload, epoch=epoch, portrait=portrait
+    )
+    if epoch:
+        payload["epoch"] = epoch
+        payload["era"] = epoch
     # Keep a compact debrief map so the UI can open any clicked bar instantly.
     payload["debriefs"] = {
         str(m.number): measure_debrief(analysis, m.number) for m in analysis.measures
     }
+    payload["downloadName"] = re.sub(
+        r"[^A-Za-z0-9._-]+",
+        "_",
+        (title or payload.get("filename") or "score"),
+    ).strip("_")[:80] + ".musicxml"
     return payload
 
 
@@ -637,8 +650,71 @@ def _scan_payload(raw: bytes, media_type: str, filename: str) -> Dict[str, Any]:
 
 @app.get("/api/search")
 def search_pieces(q: str = "") -> Dict[str, Any]:
-    results = search_catalogue(q)
-    return {"results": results}
+    # Free scores first so openable pieces always win over catalogue-only hits.
+    free = search_library(q, limit=20)
+    remote = search_catalogue(q)
+    seen = {(r.get("title"), r.get("composer")) for r in free}
+    merged = list(free)
+    for row in remote:
+        key = (row.get("title"), row.get("composer"))
+        if key in seen:
+            continue
+        seen.add(key)
+        merged.append(row)
+    return {"results": merged[:24], "openableCount": len(free)}
+
+
+@app.get("/api/library")
+def free_library(q: str = "", full: int = 0) -> Dict[str, Any]:
+    """Free scores Lune can open without an upload.
+
+    Default (no q): curated piano collections only — keeps the home page fast.
+    With q= or full=1: full catalogue (chorales, music21 corpus, etc.).
+    """
+    items = list_available()
+    needle = (q or "").strip().lower()
+    curated_prefixes = (
+        "Featured",
+        "Open MusicXML",
+        "OpenScore",
+        "Liszt",
+        "Scriabin",
+        "Beethoven piano",
+        "Mozart piano",
+        "Haydn piano",
+        "Chopin",
+        "Joplin",
+        "Scarlatti",
+        "Hummel",
+        "Bach · Art",
+        "Beethoven string",
+    )
+    if needle:
+        items = [
+            item
+            for item in items
+            if needle in (item.get("title") or "").lower()
+            or needle in (item.get("composer") or "").lower()
+            or needle in (item.get("query") or "").lower()
+            or needle in (item.get("group") or "").lower()
+        ]
+    elif not full:
+        items = [
+            item
+            for item in items
+            if any((item.get("group") or "").startswith(p) for p in curated_prefixes)
+        ]
+    groups: Dict[str, List[Dict[str, str]]] = {}
+    for item in items:
+        groups.setdefault(item["group"], []).append(item)
+    # list_available is cached; call once for total when we already filtered.
+    total_all = len(list_available()) if (needle or not full) else len(items)
+    return {
+        "items": items,
+        "groups": groups,
+        "count": len(items),
+        "totalAvailable": total_all,
+    }
 
 
 @app.post("/api/search/open")
@@ -647,38 +723,59 @@ async def open_searched_piece(request: Request) -> Dict[str, Any]:
     body = await request.json()
     title = (body.get("title") or "").strip()
     composer = (body.get("composer") or "").strip()
-    if not title and not composer:
+    epoch = (body.get("epoch") or body.get("era") or "").strip()
+    query = (body.get("query") or body.get("q") or "").strip()
+    portrait = (body.get("portrait") or "").strip()
+    if not title and not composer and not query:
         raise HTTPException(400, "Nothing to open.")
 
-    resolved = resolve_score(title, composer)
+    resolved = resolve_score(title, composer, query=query)
+    if not resolved and query:
+        resolved = resolve_score(query, "", query=query)
     if not resolved:
-        # Still return overview so the musician isn't stuck with a blank screen,
-        # but make it clear the score itself wasn't available to auto-open.
         return {
             "kind": "catalogue",
             "opened": False,
-            "title": title,
+            "title": title or query,
             "composer": composer,
-            "overview": piece_overview(title, composer),
+            "overview": piece_overview(
+                title or query, composer, epoch=epoch, portrait=portrait
+            ),
             "message": (
-                "No free public-domain MusicXML was available to open automatically "
-                "for this work. Open a MusicXML/PDF/photo of the piece to dissect it."
+                "No free MusicXML for this exact title yet. Filter the home library "
+                "(700+ openable scores: Beethoven & Mozart sonatas, Chopin, Joplin, "
+                "Bach chorales, Scarlatti, Haydn, Hummel, music21 corpus…), "
+                "or open your own MusicXML / PDF / photo."
             ),
         }
 
     piece = _piece_from_path(
         Path(resolved["path"]),
         filename=Path(resolved["path"]).name,
-        meta={"title": title or resolved["title"], "composer": composer or resolved["composer"]},
+        meta={
+            "title": title or resolved["title"],
+            "composer": composer or resolved["composer"],
+            "epoch": epoch,
+            "portrait": portrait,
+        },
     )
     piece["opened"] = True
     piece["source"] = resolved["source"]
+    piece["downloadName"] = _download_name(piece)
+    if resolved.get("fallbackNote"):
+        piece["fallbackNote"] = resolved["fallbackNote"]
     return piece
 
 
+def _download_name(piece: Dict[str, Any]) -> str:
+    base = piece.get("title") or piece.get("filename") or "score"
+    safe = re.sub(r"[^A-Za-z0-9._-]+", "_", base).strip("_") or "score"
+    return f"{safe[:80]}.musicxml"
+
+
 @app.get("/api/overview")
-def overview(title: str = "", composer: str = "") -> Dict[str, Any]:
-    return piece_overview(title, composer)
+def overview(title: str = "", composer: str = "", epoch: str = "") -> Dict[str, Any]:
+    return piece_overview(title, composer, epoch=epoch)
 
 
 @app.post("/api/piece")
