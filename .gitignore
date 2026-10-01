@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+.env
+
+# Packaged app output
+build/
+dist/
+*.spec.bak
+Lune-mac.zip

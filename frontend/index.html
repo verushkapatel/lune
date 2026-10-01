@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lune</title>
+  <link rel="stylesheet" href="/static/styles.css?v=fix3">
+</head>
+<body>
+  <div id="app">
+    <header class="bar">
+      <div class="brand"><span class="mark"></span>Lune</div>
+      <form class="top-search" id="top-search">
+        <input id="q" type="search" placeholder="Search any piece or composer…" autocomplete="off">
+        <button type="submit">Search</button>
+      </form>
+      <button type="button" class="quiet" id="btn-open">Open file</button>
+      <input type="file" id="file" accept=".musicxml,.xml,.mxl,.pdf,image/*" hidden>
+    </header>
+
+    <div class="results" id="results" hidden></div>
+
+    <main class="home" id="home">
+      <h1>Find a piece. Click a bar. Get help there.</h1>
+      <p class="lead">Search the catalogue, or open MusicXML / PDF / a photo.</p>
+      <button type="button" class="primary" id="btn-sample">Try Twinkle (demo)</button>
+    </main>
+
+    <main class="studio" id="studio" hidden>
+      <section class="score-pane">
+        <div class="piece-head">
+          <h2 id="piece-name"></h2>
+          <p id="piece-meta"></p>
+        </div>
+
+        <div class="bars" id="bars" aria-label="Bars"></div>
+
+        <div class="score-scroll">
+          <div id="osmd" class="score"></div>
+          <div id="scan" class="score scan" hidden></div>
+        </div>
+      </section>
+
+      <aside class="help" id="help">
+        <div class="help-empty" id="help-empty">
+          <p>Click a bar above the score.</p>
+          <p class="dim">That bar gets its own fingering, letters, voices, and how to play it.</p>
+        </div>
+        <div id="help-body" hidden></div>
+        <div class="help-actions">
+          <button type="button" class="quiet" id="btn-about">About this piece</button>
+          <button type="button" class="quiet" id="btn-plan" hidden>Practice plan for this bar</button>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+  <script src="/static/vendor/opensheetmusicdisplay.min.js"></script>
+  <script src="/static/vendor/pdf.min.js"></script>
+  <script src="/static/app.js?v=fix3"></script>
+</body>
+</html>

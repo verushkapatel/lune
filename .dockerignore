@@ -1,0 +1,18 @@
+.venv/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+.DS_Store
+
+# Never let a local key reach the image.
+.env
+
+build/
+dist/
+*.spec
+check_lune.py
+README.md
+run.sh
+build_app.sh
+desktop.py
