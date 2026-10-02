@@ -1,7 +1,19 @@
 /* Lune — multi-piece studio: Score · Explain · Piano */
 
 const $ = (id) => document.getElementById(id);
-pdfjsLib.GlobalWorkerOptions.workerSrc = "/static/vendor/pdf.worker.min.js";
+
+// Project Pages live at /lune/. Absolute /static and /api URLs would miss that prefix.
+const LUNE_ON_PAGES = location.hostname.endsWith(".github.io");
+const LUNE_ROOT = LUNE_ON_PAGES
+  ? location.pathname.replace(/\/static(?:\/.*)?$/, "").replace(/\/index\.html$/, "").replace(/\/$/, "")
+  : "";
+function luneUrl(path) {
+  if (!path || /^https?:/i.test(path)) return path;
+  if (!path.startsWith("/")) path = `/${path}`;
+  return `${LUNE_ROOT}${path}`;
+}
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = luneUrl("/static/vendor/pdf.worker.min.js");
 
 const COMPOSER_FACE_FILES = {
   chopin: "chopin.jpg",
@@ -22,7 +34,7 @@ const COMPOSER_FACE_FILES = {
   "rimsky-korsakov": "rimsky.jpg",
 };
 const COMPOSER_FACE_V = "fix67";
-const COMPOSER_SILHOUETTE = `/static/assets/composers/silhouette.svg?v=${COMPOSER_FACE_V}`;
+const COMPOSER_SILHOUETTE = luneUrl(`/static/assets/composers/silhouette.svg?v=${COMPOSER_FACE_V}`);
 
 const state = {
   piece: null,
@@ -160,7 +172,7 @@ function closeSearchResults({ blur = false } = {}) {
 const SEARCH_LIMIT = 8;
 // Paint on the next frame only — coalesces burst keystrokes, ~0–16ms feel (no 100ms lag).
 const SEARCH_DEBOUNCE_MS = 0;
-const SEARCH_INDEX_URL = "/static/search-index.json?v=fix67";
+const SEARCH_INDEX_URL = luneUrl("/static/search-index.json?v=fix67");
 /** Composers whose piano works are typically still under copyright — honest empty state. */
 const COPYRIGHT_ERA_COMPOSERS = [
   "ginastera", "prokofiev", "shostakovich", "khachaturian", "kabalevsky",
@@ -536,9 +548,104 @@ async function search(query, { openBest = false } = {}) {
   await fetchAndDiscover(list.length ? list : [{ title: q, composer: "", query: q }]);
 }
 
+let staticOpensPromise = null;
+const staticXmlCache = new Map();
+
+function loadStaticOpens() {
+  if (!staticOpensPromise) {
+    staticOpensPromise = fetch(luneUrl("/static/opens.json"))
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => (Array.isArray(data) ? data : []))
+      .catch(() => []);
+  }
+  return staticOpensPromise;
+}
+
+function scoreStaticOpen(body, row) {
+  const query = normSearch(body.query || "");
+  const title = normSearch(body.title || "");
+  const rowQuery = normSearch(row.query || "");
+  const rowTitle = normSearch(row.title || "");
+  const hay = row.hay || "";
+  let score = 0;
+  if (query && rowQuery && (query === rowQuery || rowQuery.includes(query) || query.includes(rowQuery))) {
+    score += 28;
+  }
+  if (title && rowTitle && (title === rowTitle || rowTitle.includes(title) || title.includes(rowTitle))) {
+    score += 22;
+  }
+  if (query && hay.includes(query)) score += 10;
+  if (title && hay.includes(title)) score += 8;
+  return score;
+}
+
+async function loadStaticXml(file) {
+  if (staticXmlCache.has(file)) return staticXmlCache.get(file);
+  const res = await fetch(luneUrl(`/static/${file}`));
+  if (!res.ok) throw new Error("score");
+  const text = await res.text();
+  staticXmlCache.set(file, text);
+  return text;
+}
+
+async function tryOpenStatic(body) {
+  const rows = await loadStaticOpens();
+  let best = null;
+  let bestScore = 0;
+  for (const row of rows) {
+    const score = scoreStaticOpen(body, row);
+    if (score > bestScore) {
+      best = row;
+      bestScore = score;
+    }
+  }
+  if (!best || bestScore < 18) {
+    return {
+      kind: "catalogue",
+      opened: false,
+      title: body.title || body.query || "",
+      composer: body.composer || "",
+      message:
+        "No free MusicXML for this exact title yet. Search for a known free piece, or open your own MusicXML.",
+    };
+  }
+  const musicxml = await loadStaticXml(best.file);
+  if (body.analyze && best.analysis) {
+    const res = await fetch(luneUrl(`/static/${best.analysis}`));
+    if (res.ok) {
+      const full = await res.json();
+      full.musicxml = musicxml;
+      full.opened = true;
+      full.kind = "score";
+      full.needsAnalysis = false;
+      full.openQuery = body.query || "";
+      if (best.fallbackNote) full.fallbackNote = best.fallbackNote;
+      return full;
+    }
+  }
+  return {
+    kind: "score",
+    opened: true,
+    needsAnalysis: true,
+    title: best.title,
+    composer: best.composer,
+    filename: (best.file || "").split("/").pop(),
+    musicxml,
+    overview: best.overview || {},
+    epoch: best.epoch || "",
+    era: best.epoch || "",
+    debriefs: {},
+    source: best.source || "library",
+    downloadName: best.downloadName || "score.musicxml",
+    openQuery: body.query || "",
+    fallbackNote: best.fallbackNote || "",
+  };
+}
+
 async function tryOpen(body) {
   try {
-    const res = await fetch("/api/search/open", {
+    if (LUNE_ON_PAGES) return await tryOpenStatic(body);
+    const res = await fetch(luneUrl("/api/search/open"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -625,7 +732,7 @@ function localComposerFaceUrl(composer) {
   const key = composerFaceKey(composer);
   if (!key) return "";
   const file = COMPOSER_FACE_FILES[key];
-  return file ? `/static/assets/composers/${file}?v=${COMPOSER_FACE_V}` : "";
+  return file ? luneUrl(`/static/assets/composers/${file}?v=${COMPOSER_FACE_V}`) : "";
 }
 
 function applyComposerFace(img, fallbackEl, composer, remoteUrl) {
@@ -2640,7 +2747,7 @@ async function askPlan() {
     toast("Pick a bar first");
     return;
   }
-  const res = await fetch("/api/piece/practice", {
+  const res = await fetch(luneUrl("/api/piece/practice"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ musicxml: state.piece.musicxml, bars }),
@@ -2676,7 +2783,7 @@ async function openFile(file) {
   await withLoader(`Opening ${file.name}`, async () => {
     const form = new FormData();
     form.append("file", file, file.name);
-    const res = await fetch("/api/piece", { method: "POST", body: form });
+    const res = await fetch(luneUrl("/api/piece"), { method: "POST", body: form });
     if (!res.ok) throw new Error("Could not open file");
     await landOnDiscover(await res.json());
   });
