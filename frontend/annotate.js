@@ -1629,7 +1629,7 @@ window.LuneAnnotate = (function () {
     if (letters.length < 2) return 0;
     letters.sort((a, b) => a.left - b.left || a.y - b.y);
     let hidden = 0;
-    for (let pass = 0; pass < 8; pass++) {
+    for (let pass = 0; pass < 10; pass++) {
       let moved = false;
       for (let i = 0; i < letters.length; i++) {
         const a = letters[i];
@@ -1645,33 +1645,45 @@ window.LuneAnnotate = (function () {
           else if (!a.essential) victim = a;
           else if (!b.essential) victim = b;
           if (!victim) {
-            // Both essential (chord): expand vertical gap + shrink font before giving up.
+            // Both essential (chord): fan in x first; only nudge y within the
+            // chord's natural band — never grow a tower through the staff.
+            const sameChord =
+              a.el.getAttribute("data-lune-chord-id") &&
+              a.el.getAttribute("data-lune-chord-id") ===
+                b.el.getAttribute("data-lune-chord-id");
+            if (!sameChord) {
+              // Unrelated chords sharing space: hide neither; fan the lower one in x
+              const mover = b.y >= a.y ? b : a;
+              const side = mover.el.getAttribute("data-lune-side") || "left";
+              const nx =
+                Number(mover.el.getAttribute("x") || mover.x) +
+                (side === "left" ? -1 : 1) * Math.max(3.5, FONT_LETTER * 0.4) * (pass + 1);
+              mover.el.setAttribute("x", String(nx));
+              mover.x = nx;
+              if (mover.el.getAttribute("text-anchor") === "end") {
+                mover.left = nx - mover.w;
+                mover.right = nx;
+              } else {
+                mover.left = nx;
+                mover.right = nx + mover.w;
+              }
+              moved = true;
+              continue;
+            }
             const lower = b.y >= a.y ? b : a;
             const upper = lower === b ? a : b;
-            if (pass < 5) {
-              const need = Math.max(3.5, FONT_LETTER * 0.55);
+            if (pass < 4) {
+              const need = Math.max(2.5, FONT_LETTER * 0.4);
               const ny = Number(lower.el.getAttribute("y") || lower.y) + need;
               lower.el.setAttribute("y", String(ny));
               lower.y = ny;
               lower.top = ny - lower.h / 2;
               lower.bottom = ny + lower.h / 2;
-              const fs = Math.max(7.5, Number(lower.el.getAttribute("font-size") || FONT_LETTER) - 0.5);
+              const fs = Math.max(7.8, Number(lower.el.getAttribute("font-size") || FONT_LETTER) - 0.45);
               lower.el.setAttribute("font-size", String(fs));
               lower.h = fs * 0.92;
               lower.top = lower.y - lower.h / 2;
               lower.bottom = lower.y + lower.h / 2;
-              // Fan chords slightly in x to break vertical mash.
-              const side = lower.el.getAttribute("data-lune-side") || "left";
-              const nx = Number(lower.el.getAttribute("x") || lower.x) + (side === "left" ? -1.2 : 1.2) * (pass + 1);
-              lower.el.setAttribute("x", String(nx));
-              lower.x = nx;
-              if (lower.anchor === "end" || lower.el.getAttribute("text-anchor") === "end") {
-                lower.left = nx - lower.w;
-                lower.right = nx;
-              } else {
-                lower.left = nx;
-                lower.right = nx + lower.w;
-              }
               moved = true;
             }
             continue;
