@@ -138,6 +138,8 @@ function showView(name) {
   document.body.classList.toggle("is-home", name === "home");
   document.body.classList.toggle("is-discover", name === "discover");
   document.body.classList.toggle("is-studio", name === "studio");
+  document.body.classList.remove("phone-search-open");
+  $("btn-search")?.setAttribute("aria-expanded", "false");
   if (name !== "studio") {
     closeCoach();
     document.body.classList.remove("studio-search-open");
@@ -2838,11 +2840,21 @@ function bind() {
   });
   // Prefetch the free-score index so the first keystroke is already local.
   ensureSearchIndex();
+  on("btn-search", "click", () => {
+    const next = !document.body.classList.contains("phone-search-open");
+    document.body.classList.toggle("phone-search-open", next);
+    $("btn-search")?.setAttribute("aria-expanded", next ? "true" : "false");
+    if (next) $("q")?.focus();
+  });
   document.addEventListener("click", (e) => {
     if (!e.target.closest(".top-search") && !e.target.closest(".results")) {
       closeSearchResults();
       if (!e.target.closest(".piece-tab-add")) {
         document.body.classList.remove("studio-search-open");
+      }
+      if (!e.target.closest("#btn-search")) {
+        document.body.classList.remove("phone-search-open");
+        $("btn-search")?.setAttribute("aria-expanded", "false");
       }
     }
   });

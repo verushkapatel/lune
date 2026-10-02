@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="static/styles.css?v=fix70">
+  <link rel="stylesheet" href="static/styles.css?v=fix71">
   <link rel="preload" href="static/search-index.json?v=fix70" as="fetch" crossorigin>
 </head>
 <body>
@@ -40,11 +40,24 @@
         <button type="button" class="studio-tab" id="tab-explain" data-panel="explain" role="tab" aria-selected="false">Explain</button>
         <button type="button" class="studio-tab" id="tab-piano" data-panel="piano" role="tab" aria-selected="false">Piano</button>
       </nav>
+      <button type="button" class="btn-search" id="btn-search" aria-label="Search" aria-expanded="false">
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+          <circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/>
+          <path d="M16 16.5L20 20.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+      </button>
       <form class="top-search" id="top-search">
         <input id="q" type="search" placeholder="Search a piece or composer…" autocomplete="off">
         <button type="submit" class="search-go" aria-label="Search">Search</button>
       </form>
-      <button type="button" class="quiet upload-btn" id="btn-open" title="Upload MusicXML, PDF, or photo">Upload</button>
+      <button type="button" class="quiet upload-btn" id="btn-open" title="Upload MusicXML, PDF, or photo" aria-label="Upload">
+        <svg class="upload-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+          <path d="M12 15.5V5.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M8 9.5L12 5.5l4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M5 16.5v2a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="upload-label">Upload</span>
+      </button>
       <input type="file" id="file" accept=".musicxml,.xml,.mxl,.pdf,image/*" hidden>
     </header>
 
@@ -535,6 +548,6 @@
   <script src="static/vendor/Tone.js"></script>
   <script src="static/piano.js?v=fix70"></script>
   <script src="static/annotate.js?v=fix70"></script>
-  <script src="static/app.js?v=fix70"></script>
+  <script src="static/app.js?v=fix71"></script>
 </body>
 </html>
