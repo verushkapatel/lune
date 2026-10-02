@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Lune</title>
+  <meta name="description" content="Lune — a night-studio companion for pianists. Find a public-domain score, hear it, then read the bars that feel hard.">
+  <meta name="theme-color" content="#0a0a0a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Lune">
+  <link rel="icon" href="static/assets/favicon.svg?v=fix70" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=fix70">
+  <link rel="manifest" href="static/manifest.json?v=fix70">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="static/styles.css?v=fix70">
+  <link rel="preload" href="static/search-index.json?v=fix70" as="fetch" crossorigin>
+</head>
+<body>
+  <div id="app">
+    <header class="bar">
+      <button type="button" class="brand" id="btn-home" title="Home">
+        <svg class="lune-mark" viewBox="0 0 40 40" width="22" height="22" aria-hidden="true" focusable="false">
+          <g stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.5">
+            <line x1="5" y1="24" x2="35" y2="24"/>
+            <line x1="5" y1="28" x2="35" y2="28"/>
+            <line x1="5" y1="32" x2="35" y2="32"/>
+          </g>
+          <path fill="currentColor" d="M26.2 7.2c-5.9.9-10.4 6-10.4 12.1 0 6.1 4.5 11.2 10.4 12.1A12.2 12.2 0 0 1 14 19.3c0-6.6 5.2-12 11.8-12.2.1 0 .3 0 .4 0z"/>
+        </svg>
+        <span class="brand-name">Lune</span>
+      </button>
+      <p class="studio-piece-quiet" id="studio-piece-quiet" hidden></p>
+      <div class="piece-tabs" id="piece-tabs" hidden role="tablist" aria-label="Open pieces"></div>
+      <nav class="studio-seg" id="studio-seg" hidden role="tablist" aria-label="Piece views">
+        <button type="button" class="studio-tab on" id="tab-score" data-panel="score" role="tab" aria-selected="true">Score</button>
+        <button type="button" class="studio-tab" id="tab-explain" data-panel="explain" role="tab" aria-selected="false">Explain</button>
+        <button type="button" class="studio-tab" id="tab-piano" data-panel="piano" role="tab" aria-selected="false">Piano</button>
+      </nav>
+      <form class="top-search" id="top-search">
+        <input id="q" type="search" placeholder="Search a piece or composer…" autocomplete="off">
+        <button type="submit" class="search-go" aria-label="Search">Search</button>
+      </form>
+      <button type="button" class="quiet upload-btn" id="btn-open" title="Upload MusicXML, PDF, or photo">Upload</button>
+      <input type="file" id="file" accept=".musicxml,.xml,.mxl,.pdf,image/*" hidden>
+    </header>
+
+    <div class="results" id="results" hidden></div>
+
+    <main class="home" id="home">
+      <section class="home-hero">
+        <div class="home-hero-motif" aria-hidden="true">
+          <svg class="home-motif-mark" viewBox="0 0 40 40" focusable="false">
+            <g stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.35">
+              <line x1="5" y1="24" x2="35" y2="24"/>
+              <line x1="5" y1="28" x2="35" y2="28"/>
+              <line x1="5" y1="32" x2="35" y2="32"/>
+            </g>
+            <path fill="currentColor" d="M26.2 7.2c-5.9.9-10.4 6-10.4 12.1 0 6.1 4.5 11.2 10.4 12.1A12.2 12.2 0 0 1 14 19.3c0-6.6 5.2-12 11.8-12.2.1 0 .3 0 .4 0z"/>
+          </svg>
+        </div>
+        <div class="home-hero-inner">
+          <div class="home-lockup" aria-label="Lune">
+            <svg class="lune-mark home-mark" viewBox="0 0 40 40" width="72" height="72" aria-hidden="true" focusable="false">
+              <g stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.45">
+                <line x1="5" y1="24" x2="35" y2="24"/>
+                <line x1="5" y1="28" x2="35" y2="28"/>
+                <line x1="5" y1="32" x2="35" y2="32"/>
+              </g>
+              <path fill="currentColor" d="M26.2 7.2c-5.9.9-10.4 6-10.4 12.1 0 6.1 4.5 11.2 10.4 12.1A12.2 12.2 0 0 1 14 19.3c0-6.6 5.2-12 11.8-12.2.1 0 .3 0 .4 0z"/>
+            </svg>
+            <p class="home-brand">Lune</p>
+          </div>
+          <h1>Quiet practice. Clear notes.</h1>
+          <p class="lead">
+            A night-studio companion for pianists — find a public-domain score,
+            hear it, then read the bars that feel hard.
+          </p>
+          <p class="home-cue">Search above · Chopin Mazurka · Für Elise · Raindrop</p>
+          <div class="home-cta-row">
+            <button type="button" class="home-upload-cta" id="btn-home-upload">Upload your score</button>
+            <span class="home-cta-note">MusicXML, PDF, or photo you legally own</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="home-chapter" id="meet">
+        <div class="home-chapter-copy">
+          <p class="about-kicker">Meet the piece</p>
+          <h2>Find a score. Settle in.</h2>
+          <p>
+            Search the public-domain catalogue — Beethoven, Chopin, Liszt, Debussy —
+            or upload your own MusicXML, PDF, or photo. Lune opens an overview first:
+            the era, the story, then the studio when you are ready.
+          </p>
+        </div>
+        <figure class="home-chapter-visual home-meet-visual" aria-hidden="true">
+          <div class="home-meet-frame">
+            <img
+              class="home-meet-face"
+              src="static/assets/composers/chopin.jpg?v=fix70"
+              alt=""
+              width="96"
+              height="128"
+              decoding="async"
+              onerror="this.onerror=null;this.src='static/assets/composers/silhouette.svg?v=fix70'"
+            >
+            <div class="home-meet-copy">
+              <p class="home-meet-kicker">1832 · Mazurka</p>
+              <p class="home-meet-title">Mazurka</p>
+              <p class="home-meet-by">Frédéric Chopin</p>
+              <p class="home-meet-note">Op. 6 no. 2 — a Polish dance. Then the studio when ready.</p>
+            </div>
+          </div>
+        </figure>
+      </section>
+
+      <section class="home-chapter home-chapter-flip" id="listen">
+        <div class="home-chapter-copy">
+          <p class="about-kicker">Listen</p>
+          <h2>Hear the bars before you learn them.</h2>
+          <p>
+            Real piano sound from the score. Play the whole piece, scrub the timeline
+            to jump anywhere, and the playhead stays with you.
+          </p>
+        </div>
+        <figure class="home-chapter-visual" aria-hidden="true">
+          <svg class="home-viz home-viz-listen" viewBox="0 0 360 220" focusable="false">
+            <rect x="0.5" y="0.5" width="359" height="219" rx="2" fill="#0c0c0c" stroke="#2a2a2a"/>
+            <g stroke="#3a3a3a" stroke-width="1" fill="none">
+              <line x1="28" y1="36" x2="332" y2="36"/>
+              <line x1="28" y1="48" x2="332" y2="48"/>
+              <line x1="28" y1="60" x2="332" y2="60"/>
+              <line x1="28" y1="72" x2="332" y2="72"/>
+              <line x1="28" y1="84" x2="332" y2="84"/>
+              <line x1="28" y1="108" x2="332" y2="108"/>
+              <line x1="28" y1="120" x2="332" y2="120"/>
+              <line x1="28" y1="132" x2="332" y2="132"/>
+              <line x1="28" y1="144" x2="332" y2="144"/>
+              <line x1="28" y1="156" x2="332" y2="156"/>
+            </g>
+            <g fill="#f0f0f0">
+              <ellipse cx="78" cy="66" rx="5.5" ry="4"/>
+              <rect x="82.5" y="42" width="1.5" height="24"/>
+              <ellipse cx="118" cy="54" rx="5.5" ry="4"/>
+              <rect x="122.5" y="30" width="1.5" height="24"/>
+              <ellipse cx="158" cy="60" rx="5.5" ry="4"/>
+              <rect x="162.5" y="36" width="1.5" height="24"/>
+              <ellipse cx="78" cy="138" rx="5.5" ry="4"/>
+              <ellipse cx="78" cy="126" rx="5.5" ry="4"/>
+              <ellipse cx="78" cy="114" rx="5.5" ry="4"/>
+              <rect x="82.5" y="96" width="1.5" height="42"/>
+            </g>
+            <line class="home-viz-playhead" x1="158" y1="24" x2="158" y2="168" stroke="#f5f5f5" stroke-width="1.5"/>
+            <rect x="24" y="178" width="312" height="28" rx="2" fill="#121212" stroke="#2a2a2a"/>
+            <circle cx="48" cy="192" r="8" fill="#f5f5f5"/>
+            <polygon points="46,187 46,197 53,192" fill="#0a0a0a"/>
+            <line x1="72" y1="192" x2="308" y2="192" stroke="#2e2e2e" stroke-width="2"/>
+            <line class="home-viz-scrub" x1="72" y1="192" x2="158" y2="192" stroke="#f5f5f5" stroke-width="2"/>
+            <circle class="home-viz-scrub-knob" cx="158" cy="192" r="4" fill="#f5f5f5"/>
+            <text x="248" y="174" fill="#757575" font-size="9" font-family="Fraunces, Georgia, serif">Bar 3 · 0:12</text>
+          </svg>
+        </figure>
+      </section>
+
+      <section class="home-chapter" id="read">
+        <div class="home-chapter-copy">
+          <p class="about-kicker">Letters or fingers</p>
+          <h2>One clear layer. Never both.</h2>
+          <p>
+            Toggle letter names or finger numbers — exclusive, so the staff stays
+            readable. Chords stack every tone in pitch order. Dense pages thin singles
+            carefully; triad tones are never dropped.
+          </p>
+        </div>
+        <figure class="home-chapter-visual" aria-hidden="true">
+          <svg class="home-viz home-viz-read" viewBox="0 0 360 220" focusable="false">
+            <rect x="0.5" y="0.5" width="359" height="219" rx="2" fill="#0c0c0c" stroke="#2a2a2a"/>
+            <g>
+              <rect x="24" y="22" width="64" height="22" rx="11" fill="#f5f5f5"/>
+              <text x="40" y="37" fill="#0a0a0a" font-size="11" font-family="Fraunces, Georgia, serif">Letters</text>
+              <rect x="96" y="22" width="64" height="22" rx="11" fill="none" stroke="#3a3a3a"/>
+              <text x="110" y="37" fill="#757575" font-size="11" font-family="Fraunces, Georgia, serif">Fingers</text>
+            </g>
+            <g stroke="#3a3a3a" stroke-width="1" fill="none">
+              <line x1="28" y1="72" x2="332" y2="72"/>
+              <line x1="28" y1="84" x2="332" y2="84"/>
+              <line x1="28" y1="96" x2="332" y2="96"/>
+              <line x1="28" y1="108" x2="332" y2="108"/>
+              <line x1="28" y1="120" x2="332" y2="120"/>
+              <line x1="28" y1="148" x2="332" y2="148"/>
+              <line x1="28" y1="160" x2="332" y2="160"/>
+              <line x1="28" y1="172" x2="332" y2="172"/>
+              <line x1="28" y1="184" x2="332" y2="184"/>
+              <line x1="28" y1="196" x2="332" y2="196"/>
+            </g>
+            <g fill="#f0f0f0">
+              <ellipse cx="90" cy="102" rx="5.5" ry="4"/>
+              <rect x="94.5" y="78" width="1.5" height="24"/>
+              <ellipse cx="150" cy="90" rx="5.5" ry="4"/>
+              <rect x="154.5" y="66" width="1.5" height="24"/>
+              <ellipse cx="210" cy="96" rx="5.5" ry="4"/>
+              <rect x="214.5" y="72" width="1.5" height="24"/>
+              <ellipse cx="90" cy="184" rx="5.5" ry="4"/>
+              <ellipse cx="90" cy="172" rx="5.5" ry="4"/>
+              <ellipse cx="90" cy="160" rx="5.5" ry="4"/>
+            </g>
+            <g fill="#f5f5f5" font-size="11" font-family="Fraunces, Georgia, serif" text-anchor="middle">
+              <text x="90" y="136">G♯</text>
+              <text x="150" y="124">C♯</text>
+              <text x="210" y="130">E</text>
+              <text x="112" y="164">C♯</text>
+              <text x="112" y="176">G♯</text>
+              <text x="112" y="188">E</text>
+            </g>
+          </svg>
+        </figure>
+      </section>
+
+      <section class="home-chapter home-chapter-flip" id="keys">
+        <div class="home-chapter-copy">
+          <p class="about-kicker">Digital piano</p>
+          <h2>Watch the keys press with you.</h2>
+          <p>
+            An on-screen keyboard mirrors playback — chords light together, finger
+            digits appear on pressed keys, and speed runs from slow-mo to brisk so
+            hard bars can be learned under the hands.
+          </p>
+        </div>
+        <figure class="home-chapter-visual" aria-hidden="true">
+          <svg class="home-viz home-viz-keys" viewBox="0 0 360 220" focusable="false">
+            <rect x="0.5" y="0.5" width="359" height="219" rx="2" fill="#0c0c0c" stroke="#2a2a2a"/>
+            <text x="24" y="36" fill="#757575" font-size="10" letter-spacing="2" font-family="Fraunces, Georgia, serif">KEYBOARD · 0.75×</text>
+            <g class="home-viz-kbd">
+              <rect x="24" y="56" width="28" height="120" fill="#f5f5f5" stroke="#0a0a0a"/>
+              <rect x="52" y="56" width="28" height="120" fill="#f5f5f5" stroke="#0a0a0a"/>
+              <rect class="home-viz-key-lit" x="80" y="56" width="28" height="120" fill="#d8d8d8" stroke="#0a0a0a"/>
+              <rect x="108" y="56" width="28" height="120" fill="#f5f5f5" stroke="#0a0a0a"/>
+              <rect x="136" y="56" width="28" height="120" fill="#f5f5f5" stroke="#0a0a0a"/>
+              <rect class="home-viz-key-lit" x="164" y="56" width="28" height="120" fill="#d0d0d0" stroke="#0a0a0a"/>
+              <rect x="192" y="56" width="28" height="120" fill="#f5f5f5" stroke="#0a0a0a"/>
+              <rect x="220" y="56" width="28" height="120" fill="#f5f5f5" stroke="#0a0a0a"/>
+              <rect x="248" y="56" width="28" height="120" fill="#f5f5f5" stroke="#0a0a0a"/>
+              <rect x="276" y="56" width="28" height="120" fill="#f5f5f5" stroke="#0a0a0a"/>
+              <rect x="304" y="56" width="28" height="120" fill="#f5f5f5" stroke="#0a0a0a"/>
+              <rect x="42" y="56" width="18" height="72" fill="#111"/>
+              <rect x="70" y="56" width="18" height="72" fill="#111"/>
+              <rect x="126" y="56" width="18" height="72" fill="#111"/>
+              <rect x="154" y="56" width="18" height="72" fill="#111"/>
+              <rect x="182" y="56" width="18" height="72" fill="#111"/>
+              <rect x="238" y="56" width="18" height="72" fill="#111"/>
+              <rect x="266" y="56" width="18" height="72" fill="#111"/>
+              <text class="home-viz-finger" x="94" y="158" text-anchor="middle" fill="#0a0a0a" font-size="14" font-family="Fraunces, Georgia, serif">2</text>
+              <text class="home-viz-finger" x="178" y="158" text-anchor="middle" fill="#0a0a0a" font-size="14" font-family="Fraunces, Georgia, serif">5</text>
+            </g>
+            <text x="24" y="202" fill="#757575" font-size="11" font-family="Fraunces, Georgia, serif">Pressed keys carry the finger digit.</text>
+          </svg>
+        </figure>
+      </section>
+
+      <section class="home-chapter" id="ask">
+        <div class="home-chapter-copy">
+          <p class="about-kicker">Ask about a bar</p>
+          <h2>Click the measure that will not sit.</h2>
+          <p>
+            Click a bar on the score and get letter names, fingerings, and
+            short practice notes for that measure — right beside the page.
+          </p>
+        </div>
+        <figure class="home-chapter-visual" aria-hidden="true">
+          <svg class="home-viz home-viz-ask" viewBox="0 0 360 220" focusable="false">
+            <rect x="0.5" y="0.5" width="359" height="219" rx="2" fill="#0c0c0c" stroke="#2a2a2a"/>
+            <g stroke="#3a3a3a" stroke-width="1" fill="none">
+              <line x1="20" y1="40" x2="200" y2="40"/>
+              <line x1="20" y1="52" x2="200" y2="52"/>
+              <line x1="20" y1="64" x2="200" y2="64"/>
+              <line x1="20" y1="76" x2="200" y2="76"/>
+              <line x1="20" y1="88" x2="200" y2="88"/>
+            </g>
+            <rect class="home-viz-bar-hilite" x="88" y="28" width="56" height="72" fill="#f5f5f5" opacity="0.08"/>
+            <rect x="88" y="28" width="56" height="72" fill="none" stroke="#f5f5f5" stroke-width="1" opacity="0.55"/>
+            <text x="108" y="24" fill="#a8a8a8" font-size="9" font-family="Fraunces, Georgia, serif">Bar 7</text>
+            <g fill="#f0f0f0">
+              <ellipse cx="108" cy="70" rx="4.5" ry="3.5"/>
+              <ellipse cx="128" cy="58" rx="4.5" ry="3.5"/>
+            </g>
+            <rect x="216" y="24" width="124" height="172" rx="2" fill="#121212" stroke="#2a2a2a"/>
+            <text x="232" y="48" fill="#f5f5f5" font-size="12" font-family="Fraunces, Georgia, serif">Ask · Bar 7</text>
+            <line x1="232" y1="58" x2="300" y2="58" stroke="#3a3a3a"/>
+            <text x="232" y="84" fill="#a8a8a8" font-size="10" font-family="Fraunces, Georgia, serif">RH · G♯ C♯ E</text>
+            <text x="232" y="104" fill="#a8a8a8" font-size="10" font-family="Fraunces, Georgia, serif">Fingers · 2 1 3</text>
+            <text x="232" y="136" fill="#757575" font-size="10" font-family="Fraunces, Georgia, serif">Keep the triad</text>
+            <text x="232" y="152" fill="#757575" font-size="10" font-family="Fraunces, Georgia, serif">quiet under the</text>
+            <text x="232" y="168" fill="#757575" font-size="10" font-family="Fraunces, Georgia, serif">melody tone.</text>
+            <rect x="232" y="180" width="92" height="20" rx="1" fill="#f5f5f5"/>
+            <text x="244" y="194" fill="#0a0a0a" font-size="10" font-family="Fraunces, Georgia, serif">Play this bar</text>
+          </svg>
+        </figure>
+      </section>
+
+      <section class="about-maker" id="about">
+        <div class="about-maker-inner">
+          <div class="about-maker-copy">
+            <p class="about-kicker">Why Lune exists</p>
+            <h2>Built for the hours alone at the piano.</h2>
+            <div class="about-columns">
+              <p>
+                I’m <strong>Verushka Patel</strong> — fifteen, an ABRSM Grade&nbsp;7 pianist.
+                Playing by ear never came easily, so sight reading felt like the hardest
+                part of every new piece. On harder music, figuring out which finger
+                belonged where was frustrating enough that practice stalled.
+              </p>
+              <p>
+                I made <strong>Lune</strong> so that loop could feel calmer: meet the score,
+                hear it, see letter names or finger numbers clearly, and ask about the bars
+                that won’t sit under the hands yet.
+              </p>
+              <p>
+                Search any public-domain title above, or upload your own MusicXML, PDF, or
+                photo. Black and white on purpose — the music is the point.
+              </p>
+            </div>
+          </div>
+          <figure class="home-chapter-visual about-maker-visual" aria-hidden="true">
+            <svg class="home-viz home-viz-about" viewBox="0 0 360 220" focusable="false">
+              <rect x="0.5" y="0.5" width="359" height="219" rx="2" fill="#0c0c0c" stroke="#2a2a2a"/>
+              <g stroke="#ffffff" stroke-width="1" opacity="0.18" fill="none">
+                <line x1="40" y1="148" x2="320" y2="148"/>
+                <line x1="40" y1="160" x2="320" y2="160"/>
+                <line x1="40" y1="172" x2="320" y2="172"/>
+                <line x1="40" y1="184" x2="320" y2="184"/>
+                <line x1="40" y1="196" x2="320" y2="196"/>
+              </g>
+              <g transform="translate(138 28)">
+                <g stroke="#ffffff" stroke-width="1" stroke-linecap="round" opacity="0.35">
+                  <line x1="12" y1="72" x2="92" y2="72"/>
+                  <line x1="12" y1="82" x2="92" y2="82"/>
+                  <line x1="12" y1="92" x2="92" y2="92"/>
+                </g>
+                <path fill="#f5f5f5" d="M70 18c-16 2.4-28 16-28 32.4 0 16.4 12 30 28 32.4A32.5 32.5 0 0 1 38 50.4C38 32.8 51.8 18.4 69.4 18c.2 0 .4 0 .6 0z"/>
+              </g>
+              <text x="180" y="140" text-anchor="middle" fill="#a8a8a8" font-size="13" font-family="Fraunces, Georgia, serif">Night studio. Clear notes.</text>
+            </svg>
+          </figure>
+        </div>
+      </section>
+
+      <footer class="home-footer">
+        <svg class="lune-mark home-footer-mark" viewBox="0 0 40 40" width="18" height="18" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M26.2 7.2c-5.9.9-10.4 6-10.4 12.1 0 6.1 4.5 11.2 10.4 12.1A12.2 12.2 0 0 1 14 19.3c0-6.6 5.2-12 11.8-12.2.1 0 .3 0 .4 0z"/>
+        </svg>
+        <p class="home-footer-line">Lune · quiet practice, clear notes</p>
+        <p class="home-footer-keys">Space play · <span aria-hidden="true">&#8592; &#8594;</span> seek a bar · Esc close</p>
+      </footer>
+    </main>
+
+    <main class="discover" id="discover" hidden>
+      <div class="discover-stage">
+        <div class="nav-arrows">
+          <button type="button" class="quiet" id="btn-discover-home">Home</button>
+          <button type="button" class="primary" id="btn-open-piece">Open score</button>
+        </div>
+
+        <header class="composer-hero" id="composer-hero">
+          <div class="composer-photo" id="composer-photo">
+            <img id="composer-hero-img" alt="" hidden>
+            <div class="composer-fallback" id="composer-fallback"></div>
+          </div>
+          <div class="composer-intro">
+            <p class="eyebrow" id="discover-era"></p>
+            <h1 id="discover-title"></h1>
+            <p class="discover-by" id="discover-by"></p>
+            <p class="story-hook" id="discover-hook"></p>
+          </div>
+        </header>
+
+        <div class="discover-chapters" id="discover-chapters"></div>
+
+        <div class="discover-cta">
+          <p class="cta-note">When you’re ready, open the score to listen and practice.</p>
+          <button type="button" class="primary big" id="btn-open-piece-bottom">Open score</button>
+        </div>
+      </div>
+    </main>
+
+    <main class="studio" id="studio" hidden>
+      <section class="studio-panel score-pane" id="panel-score" data-panel="score">
+        <div class="piece-head slim score-tools-head">
+          <div class="companion-tools studio-toggles" id="score-toggles" aria-label="Score annotations">
+            <div class="anno-control" role="radiogroup" aria-label="Score annotations">
+              <span class="anno-control-label" id="anno-control-label">Annotate</span>
+              <div class="anno-seg" aria-labelledby="anno-control-label">
+                <label class="anno-opt">
+                  <input type="radio" name="score-anno" id="anno-notes" value="notes" checked>
+                  <span>Notes</span>
+                </label>
+                <label class="anno-opt">
+                  <input type="radio" name="score-anno" id="anno-fingers" value="fingers">
+                  <span>Fingers</span>
+                </label>
+                <label class="anno-opt">
+                  <input type="radio" name="score-anno" id="anno-off" value="off">
+                  <span>Off</span>
+                </label>
+              </div>
+            </div>
+            <!-- Legacy XOR hooks kept for session restore / tests -->
+            <span class="tog-group xor-group" hidden aria-hidden="true">
+              <label class="tog pill"><input type="checkbox" id="tog-letters" checked> Letters</label>
+              <label class="tog pill"><input type="checkbox" id="tog-fingers"> Fingers</label>
+            </span>
+          </div>
+          <button type="button" class="quiet score-kbd-toggle" id="btn-toggle-kbd" aria-pressed="false" title="Show or hide the keyboard under the score">Keys</button>
+          <span id="stage-label" class="visually-hidden">Score</span>
+        </div>
+
+        <div class="score-scroll" id="score-scroll">
+          <div class="selection-hilites" id="selection-hilites" aria-hidden="true"></div>
+          <div class="hover-hilite" id="hover-hilite" hidden aria-hidden="true"></div>
+          <div class="measure-hilite" id="measure-hilite" hidden></div>
+          <div class="playhead-line" id="playhead-line" hidden></div>
+          <div class="score-page" id="score-page">
+            <div id="osmd" class="score"></div>
+          </div>
+          <div id="scan" class="score scan" hidden></div>
+        </div>
+      </section>
+
+      <section class="studio-panel explain-pane" id="panel-explain" data-panel="explain" hidden>
+        <div class="explain-stage">
+          <header class="composer-hero explain-hero" id="explain-hero">
+            <div class="composer-photo" id="explain-photo">
+              <img id="explain-hero-img" alt="" hidden>
+              <div class="composer-fallback" id="explain-fallback" hidden></div>
+            </div>
+            <div class="composer-intro">
+              <p class="eyebrow" id="explain-era"></p>
+              <h1 id="explain-title"></h1>
+              <p class="discover-by" id="explain-by"></p>
+              <p class="story-hook" id="explain-hook"></p>
+              <div class="explain-cta-row">
+                <button type="button" class="primary" id="btn-explain-score">Open score</button>
+                <button type="button" class="quiet" id="btn-explain-piano">Digital piano</button>
+                <button type="button" class="quiet ink" id="btn-download" hidden>Download</button>
+              </div>
+            </div>
+          </header>
+          <div class="discover-chapters" id="explain-chapters"></div>
+        </div>
+      </section>
+
+      <section class="studio-panel piano-pane" id="panel-piano" data-panel="piano" hidden>
+        <div class="piano-stage" aria-hidden="true"></div>
+      </section>
+
+      <!-- Shared keyboard dock: slim under Score, tall on Piano tab -->
+      <div class="piano-dock" id="piano-dock" hidden>
+        <div class="piano-dock-head">
+          <span class="piano-dock-label" id="piano-dock-label">Keyboard</span>
+          <button type="button" class="quiet ink piano-dock-hide" id="btn-hide-kbd" title="Hide keyboard">Hide</button>
+        </div>
+        <div class="piano-panel" id="piano-panel">
+          <div id="lune-keyboard" class="lune-kbd-host" aria-label="Digital piano"></div>
+        </div>
+      </div>
+
+      <div class="studio-dock" id="studio-dock" hidden>
+        <div class="companion-bar" id="companion-bar">
+          <div class="companion-play" id="listen-dock">
+            <div class="transport">
+              <button type="button" class="primary transport-play" id="btn-play-range" aria-label="Play or pause">Play</button>
+              <button type="button" class="quiet ink transport-stop" id="btn-stop" aria-label="Stop">Stop</button>
+              <div class="scrubber transport-scrub">
+                <div class="scrub-track-wrap">
+                  <div class="scrub-ticks" id="scrub-ticks" aria-hidden="true"></div>
+                  <input type="range" id="scrub" min="0" max="1000" value="0" step="1" aria-label="Playback position — drag to rewind or fast-forward">
+                </div>
+                <div class="scrub-meta">
+                  <span id="scrub-bar">Bar —</span>
+                  <span class="scrub-keys" aria-hidden="true" title="Keyboard shortcuts">Space play &middot; &#8592; &#8594; bar</span>
+                  <span id="scrub-time">0:00 / 0:00</span>
+                </div>
+              </div>
+              <div class="piano-speed" id="piano-speed" role="group" aria-label="Playback speed">
+                <button type="button" class="speed-btn" data-rate="0.5" title="Half speed">0.5×</button>
+                <button type="button" class="speed-btn" data-rate="0.75" title="Three-quarter speed">0.75×</button>
+                <button type="button" class="speed-btn on" data-rate="1" title="Normal speed">1×</button>
+                <button type="button" class="speed-btn" data-rate="1.25" title="Faster">1.25×</button>
+                <button type="button" class="speed-btn" data-rate="1.5" title="Fast">1.5×</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <aside class="coach" id="coach" hidden aria-label="Bar coach">
+    <div class="coach-sheet">
+      <header class="coach-head">
+        <div class="coach-title-wrap">
+          <p class="coach-kicker">Practice</p>
+          <h2 class="coach-title" id="coach-title">Bar</h2>
+        </div>
+        <div class="coach-head-actions">
+          <button type="button" class="quiet ink coach-clear" id="coach-clear" hidden>Clear selection</button>
+          <button type="button" class="coach-close" id="coach-close" aria-label="Close">×</button>
+        </div>
+      </header>
+      <div class="coach-body" id="help-body"></div>
+      <div class="help-actions">
+        <button type="button" class="primary" id="btn-hear">Play this bar</button>
+        <button type="button" class="quiet" id="btn-line">Play this line</button>
+        <button type="button" class="quiet" id="btn-plan">Practice notes</button>
+      </div>
+    </div>
+  </aside>
+
+  <div class="lune-loader" id="lune-loader" hidden role="status" aria-live="polite">
+    <div class="lune-loader-box">
+      <div class="loader-piano" aria-hidden="true">
+        <span class="lk w"></span><span class="lk w"></span><span class="lk w"></span><span class="lk w"></span><span class="lk w"></span><span class="lk w"></span><span class="lk w"></span>
+        <span class="lk b b1"></span><span class="lk b b2"></span><span class="lk b b3"></span><span class="lk b b4"></span><span class="lk b b5"></span>
+      </div>
+      <p class="lune-loader-text" id="lune-loader-text">Opening the score</p>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+  <script src="static/vendor/opensheetmusicdisplay.min.js"></script>
+  <script src="static/vendor/pdf.min.js"></script>
+  <script src="static/vendor/Tone.js"></script>
+  <script src="static/piano.js?v=fix70"></script>
+  <script src="static/annotate.js?v=fix70"></script>
+  <script src="static/app.js?v=fix70"></script>
+</body>
+</html>
