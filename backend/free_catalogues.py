@@ -7,7 +7,7 @@ Never scrape commercial sheet-music sites.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import re
 
 MUSETAINER_BASE = "https://raw.githubusercontent.com/musetrainer/library/master/scores/"
@@ -163,7 +163,212 @@ MUSETAINER_INDEX: List[Dict[str, Any]] = [
         "composer": 'Nikolai Rimsky-Korsakov',
         "keys": ['bumblebee', 'flight of the bumblebee'],
     },
+    # Additional public-domain encodings from musetrainer/library
+    {
+        "file": 'Prelude_I_in_C_major_BWV_846_-_Well_Tempered_Clavier_First_Book.mxl',
+        "title": 'WTC I — Prelude in C major, BWV 846',
+        "composer": 'Johann Sebastian Bach',
+        "keys": ['bwv 846', 'wtc prelude 1', 'prelude in c major'],
+    },
+    {
+        "file": 'Bach_Toccata_and_Fugue_in_D_Minor_Piano_solo.mxl',
+        "title": 'Toccata and Fugue in D minor, BWV 565 (piano)',
+        "composer": 'Johann Sebastian Bach',
+        "keys": ['toccata and fugue', 'bwv 565', 'toccata d minor'],
+    },
+    {
+        "file": 'J._S._Bach_-_Air_on_the_G_String_Piano_arrangement.mxl',
+        "title": 'Air on the G String (piano)',
+        "composer": 'Johann Sebastian Bach',
+        "keys": ['air on the g string', 'air on g string', 'bwv 1068'],
+    },
+    {
+        "file": 'Minuet_in_G_Major_Bach.mxl',
+        "title": 'Minuet in G major (Anna Magdalena)',
+        "composer": 'Johann Sebastian Bach',
+        "keys": ['minuet in g major', 'minuet g'],
+    },
+    {
+        "file": 'G_Minor_Bach_Original.mxl',
+        "title": 'Little Prelude in G minor',
+        "composer": 'Johann Sebastian Bach',
+        "keys": ['little prelude g minor', 'g minor bach'],
+    },
+    {
+        "file": 'Fur_Elise.mxl',
+        "title": 'Für Elise (MusicXML)',
+        "composer": 'Ludwig van Beethoven',
+        "keys": ['fur elise mxl', 'für elise musicxml'],
+    },
+    {
+        "file": 'Sonate_No._14_Moonlight_1st_Movement.mxl',
+        "title": 'Piano Sonata no. 14 "Moonlight" — Movement 1',
+        "composer": 'Ludwig van Beethoven',
+        "keys": ['moonlight 1', 'moonlight movement 1', 'moonlight mvt 1'],
+    },
+    {
+        "file": 'DANSE_VILLAGEOISE_Beethoven.mxl',
+        "title": 'Danse villageoise',
+        "composer": 'Ludwig van Beethoven',
+        "keys": ['danse villageoise', 'village dance beethoven'],
+    },
+    {
+        "file": 'Beethoven_Symphony_No._5_1st_movement_Piano_solo.mxl',
+        "title": 'Symphony no. 5 — Movement 1 (piano)',
+        "composer": 'Ludwig van Beethoven',
+        "keys": ['symphony 5 piano', 'beethoven 5 piano', 'fate symphony piano'],
+    },
+    {
+        "file": 'Ode_to_Joy_Easy_variation.mxl',
+        "title": 'Ode to Joy (easy piano)',
+        "composer": 'Ludwig van Beethoven',
+        "keys": ['ode to joy', 'ode to joy easy'],
+    },
+    {
+        "file": 'Sonata_No._16_1st_Movement_K._545.mxl',
+        "title": 'Piano Sonata no. 16, K.545 — Movement 1',
+        "composer": 'Wolfgang Amadeus Mozart',
+        "keys": ['k 545 mxl', 'sonata facile mxl'],
+    },
+    {
+        "file": 'Mozart_-_Piano_Sonata_No._16_-_Allegro.mxl',
+        "title": 'Piano Sonata no. 16, K.545 — Allegro',
+        "composer": 'Wolfgang Amadeus Mozart',
+        "keys": ['k 545 allegro', 'mozart allegro 545'],
+    },
+    {
+        "file": 'WA_Mozart_Marche_Turque_Turkish_March_fingered.mxl',
+        "title": 'Rondo alla Turca (fingered)',
+        "composer": 'Wolfgang Amadeus Mozart',
+        "keys": ['turkish march fingered', 'marche turque'],
+    },
+    {
+        "file": 'Lacrimosa_-_Requiem.mxl',
+        "title": 'Requiem — Lacrimosa (piano)',
+        "composer": 'Wolfgang Amadeus Mozart',
+        "keys": ['lacrimosa', 'requiem lacrimosa'],
+    },
+    {
+        "file": 'Nocturne_in_C_sharp_Minor.mxl',
+        "title": 'Nocturne in C-sharp minor, op. posth. (alt.)',
+        "composer": 'Frédéric Chopin',
+        "keys": ['nocturne c sharp minor', 'nocturne posth'],
+    },
+    {
+        "file": 'Maple_Leaf_Rag_Scott_Joplin.mxl',
+        "title": 'Maple Leaf Rag (MusicXML)',
+        "composer": 'Scott Joplin',
+        "keys": ['maple leaf rag mxl', 'maple leaf musicxml'],
+    },
+    {
+        "file": 'The_Entertainer_-_Scott_Joplin.mxl',
+        "title": 'The Entertainer (MusicXML)',
+        "composer": 'Scott Joplin',
+        "keys": ['entertainer mxl', 'the entertainer musicxml'],
+    },
+    {
+        "file": 'Swan_Lake.mxl',
+        "title": 'Swan Lake (piano)',
+        "composer": 'Pyotr Ilyich Tchaikovsky',
+        "keys": ['swan lake', 'swan lake piano'],
+    },
+    {
+        "file": 'Waltz_of_the_Flowers.mxl',
+        "title": 'Waltz of the Flowers (piano)',
+        "composer": 'Pyotr Ilyich Tchaikovsky',
+        "keys": ['waltz of the flowers', 'nutcracker waltz'],
+    },
+    {
+        "file": 'Canon_in_D_easy.mxl',
+        "title": 'Canon in D (easy)',
+        "composer": 'Johann Pachelbel',
+        "keys": ['canon in d easy', 'pachelbel easy'],
+    },
+    {
+        "file": 'Greensleeves_for_Piano_easy_and_beautiful.mxl',
+        "title": 'Greensleeves (piano)',
+        "composer": 'Traditional',
+        "keys": ['greensleeves', 'green sleeves'],
+    },
+    {
+        "file": 'Carol_of_the_Bells.mxl',
+        "title": 'Carol of the Bells',
+        "composer": 'Mykola Leontovych',
+        "keys": ['carol of the bells', 'shchedryk'],
+    },
+    {
+        "file": '12_Variations_of_Twinkle_Twinkle_Little_Star.mxl',
+        "title": '12 Variations on Twinkle Twinkle Little Star',
+        "composer": 'Wolfgang Amadeus Mozart',
+        "keys": ['twinkle variations', 'ah vous dirai je maman', 'k 265'],
+    },
 ]
+
+# Known 20th-century composers whose piano works are typically still under
+# copyright in the US/EU — Lune will not ship pirated editions. Used for
+# honest empty-state messaging when a search finds zero free scores.
+#
+# Ginastera (Suite de danzas criollas, Op. 15, and other piano works):
+# No verifiable CC0/CC-BY or composer/publisher-authorized free MusicXML
+# was found in Mutopia, OpenScore, craigsapp/musicxml, or similar legal
+# free catalogues (checked 2026-10). Do not add commercial/IMSLP
+# in-copyright scans. Users who legally own a file can Upload it.
+COPYRIGHT_ERA_COMPOSERS: Tuple[str, ...] = (
+    "ginastera",
+    "prokofiev",
+    "shostakovich",
+    "khachaturian",
+    "kabalevsky",
+    "barber",
+    "copland",
+    "bernstein",
+    "britten",
+    "messiaen",
+    "boulez",
+    "stockhausen",
+    "cage",
+    "ligeti",
+    "penderecki",
+    "piazzolla",
+    "villa-lobos",
+    "villalobos",
+    "gershwin",  # many popular editions still restricted; we keep Joplin free instead
+    "rachmaninoff",  # some late US renewals; no free MusicXML in our sources
+    "ravel",  # catalogue incomplete; avoid implying we have copyrighted editions
+    "bartok",
+    "bartók",
+    "stravinsky",
+    "hindemith",
+    "poulenc",
+    "milhaud",
+    "schnittke",
+    "takemitsu",
+    "glass",
+    "reich",
+    "adams",
+)
+
+
+def copyright_era_hint(query: str) -> Optional[str]:
+    """If query looks like a still-copyright composer, return a polite note."""
+    q = re.sub(r"[^a-z0-9]+", " ", (query or "").lower()).strip()
+    if not q:
+        return None
+    for name in COPYRIGHT_ERA_COMPOSERS:
+        needle = name.replace("á", "a").replace("ó", "o")
+        if needle in q or name in q:
+            pretty = name.replace("-", " ").title().replace("Bartok", "Bartók")
+            if name == "ginastera":
+                return (
+                    "Alberto Ginastera’s works (including Suite de danzas criollas) "
+                    "are still under copyright in the US/EU, so they are not in Lune’s "
+                    "free public-domain library."
+                )
+            return (
+                f"No free public-domain MusicXML for “{pretty}” in Lune’s library — "
+                "many 20th-century works remain under copyright."
+            )
+    return None
 
 OPENSCORE_INDEX: List[Dict[str, Any]] = [
     {

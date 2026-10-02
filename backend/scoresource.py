@@ -2,7 +2,9 @@
 
 Sources (all public-domain / openly licensed encodings):
 1. Local library shipped with Lune
-2. craigsapp Humdrum editions on GitHub → convert with music21
+2. craigsapp / humdrum-tools Humdrum editions on GitHub → convert with music21
+   (Beethoven/Mozart/Haydn sonatas, Chopin, Joplin, Scarlatti, Hummel,
+   Bach chorales, Art of Fugue, Well-Tempered Clavier, Inventions/Sinfonias)
 3. music21 corpus on disk
 4. musetrainer/library + OpenScore Lieder (raw GitHub MusicXML/MXL)
 5. KernScores Liszt encodings (when the mirror is reachable)
@@ -12,16 +14,17 @@ We never scrape commercial / copyrighted sheet-music sites.
 
 from __future__ import annotations
 
+import json
 import re
 import tempfile
+import threading
 import urllib.request
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from music21 import converter, corpus
-
 from backend.free_catalogues import (
+    COPYRIGHT_ERA_COMPOSERS,
     KERNSCORES_LISZT,
     KERNSCORES_LISZT_INDEX,
     MUSETAINER_BASE,
@@ -38,7 +41,33 @@ LIBRARY = ROOT / "samples" / "library"
 CACHE = Path.home() / "Library" / "Application Support" / "Lune" / "score-cache"
 USER_AGENT = "LuneScoreCoach/6.0 (local music practice app)"
 
+# music21 import is ~8s on cold start — never block the API on it.
+_music21_lock = threading.Lock()
+_music21_mods: Optional[Tuple[Any, Any]] = None
+_search_index_json: Optional[bytes] = None
+_search_index_lock = threading.Lock()
+
+
+def _music21() -> Tuple[Any, Any]:
+    """Lazy-load music21 converter + corpus modules."""
+    global _music21_mods
+    if _music21_mods is not None:
+        return _music21_mods
+    with _music21_lock:
+        if _music21_mods is not None:
+            return _music21_mods
+        from music21 import converter, corpus
+
+        _music21_mods = (converter, corpus)
+        return _music21_mods
+
 LIBRARY_INDEX: List[Dict[str, Any]] = [
+    {
+        "file": "chopin_mazurka.musicxml",
+        "title": "Mazurka op. 6 no. 2",
+        "composer": "Frédéric Chopin",
+        "keys": ["mazurka 06 2", "mazurka op 6 no 2", "op 6 no 2", "mazurka", "chopin mazurka"],
+    },
     {
         "file": "beethoven_moonlight_mvt1.musicxml",
         "title": 'Piano Sonata no. 14 in C-sharp minor, op. 27 no. 2, "Moonlight"',
@@ -55,13 +84,7 @@ LIBRARY_INDEX: List[Dict[str, Any]] = [
         "file": "bach_prelude_c.musicxml",
         "title": "Prelude in C major, BWV 846",
         "composer": "Johann Sebastian Bach",
-        "keys": ["bwv 846", "bwv846", "prelude in c", "well tempered", "wtc"],
-    },
-    {
-        "file": "chopin_mazurka.musicxml",
-        "title": "Mazurka op. 6 no. 2",
-        "composer": "Frédéric Chopin",
-        "keys": ["mazurka 06 2", "mazurka op 6 no 2", "op 6 no 2"],
+        "keys": ["bwv 846", "bwv846", "prelude in c"],
     },
     {
         "file": "schumann_dichterliebe2.musicxml",
@@ -257,6 +280,15 @@ CRAIG = {
         "https://raw.githubusercontent.com/craigsapp/beethoven-string-quartets/master/kern/",
         "quartet{num:02d}-{mvt}.krn",
     ),
+    # Humdrum PD editions (same lineage as craigsapp / KernScores)
+    "bach-wtc": (
+        "https://raw.githubusercontent.com/humdrum-tools/bach-wtc/main/kern/",
+        "{filename}",
+    ),
+    "bach-invention": (
+        "https://raw.githubusercontent.com/humdrum-tools/inventions/main/kern/",
+        "{filename}",
+    ),
 }
 
 STOP = {
@@ -349,6 +381,73 @@ HAYDN_SONATA_FILES = [
     (12, 1), (12, 2), (12, 3), (13, 1), (15, 1), (16, 1), (16, 2), (16, 3),
     (29, 3), (33, 3), (34, 1), (37, 1), (42, 3), (49, 1), (50, 1), (51, 3),
     (52, 3), (53, 3), (59, 1), (61, 1), (61, 2), (62, 1), (62, 2), (62, 3),
+]
+
+# Beethoven piano sonata movements present in craigsapp/beethoven-piano-sonatas
+BEETHOVEN_SONATA_MVTS = {
+    1: [1, 2, 3, 4],
+    2: [1, 2, 3, 4],
+    3: [1, 2, 3, 4],
+    4: [1, 2, 3, 4],
+    5: [1, 2, 3],
+    6: [1, 2, 3],
+    7: [1, 2, 3, 4],
+    8: [1, 2, 3],
+    9: [1, 2, 3],
+    10: [1, 2, 3],
+    11: [1, 2, 3, 4],
+    12: [1, 2, 3, 4],
+    13: [1, 2, 3, 4],
+    14: [1, 2, 3],
+    15: [1, 2, 3, 4],
+    16: [1, 2, 3],
+    17: [1, 2, 3],
+    18: [1, 2, 3, 4],
+    19: [1, 2],
+    20: [1, 2],
+    21: [1, 2, 3, 4],
+    22: [1, 2],
+    23: [1, 2, 3],
+    24: [1, 2],
+    25: [1, 2, 3],
+    26: [1, 2, 3],
+    27: [1, 2],
+    28: [1, 2, 3, 4],
+    29: [1, 2, 3, 4],
+    30: [1, 2, 3],
+    31: [1, 2, 3],
+    32: [1, 2],
+}
+
+# Mozart piano sonata kern stems (lettered parts = theme & variations)
+MOZART_SONATA_FILES = [
+    (1, "1"), (1, "2"), (1, "3"),
+    (2, "1"), (2, "2"), (2, "3"),
+    (3, "1"), (3, "2"), (3, "3"),
+    (4, "1"), (4, "2"), (4, "3"),
+    (5, "1"), (5, "2"), (5, "3"),
+    (6, "1"), (6, "2"), (6, "3a"),
+    (7, "1"), (7, "2"), (7, "3"),
+    (8, "1"), (8, "2"), (8, "3"),
+    (9, "1"), (9, "2"), (9, "3"),
+    (10, "1"), (10, "2"), (10, "3"),
+    (11, "1a"), (11, "2"), (11, "3"),
+    (12, "1"), (12, "2"), (12, "3"),
+    (13, "1"), (13, "2"), (13, "3"),
+    (14, "1"), (14, "2"), (14, "3"),
+    (15, "1"), (15, "2"), (15, "3"),
+    (16, "1"), (16, "2"), (16, "3"),
+    (17, "1"), (17, "2"), (17, "3"),
+]
+
+# WTC I/II key labels (shared order for both books)
+WTC_KEYS = [
+    "C major", "C minor", "C-sharp major", "C-sharp minor",
+    "D major", "D minor", "E-flat major", "D-sharp minor",
+    "E major", "E minor", "F major", "F minor",
+    "F-sharp major", "F-sharp minor", "G major", "G minor",
+    "A-flat major", "G-sharp minor", "A major", "A minor",
+    "B-flat major", "B-flat minor", "B major", "B minor",
 ]
 
 # Scarlatti Longo / Kirkpatrick pairs available in the repo
@@ -507,6 +606,17 @@ def _title_score(query: str, entry: Dict[str, Any]) -> int:
             points -= 10
     if "raindrop" in query and "raindrop" in title_n:
         points += 25
+    # Movement must match when the query asks for one (avoid "op. 27 no. 2"
+    # Moonlight featured sample beating "Moonlight — Movement 2").
+    qm_mvt = re.search(r"(?:movement|mvt|mov)\s*(\d)", query)
+    em_mvt = re.search(r"(?:movement|mvt|mov)\s*(\d)", title_n)
+    if qm_mvt:
+        if em_mvt and int(qm_mvt.group(1)) == int(em_mvt.group(1)):
+            points += 28
+        elif em_mvt:
+            points -= 22
+        else:
+            points -= 18
     return points
 
 
@@ -562,6 +672,7 @@ def _kern_to_musicxml(raw: bytes, cache_name: str) -> Optional[Path]:
         tmp.write(raw)
         tmp_path = tmp.name
     try:
+        converter, _corpus = _music21()
         score = converter.parse(tmp_path)
         score.write("musicxml", fp=str(cached))
         return cached if cached.exists() and cached.stat().st_size > 500 else None
@@ -590,6 +701,7 @@ def _bytes_to_musicxml(raw: bytes, cache_name: str, suffix: str = ".musicxml") -
         tmp.write(raw)
         tmp_path = tmp.name
     try:
+        converter, _corpus = _music21()
         score = converter.parse(tmp_path)
         try:
             score.write("musicxml", fp=str(cached))
@@ -781,17 +893,24 @@ def fetch_mozart_sonata(title: str, composer: str) -> Optional[Path]:
         k = re.search(r"\bk\s*\.?\s*(\d{2,3})\b", blob)
         if k:
             num = MOZART_K_MAP.get(int(k.group(1)))
-    if num is None or num < 1 or num > 18:
+    if num is None or num < 1 or num > 17:
         return None
     if "quartet" in blob or "k 155" in blob or "k155" in blob:
         return None
-    mvt = _movement(blob)
-    base, pattern = CRAIG["mozart-sonata"]
-    return _fetch_kern(
-        base,
-        pattern.format(num=num, mvt=mvt),
-        f"mozart_sonata{num:02d}-{mvt}.musicxml",
-    )
+    # Prefer explicit kern stem (e.g. 1a / 3a for theme & variations)
+    stem_m = re.search(r"(?:movement|mvt|mov)\s*(\d+[a-z]?)", blob)
+    if stem_m:
+        stem = stem_m.group(1)
+    else:
+        stem = str(_movement(blob))
+        # Sonatas whose first movement is theme+variations use lettered files
+        if num == 11 and stem == "1":
+            stem = "1a"
+        if num == 6 and stem == "3":
+            stem = "3a"
+    base, _pattern = CRAIG["mozart-sonata"]
+    fname = f"sonata{num:02d}-{stem}.krn"
+    return _fetch_kern(base, fname, f"mozart_sonata{num:02d}-{stem}.musicxml")
 
 
 def fetch_chopin(title: str, composer: str) -> Optional[Path]:
@@ -950,6 +1069,92 @@ def fetch_art_of_fugue(title: str, composer: str) -> Optional[Path]:
     return _fetch_kern(base, "artfugue-001.krn", "bach_artfugue-001.musicxml")
 
 
+def _wtc_bwv(book: int, number: int) -> int:
+    """BWV for WTC book/number (1–24)."""
+    if book == 1:
+        return 845 + number  # 846…869
+    return 869 + number  # 870…893
+
+
+def fetch_bach_wtc(title: str, composer: str) -> Optional[Path]:
+    blob = _norm(f"{composer} {title}")
+    if not any(k in blob for k in ("bach", "wtc", "well tempered", "bwv")):
+        return None
+    book = None
+    number = None
+    kind = "f" if ("fugue" in blob and "prelude" not in blob) else "p"
+
+    bwv_m = re.search(r"bwv\s*(\d{3})", blob)
+    if bwv_m:
+        bwv = int(bwv_m.group(1))
+        if 846 <= bwv <= 869:
+            book, number = 1, bwv - 845
+        elif 870 <= bwv <= 893:
+            book, number = 2, bwv - 869
+
+    if book is None:
+        if "wtc 2" in blob or "book 2" in blob or "book ii" in blob or "wtc ii" in blob:
+            book = 2
+        elif "wtc" in blob or "well tempered" in blob:
+            book = 1
+
+    if number is None:
+        no_m = re.search(r"(?:prelude|fugue|no\.?|number|#)\s*(\d{1,2})", blob)
+        if no_m:
+            number = int(no_m.group(1))
+        elif book is not None:
+            number = 1
+
+    if book is None or number is None or number < 1 or number > 24:
+        if "wtc" in blob or "well tempered" in blob or (
+            bwv_m and 846 <= int(bwv_m.group(1)) <= 893
+        ):
+            book, number, kind = 1, 1, "p"
+        else:
+            return None
+
+    if "fugue" in blob:
+        kind = "f"
+    if "prelude" in blob and "fugue" not in blob:
+        kind = "p"
+
+    fname = f"wtc{book}{kind}{number:02d}.krn"
+    base, _ = CRAIG["bach-wtc"]
+    return _fetch_kern(base, fname, f"bach_{fname.replace('.krn', '')}.musicxml")
+
+
+def fetch_bach_invention(title: str, composer: str) -> Optional[Path]:
+    blob = _norm(f"{composer} {title}")
+    is_sinfonia = "sinfonia" in blob or "three part" in blob or "3 part" in blob
+    is_invention = "invention" in blob or "two part" in blob or "2 part" in blob
+    number = 1
+
+    bwv_m = re.search(r"bwv\s*(\d{3})", blob)
+    if bwv_m:
+        bwv = int(bwv_m.group(1))
+        if 772 <= bwv <= 786:
+            is_invention, is_sinfonia, number = True, False, bwv - 771
+        elif 787 <= bwv <= 801:
+            is_sinfonia, is_invention, number = True, False, bwv - 786
+        elif not is_sinfonia and not is_invention:
+            return None
+    elif not is_sinfonia and not is_invention:
+        return None
+
+    if "bach" not in blob and not bwv_m and "invention" not in blob and "sinfonia" not in blob:
+        return None
+
+    no_m = re.search(r"(?:no\.?|number|#)\s*(\d{1,2})", blob)
+    if no_m and not (bwv_m and ((772 <= int(bwv_m.group(1)) <= 801))):
+        number = int(no_m.group(1))
+
+    number = max(1, min(15, number))
+    prefix = "sinfo" if is_sinfonia else "inven"
+    fname = f"{prefix}{number:02d}.krn"
+    base, _ = CRAIG["bach-invention"]
+    return _fetch_kern(base, fname, f"bach_{fname.replace('.krn', '')}.musicxml")
+
+
 def fetch_beethoven_quartet(title: str, composer: str) -> Optional[Path]:
     blob = _norm(f"{composer} {title}")
     if "quartet" not in blob:
@@ -1041,6 +1246,7 @@ def fetch_music21_corpus(title: str, composer: str) -> Optional[Path]:
     last = (composer or "").split()[-1].lower() if composer else ""
     if bwv and (not last or last in blob or "bach" in blob):
         try:
+            _converter, corpus = _music21()
             for path in list(corpus.getComposer("bach")):
                 path_s = str(path).lower().replace(".", "")
                 if f"bwv{bwv.group(1).lower()}" in path_s or f"bwv{bwv.group(1)}" in str(path).lower():
@@ -1062,6 +1268,7 @@ def fetch_music21_corpus(title: str, composer: str) -> Optional[Path]:
             if "/" in q or q.endswith((".mxl", ".xml", ".krn", ".musicxml")):
                 hits = [q]
             else:
+                _converter, corpus = _music21()
                 hits = [str(getattr(h, "sourcePath", "") or "") for h in list(corpus.search(q))[:8]]
         except Exception:
             continue
@@ -1085,6 +1292,7 @@ def _parse_corpus_path(source_s: str) -> Optional[Path]:
     if cached.exists() and cached.stat().st_size > 500:
         return cached
     try:
+        _converter, corpus = _music21()
         score = corpus.parse(source_s)
         score.write("musicxml", fp=str(cached))
         if cached.exists() and cached.stat().st_size > 500:
@@ -1138,6 +1346,10 @@ def _pretty_corpus_title(path_s: str, composer_key: str) -> str:
 @lru_cache(maxsize=1)
 def _corpus_catalogue() -> Tuple[Dict[str, Any], ...]:
     items: List[Dict[str, Any]] = []
+    try:
+        _converter, corpus = _music21()
+    except Exception:
+        return tuple()
     for key, display in CORPUS_COMPOSERS.items():
         try:
             paths = list(corpus.getComposer(key))
@@ -1176,8 +1388,8 @@ def _corpus_catalogue() -> Tuple[Dict[str, Any], ...]:
     return tuple(items)
 
 
-@lru_cache(maxsize=1)
-def build_catalogue() -> Tuple[Dict[str, Any], ...]:
+@lru_cache(maxsize=2)
+def build_catalogue(include_corpus: bool = True) -> Tuple[Dict[str, Any], ...]:
     """Every free score Lune can open — used by library UI and search merge."""
     items: List[Dict[str, Any]] = []
 
@@ -1249,33 +1461,53 @@ def build_catalogue() -> Tuple[Dict[str, Any], ...]:
             }
         )
 
-    for n in range(1, 33):
-        label = f"Piano Sonata no. {n}"
+    for n, mvts in BEETHOVEN_SONATA_MVTS.items():
         nick = BEETHOVEN_NICKNAMES.get(n)
-        if nick:
-            label += f' "{nick}"'
-        items.append(
-            {
-                "title": label,
-                "composer": "Ludwig van Beethoven",
-                "query": f"beethoven sonata {n}",
-                "keys": [f"sonata {n}", f"sonata no {n}", nick.lower() if nick else ""],
-                "group": "Beethoven piano sonatas",
-                "source": "beethoven-sonatas",
-                "sonata": n,
-            }
-        )
+        for mvt in mvts:
+            label = f"Piano Sonata no. {n}"
+            if nick:
+                label += f' "{nick}"'
+            label += f" — Movement {mvt}"
+            keys = [
+                f"beethoven sonata {n} movement {mvt}",
+                f"sonata {n} movement {mvt}",
+                f"sonata no {n} mvt {mvt}",
+            ]
+            if nick:
+                keys.append(f"{nick.lower()} movement {mvt}")
+                if mvt == 1:
+                    keys.append(nick.lower())
+            items.append(
+                {
+                    "title": label,
+                    "composer": "Ludwig van Beethoven",
+                    "query": f"beethoven sonata {n} movement {mvt}",
+                    "keys": keys,
+                    "group": "Beethoven piano sonatas",
+                    "source": "beethoven-sonatas",
+                    "sonata": n,
+                    "movement": mvt,
+                }
+            )
 
-    for n in range(1, 19):
+    for n, stem in MOZART_SONATA_FILES:
+        mvt_label = stem
+        if stem.endswith(("a", "b", "c", "d", "e", "f", "g")) and stem[0].isdigit():
+            mvt_label = f"{stem[0]} ({stem})"
         items.append(
             {
-                "title": f"Piano Sonata no. {n}",
+                "title": f"Piano Sonata no. {n} — Movement {mvt_label}",
                 "composer": "Wolfgang Amadeus Mozart",
-                "query": f"mozart sonata {n}",
-                "keys": [f"mozart sonata {n}", f"sonata {n}"],
+                "query": f"mozart sonata {n} movement {stem}",
+                "keys": [
+                    f"mozart sonata {n}",
+                    f"mozart sonata {n} movement {stem}",
+                    f"sonata {n} movement {stem}",
+                ],
                 "group": "Mozart piano sonatas",
                 "source": "mozart-sonatas",
                 "sonata": n,
+                "stem": stem,
             }
         )
 
@@ -1393,6 +1625,59 @@ def build_catalogue() -> Tuple[Dict[str, Any], ...]:
             }
         )
 
+    for book in (1, 2):
+        for number in range(1, 25):
+            key_name = WTC_KEYS[number - 1]
+            bwv = _wtc_bwv(book, number)
+            for kind, kind_label in (("p", "Prelude"), ("f", "Fugue")):
+                fname = f"wtc{book}{kind}{number:02d}.krn"
+                title = f"WTC {['I', 'II'][book - 1]} — {kind_label} in {key_name}, BWV {bwv}"
+                items.append(
+                    {
+                        "title": title,
+                        "composer": "Johann Sebastian Bach",
+                        "query": f"bach wtc {book} {kind_label.lower()} {number}",
+                        "keys": [
+                            f"bwv {bwv}",
+                            f"wtc {book} {kind_label.lower()} {number}",
+                            f"well tempered {kind_label.lower()} {number}",
+                            f"{kind_label.lower()} in {key_name.lower()}",
+                            "wtc",
+                            "well tempered",
+                        ],
+                        "group": f"Bach · Well-Tempered Clavier {['I', 'II'][book - 1]}",
+                        "source": "bach-wtc",
+                        "filename": fname,
+                    }
+                )
+
+    for n in range(1, 16):
+        bwv = 771 + n
+        items.append(
+            {
+                "title": f"Invention no. {n}, BWV {bwv}",
+                "composer": "Johann Sebastian Bach",
+                "query": f"bach invention {n}",
+                "keys": [f"invention {n}", f"bwv {bwv}", "two-part invention"],
+                "group": "Bach · Inventions",
+                "source": "bach-invention",
+                "filename": f"inven{n:02d}.krn",
+            }
+        )
+    for n in range(1, 16):
+        bwv = 786 + n
+        items.append(
+            {
+                "title": f"Sinfonia no. {n}, BWV {bwv}",
+                "composer": "Johann Sebastian Bach",
+                "query": f"bach sinfonia {n}",
+                "keys": [f"sinfonia {n}", f"bwv {bwv}", "three-part invention"],
+                "group": "Bach · Sinfonias",
+                "source": "bach-invention",
+                "filename": f"sinfo{n:02d}.krn",
+            }
+        )
+
     for q in range(1, 17):
         for m in range(1, 5):
             items.append(
@@ -1408,8 +1693,9 @@ def build_catalogue() -> Tuple[Dict[str, Any], ...]:
                 }
             )
 
-    for entry in _corpus_catalogue():
-        items.append(dict(entry))
+    if include_corpus:
+        for entry in _corpus_catalogue():
+            items.append(dict(entry))
 
     return tuple(items)
 
@@ -1430,6 +1716,126 @@ def list_available() -> List[Dict[str, str]]:
     return out
 
 
+def _slim_search_entry(entry: Dict[str, Any]) -> Dict[str, str]:
+    """Client index row: display fields + one haystack string (no redundant norms)."""
+    keys = list(entry.get("keys") or [])
+    last = _norm(entry["composer"]).split()[-1] if entry.get("composer") else ""
+    hay = _norm(
+        " ".join(
+            [
+                entry["title"],
+                entry["composer"],
+                entry.get("query", ""),
+                entry.get("group", ""),
+                " ".join(str(k) for k in keys if k),
+                last,
+            ]
+        )
+    )
+    return {
+        "title": entry["title"],
+        "composer": entry["composer"],
+        "query": entry["query"],
+        "group": entry.get("group", ""),
+        "hay": hay,
+    }
+
+
+def _featured_catalogue_entries() -> List[Dict[str, Any]]:
+    """Tiny curated set — builds in milliseconds, no music21."""
+    items: List[Dict[str, Any]] = []
+    for entry in LIBRARY_INDEX:
+        if not _library_path(entry["file"]):
+            continue
+        items.append(
+            {
+                "title": entry["title"],
+                "composer": entry["composer"],
+                "query": entry["keys"][0],
+                "keys": entry["keys"],
+                "group": "Featured",
+                "source": "library",
+                "file": entry["file"],
+            }
+        )
+    for entry in MUSETAINER_INDEX:
+        items.append(
+            {
+                "title": entry["title"],
+                "composer": entry["composer"],
+                "query": entry["keys"][0],
+                "keys": entry["keys"],
+                "group": f"Open MusicXML · {entry['composer'].split()[-1]}",
+                "source": "musetrainer",
+                "file": entry["file"],
+            }
+        )
+    return items
+
+
+@lru_cache(maxsize=2)
+def search_index(include_corpus: bool = True) -> Tuple[Dict[str, Any], ...]:
+    """Slim free-score index for client-side search (no MusicXML, no I/O)."""
+    return tuple(_slim_search_entry(entry) for entry in build_catalogue(include_corpus))
+
+
+def _encode_search_index_json(items: Any) -> bytes:
+    return json.dumps(
+        {"items": list(items), "count": len(items)},
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+
+
+def _publish_search_index_json(items: Any) -> bytes:
+    global _search_index_json
+    payload = _encode_search_index_json(items)
+    with _search_index_lock:
+        _search_index_json = payload
+    return payload
+
+
+def seed_search_index() -> int:
+    """Publish a tiny featured index immediately (ms). Safe on the request path."""
+    items = tuple(_slim_search_entry(e) for e in _featured_catalogue_entries())
+    _publish_search_index_json(items)
+    return len(items)
+
+
+def search_index_json() -> bytes:
+    """Prebaked JSON body for GET /api/search/index — must stay instant."""
+    global _search_index_json
+    if _search_index_json is not None:
+        return _search_index_json
+    with _search_index_lock:
+        if _search_index_json is not None:
+            return _search_index_json
+        # Never build the full catalogue on the request path.
+        items = tuple(_slim_search_entry(e) for e in _featured_catalogue_entries())
+        _search_index_json = _encode_search_index_json(items)
+        return _search_index_json
+
+
+def warm_catalogue() -> int:
+    """Seed featured → full curated index (no music21 corpus on this path).
+
+    music21 corpus stays available for resolve/open via build_catalogue(True),
+    but is intentionally excluded from the client search payload so warm never
+    blocks the GIL / HTTP event loop for ~15s.
+    """
+    seed_search_index()
+    try:
+        fast = search_index(False)
+        _publish_search_index_json(fast)
+        return len(fast)
+    except Exception:
+        body = search_index_json()
+        try:
+            return int(json.loads(body).get("count") or 0)
+        except Exception:
+            return 0
+
+
 def search_library(query: str, limit: int = 24) -> List[Dict[str, Any]]:
     """Ranked free-score hits for merging into omnisearch."""
     q = _norm(query)
@@ -1445,6 +1851,9 @@ def search_library(query: str, limit: int = 24) -> List[Dict[str, Any]]:
         last = composer_n.split()[-1] if composer_n else ""
         if q == last or q in composer_n:
             score = max(score, 6)
+            # Featured library picks float when browsing by composer name alone.
+            if entry.get("group") == "Featured":
+                score += 8
         if score < 6:
             continue
         scored.append(
@@ -1502,9 +1911,15 @@ def _fetch_from_catalogue_entry(entry: Dict[str, Any]) -> Optional[Path]:
             "scriabin_" + re.sub(r"[^a-zA-Z0-9]+", "_", entry["rel"]) + ".musicxml",
         )
     if source == "beethoven-sonatas":
-        return fetch_beethoven_sonata(f"sonata {entry['sonata']}", "beethoven")
+        mvt = entry.get("movement") or 1
+        return fetch_beethoven_sonata(
+            f"sonata {entry['sonata']} movement {mvt}", "beethoven"
+        )
     if source == "mozart-sonatas":
-        return fetch_mozart_sonata(f"sonata {entry['sonata']}", "mozart")
+        stem = entry.get("stem") or str(entry.get("movement") or 1)
+        return fetch_mozart_sonata(
+            f"sonata {entry['sonata']} movement {stem}", "mozart"
+        )
     if source == "haydn-sonatas":
         return fetch_haydn_sonata(
             f"sonata {entry['sonata']} movement {entry.get('movement', 1)}", "haydn"
@@ -1524,8 +1939,13 @@ def _fetch_from_catalogue_entry(entry: Dict[str, Any]) -> Optional[Path]:
     if source == "bach-chorale":
         return fetch_bach_chorale(f"chorale {entry['chorale']}", "bach")
     if source == "art-of-fugue":
-        base, _ = CRAIG["art-of-fugue"]
-        fname = entry["filename"]
+        base, fname = CRAIG["art-of-fugue"][0], entry["filename"]
+        return _fetch_kern(base, fname, f"bach_{fname.replace('.krn', '')}.musicxml")
+    if source == "bach-wtc":
+        base, fname = CRAIG["bach-wtc"][0], entry["filename"]
+        return _fetch_kern(base, fname, f"bach_{fname.replace('.krn', '')}.musicxml")
+    if source == "bach-invention":
+        base, fname = CRAIG["bach-invention"][0], entry["filename"]
         return _fetch_kern(base, fname, f"bach_{fname.replace('.krn', '')}.musicxml")
     if source == "beethoven-quartets":
         return fetch_beethoven_quartet(
@@ -1559,7 +1979,7 @@ def match_catalogue(title: str, composer: str = "") -> Optional[Tuple[Path, Dict
 COMPOSER_DEFAULTS = {
     "beethoven": ("Piano Sonata no. 14 \"Moonlight\"", "beethoven", "moonlight"),
     "mozart": ("Piano Sonata no. 16", "mozart", "mozart sonata 16"),
-    "chopin": ("Prelude op. 28 no. 15 \"Raindrop\"", "chopin", "raindrop"),
+    "chopin": ("Mazurka op. 6 no. 2", "chopin", "mazurka 06 2"),
     "bach": ("Prelude in C major, BWV 846", "bach", "bwv 846"),
     "joplin": ("The Entertainer", "joplin", "the entertainer"),
     "schumann": ("Dichterliebe no. 2", "schumann", "dichterliebe"),
@@ -1583,6 +2003,29 @@ def resolve_score(title: str, composer: str = "", query: str = "") -> Optional[D
     composer = (composer or "").strip()
     query = (query or "").strip()
 
+    # Composer-only browses: open the curated free default before fuzzy catalogue hits
+    # (e.g. "chopin" must not land on "chopin prelude 1" via query substring scoring).
+    blob = _norm(f"{query} {composer} {title}".strip())
+    name_noise = {
+        "ludwig", "van", "wolfgang", "amadeus", "frederic", "fryderyk", "francois",
+        "johann", "sebastian", "scott", "robert", "alexander", "composer", "joseph",
+        "domenico", "muzio", "nepomuk", "franz", "clara", "george", "frideric",
+        "claude", "erik", "johannes", "pyotr", "ilyich", "nikolai",
+    }
+    tokens = set(blob.split())
+    for key, (default_title, default_composer, default_query) in COMPOSER_DEFAULTS.items():
+        if key not in tokens:
+            continue
+        if tokens - name_noise - {key}:
+            continue
+        resolved = resolve_score(default_title, default_composer, query=default_query)
+        if resolved:
+            resolved = dict(resolved)
+            resolved["fallbackNote"] = (
+                f"Opened {resolved['title']} — a free public-domain score while browsing {key.title()}."
+            )
+            return resolved
+
     attempts = [
         (title, composer),
         (query, composer),
@@ -1595,6 +2038,33 @@ def resolve_score(title: str, composer: str = "", query: str = "") -> Optional[D
             continue
 
         matched = match_library(t, c)
+        catalogued = None
+        # Score catalogue without fetching first when library also hits, so
+        # movement/WTC/invention queries are not stolen by a featured sample.
+        query = _norm(f"{c} {t}")
+        best_cat: Tuple[int, Optional[Dict[str, Any]]] = (0, None)
+        if query:
+            for entry in build_catalogue():
+                score = _title_score(query, entry)
+                if _composer_hit(query, entry["composer"]):
+                    score += 2
+                if score > best_cat[0]:
+                    best_cat = (score, entry)
+
+        lib_score = matched[2] if matched else -1
+        cat_score = best_cat[0]
+        # Prefer catalogue when it clearly wins (e.g. sonata movement, WTC fugue).
+        if best_cat[1] and cat_score >= 8 and cat_score >= lib_score:
+            path = _fetch_from_catalogue_entry(best_cat[1])
+            if path:
+                entry = best_cat[1]
+                return {
+                    "path": str(path),
+                    "title": entry.get("title") or title or t,
+                    "composer": entry.get("composer") or composer or c,
+                    "source": entry.get("source") or "catalogue",
+                }
+
         if matched:
             path, entry, _ = matched
             return {
@@ -1631,6 +2101,8 @@ def resolve_score(title: str, composer: str = "", query: str = "") -> Optional[D
             (fetch_joplin, "joplin"),
             (fetch_scarlatti, "scarlatti"),
             (fetch_hummel, "hummel"),
+            (fetch_bach_wtc, "bach-wtc"),
+            (fetch_bach_invention, "bach-invention"),
             (fetch_bach_chorale, "bach-chorale"),
             (fetch_art_of_fugue, "art-of-fugue"),
             (fetch_beethoven_quartet, "beethoven-quartets"),
@@ -1648,27 +2120,5 @@ def resolve_score(title: str, composer: str = "", query: str = "") -> Optional[D
                     "composer": composer or c,
                     "source": source,
                 }
-
-    # Composer-only searches: open a strong free default instead of failing.
-    blob = _norm(f"{query} {composer} {title}".strip())
-    name_noise = {
-        "ludwig", "van", "wolfgang", "amadeus", "frederic", "fryderyk", "francois",
-        "johann", "sebastian", "scott", "robert", "alexander", "composer", "joseph",
-        "domenico", "muzio", "nepomuk", "franz", "clara", "george", "frideric",
-        "claude", "erik", "johannes", "pyotr", "ilyich", "nikolai",
-    }
-    tokens = set(blob.split())
-    for key, (default_title, default_composer, default_query) in COMPOSER_DEFAULTS.items():
-        if key not in tokens:
-            continue
-        if tokens - name_noise - {key}:
-            continue
-        resolved = resolve_score(default_title, default_composer, query=default_query)
-        if resolved:
-            resolved = dict(resolved)
-            resolved["fallbackNote"] = (
-                f"Opened {resolved['title']} — a free public-domain score while browsing {key.title()}."
-            )
-            return resolved
 
     return None

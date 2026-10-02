@@ -12,7 +12,7 @@ pip install -q --upgrade pip
 pip install -q -r requirements.txt
 
 echo ""
-echo "Lune is running at http://127.0.0.1:8000/?v=fix17"
+echo "Lune is running at http://127.0.0.1:8000/?v=fix57"
 echo "Search a piece, open a free score, listen, then ask about a bar."
 echo ""
 exec uvicorn backend.main:app --host 127.0.0.1 --port 8000

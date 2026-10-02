@@ -1,23 +1,57 @@
-/* Lune — meet → listen (piano + scrub) → ask (letters/fingers on score) */
+/* Lune — multi-piece studio: Score · Explain · Piano */
 
 const $ = (id) => document.getElementById(id);
 pdfjsLib.GlobalWorkerOptions.workerSrc = "/static/vendor/pdf.worker.min.js";
 
+const COMPOSER_FACE_FILES = {
+  chopin: "chopin.jpg",
+  beethoven: "beethoven.jpg",
+  bach: "bach.jpg",
+  mozart: "mozart.jpg",
+  debussy: "debussy.jpg",
+  liszt: "liszt.jpg",
+  schubert: "schubert.jpg",
+  schumann: "schumann.jpg",
+  brahms: "brahms.jpg",
+  tchaikovsky: "tchaikovsky.jpg",
+  joplin: "joplin.jpg",
+  satie: "satie.jpg",
+  haydn: "haydn.jpg",
+  handel: "handel.jpg",
+  rimsky: "rimsky.jpg",
+  "rimsky-korsakov": "rimsky.jpg",
+};
+const COMPOSER_FACE_V = "fix60";
+const COMPOSER_SILHOUETTE = `/static/assets/composers/silhouette.svg?v=${COMPOSER_FACE_V}`;
+
 const state = {
   piece: null,
   selected: null,
+  selectedBars: [],
   pendingMeta: null,
   osmd: null,
   rawMusicxml: "",
   showFingers: false,
   lettersOnly: false,
-  scoreLetters: false,
+  scoreLetters: true,
   scoreFingers: false,
   showTips: true,
   showLines: true,
   mode: "home",
-  listenRange: "opening",
+  panel: "explain", // score | explain | piano
   scrubbing: false,
+  resumeAfterScrub: false,
+  scrubRatio: 0,
+  timelineKind: null, // "piece" | "selection" | "bar" | null
+  keyboard: null,
+  keyboardVisible: false,
+  playRate: 1,
+  sessions: [],
+  activeSessionId: null,
+  sessionSeq: 0,
+  scoreReady: false,
+  coachOpen: false,
+  selectingBars: false,
 };
 
 function toast(msg) {
@@ -49,70 +83,417 @@ function showView(name) {
   if (home) home.hidden = name !== "home";
   if (discover) discover.hidden = name !== "discover";
   if (studio) studio.hidden = name !== "studio";
-  if (name !== "studio") closeCoach();
+  document.body.classList.toggle("is-home", name === "home");
+  document.body.classList.toggle("is-discover", name === "discover");
+  document.body.classList.toggle("is-studio", name === "studio");
+  if (name !== "studio") {
+    closeCoach();
+    document.body.classList.remove("studio-search-open");
+    const seg = $("studio-seg");
+    if (seg) seg.hidden = true;
+    const dock = $("studio-dock");
+    if (dock) dock.hidden = true;
+    const quiet = $("studio-piece-quiet");
+    if (quiet) quiet.hidden = true;
+  } else {
+    const seg = $("studio-seg");
+    if (seg) seg.hidden = false;
+  }
+  // Never leave the results popup hanging over discover/studio
+  if (name !== "home") closeSearchResults({ blur: true });
+}
+
+function closeSearchResults({ blur = false } = {}) {
+  const box = $("results");
+  if (box) {
+    box.hidden = true;
+    box.innerHTML = "";
+  }
+  if (blur) {
+    const q = $("q");
+    if (q && document.activeElement === q) q.blur();
+  }
 }
 
 /* ---------- search ---------- */
 
-async function search(query, { openBest = false } = {}) {
-  const box = $("results");
-  const q = (query || "").trim();
-  if (q.length < 2) {
-    box.hidden = true;
-    box.innerHTML = "";
+const SEARCH_LIMIT = 8;
+// Paint on the next frame only — coalesces burst keystrokes, ~0–16ms feel (no 100ms lag).
+const SEARCH_DEBOUNCE_MS = 0;
+const SEARCH_INDEX_URL = "/static/search-index.json?v=fix60";
+/** Composers whose piano works are typically still under copyright — honest empty state. */
+const COPYRIGHT_ERA_COMPOSERS = [
+  "ginastera", "prokofiev", "shostakovich", "khachaturian", "kabalevsky",
+  "barber", "copland", "bernstein", "britten", "messiaen", "boulez",
+  "stockhausen", "cage", "ligeti", "penderecki", "piazzolla", "villa-lobos",
+  "villalobos", "bartok", "bartók", "stravinsky", "hindemith", "poulenc",
+  "milhaud", "schnittke", "takemitsu",
+];
+
+function copyrightEraHint(query) {
+  const q = String(query || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  for (const name of COPYRIGHT_ERA_COMPOSERS) {
+    const needle = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (q.includes(needle)) {
+      if (needle === "ginastera") {
+        return (
+          "Ginastera’s Suite de danzas criollas is still under copyright — " +
+          "not available in Lune’s free public-domain library."
+        );
+      }
+      const pretty = name.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      return (
+        `No free public-domain score for “${pretty}” in Lune’s library ` +
+        "(many 20th-century works remain under copyright)."
+      );
+    }
+  }
+  return "";
+}
+
+// Large curated list available synchronously at module load — first key never waits on network.
+const SEARCH_FALLBACK = [
+  { title: "Mazurka op. 6 no. 2", composer: "Frédéric Chopin", query: "mazurka 06 2", group: "Featured", hay: "mazurka op 6 no 2 frederic chopin mazurka 06 2 featured mazurka 06 2 mazurka op 6 no 2 op 6 no 2 mazurka chopin mazurka chopin" },
+  { title: "Piano Sonata no. 14 in C-sharp minor, op. 27 no. 2, \"Moonlight\"", composer: "Ludwig van Beethoven", query: "moonlight", group: "Featured", hay: "piano sonata no 14 in c sharp minor op 27 no 2 moonlight ludwig van beethoven moonlight featured moonlight sonata 14 sonata no 14 op 27 no 2 opus 27 no 2 beethoven" },
+  { title: "Bagatelle no. 25 in A minor, WoO 59 \"Für Elise\"", composer: "Ludwig van Beethoven", query: "fur elise", group: "Featured", hay: "bagatelle no 25 in a minor woo 59 fur elise ludwig van beethoven fur elise featured fur elise fur elise elise woo 59 bagatelle 25 beethoven" },
+  { title: "Prelude in C major, BWV 846", composer: "Johann Sebastian Bach", query: "bwv 846", group: "Featured", hay: "prelude in c major bwv 846 johann sebastian bach bwv 846 featured bwv 846 bwv846 prelude in c well tempered wtc bach" },
+  { title: "Suite bergamasque — Clair de lune", composer: "Claude Debussy", query: "clair de lune", group: "Open MusicXML · Debussy", hay: "suite bergamasque clair de lune claude debussy clair de lune open musicxml debussy clair de lune clair de luna bergamasque debussy" },
+  { title: "Prelude op. 28 no. 15 \"Raindrop\"", composer: "Frédéric Chopin", query: "chopin prelude 15", group: "Chopin preludes", hay: "prelude op 28 no 15 raindrop frederic chopin chopin prelude 15 chopin preludes prelude 15 raindrop chopin" },
+  { title: "The Entertainer", composer: "Scott Joplin", query: "the entertainer", group: "Joplin rags", hay: "the entertainer scott joplin the entertainer joplin rags the entertainer entertainer joplin joplin" },
+  { title: "Maple Leaf Rag", composer: "Scott Joplin", query: "maple leaf rag", group: "Joplin rags", hay: "maple leaf rag scott joplin maple leaf rag joplin rags maple leaf rag mapleleaf joplin joplin" },
+  { title: "Piano Sonata no. 8 \"Pathétique\"", composer: "Ludwig van Beethoven", query: "beethoven sonata 8", group: "Beethoven piano sonatas", hay: "piano sonata no 8 pathetique ludwig van beethoven beethoven sonata 8 beethoven piano sonatas sonata 8 sonata no 8 pathetique beethoven" },
+  { title: "Piano Sonata no. 23 \"Appassionata\"", composer: "Ludwig van Beethoven", query: "beethoven sonata 23", group: "Beethoven piano sonatas", hay: "piano sonata no 23 appassionata ludwig van beethoven beethoven sonata 23 beethoven piano sonatas sonata 23 sonata no 23 appassionata beethoven" },
+  { title: "Gymnopédie no. 1", composer: "Erik Satie", query: "gymnopedie", group: "Open MusicXML · Satie", hay: "gymnopedie no 1 erik satie gymnopedie open musicxml satie gymnopedie gymnopedie gymnopedie 1 satie" },
+  { title: "Arabesque no. 1 in E major, L.66", composer: "Claude Debussy", query: "arabesque", group: "Open MusicXML · Debussy", hay: "arabesque no 1 in e major l 66 claude debussy arabesque open musicxml debussy arabesque arabesque 1 l 66 debussy" },
+  { title: "Liebestraum no. 3 in A-flat major, S.541/3", composer: "Franz Liszt", query: "liebestraum", group: "Open MusicXML · Liszt", hay: "liebestraum no 3 in a flat major s 541 3 franz liszt liebestraum open musicxml liszt liebestraum liebestraume dream of love s 541 liszt" },
+  { title: "Nocturne op. 9 no. 2 in E-flat major", composer: "Frédéric Chopin", query: "nocturne op 9 no 2", group: "Open MusicXML · Chopin", hay: "nocturne op 9 no 2 in e flat major frederic chopin nocturne op 9 no 2 open musicxml chopin nocturne op 9 no 2 nocturne 9 2 nocturne e flat chopin" },
+  { title: "Minuet in G major, BWV Anh. 114", composer: "Johann Sebastian Bach", query: "minuet in g", group: "Open MusicXML · Bach", hay: "minuet in g major bwv anh 114 johann sebastian bach minuet in g open musicxml bach minuet in g bwv anh 114 anna magdalena bach" },
+  { title: "Grandes études de Paganini no. 3 \"La Campanella\"", composer: "Franz Liszt", query: "campanella", group: "Open MusicXML · Liszt", hay: "grandes etudes de paganini no 3 la campanella franz liszt campanella open musicxml liszt campanella la campanella paganini 3 etudes de paganini liszt" },
+  { title: "Ave Maria, D.839 (piano)", composer: "Franz Schubert", query: "ave maria", group: "Open MusicXML · Schubert", hay: "ave maria d 839 piano franz schubert ave maria open musicxml schubert ave maria d 839 ellens dritter gesang schubert" },
+  { title: "Gnossienne no. 1", composer: "Erik Satie", query: "gnossienne", group: "Open MusicXML · Satie", hay: "gnossienne no 1 erik satie gnossienne open musicxml satie gnossienne gnossienne 1 satie" },
+  { title: "Piano Sonata no. 14 \"Moonlight\"", composer: "Ludwig van Beethoven", query: "beethoven sonata 14", group: "Beethoven piano sonatas", hay: "piano sonata no 14 moonlight ludwig van beethoven beethoven sonata 14 beethoven piano sonatas sonata 14 sonata no 14 moonlight beethoven" },
+  { title: "Piano Sonata no. 11, K.331 — Rondo alla Turca", composer: "Wolfgang Amadeus Mozart", query: "alla turca", group: "Open MusicXML · Mozart", hay: "piano sonata no 11 k 331 rondo alla turca wolfgang amadeus mozart alla turca open musicxml mozart alla turca turkish march rondo alla turca k 331 mozart" },
+  { title: "Twinkle Twinkle Little Star", composer: "Traditional", query: "twinkle", group: "Featured", hay: "twinkle twinkle little star traditional twinkle featured twinkle little star abc song traditional" },
+  { title: "Piano Sonata no. 16 in C major, K.545 — Movement 1", composer: "Wolfgang Amadeus Mozart", query: "k 545", group: "Featured", hay: "piano sonata no 16 in c major k 545 movement 1 wolfgang amadeus mozart k 545 featured k 545 k545 sonata facile mozart sonata 16 mozart" },
+  { title: "Ballade no. 1 in G minor, op. 23", composer: "Frédéric Chopin", query: "ballade 1", group: "Open MusicXML · Chopin", hay: "ballade no 1 in g minor op 23 frederic chopin ballade 1 open musicxml chopin ballade 1 ballade no 1 op 23 chopin" },
+  { title: "Nocturne no. 20 in C-sharp minor, op. posth.", composer: "Frédéric Chopin", query: "nocturne 20", group: "Open MusicXML · Chopin", hay: "nocturne no 20 in c sharp minor op posth frederic chopin nocturne 20 open musicxml chopin nocturne 20 nocturne c sharp nocturne posthumous chopin" },
+  { title: "Waltz in A minor, B.150", composer: "Frédéric Chopin", query: "waltz in a minor", group: "Open MusicXML · Chopin", hay: "waltz in a minor b 150 frederic chopin waltz in a minor open musicxml chopin waltz in a minor waltz a minor b 150 chopin" },
+  { title: "Waltz op. 64 no. 2 in C-sharp minor", composer: "Frédéric Chopin", query: "waltz op 64 no 2", group: "Open MusicXML · Chopin", hay: "waltz op 64 no 2 in c sharp minor frederic chopin waltz op 64 no 2 open musicxml chopin waltz op 64 no 2 waltz 64 2 chopin" },
+  { title: "Prelude op. 28 no. 4 in E minor", composer: "Frédéric Chopin", query: "prelude 4", group: "Open MusicXML · Chopin", hay: "prelude op 28 no 4 in e minor frederic chopin prelude 4 open musicxml chopin prelude 4 prelude op 28 no 4 chopin" },
+  { title: "Hungarian Dance no. 5 in G minor", composer: "Johannes Brahms", query: "hungarian dance", group: "Open MusicXML · Brahms", hay: "hungarian dance no 5 in g minor johannes brahms hungarian dance open musicxml brahms hungarian dance hungarian dance 5 brahms 5 brahms" },
+  { title: "Flight of the Bumblebee (piano)", composer: "Nikolai Rimsky-Korsakov", query: "bumblebee", group: "Open MusicXML · Rimsky-Korsakov", hay: "flight of the bumblebee piano nikolai rimsky korsakov bumblebee open musicxml rimsky korsakov bumblebee flight of the bumblebee korsakov" },
+  { title: "Dance of the Sugar Plum Fairy", composer: "Pyotr Ilyich Tchaikovsky", query: "sugar plum", group: "Open MusicXML · Tchaikovsky", hay: "dance of the sugar plum fairy pyotr ilyich tchaikovsky sugar plum open musicxml tchaikovsky sugar plum sugar plum fairy tchaikovsky" },
+  { title: "Canon in D", composer: "Johann Pachelbel", query: "canon in d", group: "Open MusicXML · Pachelbel", hay: "canon in d johann pachelbel canon in d open musicxml pachelbel canon in d pachelbel pachelbel" },
+  { title: "Elite Syncopations", composer: "Scott Joplin", query: "elite syncopations", group: "Joplin rags", hay: "elite syncopations scott joplin elite syncopations joplin rags elite syncopations elite joplin joplin" },
+  { title: "Solace", composer: "Scott Joplin", query: "solace", group: "Joplin rags", hay: "solace scott joplin solace joplin rags solace solace joplin joplin" },
+  { title: "Ständchen (Schubert) — Liszt transcription", composer: "Franz Liszt", query: "standchen", group: "Open MusicXML · Liszt", hay: "standchen schubert liszt transcription franz liszt standchen open musicxml liszt standchen standchen serenade schubert liszt schubert serenade liszt" },
+  { title: "Nocturne op. 9 no. 1", composer: "Frédéric Chopin", query: "nocturne op 9 no 1", group: "Open MusicXML · Chopin", hay: "nocturne op 9 no 1 frederic chopin nocturne op 9 no 1 open musicxml chopin nocturne op 9 no 1 nocturne 9 1 chopin" },
+  { title: "Prelude in C minor, BWV 847", composer: "Johann Sebastian Bach", query: "bwv 847", group: "Open MusicXML · Bach", hay: "prelude in c minor bwv 847 johann sebastian bach bwv 847 open musicxml bach bwv 847 prelude c minor bach" },
+  { title: "Piano Sonata no. 8 \"Pathétique\" — Movement 2", composer: "Ludwig van Beethoven", query: "pathetique 2", group: "Open MusicXML · Beethoven", hay: "piano sonata no 8 pathetique movement 2 ludwig van beethoven pathetique 2 open musicxml beethoven pathetique 2 pathetique movement 2 sonata 8 movement 2 beethoven" },
+  { title: "Piano Sonata no. 14 \"Moonlight\" — Movement 3", composer: "Ludwig van Beethoven", query: "moonlight 3", group: "Open MusicXML · Beethoven", hay: "piano sonata no 14 moonlight movement 3 ludwig van beethoven moonlight 3 open musicxml beethoven moonlight 3 moonlight movement 3 moonlight mvt 3 beethoven" },
+  { title: "Piano Sonata no. 1", composer: "Ludwig van Beethoven", query: "beethoven sonata 1", group: "Beethoven piano sonatas", hay: "piano sonata no 1 ludwig van beethoven beethoven sonata 1 beethoven piano sonatas sonata 1 sonata no 1 beethoven" },
+  { title: "Piano Sonata no. 16", composer: "Wolfgang Amadeus Mozart", query: "mozart sonata 16", group: "Mozart piano sonatas", hay: "piano sonata no 16 wolfgang amadeus mozart mozart sonata 16 mozart piano sonatas mozart sonata 16 sonata 16 mozart" },
+  { title: "Sonatinas (Clementi)", composer: "Muzio Clementi", query: "clementi", group: "Featured", hay: "sonatinas clementi muzio clementi clementi featured clementi sonatina sonatinas clementi" },
+  { title: "Dichterliebe no. 2", composer: "Robert Schumann", query: "dichterliebe", group: "Featured", hay: "dichterliebe no 2 robert schumann dichterliebe featured dichterliebe schumann" },
+  { title: "Piano Sonata no. 21 \"Waldstein\"", composer: "Ludwig van Beethoven", query: "beethoven sonata 21", group: "Beethoven piano sonatas", hay: "piano sonata no 21 waldstein ludwig van beethoven beethoven sonata 21 beethoven piano sonatas sonata 21 sonata no 21 waldstein beethoven" },
+  { title: "Piano Sonata no. 17 \"Tempest\"", composer: "Ludwig van Beethoven", query: "beethoven sonata 17", group: "Beethoven piano sonatas", hay: "piano sonata no 17 tempest ludwig van beethoven beethoven sonata 17 beethoven piano sonatas sonata 17 sonata no 17 tempest beethoven" },
+  { title: "Piano Sonata no. 26 \"Les Adieux\"", composer: "Ludwig van Beethoven", query: "beethoven sonata 26", group: "Beethoven piano sonatas", hay: "piano sonata no 26 les adieux ludwig van beethoven beethoven sonata 26 beethoven piano sonatas sonata 26 sonata no 26 les adieux beethoven" },
+  { title: "Prelude op. 28 no. 4", composer: "Frédéric Chopin", query: "chopin prelude 4", group: "Chopin preludes", hay: "prelude op 28 no 4 frederic chopin chopin prelude 4 chopin preludes prelude 4 chopin" },
+  { title: "Prelude op. 28 no. 7", composer: "Frédéric Chopin", query: "chopin prelude 7", group: "Chopin preludes", hay: "prelude op 28 no 7 frederic chopin chopin prelude 7 chopin preludes prelude 7 chopin" },
+  { title: "Prelude op. 28 no. 20", composer: "Frédéric Chopin", query: "chopin prelude 20", group: "Chopin preludes", hay: "prelude op 28 no 20 frederic chopin chopin prelude 20 chopin preludes prelude 20 chopin" },
+  { title: "Prelude op. 67 no. 1", composer: "Johann Nepomuk Hummel", query: "hummel prelude 1", group: "Hummel preludes", hay: "prelude op 67 no 1 johann nepomuk hummel hummel prelude 1 hummel preludes hummel prelude 1 hummel" },
+  { title: "String Quartet op. 18 no. 1 — Movement 1", composer: "Ludwig van Beethoven", query: "op 18 no 1", group: "Featured", hay: "string quartet op 18 no 1 movement 1 ludwig van beethoven op 18 no 1 featured op 18 no 1 opus 18 no 1 string quartet op 18 beethoven" },
+  { title: "Piano Sonata no. 16 in C major, K.545 — Movement 2", composer: "Wolfgang Amadeus Mozart", query: "k 545 mvt 2", group: "Featured", hay: "piano sonata no 16 in c major k 545 movement 2 wolfgang amadeus mozart k 545 mvt 2 featured k 545 mvt 2 sonata 16 movement 2 mozart" },
+  { title: "Piano Sonata no. 16 in C major, K.545 — Movement 3", composer: "Wolfgang Amadeus Mozart", query: "k 545 mvt 3", group: "Featured", hay: "piano sonata no 16 in c major k 545 movement 3 wolfgang amadeus mozart k 545 mvt 3 featured k 545 mvt 3 sonata 16 movement 3 mozart" },
+  { title: "String Quartet K.155 — Movement 1", composer: "Wolfgang Amadeus Mozart", query: "k 155", group: "Featured", hay: "string quartet k 155 movement 1 wolfgang amadeus mozart k 155 featured k 155 k155 k 155 mozart" },
+  { title: "Piano Sonata no. 2", composer: "Ludwig van Beethoven", query: "beethoven sonata 2", group: "Beethoven piano sonatas", hay: "piano sonata no 2 ludwig van beethoven beethoven sonata 2 beethoven piano sonatas sonata 2 sonata no 2 beethoven" },
+  { title: "Piano Sonata no. 3", composer: "Ludwig van Beethoven", query: "beethoven sonata 3", group: "Beethoven piano sonatas", hay: "piano sonata no 3 ludwig van beethoven beethoven sonata 3 beethoven piano sonatas sonata 3 sonata no 3 beethoven" },
+  { title: "Piano Sonata no. 5", composer: "Ludwig van Beethoven", query: "beethoven sonata 5", group: "Beethoven piano sonatas", hay: "piano sonata no 5 ludwig van beethoven beethoven sonata 5 beethoven piano sonatas sonata 5 sonata no 5 beethoven" },
+  { title: "Piano Sonata no. 29 \"Hammerklavier\"", composer: "Ludwig van Beethoven", query: "beethoven sonata 29", group: "Beethoven piano sonatas", hay: "piano sonata no 29 hammerklavier ludwig van beethoven beethoven sonata 29 beethoven piano sonatas sonata 29 sonata no 29 hammerklavier beethoven" },
+  { title: "Piano Sonata no. 11", composer: "Wolfgang Amadeus Mozart", query: "mozart sonata 11", group: "Mozart piano sonatas", hay: "piano sonata no 11 wolfgang amadeus mozart mozart sonata 11 mozart piano sonatas mozart sonata 11 sonata 11 mozart" },
+  { title: "Piano Sonata no. 13", composer: "Wolfgang Amadeus Mozart", query: "mozart sonata 13", group: "Mozart piano sonatas", hay: "piano sonata no 13 wolfgang amadeus mozart mozart sonata 13 mozart piano sonatas mozart sonata 13 sonata 13 mozart" },
+  { title: "Mazurka op. 7 no. 1", composer: "Frédéric Chopin", query: "chopin mazurka op 7 no 1", group: "Chopin mazurkas", hay: "mazurka op 7 no 1 frederic chopin chopin mazurka op 7 no 1 chopin mazurkas mazurka op 7 no 1 mazurka 7 1 chopin" },
+  { title: "Keyboard Sonata K.1 / L.366", composer: "Domenico Scarlatti", query: "scarlatti k 1", group: "Scarlatti sonatas", hay: "keyboard sonata k 1 l 366 domenico scarlatti scarlatti k 1 scarlatti sonatas k 1 l 366 scarlatti scarlatti" },
+  { title: "A Breeze from Alabama", composer: "Scott Joplin", query: "a breeze from alabama", group: "Joplin rags", hay: "a breeze from alabama scott joplin a breeze from alabama joplin rags a breeze from alabama breeze joplin joplin" },
+  { title: "Antoinette", composer: "Scott Joplin", query: "antoinette", group: "Joplin rags", hay: "antoinette scott joplin antoinette joplin rags antoinette antoinette joplin joplin" },
+  { title: "Augustan Club Waltz", composer: "Scott Joplin", query: "augustan club waltz", group: "Joplin rags", hay: "augustan club waltz scott joplin augustan club waltz joplin rags augustan club waltz augustan joplin joplin" },
+  { title: "Bethena", composer: "Scott Joplin", query: "bethena", group: "Joplin rags", hay: "bethena scott joplin bethena joplin rags bethena bethena joplin joplin" },
+];
+
+// Start on sync fallback so typeahead never blocks on fetch.
+let searchIndex = SEARCH_FALLBACK;
+let searchIndexReady = false; // true once static JSON upgraded the list
+let searchIndexPromise = null;
+let searchGen = 0;
+let lastSearchQuery = "";
+
+function activeSearchIndex() {
+  return searchIndex && searchIndex.length ? searchIndex : SEARCH_FALLBACK;
+}
+
+function normSearch(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/♯|#/g, "sharp")
+    .replace(/♭/g, "flat")
+    .replace(/für/g, "fur")
+    .replace(/[ü]/g, "u")
+    .replace(/[éè]/g, "e")
+    .replace(/ö/g, "o")
+    .replace(/ä/g, "a")
+    .replace(/ß/g, "ss")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function ensureSearchIndex() {
+  if (searchIndexReady) return Promise.resolve(searchIndex);
+  if (!searchIndexPromise) {
+    const t0 = performance.now();
+    // Static JSON only — zero Python work on the request path.
+    searchIndexPromise = fetch(SEARCH_INDEX_URL)
+      .then((res) => {
+        if (!res.ok) throw new Error("index");
+        return res.json();
+      })
+      .then((data) => {
+        const items = Array.isArray(data.items) ? data.items : [];
+        if (items.length) {
+          searchIndex = items;
+          searchIndexReady = true;
+        }
+        if (typeof console !== "undefined" && console.debug) {
+          console.debug(
+            `[search] static index ${searchIndex.length} items in ${(performance.now() - t0).toFixed(1)}ms`
+          );
+        }
+        // Refresh current query with the fuller index (typeahead already showed fallback).
+        if (lastSearchQuery.length >= 2) paintSearch(lastSearchQuery);
+        return searchIndex;
+      })
+      .catch(() => {
+        searchIndexPromise = null;
+        return searchIndex;
+      });
+  }
+  return searchIndexPromise;
+}
+
+function scoreIndexEntry(q, entry) {
+  // Scoring must stay cheap on broad queries (bach/chopin match hundreds of rows).
+  // Never re-run unicode normalize here — `hay` is already normalized server-side.
+  const hay = entry.hay || "";
+  let score = 0;
+  const queryRaw = String(entry.query || "").toLowerCase();
+  const group = entry.group || "";
+
+  if (queryRaw) {
+    if (queryRaw === q) score += 22;
+    else if (queryRaw.includes(q) || q.includes(queryRaw)) score += 12;
+  }
+  if (hay.includes(q)) {
+    score = Math.max(score, 8);
+    // Prefer title-ish hits: query appears early in hay (title is first).
+    if (hay.startsWith(q) || hay.indexOf(q) < 48) score += 10;
+  }
+  for (const t of q.split(" ")) {
+    if (t.length > 1 && hay.includes(t)) score += 3;
+  }
+  if (group.startsWith("Featured") || group.startsWith("Open MusicXML")) score += 12;
+  else if (
+    group.startsWith("Beethoven piano") ||
+    group.startsWith("Mozart piano") ||
+    group.startsWith("Chopin") ||
+    group.startsWith("Haydn piano")
+  ) {
+    score += 8;
+  } else if (group.startsWith("Bach chorales") || group.startsWith("music21")) {
+    score -= 3;
+  }
+  return score;
+}
+
+function filterSearchIndex(query, limit = SEARCH_LIMIT, index = activeSearchIndex()) {
+  const q = normSearch(query);
+  if (q.length < 2 || !index || !index.length) return [];
+  const tokens = q.split(" ").filter((t) => t.length > 1);
+  // Keep only a small top band while scanning — avoid sorting hundreds of chorale hits.
+  const band = limit * 4;
+  const scored = [];
+  for (const entry of index) {
+    const hay = entry.hay || "";
+    if (!(hay.includes(q) || tokens.some((t) => hay.includes(t)))) continue;
+    const score = scoreIndexEntry(q, entry);
+    if (score < 6) continue;
+    scored.push({ score, entry });
+    if (scored.length > band * 3) {
+      // Occasional trim so broad queries (bach) don't accumulate 400+ rows.
+      scored.sort((a, b) => b.score - a.score);
+      scored.length = band;
+    }
+  }
+  scored.sort((a, b) => b.score - a.score);
+  const seen = new Set();
+  const results = [];
+  for (const { entry } of scored) {
+    const key = `${entry.title}\0${entry.composer}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    results.push({
+      kind: "work",
+      id: `free-${entry.query}`,
+      title: entry.title,
+      composer: entry.composer,
+      subtitle: `Free score · ${entry.group || ""}`,
+      epoch: "",
+      portrait: "",
+      openable: true,
+      query: entry.query,
+    });
+    if (results.length >= limit) break;
+  }
+  return results;
+}
+
+function renderSearchResults(box, all, q) {
+  if (!all.length) {
+    box.textContent = "";
+    const wrap = document.createElement("div");
+    wrap.className = "result result-empty";
+    const hint = copyrightEraHint(q);
+    const msg = document.createElement("p");
+    msg.className = "result-empty-msg";
+    msg.textContent = hint || `No pieces found for “${q}”`;
+    wrap.appendChild(msg);
+    const sub = document.createElement("p");
+    sub.className = "result-empty-sub";
+    sub.textContent = hint
+      ? "If you legally own a MusicXML, PDF, or photo of the score, upload it to practise here."
+      : "Try another title, or upload a score you legally own.";
+    wrap.appendChild(sub);
+    const uploadBtn = document.createElement("button");
+    uploadBtn.type = "button";
+    uploadBtn.className = "result-empty-upload";
+    uploadBtn.textContent = "Upload your score";
+    uploadBtn.addEventListener("click", () => {
+      closeSearchResults({ blur: true });
+      $("file")?.click();
+    });
+    wrap.appendChild(uploadBtn);
+    if (/ginastera/i.test(q || "")) {
+      const info = document.createElement("a");
+      info.className = "result-empty-link";
+      info.href = "https://en.wikipedia.org/wiki/Suite_de_danzas_criollas";
+      info.target = "_blank";
+      info.rel = "noopener noreferrer";
+      info.textContent = "About this work · legal editions via publishers";
+      wrap.appendChild(info);
+    }
+    box.appendChild(wrap);
     return;
   }
-  box.hidden = false;
-  box.innerHTML = `<button class="result" type="button" disabled>Searching…</button>`;
-  try {
-    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-    const data = await res.json();
-    const all = data.results || [];
-    const works = all.filter((r) => r.kind !== "composer");
-    if (!all.length) {
-      box.innerHTML = `<button class="result" type="button" disabled>No pieces found for “${escapeHtml(q)}”</button>`;
-      return;
-    }
-    if (openBest) {
-      box.hidden = true;
-      // Prefer free/openable hits so Enter always lands on a real score when possible.
-      const openable = works.filter((r) => r.openable);
-      const list = (openable.length ? openable : works).length
-        ? openable.length
-          ? openable
-          : works
-        : all
-            .filter((r) => r.kind === "composer")
-            .map((c) => ({
-              kind: "work",
-              title: c.title,
-              composer: c.composer || c.title,
-              epoch: c.epoch || "",
-              portrait: c.portrait || "",
-            }));
-      await fetchAndDiscover(list);
-      return;
-    }
-    box.innerHTML = "";
-    for (const item of all) {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "result";
-      const kind =
-        item.kind === "composer"
-          ? "Composer"
-          : item.openable
-            ? "Free score"
-            : item.subtitle || "Work";
-      btn.innerHTML = `${escapeHtml(item.title)}<small>${escapeHtml(
-        [item.composer, kind, item.epoch].filter(Boolean).join(" · ")
-      )}</small>`;
-      btn.addEventListener("click", () => fetchAndDiscover([item]));
-      box.appendChild(btn);
-    }
-  } catch {
-    box.innerHTML = `<button class="result" type="button" disabled>Search failed</button>`;
+  box.textContent = "";
+  const frag = document.createDocumentFragment();
+  for (const item of all) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "result";
+    const kind =
+      item.kind === "composer"
+        ? "Composer"
+        : item.openable
+          ? "Free score"
+          : item.subtitle || "Work";
+    const title = document.createTextNode(item.title || "");
+    const small = document.createElement("small");
+    small.textContent = [item.composer, kind, item.epoch].filter(Boolean).join(" · ");
+    btn.appendChild(title);
+    btn.appendChild(small);
+    btn.addEventListener("click", () => {
+      closeSearchResults({ blur: true });
+      fetchAndDiscover([item]);
+    });
+    frag.appendChild(btn);
   }
+  box.appendChild(frag);
+}
+
+/** Sync filter+render — never touches the network. */
+function paintSearch(query) {
+  const box = $("results");
+  if (!box) return;
+  const q = (query || "").trim();
+  lastSearchQuery = q;
+  if (q.length < 2) {
+    closeSearchResults();
+    return;
+  }
+  const t0 = performance.now();
+  const gen = ++searchGen;
+  box.hidden = false;
+  const all = filterSearchIndex(q);
+  if (gen !== searchGen) return;
+  renderSearchResults(box, all, q);
+  if (typeof console !== "undefined" && console.debug) {
+    console.debug(`[search] filter+render ${(performance.now() - t0).toFixed(2)}ms → ${all.length}`);
+  }
+}
+
+async function search(query, { openBest = false } = {}) {
+  const q = (query || "").trim();
+  lastSearchQuery = q;
+  if (q.length < 2) {
+    closeSearchResults();
+    return;
+  }
+  // Typing path is always local (fallback or full index).
+  if (!openBest) {
+    paintSearch(q);
+    return;
+  }
+
+  const box = $("results");
+  if (!box) return;
+  const gen = ++searchGen;
+  box.hidden = false;
+
+  // Prefer full index if already ready; otherwise use fallback immediately.
+  let all = filterSearchIndex(q);
+  // One short wait for the prefetch if it is already in flight (submit only).
+  if (!all.length && (!searchIndex || !searchIndex.length) && searchIndexPromise) {
+    try {
+      await Promise.race([
+        searchIndexPromise,
+        new Promise((r) => setTimeout(r, 120)),
+      ]);
+    } catch {
+      /* ignore */
+    }
+    if (gen !== searchGen) return;
+    all = filterSearchIndex(q);
+  }
+
+  const works = all.filter((r) => r.kind !== "composer");
+  closeSearchResults({ blur: true });
+  const openable = works.filter((r) => r.openable);
+  const list = (openable.length ? openable : works).length
+    ? openable.length
+      ? openable
+      : works
+    : all
+        .filter((r) => r.kind === "composer")
+        .map((c) => ({
+          kind: "work",
+          title: c.title,
+          composer: c.composer || c.title,
+          epoch: c.epoch || "",
+          portrait: c.portrait || "",
+        }));
+  await fetchAndDiscover(list.length ? list : [{ title: q, composer: "", query: q }]);
 }
 
 async function tryOpen(body) {
@@ -130,10 +511,12 @@ async function tryOpen(body) {
 }
 
 async function fetchAndDiscover(works) {
+  closeSearchResults({ blur: true });
   toast("Loading the piece…");
   const typed = ($("q").value || "").trim();
   let lastMiss = null;
-  for (const item of works.slice(0, 12)) {
+  // Light open only (no music21) — try best hits sequentially; Discover must feel instant.
+  for (const item of works.slice(0, 4)) {
     const piece = await tryOpen({
       title: item.title,
       composer: item.composer || "",
@@ -162,177 +545,660 @@ async function fetchAndDiscover(works) {
     }
   }
   if (lastMiss) {
-    state.piece = lastMiss.piece;
     showDiscoverPage(lastMiss.piece, { canOpen: false });
-    toast(lastMiss.piece.message || "Try another free title or upload a file");
     return;
   }
   toast("No free score available");
 }
 
 async function landOnDiscover(piece) {
-  state.piece = piece;
-  state.rawMusicxml = piece.musicxml || "";
-  state.selected = null;
-  state.mode = "discover";
+  closeSearchResults({ blur: true });
   if (piece.fallbackNote) toast(piece.fallbackNote);
-  showDiscoverPage(piece, { canOpen: piece.kind === "score" && !!piece.musicxml });
+  const canOpen = piece.kind === "score" && !!piece.musicxml;
+  if (!canOpen && piece.kind === "catalogue") {
+    // Catalogue miss still gets a studio Explain tab so the face + story show.
+    openPieceSession(piece, { panel: "explain", analyze: false });
+    return;
+  }
+  openPieceSession(piece, { panel: "explain", analyze: false });
 }
 
-/* ---------- discover ---------- */
+/* ---------- composer faces ---------- */
 
-function showDiscoverPage(piece, { canOpen }) {
+function composerFaceKey(name) {
+  const n = String(name || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  if (!n) return "";
+  if (n.includes("rimsky")) return "rimsky";
+  const keys = Object.keys(COMPOSER_FACE_FILES).sort((a, b) => b.length - a.length);
+  for (const key of keys) {
+    if (n.includes(key)) return key;
+  }
+  const last = n.trim().split(/\s+/).pop() || "";
+  return COMPOSER_FACE_FILES[last] ? last : "";
+}
+
+function localComposerFaceUrl(composer) {
+  const key = composerFaceKey(composer);
+  if (!key) return "";
+  const file = COMPOSER_FACE_FILES[key];
+  return file ? `/static/assets/composers/${file}?v=${COMPOSER_FACE_V}` : "";
+}
+
+function applyComposerFace(img, fallbackEl, composer, remoteUrl) {
+  if (!img) return;
+  const name = composer || "Composer";
+  const local = localComposerFaceUrl(name);
+  const remote = (remoteUrl || "").trim();
+  const queue = [local, remote].filter(Boolean);
+  let i = 0;
+
+  const showSilhouette = () => {
+    img.hidden = false;
+    img.removeAttribute("hidden");
+    img.onerror = null;
+    img.src = COMPOSER_SILHOUETTE;
+    img.alt = name;
+    if (fallbackEl) {
+      fallbackEl.hidden = true;
+      fallbackEl.textContent = "";
+    }
+  };
+
+  const tryNext = () => {
+    if (i >= queue.length) {
+      showSilhouette();
+      return;
+    }
+    const url = queue[i++];
+    img.hidden = false;
+    img.removeAttribute("hidden");
+    img.alt = name;
+    img.onerror = () => tryNext();
+    img.onload = () => {
+      if (fallbackEl) fallbackEl.hidden = true;
+    };
+    img.src = url;
+  };
+
+  if (!queue.length) {
+    showSilhouette();
+    return;
+  }
+  tryNext();
+}
+
+/* ---------- piece sessions (browser-like tabs) ---------- */
+
+function shortPieceTitle(title) {
+  const t = String(title || "Untitled").trim();
+  if (t.length <= 28) return t;
+  return `${t.slice(0, 26).trim()}…`;
+}
+
+function activeSession() {
+  return state.sessions.find((s) => s.id === state.activeSessionId) || null;
+}
+
+function snapshotActiveSession() {
+  const s = activeSession();
+  if (!s) return;
+  s.piece = state.piece;
+  s.rawMusicxml = state.rawMusicxml || "";
+  s.panel = state.panel || "explain";
+  s.scoreLetters = !!state.scoreLetters;
+  s.scoreFingers = !!state.scoreFingers;
+  s.showTips = !!state.showTips;
+  s.showLines = !!state.showLines;
+  s.playRate = state.playRate || 1;
+  s.keyboardVisible = !!state.keyboardVisible;
+  s.selected = state.selected;
+  s.selectedBars = [...(state.selectedBars || [])];
+  s.scoreReady = !!state.scoreReady;
+  try {
+    if (LunePiano.hasTimeline?.()) {
+      const dur = LunePiano.duration() || 0;
+      s.scrubRatio = dur > 0 ? (LunePiano.progress() || 0) / dur : 0;
+    } else {
+      s.scrubRatio = state.scrubRatio || 0;
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+function createSession(piece, panel = "explain") {
+  const o = piece?.overview || {};
+  const title = o.title || piece?.title || "Untitled";
+  return {
+    id: `p${++state.sessionSeq}`,
+    piece,
+    rawMusicxml: piece?.musicxml || "",
+    panel,
+    scoreLetters: true,
+    scoreFingers: false,
+    showTips: true,
+    showLines: true,
+    playRate: 1,
+    keyboardVisible: false,
+    selected: null,
+    selectedBars: [],
+    scrubRatio: 0,
+    scoreReady: false,
+    shortTitle: shortPieceTitle(title),
+  };
+}
+
+function renderPieceTabs() {
+  const host = $("piece-tabs");
+  const quiet = $("studio-piece-quiet");
+  if (!host) return;
+  host.textContent = "";
+  const n = state.sessions.length;
+  if (!n) {
+    host.hidden = true;
+    if (quiet) {
+      quiet.hidden = true;
+      quiet.textContent = "";
+    }
+    return;
+  }
+
+  // Single piece: quiet title, no tab chrome — keep a lone + to open another.
+  const multi = n >= 2;
+  if (quiet) {
+    const active = activeSession();
+    const title =
+      active?.shortTitle ||
+      shortPieceTitle(active?.piece?.title || active?.piece?.overview?.title || "");
+    quiet.textContent = title;
+    quiet.hidden = multi || !document.body.classList.contains("is-studio");
+    quiet.title = active?.piece?.title || title;
+  }
+  host.hidden = false;
+
+  const frag = document.createDocumentFragment();
+  if (multi) {
+    for (const s of state.sessions) {
+      const tab = document.createElement("div");
+      tab.className = "piece-tab" + (s.id === state.activeSessionId ? " on" : "");
+      tab.setAttribute("role", "tab");
+      tab.setAttribute("aria-selected", s.id === state.activeSessionId ? "true" : "false");
+      const composerName =
+        s.piece?.overview?.composer || s.piece?.composer || "";
+      const faceUrl =
+        localComposerFaceUrl(composerName) ||
+        (s.piece?.overview?.composerInfo?.image || "").trim() ||
+        COMPOSER_SILHOUETTE;
+      const face = document.createElement("img");
+      face.className = "piece-tab-face";
+      face.alt = "";
+      face.width = 18;
+      face.height = 18;
+      face.decoding = "async";
+      face.src = faceUrl;
+      face.onerror = () => {
+        face.onerror = null;
+        face.src = COMPOSER_SILHOUETTE;
+      };
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "piece-tab-label";
+      btn.title = s.piece?.title || s.shortTitle;
+      btn.textContent = s.shortTitle;
+      btn.addEventListener("click", () => {
+        activateSession(s.id).catch((e) => toast(e.message));
+      });
+      const close = document.createElement("button");
+      close.type = "button";
+      close.className = "piece-tab-close";
+      close.setAttribute("aria-label", `Close ${s.shortTitle}`);
+      close.textContent = "×";
+      close.addEventListener("click", (e) => {
+        e.stopPropagation();
+        closeSession(s.id).catch((err) => toast(err.message));
+      });
+      tab.appendChild(face);
+      tab.appendChild(btn);
+      tab.appendChild(close);
+      frag.appendChild(tab);
+    }
+  }
+  const add = document.createElement("button");
+  add.type = "button";
+  add.className = "piece-tab-add";
+  add.title = "Open another piece";
+  add.setAttribute("aria-label", "Open another piece");
+  add.textContent = "+";
+  add.addEventListener("click", openStudioSearch);
+  frag.appendChild(add);
+  host.appendChild(frag);
+  if (!multi) {
+    host.classList.add("piece-tabs-solo");
+  } else {
+    host.classList.remove("piece-tabs-solo");
+  }
+}
+
+function openStudioSearch() {
+  document.body.classList.add("studio-search-open");
+  const q = $("q");
+  if (q) {
+    q.focus();
+    q.select?.();
+  }
+  toast("Search to open another piece");
+}
+
+function syncTogglesFromState() {
+  const map = [
+    ["tog-letters", state.scoreLetters],
+    ["tog-fingers", state.scoreFingers],
+    ["tog-tips", state.showTips],
+    ["tog-lines", state.showLines],
+  ];
+  for (const [id, on] of map) {
+    const el = $(id);
+    if (!el) continue;
+    el.checked = !!on;
+    el.closest(".tog")?.classList.toggle("on", !!on);
+  }
+  const mode = state.scoreFingers ? "fingers" : state.scoreLetters ? "notes" : "off";
+  ["notes", "fingers", "off"].forEach((v) => {
+    const el = $(`anno-${v}`);
+    if (!el) return;
+    el.checked = mode === v;
+    el.closest(".anno-opt")?.classList.toggle("on", mode === v);
+  });
+}
+
+function applySessionToState(s) {
+  state.piece = s.piece;
+  state.rawMusicxml = s.rawMusicxml || s.piece?.musicxml || "";
+  state.panel = s.panel || "explain";
+  state.scoreLetters = !!s.scoreLetters;
+  state.scoreFingers = !!s.scoreFingers;
+  if (state.scoreLetters && state.scoreFingers) state.scoreFingers = false;
+  state.showTips = s.showTips !== false;
+  state.showLines = s.showLines !== false;
+  state.playRate = s.playRate || 1;
+  state.keyboardVisible = !!s.keyboardVisible || (s.panel || "") === "piano";
+  state.selected = s.selected;
+  state.selectedBars = Array.isArray(s.selectedBars)
+    ? s.selectedBars.map(Number).filter((n) => n > 0)
+    : s.selected
+      ? [Number(s.selected)]
+      : [];
+  state.scoreReady = !!s.scoreReady;
+  state.scrubRatio = Number(s.scrubRatio) || 0;
+  state.mode = "studio";
+  syncTogglesFromState();
+  setPlayRate(state.playRate);
+}
+
+function fillPieceChrome(piece) {
+  if (!piece) return;
   const o = piece.overview || {};
   const title = o.title || piece.title || "Untitled";
+  const quiet = $("studio-piece-quiet");
+  if (quiet) {
+    quiet.textContent = shortPieceTitle(title);
+    quiet.title = title;
+  }
+  if ($("btn-download")) $("btn-download").hidden = !piece.musicxml;
+}
+
+function buildExplainChapters(piece, { canOpen }) {
+  const o = piece.overview || {};
   const composer = o.composer || piece.composer || "";
   const era = o.era || o.epoch || "";
   const ci = o.composerInfo || {};
-
-  $("discover-era").textContent = era || "Discover";
-  $("discover-title").textContent = title;
-  $("discover-by").textContent = composer ? `by ${composer}` : "";
-  $("discover-hook").textContent = ci.hook || o.summary || "A piece waiting to be heard carefully.";
-
-  const img = $("composer-hero-img");
-  const fallback = $("composer-fallback");
-  const photo = ci.image || o.historyImage || "";
-  if (photo) {
-    img.hidden = false;
-    img.src = photo;
-    img.alt = composer || title;
-    fallback.hidden = true;
-  } else {
-    img.hidden = true;
-    fallback.hidden = false;
-    fallback.textContent = (composer || title).slice(0, 1).toUpperCase();
-  }
-
-  const host = $("discover-chapters");
-  host.innerHTML = "";
-  const chapters = [
+  return [
     {
+      label: "Composer",
       title: `About ${ci.name || composer || "the composer"}`,
       body: ci.full || ci.bio || ci.hook || "Composer story loading…",
       extras: ci.highlights || [],
     },
     {
-      title: "The piece",
+      label: "The work",
+      title: "About this piece",
       body: o.history || o.summary || "Explore this work.",
       extras: o.highlights || [],
     },
     {
+      label: "World",
       title: `Era · ${(o.eraInfo && o.eraInfo.label) || era || "Style"}`,
       body: (o.eraInfo && o.eraInfo.story) || "",
       extras: (o.eraInfo && o.eraInfo.tips) || [],
     },
     {
+      label: "Score",
       title: "In this score",
-      body: "Facts from the MusicXML once opened.",
+      body: canOpen
+        ? "Open Score to hear it with piano sound — the playhead follows the bar, and you can show the keyboard under the page."
+        : "A free MusicXML isn’t available for this title yet — upload your own score to practise here.",
       extras: (o.playingCards || []).map((c) => `${c.label}: ${c.value}`),
     },
   ];
-  chapters.forEach((ch, i) => {
-    const details = document.createElement("details");
-    details.className = "chapter";
-    if (i === 0) details.open = true;
-    details.innerHTML = `<summary>${escapeHtml(ch.title)}</summary>
-      <div class="chapter-body"><p>${escapeHtml(ch.body)}</p>
-      ${(ch.extras || []).length ? `<ul>${ch.extras.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul>` : ""}
-      </div>`;
-    host.appendChild(details);
-  });
-
-  $("btn-open-piece").hidden = !canOpen;
-  $("btn-open-piece-bottom").hidden = !canOpen;
-  document.querySelectorAll(".journey-steps span").forEach((el, i) => el.classList.toggle("on", i === 0));
-  showView("discover");
 }
 
-async function openPieceFromDiscover() {
-  if (!state.piece?.musicxml) {
-    $("file").click();
-    return;
+function renderExplainPanel(piece) {
+  const o = piece?.overview || {};
+  const title = o.title || piece?.title || "Untitled";
+  const composer = o.composer || piece?.composer || "";
+  const era = o.era || o.epoch || "";
+  const ci = o.composerInfo || {};
+  const canOpen = piece?.kind === "score" && !!piece?.musicxml;
+
+  if ($("explain-era")) $("explain-era").textContent = era || "Meet the piece";
+  if ($("explain-title")) $("explain-title").textContent = title;
+  if ($("explain-by")) $("explain-by").textContent = composer ? `by ${composer}` : "";
+  if ($("explain-hook")) {
+    $("explain-hook").textContent =
+      ci.hook || o.summary || "A piece waiting to be heard carefully.";
   }
-  toast("Preparing piano sound…");
+
+  applyComposerFace(
+    $("explain-hero-img"),
+    $("explain-fallback"),
+    composer || title,
+    ci.image || o.historyImage || ""
+  );
+
+  // Keep legacy discover nodes in sync if present (catalogue fallthrough).
+  if ($("discover-era")) $("discover-era").textContent = era || "Discover";
+  if ($("discover-title")) $("discover-title").textContent = title;
+  if ($("discover-by")) $("discover-by").textContent = composer ? `by ${composer}` : "";
+  if ($("discover-hook")) {
+    $("discover-hook").textContent =
+      ci.hook || o.summary || "A piece waiting to be heard carefully.";
+  }
+  if ($("composer-hero-img")) {
+    applyComposerFace(
+      $("composer-hero-img"),
+      $("composer-fallback"),
+      composer || title,
+      ci.image || o.historyImage || ""
+    );
+  }
+
+  const host = $("explain-chapters") || $("discover-chapters");
+  if (host) {
+    host.innerHTML = "";
+    buildExplainChapters(piece, { canOpen }).forEach((ch, i) => {
+      if (!ch.body && !(ch.extras || []).length) return;
+      const article = document.createElement("article");
+      article.className = "chapter";
+      article.style.animationDelay = `${0.05 * i}s`;
+      article.innerHTML = `
+      <p class="chapter-label">${escapeHtml(ch.label)}</p>
+      <h2 class="chapter-title">${escapeHtml(ch.title)}</h2>
+      <div class="chapter-body">
+        <p>${escapeHtml(ch.body)}</p>
+        ${(ch.extras || []).length ? `<ul>${ch.extras.map((x) => `<li>${escapeHtml(x)}</li>`).join("")}</ul>` : ""}
+      </div>`;
+      host.appendChild(article);
+    });
+  }
+
+  const ask = $("explain-ask");
+  if (ask) ask.hidden = !canOpen;
+  if (canOpen) renderBarStrip();
+}
+
+function setStudioPanel(panel, { skipScore = false } = {}) {
+  const next = ["score", "explain", "piano"].includes(panel) ? panel : "explain";
+  state.panel = next;
+  state.mode = next === "explain" ? "ask" : next === "score" ? "listen" : "piano";
+  const s = activeSession();
+  if (s) s.panel = next;
+
+  ["score", "explain", "piano"].forEach((name) => {
+    const el = $(`panel-${name}`);
+    if (el) el.hidden = name !== next;
+    const tab = $(`tab-${name}`);
+    if (tab) {
+      const on = name === next;
+      tab.classList.toggle("on", on);
+      tab.setAttribute("aria-selected", on ? "true" : "false");
+    }
+  });
+
+  document.body.classList.toggle("is-panel-score", next === "score");
+  document.body.classList.toggle("is-panel-explain", next === "explain");
+  document.body.classList.toggle("is-panel-piano", next === "piano");
+
+  const dock = $("studio-dock");
+  if (dock) dock.hidden = !(next === "score" || next === "piano");
+
+  if ($("stage-label")) {
+    $("stage-label").textContent =
+      next === "score" ? "Score" : next === "explain" ? "Explain" : "Piano";
+  }
+
+  // Piano tab = keyboard focus mode (always show). Score = optional dock.
+  if (next === "piano") {
+    state.keyboardVisible = true;
+    applyKeyboardVisibility(true);
+  } else if (next === "score") {
+    applyKeyboardVisibility(!!state.keyboardVisible);
+  } else {
+    applyKeyboardVisibility(false);
+  }
+
+  if (next === "explain") {
+    renderExplainPanel(state.piece);
+    const selected = new Set(selectedBarsSorted());
+    document.querySelectorAll(".bar-card").forEach((el) => {
+      el.classList.toggle("on", selected.has(Number(el.dataset.bar)));
+    });
+  }
+
+  if (next === "score") {
+    requestAnimationFrame(() => {
+      paintSelectionHilites();
+      updateScrubRegionUi();
+    });
+  }
+
+  if (next === "score" && !skipScore && state.piece?.musicxml) {
+    // fire-and-forget; caller may await ensureScoreReady separately
+  }
+}
+
+async function ensureScoreReady() {
+  if (!state.piece?.musicxml) {
+    $("file")?.click();
+    return false;
+  }
+  const needs =
+    state.piece.needsAnalysis ||
+    !state.piece.debriefs ||
+    !Object.keys(state.piece.debriefs).length;
+  if (needs) {
+    toast("Preparing the score…");
+    const full = await tryOpen({
+      title: state.piece.title || "",
+      composer: state.piece.composer || "",
+      epoch: state.piece.epoch || state.piece.era || "",
+      query: state.piece.openQuery || state.piece.query || ($("q").value || "").trim(),
+      portrait:
+        state.piece.overview?.composerInfo?.image ||
+        localComposerFaceUrl(state.piece.composer || "") ||
+        "",
+      analyze: true,
+    });
+    if (full && full.kind === "score" && full.musicxml) {
+      state.piece = full;
+      state.rawMusicxml = full.musicxml || "";
+      const s = activeSession();
+      if (s) {
+        s.piece = full;
+        s.rawMusicxml = full.musicxml || "";
+        s.shortTitle = shortPieceTitle(full.title || full.overview?.title);
+      }
+      renderPieceTabs();
+      fillPieceChrome(full);
+      renderExplainPanel(full);
+    } else {
+      toast("Could not prepare this score");
+      return false;
+    }
+  }
   try {
     await LunePiano.ensure();
   } catch {
     toast("Piano samples need internet the first time");
   }
-  await enterListenMode();
+  await renderScore();
+  state.scoreReady = true;
+  const s = activeSession();
+  if (s) s.scoreReady = true;
+  updateScrub({ progress: 0, total: 0, bar: null });
+  return true;
+}
+
+async function openPieceSession(piece, { panel = "explain" } = {}) {
+  snapshotActiveSession();
+  stopAll();
+  closeCoach();
+  const session = createSession(piece, panel);
+  state.sessions.push(session);
+  state.activeSessionId = session.id;
+  applySessionToState(session);
+  fillPieceChrome(piece);
+  renderPieceTabs();
+  showView("studio");
+  setStudioPanel(panel, { skipScore: true });
+  renderExplainPanel(piece);
+  if (panel === "score") {
+    await ensureScoreReady();
+  }
+}
+
+async function activateSession(id) {
+  if (id === state.activeSessionId) {
+    showView("studio");
+    return;
+  }
+  snapshotActiveSession();
+  stopAll();
+  closeCoach();
+  const s = state.sessions.find((x) => x.id === id);
+  if (!s) return;
+  state.activeSessionId = id;
+  applySessionToState(s);
+  fillPieceChrome(s.piece);
+  renderPieceTabs();
+  showView("studio");
+  setStudioPanel(s.panel || "explain", { skipScore: true });
+  if ((s.panel || "explain") === "score" && s.piece?.musicxml) {
+    await renderScore();
+  } else if ((s.panel || "explain") === "explain") {
+    renderExplainPanel(s.piece);
+  } else if ((s.panel || "explain") === "piano") {
+    applyKeyboardVisibility(true);
+  }
+}
+
+async function closeSession(id) {
+  const idx = state.sessions.findIndex((s) => s.id === id);
+  if (idx < 0) return;
+  const wasActive = state.activeSessionId === id;
+  if (wasActive) {
+    stopAll();
+    closeCoach();
+  }
+  state.sessions.splice(idx, 1);
+  if (!state.sessions.length) {
+    state.activeSessionId = null;
+    state.piece = null;
+    state.rawMusicxml = "";
+    state.osmd = null;
+    state.scoreReady = false;
+    renderPieceTabs();
+    goHome({ keepTabs: true });
+    return;
+  }
+  if (wasActive) {
+    const next = state.sessions[Math.min(idx, state.sessions.length - 1)];
+    state.activeSessionId = null;
+    await activateSession(next.id);
+  } else {
+    renderPieceTabs();
+  }
+}
+
+/* ---------- discover (legacy fallthrough) ---------- */
+
+function showDiscoverPage(piece, { canOpen }) {
+  // Prefer studio Explain so piece tabs + faces stay consistent.
+  openPieceSession(piece, { panel: "explain" });
+  if (!canOpen) toast(piece?.message || "Try another free title or upload a file");
+}
+
+async function openPieceFromDiscover() {
+  await switchToScorePanel();
+}
+
+async function switchToScorePanel() {
+  if (!state.piece?.musicxml) {
+    $("file")?.click();
+    return;
+  }
+  setStudioPanel("score", { skipScore: true });
+  const ok = await ensureScoreReady();
+  if (!ok) setStudioPanel("explain");
 }
 
 async function enterListenMode() {
-  state.mode = "listen";
-  showView("studio");
-  $("stage-label").textContent = "2 · Listen";
-  $("piece-name").textContent = state.piece.title || "Untitled";
-  $("piece-meta").textContent = [
-    state.piece.composer || state.piece.overview?.composer,
-    state.piece.overview?.era,
-    state.piece.notatedKey || state.piece.analyzedKey,
-    state.piece.timeSignature,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-
-  $("listen-dock").hidden = false;
-  $("ask-banner").hidden = true;
-  $("bars").hidden = true;
-  $("score-toggles").hidden = false;
-  $("btn-to-ask").hidden = true;
-  $("btn-ready-ask").hidden = false;
-  $("btn-download").hidden = !state.piece.musicxml;
-  $("tab-listen")?.classList.add("on");
-  $("tab-ask")?.classList.remove("on");
-  closeCoach();
-  setListenRange(state.listenRange || "opening");
-  await renderScore();
-  updateScrub({ progress: 0, total: 0, bar: null });
+  await switchToScorePanel();
 }
 
 function enterAskMode() {
-  state.mode = "ask";
   stopAll();
-  $("stage-label").textContent = "3 · Ask";
-  $("listen-dock").hidden = true;
-  $("ask-banner").hidden = false;
-  $("bars").hidden = false;
-  $("score-toggles").hidden = false;
-  $("btn-to-ask").hidden = true;
-  $("btn-ready-ask").hidden = true;
-  $("tab-listen")?.classList.remove("on");
-  $("tab-ask")?.classList.add("on");
+  setStudioPanel("explain");
   renderBarStrip();
-  toast("Tap a bar — your companion opens with help");
+  toast("Tap a bar to ask");
 }
 
 /* ---------- listening / scrub ---------- */
 
-function setListenRange(range) {
-  state.listenRange = range;
-  document.querySelectorAll(".range").forEach((btn) => {
-    btn.classList.toggle("on", btn.dataset.range === range);
-  });
-}
-
-function rangeBars() {
+function pieceBarSpan() {
   const nums = Object.keys(state.piece?.debriefs || {})
     .map(Number)
     .sort((a, b) => a - b);
   if (!nums.length) return [1, 1];
-  const first = nums[0];
-  const last = nums[nums.length - 1];
-  switch (state.listenRange) {
-    case "phrase":
-      return [first, Math.min(first + 7, last)];
-    case "page":
-      return [first, Math.min(first + 15, last)];
-    case "whole":
-      return [first, last];
-    default:
-      return [first, Math.min(first + 3, last)];
-  }
+  return [nums[0], nums[nums.length - 1]];
+}
+
+function selectedBarsSorted() {
+  return [...new Set((state.selectedBars || []).map(Number).filter((n) => n > 0))].sort(
+    (a, b) => a - b
+  );
+}
+
+function selectionSpan() {
+  const bars = selectedBarsSorted();
+  if (!bars.length) return null;
+  return [bars[0], bars[bars.length - 1]];
+}
+
+function selectionTitle(bars = selectedBarsSorted()) {
+  if (!bars.length) return "Bar";
+  if (bars.length === 1) return `Bar ${bars[0]}`;
+  const contiguous = bars[bars.length - 1] - bars[0] + 1 === bars.length;
+  if (contiguous) return `Bars ${bars[0]}–${bars[bars.length - 1]}`;
+  return `Bars ${bars.join(", ")}`;
+}
+
+function listenBarSpan() {
+  const span = selectionSpan();
+  if (span) return span;
+  return pieceBarSpan();
 }
 
 function collectNotes(fromBar, toBar) {
@@ -352,13 +1218,71 @@ function collectNotes(fromBar, toBar) {
   return notes;
 }
 
+function pieceNotes() {
+  const [from, to] = pieceBarSpan();
+  return collectNotes(from, to);
+}
+
+function listenNotes() {
+  const [from, to] = listenBarSpan();
+  return collectNotes(from, to);
+}
+
+function playbackHandlers() {
+  return {
+    onTick: updateScrub,
+    onKeys: onPianoKeys,
+    onEnd: () => {
+      syncPlayButton();
+      clearKeyboard();
+    },
+  };
+}
+
+/** Ensure the full-piece timeline is armed so scrub / Play-from-here works. */
+async function ensurePieceTimeline(seekRatio = null) {
+  const notes = listenNotes();
+  if (!notes.length) return false;
+  const ratio =
+    seekRatio != null
+      ? Math.max(0, Math.min(1, Number(seekRatio) || 0))
+      : Math.max(0, Math.min(1, Number(state.scrubRatio) || 0));
+  try {
+    await LunePiano.ensure();
+  } catch {
+    toast("Could not load piano samples — check internet once");
+    return false;
+  }
+  try {
+    LunePiano.setRate(state.playRate || 1);
+  } catch {
+    /* ignore */
+  }
+  const kind = selectionSpan() ? "selection" : "piece";
+  if (!LunePiano.hasTimeline() || state.timelineKind !== kind) {
+    state.timelineKind = kind;
+    LunePiano.arm(notes, { ...playbackHandlers(), from: ratio });
+  } else if (seekRatio != null) {
+    LunePiano.seek(ratio, { resumeIfWasPlaying: false });
+  }
+  state.scrubRatio = LunePiano.duration()
+    ? (LunePiano.progress() || 0) / LunePiano.duration()
+    : ratio;
+  renderScrubTicks();
+  updateScrubRegionUi();
+  syncPlayButton();
+  return true;
+}
+
 function updateScrub({ progress, total, bar }) {
   const scrub = $("scrub");
   if (scrub) {
     if (!state.scrubbing && total > 0) {
       scrub.value = String(Math.round((progress / total) * 1000));
+      state.scrubRatio = progress / total;
     } else if (total <= 0) {
       scrub.value = "0";
+      state.scrubRatio = 0;
     }
   }
   const timeEl = $("scrub-time");
@@ -366,7 +1290,51 @@ function updateScrub({ progress, total, bar }) {
   if (timeEl) timeEl.textContent = `${fmtTime(progress)} / ${fmtTime(total)}`;
   if (barEl) barEl.textContent = bar ? `Bar ${bar}` : "Bar —";
   highlightPlayingBar(bar);
-  placePlayhead(bar);
+  placePlayhead(bar, progress, total);
+  syncPlayButton();
+}
+
+function syncPlayButton() {
+  const label = LunePiano.isPlaying()
+    ? "Pause"
+    : LunePiano.hasTimeline() && LunePiano.progress() > 0.05
+      ? "Resume"
+      : "Play";
+  const aria =
+    label === "Pause" ? "Pause" : label === "Resume" ? "Resume" : "Play";
+  const playBtn = $("btn-play-range");
+  if (playBtn) {
+    playBtn.textContent = label;
+    playBtn.setAttribute("aria-label", aria);
+  }
+  // Stop stays visible in the dock (MuseScore-like); disabled when idle at start
+  const stop = $("btn-stop");
+  if (stop) {
+    const canStop =
+      LunePiano.isPlaying() ||
+      (LunePiano.hasTimeline() && LunePiano.progress() > 0.02);
+    stop.disabled = !canStop;
+    stop.setAttribute("aria-disabled", canStop ? "false" : "true");
+  }
+}
+
+function renderScrubTicks() {
+  const host = $("scrub-ticks");
+  if (!host) return;
+  host.innerHTML = "";
+  const marks = LunePiano.barMarkers?.() || [];
+  if (marks.length < 2) return;
+  // Cap labels so dense pieces stay readable
+  const step = marks.length > 24 ? Math.ceil(marks.length / 16) : 1;
+  marks.forEach((m, i) => {
+    if (i % step !== 0 && i !== marks.length - 1) return;
+    const tick = document.createElement("span");
+    tick.className = "scrub-tick";
+    tick.style.left = `${m.ratio * 100}%`;
+    tick.title = `Bar ${m.bar}`;
+    tick.dataset.bar = String(m.bar);
+    host.appendChild(tick);
+  });
 }
 
 function highlightPlayingBar(bar) {
@@ -375,29 +1343,133 @@ function highlightPlayingBar(bar) {
   });
 }
 
-function placePlayhead(bar) {
+/** Fraction of the current bar elapsed (0–1) from the piano timeline. */
+function barLocalRatio(bar, progress) {
+  const marks = LunePiano.barMarkers?.() || [];
+  if (!marks.length || bar == null) return 0;
+  const idx = marks.findIndex((m) => Number(m.bar) === Number(bar));
+  if (idx < 0) return 0;
+  const start = marks[idx].t;
+  const end = idx + 1 < marks.length ? marks[idx + 1].t : LunePiano.duration() || start + 1;
+  const span = Math.max(0.001, end - start);
+  return Math.max(0, Math.min(1, (progress - start) / span));
+}
+
+let _playheadScrollAt = 0;
+let _playheadLastBar = null;
+
+function placePlayhead(bar, progress = 0, total = 0) {
   const line = $("playhead-line");
+  const hilite = $("measure-hilite");
   if (!line) return;
-  if (!bar) {
+
+  const hide = () => {
     line.hidden = true;
+    line.classList.remove("on");
+    line.style.transform = "";
+    line.style.height = "";
+    line.style.top = "";
+    if (hilite) {
+      hilite.hidden = true;
+      hilite.style.cssText = "";
+    }
+    _playheadLastBar = null;
+  };
+
+  if (!bar && !(total > 0)) {
+    hide();
     return;
   }
-  const card = document.querySelector(`.bar-card[data-bar="${bar}"]`);
-  card?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
-  const svg = $("osmd")?.querySelector("svg");
-  if (!svg) {
+
+  // Prefer OSMD measure geometry when the score is on stage
+  const host = $("osmd");
+  const scroll = $("score-scroll");
+  const bounds =
+    state.osmd && host && !host.hidden
+      ? LuneAnnotate.measureBoundsInHost?.(state.osmd, host, bar)
+      : null;
+
+  if (bounds && scroll && state.panel === "score") {
+    const local = barLocalRatio(bar, progress);
+    const x = bounds.left + Math.max(2, Math.min(bounds.width - 2, local * bounds.width));
+    line.hidden = false;
+    line.classList.add("on");
+    line.style.top = `${Math.max(0, bounds.top - 4)}px`;
+    line.style.height = `${bounds.height + 8}px`;
+    line.style.left = "0";
+    line.style.transform = `translateX(${x}px)`;
+
+    if (hilite) {
+      hilite.hidden = false;
+      hilite.style.left = `${bounds.left}px`;
+      hilite.style.top = `${bounds.top}px`;
+      hilite.style.width = `${bounds.width}px`;
+      hilite.style.height = `${bounds.height}px`;
+    }
+
+    // Auto-follow when the sounding measure leaves the viewport (throttled)
+    const now = performance.now();
+    const barChanged = _playheadLastBar !== Number(bar);
+    _playheadLastBar = Number(bar);
+    if (barChanged || now - _playheadScrollAt > 280) {
+      const pad = 56;
+      const viewTop = scroll.scrollTop;
+      const viewBottom = viewTop + scroll.clientHeight;
+      const mTop = bounds.top;
+      const mBottom = bounds.top + bounds.height;
+      let nextTop = scroll.scrollTop;
+      let nextLeft = scroll.scrollLeft;
+      let moved = false;
+      if (mTop < viewTop + pad) {
+        nextTop = Math.max(0, mTop - pad);
+        moved = true;
+      } else if (mBottom > viewBottom - pad) {
+        nextTop = Math.max(0, mBottom - scroll.clientHeight + pad);
+        moved = true;
+      }
+      const viewLeft = scroll.scrollLeft;
+      const viewRight = viewLeft + scroll.clientWidth;
+      if (x < viewLeft + pad) {
+        nextLeft = Math.max(0, x - pad);
+        moved = true;
+      } else if (x > viewRight - pad) {
+        nextLeft = Math.max(0, x - scroll.clientWidth + pad);
+        moved = true;
+      }
+      if (moved) {
+        _playheadScrollAt = now;
+        scroll.scrollTo({
+          top: nextTop,
+          left: nextLeft,
+          behavior: barChanged ? "smooth" : "auto",
+        });
+      }
+    }
+    return;
+  }
+
+  // Fallback when score isn't rendered (e.g. Piano focus tab)
+  if (hilite) hilite.hidden = true;
+  const svg = host?.querySelector("svg");
+  if (!svg || state.panel !== "score") {
     line.hidden = true;
     return;
   }
   line.hidden = false;
-  const nums = Object.keys(state.piece?.debriefs || {})
-    .map(Number)
-    .sort((a, b) => a - b);
-  const idx = Math.max(0, nums.indexOf(Number(bar)));
-  const ratio = nums.length > 1 ? idx / (nums.length - 1) : 0;
-  const scroll = $("score-scroll");
+  line.classList.add("on");
+  let ratio = total > 0 ? Math.max(0, Math.min(1, progress / total)) : 0;
+  if (!(total > 0)) {
+    const nums = Object.keys(state.piece?.debriefs || {})
+      .map(Number)
+      .sort((a, b) => a - b);
+    const idx = Math.max(0, nums.indexOf(Number(bar)));
+    ratio = nums.length > 1 ? idx / (nums.length - 1) : 0;
+  }
   const x = 24 + ratio * Math.max(0, (svg.clientWidth || scroll?.clientWidth || 0) - 48);
-  line.style.left = `${x}px`;
+  line.style.top = "0";
+  line.style.height = "100%";
+  line.style.left = "0";
+  line.style.transform = `translateX(${x}px)`;
 }
 
 function stopAll() {
@@ -406,42 +1478,328 @@ function stopAll() {
   } catch {
     /* piano not ready */
   }
-  const playBtn = $("btn-play-range");
-  if (playBtn) playBtn.textContent = "Play";
-  const stop = $("btn-stop");
-  if (stop) stop.hidden = true;
+  clearKeyboard();
+  state.scrubRatio = 0;
+  state.resumeAfterScrub = false;
+  state.timelineKind = state.timelineKind === "bar" ? null : state.timelineKind;
   const stopBar = $("btn-stop-bar");
   if (stopBar) stopBar.hidden = true;
   const hear = $("btn-hear");
   if (hear) hear.textContent = "Hear this bar";
-  const line = $("playhead-line");
-  if (line) line.hidden = true;
+  // MuseScore-like: Stop returns to the start of the piece, playhead visible at bar 1
+  const total = (() => {
+    try {
+      return LunePiano.duration() || 0;
+    } catch {
+      return 0;
+    }
+  })();
+  const bar = (() => {
+    try {
+      return LunePiano.currentBar?.() || pieceBarSpan()[0];
+    } catch {
+      return pieceBarSpan()[0];
+    }
+  })();
+  if (total > 0) {
+    updateScrub({ progress: 0, total, bar });
+    renderScrubTicks();
+  } else {
+    const line = $("playhead-line");
+    if (line) {
+      line.hidden = true;
+      line.classList.remove("on");
+    }
+    const hilite = $("measure-hilite");
+    if (hilite) hilite.hidden = true;
+    updateScrub({ progress: 0, total: 0, bar: null });
+  }
+  updateScrubRegionUi();
+  syncPlayButton();
 }
 
-async function startRangePlayback(seekRatio = 0) {
-  const [from, to] = rangeBars();
-  const notes = collectNotes(from, to);
+/** Drag the score playhead to seek; transport scrubber remains the primary control. */
+function bindPlayheadScrub() {
+  const scroll = $("score-scroll");
+  const line = $("playhead-line");
+  if (!scroll || scroll.dataset.luneScrubBound === "1") return;
+  scroll.dataset.luneScrubBound = "1";
+
+  let dragging = false;
+
+  const seekFromPointer = (clientX, clientY) => {
+    const host = $("osmd");
+    if (!host || !state.osmd || !LunePiano.hasTimeline()) return false;
+    const marks = LunePiano.barMarkers?.() || [];
+    const total = LunePiano.duration() || 0;
+    if (!marks.length || !total) return false;
+
+    const barNum = LuneAnnotate.measureAtPoint?.(state.osmd, host, clientX, clientY);
+    if (!barNum) return false;
+    const bounds = LuneAnnotate.measureBoundsInHost?.(state.osmd, host, barNum);
+    if (!bounds) {
+      LunePiano.seekToBar?.(barNum, { resumeIfWasPlaying: false });
+      return true;
+    }
+    const hostRect = host.getBoundingClientRect();
+    const localX = clientX - hostRect.left;
+    const local = Math.max(0, Math.min(1, (localX - bounds.left) / Math.max(1, bounds.width)));
+    const idx = marks.findIndex((m) => Number(m.bar) === Number(barNum));
+    if (idx < 0) return false;
+    const start = marks[idx].t;
+    const end = idx + 1 < marks.length ? marks[idx + 1].t : total;
+    const at = start + local * Math.max(0.001, end - start);
+    const ratio = Math.max(0, Math.min(1, at / total));
+    state.scrubRatio = ratio;
+    LunePiano.seek(ratio, { resumeIfWasPlaying: false });
+    return true;
+  };
+
+  const onMove = (e) => {
+    if (!dragging) return;
+    seekFromPointer(e.clientX, e.clientY);
+  };
+  const onUp = () => {
+    if (!dragging) return;
+    dragging = false;
+    state.scrubbing = false;
+    line?.classList.remove("scrubbing");
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
+    window.removeEventListener("pointercancel", onUp);
+    if (state.resumeAfterScrub) {
+      LunePiano.resume();
+      state.resumeAfterScrub = false;
+    }
+    syncPlayButton();
+  };
+
+  const begin = (e) => {
+    if (LunePiano.isPlaying()) {
+      state.resumeAfterScrub = true;
+      LunePiano.pause();
+      syncPlayButton();
+    } else {
+      state.resumeAfterScrub = false;
+    }
+    dragging = true;
+    state.scrubbing = true;
+    line?.classList.add("scrubbing");
+    seekFromPointer(e.clientX, e.clientY);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const startDrag = (e) => {
+    if (e.button != null && e.button !== 0) return;
+    if (state.panel !== "score") return;
+
+    const nearPlayhead = (() => {
+      if (e.target === line || e.target?.closest?.("#playhead-line")) return true;
+      if (!line || line.hidden) return false;
+      const r = line.getBoundingClientRect();
+      return Math.abs(e.clientX - (r.left + r.width / 2)) < 22;
+    })();
+    if (!nearPlayhead) return;
+
+    if (!LunePiano.hasTimeline() && state.piece?.debriefs) {
+      ensurePieceTimeline(state.scrubRatio || 0)
+        .then(() => begin(e))
+        .catch((err) => toast(err.message));
+      e.preventDefault();
+      return;
+    }
+    if (!LunePiano.hasTimeline()) return;
+    begin(e);
+  };
+
+  if (line) {
+    line.addEventListener("pointerdown", startDrag);
+  }
+  scroll.addEventListener("pointerdown", startDrag);
+}
+
+function ensureKeyboard() {
+  if (state.keyboard) return state.keyboard;
+  const host = $("lune-keyboard");
+  if (!host || typeof LuneKeyboard === "undefined") return null;
+  state.keyboard = LuneKeyboard.build(host);
+  return state.keyboard;
+}
+
+function syncKbdToggleUi() {
+  const btn = $("btn-toggle-kbd");
+  if (!btn) return;
+  const on = !!state.keyboardVisible && state.panel === "score";
+  btn.setAttribute("aria-pressed", on ? "true" : "false");
+  btn.textContent = on ? "Hide keyboard" : "Show keyboard";
+  btn.classList.toggle("on", on);
+}
+
+function applyKeyboardVisibility(on) {
+  const dock = $("piano-dock");
+  if (!dock) return;
+  const show =
+    (state.panel === "piano" && on !== false) ||
+    (state.panel === "score" && !!on);
+  if (state.panel === "score") state.keyboardVisible = !!on;
+  if (state.panel === "piano") state.keyboardVisible = true;
+
+  dock.classList.toggle("collapsed", !show);
+  dock.hidden = !show;
+  dock.classList.toggle("is-focus", state.panel === "piano");
+  dock.classList.toggle("is-slim", state.panel === "score" && show);
+
+  if (show) ensureKeyboard();
+  else clearKeyboard();
+  syncKbdToggleUi();
+}
+
+function setKeyboardVisible(on) {
+  if (state.panel === "piano") {
+    // Leaving focus mode returns to Score with keyboard preference
+    if (!on) {
+      state.keyboardVisible = false;
+      setStudioPanel("score");
+      return;
+    }
+    applyKeyboardVisibility(true);
+    return;
+  }
+  if (state.panel !== "score") {
+    // Open Score with keyboard dock — keep notation as the stage
+    state.keyboardVisible = !!on;
+    setStudioPanel("score", { skipScore: true });
+    if (state.piece?.musicxml) {
+      ensureScoreReady().catch((e) => toast(e.message || String(e)));
+    }
+    applyKeyboardVisibility(!!on);
+    return;
+  }
+  applyKeyboardVisibility(!!on);
+}
+
+function clearKeyboard() {
+  try {
+    state.keyboard?.clear?.();
+  } catch {
+    /* ignore */
+  }
+}
+
+function onPianoKeys(payload) {
+  if (!state.keyboardVisible && state.panel !== "piano") return;
+  const kbd = ensureKeyboard();
+  if (!kbd) return;
+  if (payload?.changed !== false || payload?.active?.length) {
+    kbd.setActive(payload?.active || []);
+  }
+}
+
+function setPlayRate(rate) {
+  const r = Number(rate) || 1;
+  state.playRate = r;
+  try {
+    LunePiano.setRate(r);
+  } catch {
+    /* ignore */
+  }
+  document.querySelectorAll(".speed-btn").forEach((btn) => {
+    btn.classList.toggle("on", Number(btn.dataset.rate) === r);
+  });
+}
+
+function bindHomeChapters() {
+  const chapters = document.querySelectorAll(".home-chapter");
+  if (!chapters.length || typeof IntersectionObserver === "undefined") {
+    chapters.forEach((el) => el.classList.add("is-in"));
+    return;
+  }
+  const io = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) {
+        if (e.isIntersecting) {
+          e.target.classList.add("is-in");
+          io.unobserve(e.target);
+        }
+      }
+    },
+    { root: $("home") || null, threshold: 0.18, rootMargin: "0px 0px -8% 0px" }
+  );
+  chapters.forEach((el) => io.observe(el));
+}
+
+async function togglePlayback() {
+  if (LunePiano.isPlaying()) {
+    LunePiano.pause();
+    syncPlayButton();
+    toast("Paused — drag to rewind, then Resume");
+    return;
+  }
+  const kind = selectionSpan() ? "selection" : "piece";
+  if (
+    (state.timelineKind === kind || state.timelineKind === "piece" || state.timelineKind === "selection") &&
+    LunePiano.hasTimeline() &&
+    LunePiano.progress() > 0.02 &&
+    state.timelineKind === kind
+  ) {
+    LunePiano.resume();
+    syncPlayButton();
+    return;
+  }
+  const from =
+    state.timelineKind === kind && LunePiano.hasTimeline() && LunePiano.duration()
+      ? (LunePiano.progress() || 0) / LunePiano.duration()
+      : Math.max(0, Math.min(1, Number(state.scrubRatio) || 0));
+  await startPiecePlayback(from);
+}
+
+async function startPiecePlayback(seekRatio = 0) {
+  const notes = listenNotes();
   if (!notes.length) {
     toast("Nothing to play");
     return;
   }
-  toast(state.listenRange === "whole" ? "Playing whole piece…" : `Playing bars ${from}–${to}…`);
-  $("btn-play-range").textContent = "Playing…";
-  $("btn-stop").hidden = false;
+
+  // Keep Score as the stage — never bounce to Piano-only for Listen
+  if (state.panel === "explain") {
+    setStudioPanel("score", { skipScore: true });
+    await ensureScoreReady();
+  } else if (state.panel === "score" && !state.scoreReady) {
+    await ensureScoreReady();
+  }
+
+  // Auto-show slim keyboard under the score during play (user can hide)
+  if (state.panel === "score" && !state.keyboardVisible) {
+    applyKeyboardVisibility(true);
+  } else if (state.panel === "piano") {
+    ensureKeyboard();
+  }
+
   try {
     await LunePiano.ensure();
   } catch {
     toast("Could not load piano samples — check internet once");
+    return;
   }
+  try {
+    LunePiano.setRate(state.playRate || 1);
+  } catch {
+    /* ignore */
+  }
+  const ratio = Math.max(0, Math.min(1, Number(seekRatio) || 0));
+  state.scrubRatio = ratio;
+  state.timelineKind = selectionSpan() ? "selection" : "piece";
   await LunePiano.play(notes, {
-    from: 0,
-    onTick: updateScrub,
-    onEnd: () => {
-      $("btn-play-range").textContent = "Play";
-      $("btn-stop").hidden = true;
-    },
+    from: ratio,
+    ...playbackHandlers(),
   });
-  if (seekRatio > 0) LunePiano.seek(seekRatio);
+  renderScrubTicks();
+  updateScrubRegionUi();
+  syncPlayButton();
 }
 
 async function hearBar() {
@@ -449,30 +1807,117 @@ async function hearBar() {
     stopAll();
     return;
   }
-  const d = state.piece?.debriefs?.[String(state.selected)];
-  const notes = (d?.playback || [...(d?.rh || []), ...(d?.lh || [])]).map((n) => ({
-    ...n,
-    absOffset: n.offset,
-    bar: state.selected,
-  }));
-  $("btn-hear").textContent = "Stop";
-  $("btn-stop-bar").hidden = false;
+  const bars = selectedBarsSorted();
+  if (!bars.length && state.selected) bars.push(Number(state.selected));
+  if (!bars.length) {
+    toast("Select a bar first");
+    return;
+  }
+  const notes = collectNotes(bars[0], bars[bars.length - 1]);
+  if (!notes.length) {
+    toast("Nothing to play in this selection");
+    return;
+  }
+  const hearBtn = $("btn-hear");
+  if (hearBtn) hearBtn.textContent = "Stop";
+  const stopBar = $("btn-stop-bar");
+  if (stopBar) stopBar.hidden = false;
+  if (state.keyboardVisible || state.panel === "piano" || state.panel === "score") {
+    if (state.panel === "score" && !state.keyboardVisible) applyKeyboardVisibility(true);
+    else ensureKeyboard();
+  }
+  state.timelineKind = "selection";
   await LunePiano.play(notes, {
     onTick: updateScrub,
+    onKeys: onPianoKeys,
     onEnd: () => {
-      $("btn-hear").textContent = "Hear this bar";
-      $("btn-stop-bar").hidden = true;
+      if (hearBtn) hearBtn.textContent = "Hear selection";
+      if (stopBar) stopBar.hidden = true;
+      clearKeyboard();
+      state.timelineKind = null;
+      syncPlayButton();
     },
   });
+  renderScrubTicks();
+  updateScrubRegionUi();
+  syncPlayButton();
 }
 
 /* ---------- score render with annotations ---------- */
 
+function scoreNeedsRoom() {
+  return !!(state.scoreLetters || state.scoreFingers);
+}
+
+/** Draw / clear custom SVG letter+finger layers on the current OSMD SVG. */
+function applyScoreOverlays() {
+  const host = $("osmd");
+  if (!host || !state.osmd) return;
+  const wantLetters = !!state.scoreLetters;
+  const wantFingers = !!state.scoreFingers;
+  if (!wantLetters && !wantFingers) {
+    LuneAnnotate.clearLetterOverlays(host);
+    state.lastLetterCheck = null;
+    return;
+  }
+  const debriefs = state.piece?.debriefs || {};
+  LuneAnnotate.placeLetterOverlays(host, state.osmd, debriefs, {
+    letters: wantLetters,
+    fingers: wantFingers,
+  });
+  state.lastLetterCheck =
+    LuneAnnotate.assertOverlaySeparation?.(host) ||
+    LuneAnnotate.assertLetterSeparation?.(host);
+}
+
+/**
+ * OSMD autoResize calls render() again when the container settles / window
+ * resizes — that rebuilds the SVG and would wipe our overlays. Patch render
+ * so every redraw re-applies Letters/Fingers. Also re-apply after a short
+ * settle delay (mobile reflow can lag one frame behind render).
+ */
+function bindOsmdRenderOverlays(osmd) {
+  if (!osmd || osmd.__luneOverlayPatched) return;
+  const orig = osmd.render.bind(osmd);
+  let settleTimer = 0;
+  const reapply = () => {
+    if (state.osmd !== osmd) return;
+    applyScoreOverlays();
+    paintSelectionHilites();
+    updateScrubRegionUi();
+  };
+  osmd.render = function luneRender(...args) {
+    const result = orig(...args);
+    requestAnimationFrame(reapply);
+    // Second pass after layout/autoResize finishes (esp. phone width changes)
+    clearTimeout(settleTimer);
+    settleTimer = setTimeout(reapply, 120);
+    return result;
+  };
+  osmd.__luneOverlayPatched = true;
+  if (!state.__luneResizeBound) {
+    state.__luneResizeBound = true;
+    let resizeTimer = 0;
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (!state.osmd) return;
+        applyScoreOverlays();
+      }, 180);
+    });
+  }
+}
+
 async function renderScore() {
   const base = state.rawMusicxml || state.piece?.musicxml || "";
   if (!base) return;
+  const wantLetters = !!state.scoreLetters;
+  const wantFingers = !!state.scoreFingers;
+  // MusicXML fingers unused for display (drawFingerings:false); keep annotate
+  // path for compatibility. Letters are always SVG overlays.
   const xml = LuneAnnotate.annotate(base, state.piece.debriefs || {}, {
-    fingers: state.scoreFingers,
+    fingers: wantFingers,
+    letters: false,
   });
   $("osmd").hidden = false;
   $("osmd").innerHTML = "";
@@ -484,90 +1929,391 @@ async function renderScore() {
     drawCredits: false,
     drawPartNames: false,
     drawMeasureNumbers: true,
-    drawLyrics: true,
+    drawLyrics: false,
+    drawFingerings: false, // custom SVG fingers — OSMD piles chord digits
   });
-  // Extra room so fingerings / overlays don’t crush the staff
   try {
-    osmd.EngravingRules.BetweenStaffDistance = state.scoreFingers || state.scoreLetters ? 5.2 : 3.5;
-    osmd.EngravingRules.StaffDistance = state.scoreFingers || state.scoreLetters ? 10.5 : 7.5;
+    const roomy = wantLetters || wantFingers;
+    osmd.EngravingRules.BetweenStaffDistance = roomy ? 9.5 : 3.5;
+    osmd.EngravingRules.StaffDistance = roomy ? 18 : 7.5;
+    if (wantFingers) {
+      osmd.EngravingRules.FingeringPaddingY = 0.85;
+      osmd.EngravingRules.FingeringOffsetY = 0.35;
+      osmd.EngravingRules.FingeringTextSize = 1.55;
+    }
   } catch {
     /* older OSMD */
   }
   state.osmd = osmd;
+  state.scoreWasRoomy = wantLetters || wantFingers;
+  bindOsmdRenderOverlays(osmd);
   await osmd.load(xml);
   osmd.render();
-  if (state.scoreLetters) {
-    requestAnimationFrame(() => {
-      LuneAnnotate.placeLetterOverlays($("osmd"), osmd, state.piece.debriefs || {});
-    });
-  } else {
-    LuneAnnotate.clearLetterOverlays($("osmd"));
+  wireScoreMeasureClicks();
+  // Immediate apply (patched render also schedules one after autoResize).
+  requestAnimationFrame(() => {
+    if (state.osmd !== osmd) return;
+    applyScoreOverlays();
+    paintSelectionHilites();
+    updateScrubRegionUi();
+  });
+}
+
+/** Click / drag measures on the engraved score for practice selection — stay on Score. */
+function wireScoreMeasureClicks() {
+  const host = $("osmd");
+  if (!host || host.dataset.luneClickBound === "1") return;
+  host.dataset.luneClickBound = "1";
+  host.classList.add("score-interactive");
+
+  let dragOrigin = null;
+  let dragMoved = false;
+  let suppressClick = false;
+
+  const nearPlayhead = (e) => {
+    const line = $("playhead-line");
+    if (e.target === line || e.target?.closest?.("#playhead-line")) return true;
+    if (!line || line.hidden) return false;
+    const r = line.getBoundingClientRect();
+    return Math.abs(e.clientX - (r.left + r.width / 2)) < 16;
+  };
+
+  const barAt = (clientX, clientY) => {
+    if (!state.piece?.debriefs) return null;
+    const num = LuneAnnotate.measureAtPoint?.(state.osmd, host, clientX, clientY);
+    if (!num || !state.piece.debriefs[String(num)]) return null;
+    return Number(num);
+  };
+
+  host.addEventListener("pointerdown", (e) => {
+    if (e.button != null && e.button !== 0) return;
+    if (state.panel !== "score") return;
+    if (e.target.closest?.("button, a, input, label")) return;
+    if (nearPlayhead(e)) return;
+    const num = barAt(e.clientX, e.clientY);
+    if (!num) return;
+    dragOrigin = num;
+    dragMoved = false;
+    state.selectingBars = true;
+    try {
+      host.setPointerCapture?.(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  });
+
+  host.addEventListener("pointermove", (e) => {
+    if (dragOrigin == null) return;
+    const num = barAt(e.clientX, e.clientY);
+    if (!num || num === dragOrigin) return;
+    dragMoved = true;
+    setBarSelection(rangeBars(dragOrigin, num), { open: true, primary: num });
+  });
+
+  const endDrag = (e) => {
+    if (dragOrigin == null) return;
+    const origin = dragOrigin;
+    const moved = dragMoved;
+    dragOrigin = null;
+    dragMoved = false;
+    state.selectingBars = false;
+    try {
+      host.releasePointerCapture?.(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+    if (moved) {
+      suppressClick = true;
+      setTimeout(() => {
+        suppressClick = false;
+      }, 0);
+    }
+  };
+  host.addEventListener("pointerup", endDrag);
+  host.addEventListener("pointercancel", endDrag);
+
+  host.addEventListener("click", (e) => {
+    if (suppressClick) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    if (!state.piece?.debriefs) return;
+    if (state.panel !== "score") return;
+    if (e.target.closest?.("button, a, input, label")) return;
+    if (nearPlayhead(e)) return;
+    const num = barAt(e.clientX, e.clientY);
+    if (!num) {
+      // Empty score click clears selection when coach is open
+      if (state.coachOpen || selectedBarsSorted().length) {
+        clearBarSelection({ close: true });
+      }
+      return;
+    }
+    applyBarClick(num, e);
+  });
+}
+
+function rangeBars(a, b) {
+  const lo = Math.min(Number(a), Number(b));
+  const hi = Math.max(Number(a), Number(b));
+  const out = [];
+  for (let i = lo; i <= hi; i++) {
+    if (state.piece?.debriefs?.[String(i)]) out.push(i);
   }
+  return out;
+}
+
+function applyBarClick(num, e) {
+  const meta = !!(e.metaKey || e.ctrlKey);
+  const shift = !!e.shiftKey;
+  if (meta) {
+    const set = new Set(selectedBarsSorted());
+    if (set.has(num)) set.delete(num);
+    else set.add(num);
+    const next = [...set].sort((a, b) => a - b);
+    if (!next.length) {
+      clearBarSelection({ close: false });
+      openBarCoach();
+      return;
+    }
+    setBarSelection(next, { open: true, primary: num });
+    return;
+  }
+  if (shift && state.selected) {
+    setBarSelection(rangeBars(state.selected, num), { open: true, primary: num });
+    return;
+  }
+  setBarSelection([num], { open: true, primary: num });
+}
+
+function setBarSelection(bars, { open = true, primary = null } = {}) {
+  const next = [...new Set((bars || []).map(Number).filter((n) => n > 0))].sort((a, b) => a - b);
+  state.selectedBars = next;
+  state.selected = primary != null ? Number(primary) : next.length ? next[next.length - 1] : null;
+  const s = activeSession();
+  if (s) {
+    s.selected = state.selected;
+    s.selectedBars = [...next];
+  }
+  document.querySelectorAll(".bar-card").forEach((el) => {
+    const n = Number(el.dataset.bar);
+    el.classList.toggle("on", next.includes(n));
+  });
+  paintSelectionHilites();
+  updateScrubRegionUi();
+  if (open) openBarCoach();
+  // Re-arm listen timeline to selection span when idle
+  if (next.length && !LunePiano.isPlaying()) {
+    state.timelineKind = null;
+    state.scrubRatio = 0;
+  }
+}
+
+function clearBarSelection({ close = true } = {}) {
+  state.selectedBars = [];
+  state.selected = null;
+  const s = activeSession();
+  if (s) {
+    s.selected = null;
+    s.selectedBars = [];
+  }
+  document.querySelectorAll(".bar-card").forEach((el) => el.classList.remove("on"));
+  paintSelectionHilites();
+  updateScrubRegionUi();
+  if (close) closeCoach();
+  else refreshCoachChrome();
+}
+
+function paintSelectionHilites() {
+  const layer = $("selection-hilites");
+  if (!layer) return;
+  layer.innerHTML = "";
+  const bars = selectedBarsSorted();
+  if (!bars.length || state.panel !== "score" || !state.osmd) return;
+  const host = $("osmd");
+  if (!host) return;
+  for (const bar of bars) {
+    const bounds = LuneAnnotate.measureBoundsInHost?.(state.osmd, host, bar);
+    if (!bounds) continue;
+    const el = document.createElement("div");
+    el.className = "selection-hilite";
+    el.style.left = `${bounds.left}px`;
+    el.style.top = `${bounds.top}px`;
+    el.style.width = `${bounds.width}px`;
+    el.style.height = `${bounds.height}px`;
+    layer.appendChild(el);
+  }
+}
+
+function barRatioOnPieceTimeline(bar) {
+  const marks = LunePiano.barMarkers?.() || [];
+  if (!marks.length) {
+    const [from, to] = pieceBarSpan();
+    if (to <= from) return 0;
+    return Math.max(0, Math.min(1, (Number(bar) - from) / (to - from)));
+  }
+  const hit = marks.find((m) => Number(m.bar) === Number(bar));
+  if (hit) return hit.ratio;
+  // Approximate between nearest markers
+  let prev = marks[0];
+  for (const m of marks) {
+    if (Number(m.bar) > Number(bar)) break;
+    prev = m;
+  }
+  return prev?.ratio || 0;
+}
+
+function updateScrubRegionUi() {
+  const region = $("scrub-region");
+  const fill = $("scrub-region-fill");
+  const startH = $("scrub-region-start");
+  const endH = $("scrub-region-end");
+  if (!region || !fill) return;
+  const span = selectionSpan();
+  if (!span) {
+    region.hidden = true;
+    return;
+  }
+  // Region is meaningful on the active listen timeline (selection or piece)
+  let a = 0;
+  let b = 1;
+  if (state.timelineKind === "selection" && LunePiano.hasTimeline()) {
+    a = 0;
+    b = 1;
+  } else if (LunePiano.hasTimeline() && state.timelineKind === "piece") {
+    a = barRatioOnPieceTimeline(span[0]);
+    const marks = LunePiano.barMarkers?.() || [];
+    const next = marks.find((m) => Number(m.bar) > span[1]);
+    b = next ? next.ratio : 1;
+  } else {
+    const [from, to] = pieceBarSpan();
+    const width = Math.max(1, to - from + 1);
+    a = (span[0] - from) / width;
+    b = (span[1] - from + 1) / width;
+  }
+  a = Math.max(0, Math.min(1, a));
+  b = Math.max(a, Math.min(1, b));
+  region.hidden = false;
+  fill.style.left = `${a * 100}%`;
+  fill.style.width = `${(b - a) * 100}%`;
+  if (startH) startH.style.left = `${a * 100}%`;
+  if (endH) endH.style.left = `${b * 100}%`;
+}
+
+function bindScrubRegionHandles() {
+  const startH = $("scrub-region-start");
+  const endH = $("scrub-region-end");
+  if (!startH || startH.dataset.bound === "1") return;
+  startH.dataset.bound = "1";
+
+  const dragHandle = (which, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const wrap = $("scrub")?.closest(".scrub-track-wrap");
+    if (!wrap) return;
+    const [pieceFrom, pieceTo] = pieceBarSpan();
+    const onMove = (ev) => {
+      const r = wrap.getBoundingClientRect();
+      const ratio = Math.max(0, Math.min(1, (ev.clientX - r.left) / Math.max(1, r.width)));
+      const bar = Math.round(pieceFrom + ratio * (pieceTo - pieceFrom));
+      const clamped = Math.max(pieceFrom, Math.min(pieceTo, bar));
+      const span = selectionSpan() || [clamped, clamped];
+      let from = span[0];
+      let to = span[1];
+      if (which === "start") from = Math.min(clamped, to);
+      else to = Math.max(clamped, from);
+      setBarSelection(rangeBars(from, to), { open: true, primary: clamped });
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    onMove(e);
+  };
+  startH.addEventListener("pointerdown", (e) => dragHandle("start", e));
+  endH.addEventListener("pointerdown", (e) => dragHandle("end", e));
 }
 
 async function refreshScoreAnnotations() {
   if (!state.piece?.musicxml) return;
+  const roomy = scoreNeedsRoom();
+  // Seamless: if OSMD is up and staff spacing need is unchanged, only re-paint
+  // SVG overlays — no full MusicXML reload flash.
+  if (state.osmd && $("osmd")?.querySelector("svg") && roomy === !!state.scoreWasRoomy) {
+    applyScoreOverlays();
+    paintSelectionHilites();
+    return;
+  }
   await renderScore();
 }
 
 function renderBarStrip() {
   const host = $("bars");
+  if (!host) return;
   host.innerHTML = "";
   const debriefs = state.piece?.debriefs || {};
   const numbers = Object.keys(debriefs).map(Number).sort((a, b) => a - b);
   const hot = new Set((state.piece.hardSpots || []).map((s) => s.measure));
+  const selected = new Set(selectedBarsSorted());
   for (const num of numbers) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "bar-card" + (hot.has(num) ? " hot" : "");
+    if (selected.has(num)) btn.classList.add("on");
     btn.dataset.bar = String(num);
     btn.innerHTML = `<div class="n">${num}${hot.has(num) ? " ·" : ""}</div>`;
     btn.title = hot.has(num) ? `Bar ${num} · harder spot` : `Bar ${num}`;
-    btn.addEventListener("click", () => selectBar(num));
+    btn.addEventListener("click", (e) => {
+      // Explain strip: multi-select works the same; never force Explain from Score
+      applyBarClick(num, e);
+    });
     host.appendChild(btn);
   }
 }
 
 function selectBar(num) {
-  if (state.mode !== "ask") enterAskMode();
-  state.selected = num;
-  document.querySelectorAll(".bar-card").forEach((el) => {
-    el.classList.toggle("on", Number(el.dataset.bar) === num);
-  });
-  showBarHelp(num);
+  // Legacy single-bar entry — stays on current panel (Score stays Score)
+  setBarSelection([num], { open: true, primary: num });
+}
+
+/** Group simultaneous tones so chords render as a vertical stack, not one pile. */
+function groupByOffset(arr) {
+  const groups = [];
+  for (const n of arr || []) {
+    const last = groups[groups.length - 1];
+    if (last && Math.abs((last[0].offset || 0) - (n.offset || 0)) < 1e-4) {
+      last.push(n);
+    } else {
+      groups.push([n]);
+    }
+  }
+  return groups;
 }
 
 function lettersBlock(d) {
-  const fmt = (arr) => {
-    // Group simultaneous pitches so every chord tone is visible as a stack
-    const groups = [];
-    for (const n of arr || []) {
-      const last = groups[groups.length - 1];
-      if (last && Math.abs((last[0].offset || 0) - (n.offset || 0)) < 1e-4) {
-        last.push(n);
-      } else {
-        groups.push([n]);
-      }
-    }
-    return groups
+  const fmt = (arr) =>
+    groupByOffset(arr)
       .map((g) => {
-        // High → low for reading (already usually sorted that way)
         const sorted = [...g].sort((a, b) => (b.midi || 0) - (a.midi || 0));
         if (sorted.length === 1) {
           const n = sorted[0];
-          const finger = state.showFingers && n.fingering ? `<i>${n.fingering}</i>` : "";
+          const finger = n.fingering ? `<i>${n.fingering}</i>` : "";
           return `<span class="chip letter">${escapeHtml(n.letter)}${finger}</span>`;
         }
         const inner = sorted
           .map((n) => {
-            const finger = state.showFingers && n.fingering ? `<i>${n.fingering}</i>` : "";
-            return `<span class="chord-tone">${escapeHtml(n.letter)}${finger}</span>`;
+            const finger = n.fingering ? `<i>${n.fingering}</i>` : "";
+            return `<span class="chord-tone"><b class="tone-letter">${escapeHtml(
+              n.letter
+            )}</b>${finger ? `<i class="tone-finger">${n.fingering}</i>` : ""}</span>`;
           })
           .join("");
         return `<span class="chip letter chord" title="Chord">${inner}</span>`;
       })
       .join("");
-  };
   let html = `<h4>Letter names</h4>`;
   if (d.rh?.length) html += `<p class="hand-label">Right hand</p><div class="notes">${fmt(d.rh)}</div>`;
   if (d.lh?.length) html += `<p class="hand-label">Left hand</p><div class="notes">${fmt(d.lh)}</div>`;
@@ -575,29 +2321,98 @@ function lettersBlock(d) {
   return html;
 }
 
-function showBarHelp(num) {
-  const d = state.piece?.debriefs?.[String(num)];
-  openCoach();
-  if (!d?.found) {
-    $("help-body").innerHTML = `<h3>Bar ${num}</h3><p>No notes here.</p>`;
-    return;
+function deepenBarCopy(d, num) {
+  const tips = [];
+  if (d?.howToPlay?.length) tips.push(...d.howToPlay);
+  if (d?.focus?.length) {
+    for (const line of d.focus) {
+      if (!tips.includes(line)) tips.push(line);
+    }
   }
-  if (state.lettersOnly) {
-    $("help-body").innerHTML = `<h3>Bar ${num} · letters</h3>${lettersBlock(d)}`;
-    return;
+  if (d?.harmony?.length) {
+    tips.push(`Harmony in this bar: ${d.harmony.join(", ")}.`);
+  }
+  if (d?.dynamics?.length) {
+    tips.push(`Shape the dynamics: ${d.dynamics.join(", ")}.`);
+  }
+  if (d?.expressions?.length) {
+    tips.push(`Expression marks: ${d.expressions.join(", ")}.`);
+  }
+  if (!tips.length) {
+    const rhN = d?.rh?.length || 0;
+    const lhN = d?.lh?.length || 0;
+    if (rhN || lhN) {
+      tips.push(
+        `Bar ${num} has ${rhN} right-hand and ${lhN} left-hand tones — isolate each hand slowly, then join.`
+      );
+    } else {
+      tips.push(`Bar ${num} is quiet — use it as a breath or check your posture.`);
+    }
+  }
+  if (d?.difficulty?.isHard || d?.split?.needed) {
+    tips.push("This bar rewards slow loops: four clean repeats before raising the tempo.");
+  }
+  return tips;
+}
+
+function barSectionHtml(num, d) {
+  if (!d?.found) {
+    return `<section class="coach-bar-block"><h3>Bar ${num}</h3><p class="dim">No notes here.</p></section>`;
   }
   const hard = d.difficulty?.isHard || d.split?.needed;
-  let html = `<h3>Bar ${num}${hard ? " · hard" : ""}</h3>`;
+  let html = `<section class="coach-bar-block"><h3>Bar ${num}${hard ? " · needs care" : ""}</h3>`;
   html += lettersBlock(d);
 
-  if (state.showTips && d.focus?.length) {
-    html += `<h4>Focus</h4><ul class="focus-list">${d.focus
+  // Always surface finger numbers in the coach (score overlay remains Letters XOR Fingers)
+  if (d.fingerings && (d.fingerings.rh?.length || d.fingerings.lh?.length || d.rh?.some((n) => n.fingering) || d.lh?.some((n) => n.fingering))) {
+    html += `<h4>Fingers</h4>`;
+    for (const [label, pack] of [
+      ["Right hand", d.rh?.filter((n) => n.fingering != null) || []],
+      ["Left hand", d.lh?.filter((n) => n.fingering != null) || []],
+    ]) {
+      const rows = pack.length
+        ? pack
+        : label.startsWith("Right")
+          ? d.fingerings.rh
+          : d.fingerings.lh;
+      if (!rows?.length) continue;
+      const chips = groupByOffset(rows)
+        .map((g) => {
+          const sorted = [...g].sort((a, b) => (b.midi || 0) - (a.midi || 0));
+          if (sorted.length === 1) {
+            const n = sorted[0];
+            const finger = n.finger ?? n.fingering;
+            return `<span class="chip finger-only"><b>${finger}</b>${escapeHtml(n.letter || "")}</span>`;
+          }
+          const inner = sorted
+            .map((n) => {
+              const finger = n.finger ?? n.fingering;
+              return `<span class="chord-tone"><b class="tone-finger">${finger}</b><i class="tone-letter">${escapeHtml(
+                n.letter || ""
+              )}</i></span>`;
+            })
+            .join("");
+          return `<span class="chip finger-only chord" title="Chord">${inner}</span>`;
+        })
+        .join("");
+      html += `<p class="hand-label">${label}</p><div class="notes">${chips}</div>`;
+    }
+  }
+
+  if (d.harmony?.length) {
+    html += `<h4>Harmony</h4><p>${escapeHtml(d.harmony.join(" · "))}</p>`;
+  }
+
+  const practice = deepenBarCopy(d, num);
+  if (state.showTips !== false && practice.length) {
+    html += `<h4>Practice</h4><ul class="focus-list">${practice
       .map((line) => `<li>${escapeHtml(line)}</li>`)
       .join("")}</ul>`;
   }
 
-  if (state.showLines && d.lineAdvice) {
-    html += `<h4>Line advice</h4>`;
+  if (state.showLines !== false && d.lineAdvice) {
+    let any = false;
+    let block = `<h4>Line advice</h4>`;
     for (const [key, label] of [
       ["rh", "Right-hand line"],
       ["lh", "Left-hand line"],
@@ -605,10 +2420,12 @@ function showBarHelp(num) {
     ]) {
       const tips = d.lineAdvice[key] || [];
       if (!tips.length) continue;
-      html += `<p class="hand-label">${label}</p><ul>${tips
+      any = true;
+      block += `<p class="hand-label">${label}</p><ul>${tips
         .map((t) => `<li>${escapeHtml(t)}</li>`)
         .join("")}</ul>`;
     }
+    if (any) html += block;
   }
 
   if (d.split?.needed && d.split.chunks?.length) {
@@ -616,53 +2433,94 @@ function showBarHelp(num) {
     for (const [i, chunk] of d.split.chunks.entries()) {
       html += `<div class="chunk"><div class="label">${escapeHtml(chunk.hand)} · chunk ${i + 1}</div><p>${escapeHtml(chunk.how)}</p></div>`;
     }
-    if (state.showTips && d.split.practiceNotes?.length) {
+    if (d.split.practiceNotes?.length) {
       html += `<h4>How to practise</h4><ul>${d.split.practiceNotes
         .map((line) => `<li>${escapeHtml(line)}</li>`)
         .join("")}</ul>`;
     }
   }
 
-  if (state.showFingers && d.fingerings) {
-    html += `<h4>Finger numbers</h4>`;
-    for (const [label, rows] of [
-      ["Right hand", d.fingerings.rh],
-      ["Left hand", d.fingerings.lh],
-    ]) {
-      if (!rows?.length) continue;
-      html += `<p class="hand-label">${label}</p><div class="notes">${rows
-        .map((n) => `<span class="chip finger-only"><b>${n.finger}</b>${escapeHtml(n.letter)}</span>`)
-        .join("")}</div>`;
-    }
-  }
+  html += `</section>`;
+  return html;
+}
 
-  $("help-body").innerHTML = html;
+function refreshCoachChrome() {
+  const bars = selectedBarsSorted();
+  const title = $("coach-title");
+  if (title) title.textContent = selectionTitle(bars);
+  const clear = $("coach-clear");
+  if (clear) clear.hidden = bars.length < 1;
+  const hear = $("btn-hear");
+  if (hear && hear.textContent !== "Stop") {
+    hear.textContent = bars.length > 1 ? "Hear selection" : "Hear this bar";
+  }
+}
+
+function showBarHelp(num) {
+  if (num != null && !selectedBarsSorted().includes(Number(num))) {
+    setBarSelection([num], { open: true, primary: num });
+    return;
+  }
+  openBarCoach();
+}
+
+function openBarCoach() {
+  const bars = selectedBarsSorted();
+  openCoach();
+  refreshCoachChrome();
+  const body = $("help-body");
+  if (!body) return;
+  if (!bars.length) {
+    body.innerHTML = `<p class="dim">Click a bar on the score for pitches, fingers, and practice notes. Shift-drag to select a range.</p>`;
+    return;
+  }
+  let html = "";
+  if (bars.length > 1) {
+    html += `<p class="coach-lead">Listening and coaching cover ${escapeHtml(
+      selectionTitle(bars)
+    )}. Play will loop this span until you clear the selection.</p>`;
+  }
+  for (const num of bars) {
+    const d = state.piece?.debriefs?.[String(num)];
+    html += barSectionHtml(num, d);
+  }
+  body.innerHTML = html;
 }
 
 function openCoach() {
   const coach = $("coach");
   if (coach) coach.hidden = false;
+  state.coachOpen = true;
+  document.body.classList.add("coach-open");
 }
 function closeCoach() {
   const coach = $("coach");
   if (coach) coach.hidden = true;
+  state.coachOpen = false;
+  document.body.classList.remove("coach-open");
+  // Keep selection + listen region; only hide the panel
+  requestAnimationFrame(() => paintSelectionHilites());
 }
 
 async function askPlan() {
-  if (!state.selected) {
+  const bars = selectedBarsSorted();
+  if (!bars.length) {
     toast("Pick a bar first");
     return;
   }
   const res = await fetch("/api/piece/practice", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ musicxml: state.piece.musicxml, bars: [state.selected] }),
+    body: JSON.stringify({ musicxml: state.piece.musicxml, bars }),
   });
   if (!res.ok) return toast("Could not build practice notes");
   const plan = await res.json();
-  const d = state.piece.debriefs?.[String(state.selected)];
   openCoach();
-  let html = `<h3>Practice · bar ${state.selected}</h3>${lettersBlock(d || { rh: [], lh: [] })}`;
+  refreshCoachChrome();
+  let html = `<h3>Practice · ${escapeHtml(selectionTitle(bars))}</h3>`;
+  for (const num of bars) {
+    html += lettersBlock(state.piece.debriefs?.[String(num)] || { rh: [], lh: [] });
+  }
   html += `<h4>Session</h4><ul>${(plan.steps || [])
     .map((s) => `<li><strong>${escapeHtml(s.title)}</strong> (${s.minutes}m) — ${escapeHtml(s.detail)}</li>`)
     .join("")}</ul>`;
@@ -691,145 +2549,13 @@ async function openFile(file) {
   await landOnDiscover(await res.json());
 }
 
-function goHome() {
+function goHome({ keepTabs = false } = {}) {
   stopAll();
   closeCoach();
+  snapshotActiveSession();
   state.mode = "home";
   showView("home");
-  const browse = $("library-browse");
-  if (browse) {
-    browse.querySelectorAll(".browse-chip").forEach((c) => {
-      c.classList.toggle("on", (c.dataset.browse || "") === "");
-    });
-  }
-  loadLibrary().catch(() => {});
-}
-
-async function loadLibrary(filter = "") {
-  const host = $("library-groups");
-  const countEl = $("library-count");
-  if (!host) return;
-  try {
-    const url = filter
-      ? `/api/library?q=${encodeURIComponent(filter)}`
-      : "/api/library";
-    const res = await fetch(url);
-    const data = await res.json();
-    const groups = data.groups || {};
-    const total = data.count || (data.items || []).length;
-    host.innerHTML = "";
-    const order = [
-      "Featured",
-      "Open MusicXML · Liszt",
-      "Open MusicXML · Debussy",
-      "Open MusicXML · Chopin",
-      "Open MusicXML · Satie",
-      "Open MusicXML · Bach",
-      "Open MusicXML · Beethoven",
-      "Open MusicXML · Mozart",
-      "Open MusicXML · Schubert",
-      "Open MusicXML · Brahms",
-      "Open MusicXML · Pachelbel",
-      "Open MusicXML · Tchaikovsky",
-      "Open MusicXML · Rimsky-Korsakov",
-      "Liszt · KernScores",
-      "OpenScore Lieder",
-      "Scriabin piano",
-      "Beethoven piano sonatas",
-      "Mozart piano sonatas",
-      "Haydn piano sonatas",
-      "Chopin preludes",
-      "Chopin mazurkas",
-      "Joplin rags",
-      "Scarlatti sonatas",
-      "Hummel preludes",
-      "Bach · Art of Fugue",
-      "Beethoven string quartets",
-      "Bach chorales",
-    ];
-    const keys = [
-      ...order.filter((k) => groups[k]),
-      ...Object.keys(groups)
-        .filter((k) => !order.includes(k))
-        .sort(),
-    ];
-    if (!keys.length) {
-      host.innerHTML = `<p class="library-empty">Nothing in this browse set.<br>Try another composer chip, or search above.</p>`;
-      return;
-    }
-
-    // Without a browse filter, curated piano groups only — chips / top search for the rest.
-    const curated = new Set(order);
-    const visibleKeys = filter
-      ? keys
-      : keys.filter(
-          (k) =>
-            curated.has(k) ||
-            k.startsWith("Open MusicXML") ||
-            k.startsWith("Liszt") ||
-            k.startsWith("Scriabin") ||
-            k.startsWith("OpenScore")
-        );
-
-    const totalAll = data.totalAvailable || total;
-    if (countEl) {
-      countEl.textContent = filter
-        ? `${total} match${total === 1 ? "" : "es"} · ${totalAll} openable in all`
-        : `${total} ready to open · ${totalAll} in the full catalogue`;
-    }
-
-    if (!filter) {
-      const tip = document.createElement("p");
-      tip.className = "dim library-tip";
-      tip.textContent =
-        "Browse by composer below, or use the search bar above for any title.";
-      host.appendChild(tip);
-    }
-
-    const perGroup = filter ? 48 : 12;
-    for (const name of visibleKeys) {
-      const items = groups[name] || [];
-      const section = document.createElement("div");
-      section.className = "library-group";
-      section.innerHTML = `<h3>${escapeHtml(name)} <span class="lib-n">${items.length}</span></h3>`;
-      const row = document.createElement("div");
-      row.className = "library-row";
-      const shown = items.slice(0, perGroup);
-      for (const item of shown) {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "lib-card";
-        btn.innerHTML = `<strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(
-          item.composer
-        )}</span>`;
-        btn.addEventListener("click", () => {
-          $("q").value = item.query || item.title;
-          fetchAndDiscover([
-            {
-              kind: "work",
-              title: item.title,
-              composer: item.composer,
-              query: item.query,
-              epoch: "",
-            },
-          ]);
-        });
-        row.appendChild(btn);
-      }
-      section.appendChild(row);
-      if (items.length > shown.length) {
-        const more = document.createElement("p");
-        more.className = "dim library-more";
-        more.textContent = filter
-          ? `Showing ${shown.length} of ${items.length} — pick another chip or search above.`
-          : `Showing ${shown.length} of ${items.length} — browse a composer chip for more.`;
-        section.appendChild(more);
-      }
-      host.appendChild(section);
-    }
-  } catch {
-    host.innerHTML = `<p class="library-empty">Library unavailable — use the search bar above.</p>`;
-  }
+  if (!keepTabs) renderPieceTabs();
 }
 
 function bind() {
@@ -843,113 +2569,318 @@ function bind() {
     e.preventDefault();
     search($("q").value, { openBest: true });
   });
-  let timer;
   on("q", "input", () => {
-    clearTimeout(timer);
-    timer = setTimeout(() => search($("q").value), 250);
+    // Sync filter+render (~1–3ms). No debounce, no rAF, no network.
+    paintSearch($("q").value || "");
   });
+  on("q", "focus", () => {
+    ensureSearchIndex();
+  });
+  // Prefetch the free-score index so the first keystroke is already local.
+  ensureSearchIndex();
   document.addEventListener("click", (e) => {
     if (!e.target.closest(".top-search") && !e.target.closest(".results")) {
-      const box = $("results");
-      if (box) box.hidden = true;
+      closeSearchResults();
+      if (!e.target.closest(".piece-tab-add")) {
+        document.body.classList.remove("studio-search-open");
+      }
+    }
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      if (state.coachOpen) {
+        closeCoach();
+        e.preventDefault();
+        return;
+      }
+      closeSearchResults({ blur: true });
     }
   });
 
-  on("btn-home", "click", goHome);
+  on("btn-home", "click", () => goHome());
   on("btn-open", "click", () => $("file")?.click());
-  const browse = $("library-browse");
-  if (browse) {
-    browse.addEventListener("click", (e) => {
-      const chip = e.target.closest(".browse-chip");
-      if (!chip) return;
-      browse.querySelectorAll(".browse-chip").forEach((c) => c.classList.toggle("on", c === chip));
-      loadLibrary((chip.dataset.browse || "").trim());
-    });
-  }
-  on("btn-discover-home", "click", goHome);
+  on("btn-home-upload", "click", () => $("file")?.click());
+  on("btn-discover-home", "click", () => goHome());
   on("btn-open-piece", "click", () => openPieceFromDiscover().catch((e) => toast(e.message)));
   on("btn-open-piece-bottom", "click", () => openPieceFromDiscover().catch((e) => toast(e.message)));
-  on("btn-back-discover", "click", () => {
+  on("btn-explain-score", "click", () => switchToScorePanel().catch((e) => toast(e.message)));
+  on("btn-explain-piano", "click", () => {
+    // Open Score with keyboard dock — keep the page visible
+    state.keyboardVisible = true;
+    setStudioPanel("score", { skipScore: true });
+    if (state.piece?.musicxml) {
+      ensureScoreReady()
+        .then(() => applyKeyboardVisibility(true))
+        .catch((e) => toast(e.message || String(e)));
+    } else {
+      applyKeyboardVisibility(true);
+    }
+  });
+  on("tab-score", "click", () => {
+    // Switch chrome instantly; prepare score in the background if needed.
+    setStudioPanel("score", { skipScore: true });
+    if (state.piece?.musicxml) {
+      ensureScoreReady().catch((e) => toast(e.message || String(e)));
+    }
+  });
+  on("tab-explain", "click", () => {
     stopAll();
-    if (state.piece) showDiscoverPage(state.piece, { canOpen: !!state.piece.musicxml });
+    setStudioPanel("explain");
   });
-  on("btn-to-ask", "click", enterAskMode);
-  on("tab-listen", "click", () => {
-    if (state.piece) enterListenMode().catch((e) => toast(e.message));
+  on("tab-piano", "click", () => {
+    setStudioPanel("piano");
   });
-  on("tab-ask", "click", enterAskMode);
 
-  document.querySelectorAll(".range").forEach((btn) => {
-    btn.addEventListener("click", () => setListenRange(btn.dataset.range));
-  });
   on("btn-play-range", "click", () => {
-    if (LunePiano.isPlaying()) stopAll();
-    else startRangePlayback(0).catch((e) => toast(e.message));
+    togglePlayback().catch((e) => toast(e.message));
   });
-  on("btn-stop", "click", stopAll);
+  on("btn-stop", "click", (e) => {
+    e.preventDefault();
+    stopAll();
+  });
   on("btn-stop-bar", "click", stopAll);
-  on("btn-ready-ask", "click", enterAskMode);
+  on("btn-toggle-kbd", "click", () => {
+    setKeyboardVisible(!state.keyboardVisible);
+  });
+  on("btn-hide-kbd", "click", () => {
+    if (state.panel === "piano") setStudioPanel("score");
+    else setKeyboardVisible(false);
+  });
 
   const scrub = $("scrub");
   if (scrub) {
     scrub.addEventListener("pointerdown", () => {
       state.scrubbing = true;
+      scrub.classList.add("scrubbing");
+      // Pause while dragging so the ear matches the cursor
+      if (LunePiano.isPlaying()) {
+        state.resumeAfterScrub = true;
+        LunePiano.pause();
+        syncPlayButton();
+      } else {
+        state.resumeAfterScrub = false;
+      }
     });
-    scrub.addEventListener("pointerup", () => {
+    const previewScrub = (ratio) => {
+      state.scrubRatio = ratio;
+      const total = LunePiano.duration() || 0;
+      if (total > 0 && LunePiano.hasTimeline()) {
+        const at = ratio * total;
+        let bar = LunePiano.currentBar();
+        const marks = LunePiano.barMarkers?.() || [];
+        for (const m of marks) {
+          if (m.t <= at + 0.01) bar = m.bar;
+        }
+        onPianoKeys({ active: LunePiano.activeAt?.(at) || [], changed: true });
+        updateScrub({ progress: at, total, bar });
+      } else {
+        // Timeline not armed yet — show scrub position; bars fill in after arm
+        updateScrub({
+          progress: 0,
+          total: 0,
+          bar: null,
+        });
+        if (scrub) scrub.value = String(Math.round(ratio * 1000));
+      }
+    };
+    const endScrub = () => {
+      if (!state.scrubbing) return;
       state.scrubbing = false;
-      const ratio = Number(scrub.value) / 1000;
-      if (LunePiano.duration() > 0) LunePiano.seek(ratio);
-      else startRangePlayback(ratio).catch((e) => toast(e.message));
+      scrub.classList.remove("scrubbing");
+      commitScrub(Number(scrub.value) / 1000);
+    };
+    const commitScrub = (ratio) => {
+      state.scrubRatio = ratio;
+      if (LunePiano.hasTimeline()) {
+        LunePiano.seek(ratio, { resumeIfWasPlaying: false });
+        if (state.resumeAfterScrub) {
+          LunePiano.resume();
+          state.resumeAfterScrub = false;
+        }
+        syncPlayButton();
+        return;
+      }
+      if (!state.piece?.debriefs) return;
+      // Arm full piece so the scrub position is ready for Play
+      ensurePieceTimeline(ratio)
+        .then(() => {
+          if (state.resumeAfterScrub) {
+            LunePiano.resume();
+            state.resumeAfterScrub = false;
+          }
+          syncPlayButton();
+        })
+        .catch((e) => toast(e.message));
+    };
+    scrub.addEventListener("pointerup", endScrub);
+    scrub.addEventListener("pointercancel", endScrub);
+    scrub.addEventListener("change", () => {
+      if (state.scrubbing) endScrub();
+      else commitScrub(Number(scrub.value) / 1000);
     });
     scrub.addEventListener("input", () => {
-      const ratio = Number(scrub.value) / 1000;
-      const total = LunePiano.duration() || 1;
-      updateScrub({ progress: ratio * total, total, bar: LunePiano.currentBar() });
+      previewScrub(Number(scrub.value) / 1000);
     });
   }
 
+  bindPlayheadScrub();
+  bindScrubRegionHandles();
+
+  document.querySelectorAll(".speed-btn").forEach((btn) => {
+    btn.addEventListener("click", () => setPlayRate(btn.dataset.rate));
+  });
+  setPlayRate(1);
+  syncPlayButton();
+  try {
+    LunePiano.setKeysHandler?.(onPianoKeys);
+  } catch {
+    /* ignore */
+  }
+  bindHomeChapters();
+  renderPieceTabs();
+  syncKbdToggleUi();
+
   on("tog-letters", "change", (e) => {
-    state.scoreLetters = e.target.checked;
+    // Letters/Fingers are mutually exclusive — only one overlay type at a time.
+    if (e.target.checked) {
+      state.scoreLetters = true;
+      state.scoreFingers = false;
+      const other = $("tog-fingers");
+      if (other) {
+        other.checked = false;
+        other.closest(".tog")?.classList.remove("on");
+      }
+    } else {
+      state.scoreLetters = false;
+    }
+    e.target.closest(".tog")?.classList.toggle("on", e.target.checked);
+    syncAnnoSegUi();
+    snapshotActiveSession();
     refreshScoreAnnotations();
   });
   on("tog-fingers", "change", (e) => {
-    state.scoreFingers = e.target.checked;
+    // Letters/Fingers are mutually exclusive — only one overlay type at a time.
+    if (e.target.checked) {
+      state.scoreFingers = true;
+      state.scoreLetters = false;
+      const other = $("tog-letters");
+      if (other) {
+        other.checked = false;
+        other.closest(".tog")?.classList.remove("on");
+      }
+    } else {
+      state.scoreFingers = false;
+    }
+    e.target.closest(".tog")?.classList.toggle("on", e.target.checked);
+    syncAnnoSegUi();
+    snapshotActiveSession();
     refreshScoreAnnotations();
+  });
+
+  function syncAnnoSegUi() {
+    const mode = state.scoreFingers ? "fingers" : state.scoreLetters ? "notes" : "off";
+    ["notes", "fingers", "off"].forEach((v) => {
+      const el = $(`anno-${v}`);
+      if (!el) return;
+      el.checked = mode === v;
+      el.closest(".anno-opt")?.classList.toggle("on", mode === v);
+    });
+    const letterEl = $("tog-letters");
+    const fingerEl = $("tog-fingers");
+    if (letterEl) {
+      letterEl.checked = !!state.scoreLetters;
+      letterEl.closest(".tog")?.classList.toggle("on", !!state.scoreLetters);
+    }
+    if (fingerEl) {
+      fingerEl.checked = !!state.scoreFingers;
+      fingerEl.closest(".tog")?.classList.toggle("on", !!state.scoreFingers);
+    }
+  }
+
+  function applyAnnoMode(mode) {
+    if (mode === "fingers") {
+      state.scoreFingers = true;
+      state.scoreLetters = false;
+    } else if (mode === "notes") {
+      state.scoreLetters = true;
+      state.scoreFingers = false;
+    } else {
+      state.scoreLetters = false;
+      state.scoreFingers = false;
+    }
+    syncAnnoSegUi();
+    snapshotActiveSession();
+    refreshScoreAnnotations();
+  }
+
+  ["anno-notes", "anno-fingers", "anno-off"].forEach((id) => {
+    on(id, "change", (e) => {
+      if (!e.target.checked) return;
+      applyAnnoMode(e.target.value || "off");
+    });
   });
   on("tog-tips", "change", (e) => {
     state.showTips = e.target.checked;
-    if (state.selected) showBarHelp(state.selected);
+    e.target.closest(".tog")?.classList.toggle("on", e.target.checked);
+    snapshotActiveSession();
+    if (selectedBarsSorted().length) openBarCoach();
   });
   on("tog-lines", "change", (e) => {
     state.showLines = e.target.checked;
-    if (state.selected) showBarHelp(state.selected);
+    e.target.closest(".tog")?.classList.toggle("on", e.target.checked);
+    snapshotActiveSession();
+    if (selectedBarsSorted().length) openBarCoach();
+  });
+  // Sync toggles: HTML checked attrs are the source of truth at boot.
+  // Letters/Fingers stay mutually exclusive if markup ever has both checked.
+  const letterEl = $("tog-letters");
+  const fingerEl = $("tog-fingers");
+  const tipsEl = $("tog-tips");
+  const linesEl = $("tog-lines");
+  if (letterEl && fingerEl && letterEl.checked && fingerEl.checked) {
+    fingerEl.checked = false;
+  }
+  if (letterEl) state.scoreLetters = !!letterEl.checked;
+  if (fingerEl) state.scoreFingers = !!fingerEl.checked;
+  if (tipsEl) state.showTips = !!tipsEl.checked;
+  if (linesEl) state.showLines = !!linesEl.checked;
+  // Prefer visible segmented control if present
+  const annoNotes = $("anno-notes");
+  const annoFingers = $("anno-fingers");
+  const annoOff = $("anno-off");
+  if (annoNotes || annoFingers || annoOff) {
+    if (annoFingers?.checked) {
+      state.scoreFingers = true;
+      state.scoreLetters = false;
+    } else if (annoOff?.checked) {
+      state.scoreLetters = false;
+      state.scoreFingers = false;
+    } else {
+      state.scoreLetters = true;
+      state.scoreFingers = false;
+    }
+  }
+  syncAnnoSegUi();
+  ["tog-letters", "tog-fingers", "tog-tips", "tog-lines"].forEach((id) => {
+    const el = $(id);
+    if (el) el.closest(".tog")?.classList.toggle("on", !!el.checked);
   });
 
   on("btn-hear", "click", () => hearBar().catch((e) => toast(e.message)));
-  on("btn-letters", "click", () => {
-    state.lettersOnly = !state.lettersOnly;
-    $("btn-letters").textContent = state.lettersOnly ? "Full help" : "Letters panel";
-    if (state.selected) showBarHelp(state.selected);
-  });
-  on("btn-fingers", "click", () => {
-    state.showFingers = !state.showFingers;
-    $("btn-fingers").textContent = state.showFingers ? "Hide fingers" : "Fingers panel";
-    if (state.selected) showBarHelp(state.selected);
-  });
   on("btn-plan", "click", () => askPlan().catch((e) => toast(e.message)));
   on("btn-download", "click", downloadScore);
   on("coach-close", "click", closeCoach);
+  on("coach-clear", "click", () => clearBarSelection({ close: true }));
   on("file", "change", () => {
     const f = $("file").files?.[0];
     $("file").value = "";
     if (f) openFile(f).catch((e) => toast(e.message));
   });
-
-  loadLibrary().catch(() => {});
 }
 
 try {
   bind();
+  showView("home");
 } catch (err) {
   console.error("Lune bind failed", err);
   const t = document.getElementById("toast");

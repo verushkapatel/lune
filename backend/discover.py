@@ -3,14 +3,64 @@
 from __future__ import annotations
 
 import json
+import time
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 OPENOPUS = "https://api.openopus.org"
 WIKI = "https://en.wikipedia.org/api/rest_v1/page/summary"
 USER_AGENT = "LuneScoreCoach/5.0 (local music practice app)"
+
+# Local portraits under frontend/assets/composers/ — served at /static/...
+# Prefer these over Wikipedia/OpenOpus hotlinks so faces never depend on remote thumbs.
+LOCAL_COMPOSER_FACES: Dict[str, str] = {
+    "chopin": "chopin.jpg",
+    "beethoven": "beethoven.jpg",
+    "bach": "bach.jpg",
+    "mozart": "mozart.jpg",
+    "debussy": "debussy.jpg",
+    "liszt": "liszt.jpg",
+    "schubert": "schubert.jpg",
+    "schumann": "schumann.jpg",
+    "brahms": "brahms.jpg",
+    "tchaikovsky": "tchaikovsky.jpg",
+    "joplin": "joplin.jpg",
+    "satie": "satie.jpg",
+    "haydn": "haydn.jpg",
+    "handel": "handel.jpg",
+    "rimsky": "rimsky.jpg",
+    "rimsky-korsakov": "rimsky.jpg",
+}
+LOCAL_FACE_CACHE_BUST = "fix50"
+
+
+def local_composer_face_url(composer: str) -> str:
+    """Return a stable /static portrait URL for a known composer, else empty."""
+    n = (composer or "").lower()
+    # Strip combining accents so "Frédéric" still matches.
+    n = "".join(
+        ch for ch in unicodedata.normalize("NFD", n) if unicodedata.category(ch) != "Mn"
+    )
+    if not n:
+        return ""
+    if "rimsky" in n:
+        key = "rimsky"
+    else:
+        key = ""
+        for candidate in sorted(LOCAL_COMPOSER_FACES, key=len, reverse=True):
+            if candidate in n:
+                key = candidate
+                break
+        if not key:
+            last = n.strip().split()[-1] if n.strip() else ""
+            key = last if last in LOCAL_COMPOSER_FACES else ""
+    file = LOCAL_COMPOSER_FACES.get(key) or ""
+    if not file:
+        return ""
+    return f"/static/assets/composers/{file}?v={LOCAL_FACE_CACHE_BUST}"
 
 ERA_STORIES: Dict[str, str] = {
     "medieval": (
@@ -61,13 +111,25 @@ def _get_json(url: str, timeout: float = 10.0) -> Optional[Dict[str, Any]]:
         return None
 
 
+# Short-lived cache so repeat /api/search calls do not re-hit OpenOpus.
+_OPENOPUS_CACHE: Dict[str, Tuple[float, List[Dict[str, Any]]]] = {}
+_OPENOPUS_TTL_SEC = 300.0
+
+
 def search_catalogue(query: str, limit: int = 16) -> List[Dict[str, Any]]:
     cleaned = (query or "").strip()
     if len(cleaned) < 2:
         return []
 
+    cache_key = cleaned.lower()
+    now = time.monotonic()
+    cached = _OPENOPUS_CACHE.get(cache_key)
+    if cached and now - cached[0] < _OPENOPUS_TTL_SEC:
+        return list(cached[1])[:limit]
+
     encoded = urllib.parse.quote(cleaned)
-    data = _get_json(f"{OPENOPUS}/omnisearch/{encoded}/0.json")
+    # Keep remote enrichment snappy; typed search should not wait on this path.
+    data = _get_json(f"{OPENOPUS}/omnisearch/{encoded}/0.json", timeout=2.5)
     if not data or not data.get("results"):
         return []
 
@@ -105,14 +167,22 @@ def search_catalogue(query: str, limit: int = 16) -> List[Dict[str, Any]]:
                 "imslpQuery": f"{composer_name} {title}".strip(),
             }
         )
-    return (results + composers)[:limit]
+    merged = (results + composers)[:limit]
+    _OPENOPUS_CACHE[cache_key] = (now, merged)
+    if len(_OPENOPUS_CACHE) > 256:
+        # Drop oldest half when the cache grows large.
+        for stale in sorted(_OPENOPUS_CACHE, key=lambda k: _OPENOPUS_CACHE[k][0])[
+            : len(_OPENOPUS_CACHE) // 2
+        ]:
+            _OPENOPUS_CACHE.pop(stale, None)
+    return list(merged)
 
 
-def wikipedia_summary(title: str) -> Dict[str, str]:
+def wikipedia_summary(title: str, timeout: float = 1.5) -> Dict[str, str]:
     if not title.strip():
         return {}
     encoded = urllib.parse.quote(title.replace(" ", "_"))
-    data = _get_json(f"{WIKI}/{encoded}")
+    data = _get_json(f"{WIKI}/{encoded}", timeout=timeout)
     if not data or data.get("type") == "disambiguation":
         return {}
     thumb = (data.get("thumbnail") or {}).get("source") or ""
@@ -246,7 +316,7 @@ def _composer_key(name: str) -> str:
     return last
 
 
-def _composer_card(composer: str, portrait: str = "") -> Dict[str, Any]:
+def _composer_card(composer: str, portrait: str = "", remote: bool = True) -> Dict[str, Any]:
     if not composer.strip():
         # still return a usable empty-safe card
         return {
@@ -259,16 +329,20 @@ def _composer_card(composer: str, portrait: str = "") -> Dict[str, Any]:
             "highlights": ["Open the score and listen before you analyse."],
         }
 
-    wiki = wikipedia_summary(composer)
-    # Try last name alone if full name fails
-    if not wiki.get("extract"):
-        last = composer.split()[-1]
-        if last and last.lower() != composer.lower():
-            wiki = wikipedia_summary(last) or wiki
+    wiki: Dict[str, str] = {}
+    if remote:
+        wiki = wikipedia_summary(composer)
+        # Try last name alone if full name fails
+        if not wiki.get("extract"):
+            last = composer.split()[-1]
+            if last and last.lower() != composer.lower():
+                wiki = wikipedia_summary(last) or wiki
 
     key = _composer_key(composer)
     fallback = COMPOSER_FALLBACKS.get(key, {})
-    image = portrait or wiki.get("image") or ""
+    local = local_composer_face_url(composer)
+    # Prefer local cached faces; remote portrait/wiki only as last resort.
+    image = local or portrait or wiki.get("image") or ""
     extract = wiki.get("extract") or fallback.get("bio") or (
         f"{composer} wrote music that pianists still learn from today. "
         "Use the era tips and the score itself to decide touch, tempo, and character."
@@ -341,24 +415,29 @@ def piece_overview(
     analysis: Optional[Dict[str, Any]] = None,
     epoch: str = "",
     portrait: str = "",
+    remote: bool = True,
 ) -> Dict[str, Any]:
-    """Immersive overview: work story, era, composer, and score facts."""
+    """Immersive overview: work story, era, composer, and score facts.
+
+    remote=False skips Wikipedia (local fallbacks only) — use for snappy search→Discover.
+    """
     analysis = analysis or {}
 
     work_history: Dict[str, str] = {}
-    for candidate in (
-        f"{title} ({composer})" if title and composer else "",
-        f"{title} {composer}".strip(),
-        title,
-    ):
-        if not candidate:
-            continue
-        work_history = wikipedia_summary(candidate)
-        # Avoid landing on pure composer page when we asked for a work
-        if work_history.get("extract"):
-            if composer and work_history.get("title", "").lower() == composer.lower():
+    if remote:
+        for candidate in (
+            f"{title} ({composer})" if title and composer else "",
+            f"{title} {composer}".strip(),
+            title,
+        ):
+            if not candidate:
                 continue
-            break
+            work_history = wikipedia_summary(candidate)
+            # Avoid landing on pure composer page when we asked for a work
+            if work_history.get("extract"):
+                if composer and work_history.get("title", "").lower() == composer.lower():
+                    continue
+                break
 
     era = (epoch or "").strip()
     if not era:
@@ -366,7 +445,7 @@ def piece_overview(
             COMPOSER_FALLBACKS.get(_composer_key(composer), {}).get("era") or ""
         )
     era_info = _era_blurb(era)
-    composer_card = _composer_card(composer, portrait=portrait)
+    composer_card = _composer_card(composer, portrait=portrait, remote=remote)
 
     playing: List[Dict[str, str]] = []
     key = analysis.get("notatedKey") or analysis.get("analyzedKey")

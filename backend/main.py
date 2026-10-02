@@ -8,11 +8,13 @@ key, so nobody has to pay for anyone else's usage.
 from __future__ import annotations
 
 import base64
+import copy
 import json
 import os
 import re
 import sys
 import tempfile
+import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -28,8 +30,9 @@ load_dotenv(ROOT / ".env")
 
 from fastapi import Cookie, Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.concurrency import run_in_threadpool
 
 from backend import accounts, preferences, store
 from backend.accounts import COOKIE_NAME, AuthError, Session, sessions
@@ -39,7 +42,14 @@ from backend.context import build_score_digest
 from backend.discover import piece_overview, search_catalogue
 from backend.fingering import suggest_fingering
 from backend.limits import guard
-from backend.scoresource import list_available, resolve_score, search_library
+from backend.scoresource import (
+    list_available,
+    resolve_score,
+    search_index_json,
+    search_library,
+    seed_search_index,
+    warm_catalogue,
+)
 from backend.lune import (
     Attachment,
     LuneError,
@@ -61,6 +71,11 @@ MAX_SCORE_BYTES = 5 * 1024 * 1024
 MAX_PDF_BYTES = 15 * 1024 * 1024
 MAX_MESSAGE_CHARS = 12000
 MAX_HISTORY_TURNS = 40
+
+# Analyzed piece cache — music21 parse is ~3s; never redo for the same file.
+_piece_cache: Dict[str, Dict[str, Any]] = {}
+_piece_cache_lock = threading.Lock()
+_PIECE_CACHE_MAX = 24
 
 app = FastAPI(title="Lune", version="4.0.0")
 
@@ -99,6 +114,23 @@ def invite_code() -> str:
 def startup() -> None:
     store.init_db()
     sessions.purge_expired()
+    # Featured index in milliseconds so /api/search/index is ready before any request.
+    try:
+        seed_search_index()
+    except Exception:
+        pass
+
+    def _warm() -> None:
+        try:
+            warm_catalogue()
+        except Exception:
+            # Catalogue warm is best-effort; search still works on demand.
+            pass
+
+    # Expand to full catalogue off the event loop (may import music21).
+    import threading
+
+    threading.Thread(target=_warm, daemon=True, name="warm-catalogue").start()
 
 
 # auth plumbing
@@ -610,7 +642,97 @@ def _piece_from_path(
         "_",
         (title or payload.get("filename") or "score"),
     ).strip("_")[:80] + ".musicxml"
+    payload["needsAnalysis"] = False
     return payload
+
+
+def _piece_cache_key(path: Path, hand_span: str) -> str:
+    try:
+        mtime = path.stat().st_mtime_ns
+    except OSError:
+        mtime = 0
+    return f"{path.resolve()}:{hand_span}:{mtime}"
+
+
+def _piece_from_path_cached(
+    path: Path,
+    hand_span: str = "medium",
+    filename: str = "",
+    meta: Optional[Dict[str, str]] = None,
+) -> Dict[str, Any]:
+    """Full analysis with LRU cache — second open of the same score is instant."""
+    key = _piece_cache_key(path, hand_span)
+    with _piece_cache_lock:
+        hit = _piece_cache.get(key)
+    if hit is not None:
+        payload = copy.deepcopy(hit)
+    else:
+        payload = _piece_from_path(path, hand_span=hand_span, filename=filename, meta=meta)
+        with _piece_cache_lock:
+            _piece_cache[key] = copy.deepcopy(payload)
+            while len(_piece_cache) > _PIECE_CACHE_MAX:
+                _piece_cache.pop(next(iter(_piece_cache)))
+    # Overlay request-specific display meta without busting the analysis cache.
+    meta = meta or {}
+    if meta.get("title"):
+        payload["title"] = meta["title"]
+    if meta.get("composer"):
+        payload["composer"] = meta["composer"]
+    if meta.get("epoch") or meta.get("era"):
+        epoch = meta.get("epoch") or meta.get("era") or ""
+        payload["epoch"] = epoch
+        payload["era"] = epoch
+    if meta.get("portrait") or meta.get("title") or meta.get("composer"):
+        payload["overview"] = piece_overview(
+            meta.get("title") or payload.get("title") or "",
+            meta.get("composer") or payload.get("composer") or "",
+            payload,
+            epoch=meta.get("epoch") or meta.get("era") or "",
+            portrait=meta.get("portrait") or "",
+        )
+    if filename:
+        payload["filename"] = filename
+    payload["needsAnalysis"] = False
+    return payload
+
+
+def _piece_light_from_path(
+    path: Path,
+    filename: str = "",
+    meta: Optional[Dict[str, str]] = None,
+    source: str = "",
+) -> Dict[str, Any]:
+    """Discover-page payload: MusicXML + overview only — no music21 (ms, not seconds)."""
+    meta = meta or {}
+    try:
+        musicxml = path.read_text(encoding="utf-8")
+    except Exception:
+        musicxml = ""
+    title = meta.get("title") or ""
+    composer = meta.get("composer") or ""
+    epoch = meta.get("epoch") or meta.get("era") or ""
+    portrait = meta.get("portrait") or ""
+    if not title:
+        title = path.stem.replace("_", " ")
+    overview = piece_overview(
+        title, composer, epoch=epoch, portrait=portrait, remote=False
+    )
+    download = re.sub(r"[^A-Za-z0-9._-]+", "_", title or path.name).strip("_")[:80] + ".musicxml"
+    return {
+        "kind": "score",
+        "opened": True,
+        "needsAnalysis": True,
+        "title": title,
+        "composer": composer,
+        "filename": filename or path.name,
+        "musicxml": musicxml,
+        "overview": overview,
+        "epoch": epoch,
+        "era": epoch,
+        "debriefs": {},
+        "source": source,
+        "downloadName": download,
+    }
 
 
 def _piece_from_bytes(
@@ -624,6 +746,7 @@ def _piece_from_bytes(
         tmp.write(raw)
         tmp_path = tmp.name
     try:
+        # Temp uploads are deleted after return — do not cache by path.
         return _piece_from_path(
             Path(tmp_path), hand_span=hand_span, filename=filename, meta=meta
         )
@@ -648,19 +771,39 @@ def _scan_payload(raw: bytes, media_type: str, filename: str) -> Dict[str, Any]:
     }
 
 
+@app.get("/api/search/index")
+def search_index_endpoint() -> Response:
+    """Serve the prebaked static typeahead index — zero catalogue work."""
+    static_path = FRONTEND / "search-index.json"
+    if static_path.exists():
+        return FileResponse(
+            static_path,
+            media_type="application/json",
+            headers={"Cache-Control": "public, max-age=3600"},
+        )
+    body = search_index_json()
+    return Response(
+        content=body,
+        media_type="application/json",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 @app.get("/api/search")
-def search_pieces(q: str = "") -> Dict[str, Any]:
+def search_pieces(q: str = "", remote: int = 0) -> Dict[str, Any]:
     # Free scores first so openable pieces always win over catalogue-only hits.
+    # Default remote=0 keeps typed search local/fast; OpenOpus is opt-in.
     free = search_library(q, limit=20)
-    remote = search_catalogue(q)
-    seen = {(r.get("title"), r.get("composer")) for r in free}
     merged = list(free)
-    for row in remote:
-        key = (row.get("title"), row.get("composer"))
-        if key in seen:
-            continue
-        seen.add(key)
-        merged.append(row)
+    if remote:
+        remote_hits = search_catalogue(q)
+        seen = {(r.get("title"), r.get("composer")) for r in free}
+        for row in remote_hits:
+            key = (row.get("title"), row.get("composer"))
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(row)
     return {"results": merged[:24], "openableCount": len(free)}
 
 
@@ -687,6 +830,9 @@ def free_library(q: str = "", full: int = 0) -> Dict[str, Any]:
         "Scarlatti",
         "Hummel",
         "Bach · Art",
+        "Bach · Well-Tempered",
+        "Bach · Inventions",
+        "Bach · Sinfonias",
         "Beethoven string",
     )
     if needle:
@@ -719,13 +865,18 @@ def free_library(q: str = "", full: int = 0) -> Dict[str, Any]:
 
 @app.post("/api/search/open")
 async def open_searched_piece(request: Request) -> Dict[str, Any]:
-    """Search result → automatically open the score when a legal copy exists."""
+    """Search result → open score.
+
+    Default is a *light* open (MusicXML + overview, no music21) so Discover
+    lands in milliseconds. Pass analyze=true when entering Listen / Ask.
+    """
     body = await request.json()
     title = (body.get("title") or "").strip()
     composer = (body.get("composer") or "").strip()
     epoch = (body.get("epoch") or body.get("era") or "").strip()
     query = (body.get("query") or body.get("q") or "").strip()
     portrait = (body.get("portrait") or "").strip()
+    analyze = bool(body.get("analyze"))
     if not title and not composer and not query:
         raise HTTPException(400, "Nothing to open.")
 
@@ -742,26 +893,39 @@ async def open_searched_piece(request: Request) -> Dict[str, Any]:
                 title or query, composer, epoch=epoch, portrait=portrait
             ),
             "message": (
-                "No free MusicXML for this exact title yet. Filter the home library "
-                "(700+ openable scores: Beethoven & Mozart sonatas, Chopin, Joplin, "
-                "Bach chorales, Scarlatti, Haydn, Hummel, music21 corpus…), "
+                "No free MusicXML for this exact title yet. Search for a known free "
+                "piece (Chopin Mazurka, Für Elise, Raindrop, Clair de Lune, The Entertainer…), "
                 "or open your own MusicXML / PDF / photo."
             ),
         }
 
-    piece = _piece_from_path(
-        Path(resolved["path"]),
-        filename=Path(resolved["path"]).name,
-        meta={
-            "title": title or resolved["title"],
-            "composer": composer or resolved["composer"],
-            "epoch": epoch,
-            "portrait": portrait,
-        },
-    )
+    meta = {
+        "title": title or resolved["title"],
+        "composer": composer or resolved["composer"],
+        "epoch": epoch,
+        "portrait": portrait,
+    }
+    path = Path(resolved["path"])
+    if analyze:
+        # music21 parse is multi-second — never block the event loop.
+        piece = await run_in_threadpool(
+            _piece_from_path_cached,
+            path,
+            "medium",
+            path.name,
+            meta,
+        )
+    else:
+        piece = _piece_light_from_path(
+            path,
+            filename=path.name,
+            meta=meta,
+            source=resolved["source"],
+        )
     piece["opened"] = True
     piece["source"] = resolved["source"]
     piece["downloadName"] = _download_name(piece)
+    piece["openQuery"] = query
     if resolved.get("fallbackNote"):
         piece["fallbackNote"] = resolved["fallbackNote"]
     return piece

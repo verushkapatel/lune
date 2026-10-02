@@ -117,7 +117,7 @@ def letter_rows(analysis: ScoreAnalysis) -> List[Dict[str, Any]]:
     for measure in analysis.measures:
         by_hand: Dict[str, List[str]] = {"RH": [], "LH": []}
         for note in sorted(measure.notes, key=lambda n: (n.hand != "RH", n.offset, -n.midi)):
-            token = note.letter + str(note.octave)
+            token = _note_letter(note)
             if note.fingering:
                 token = f"{token}({note.fingering})"
             by_hand.setdefault(note.hand, []).append(token)
@@ -173,10 +173,18 @@ def practice_plan(analysis: ScoreAnalysis, focus_bars: Optional[List[int]] = Non
     }
 
 
+def _note_letter(n: NoteInfo) -> str:
+    """Sight-reading label with accidental + octave (G#3, Bb4)."""
+    pitch = (n.pitch or "").replace("-", "b")
+    if pitch:
+        return pitch
+    return f"{n.letter}{n.octave}"
+
+
 def _pack_note(n: NoteInfo) -> Dict[str, Any]:
     return {
-        "pitch": n.pitch,
-        "letter": f"{n.letter}{n.octave}",
+        "pitch": (n.pitch or "").replace("-", "b"),
+        "letter": _note_letter(n),
         "midi": n.midi,
         "voice": n.voice,
         "fingering": n.fingering,
@@ -220,7 +228,7 @@ def _line_advice(measure: MeasureInfo, difficulty: Dict[str, Any]) -> Dict[str, 
         tips: List[str] = []
         if not notes:
             return tips
-        letters = " → ".join(f"{n.letter}{n.octave}" for n in notes[:10])
+        letters = " → ".join(_note_letter(n) for n in notes[:10])
         tips.append(f"Line: {letters}" + ("…" if len(notes) > 10 else ""))
         span = max(n.midi for n in notes) - min(n.midi for n in notes)
         if span >= 12:
@@ -297,7 +305,7 @@ def _chunk_run(run: List[NoteInfo], size: int = 4) -> List[Dict[str, Any]]:
         labels = []
         for n in part:
             finger = f"({n.fingering})" if n.fingering else ""
-            labels.append(f"{n.letter}{n.octave}{finger}")
+            labels.append(f"{_note_letter(n)}{finger}")
         fingers = [n.fingering for n in part if n.fingering]
         count = len(part)
         chunks.append(
@@ -398,12 +406,12 @@ def measure_debrief(analysis: ScoreAnalysis, number: int) -> Dict[str, Any]:
     split = _split_practice(measure, difficulty)
     fingerings = {
         "rh": [
-            {"letter": f"{n.letter}{n.octave}", "finger": n.fingering, "why": n.fingering_note or ""}
+            {"letter": _note_letter(n), "finger": n.fingering, "why": n.fingering_note or ""}
             for n in sorted(rh, key=lambda n: (n.offset, -n.midi))
             if n.fingering
         ],
         "lh": [
-            {"letter": f"{n.letter}{n.octave}", "finger": n.fingering, "why": n.fingering_note or ""}
+            {"letter": _note_letter(n), "finger": n.fingering, "why": n.fingering_note or ""}
             for n in sorted(lh, key=lambda n: (n.offset, -n.midi))
             if n.fingering
         ],
