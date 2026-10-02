@@ -2,14 +2,22 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Lune</title>
-  <link rel="icon" href="/static/assets/favicon.svg?v=fix60" type="image/svg+xml">
+  <meta name="description" content="Lune — a night-studio companion for pianists. Find a public-domain score, hear it, then read the bars that feel hard.">
+  <meta name="theme-color" content="#0a0a0a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Lune">
+  <link rel="icon" href="/static/assets/favicon.svg?v=fix62" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/static/assets/apple-touch-icon.png?v=fix62">
+  <link rel="manifest" href="/static/manifest.json?v=fix62">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/styles.css?v=fix60">
-  <link rel="preload" href="/static/search-index.json?v=fix60" as="fetch" crossorigin>
+  <link rel="stylesheet" href="/static/styles.css?v=fix62">
+  <link rel="preload" href="/static/search-index.json?v=fix62" as="fetch" crossorigin>
 </head>
 <body>
   <div id="app">
@@ -93,12 +101,12 @@
           <div class="home-meet-frame">
             <img
               class="home-meet-face"
-              src="/static/assets/composers/chopin.jpg?v=fix60"
+              src="/static/assets/composers/chopin.jpg?v=fix62"
               alt=""
               width="96"
               height="128"
               decoding="async"
-              onerror="this.onerror=null;this.src='/static/assets/composers/silhouette.svg?v=fix60'"
+              onerror="this.onerror=null;this.src='/static/assets/composers/silhouette.svg?v=fix62'"
             >
             <div class="home-meet-copy">
               <p class="home-meet-kicker">1832 · Mazurka</p>
@@ -258,8 +266,8 @@
           <p class="about-kicker">Ask about a bar</p>
           <h2>Click the measure that will not sit.</h2>
           <p>
-            Open Ask, tap a bar on the score, and get letter names, fingerings, and
-            short practice notes for that measure — without leaving the page.
+            Click a bar on the score and get letter names, fingerings, and
+            short practice notes for that measure — right beside the page.
           </p>
         </div>
         <figure class="home-chapter-visual" aria-hidden="true">
@@ -288,7 +296,7 @@
             <text x="232" y="152" fill="#757575" font-size="10" font-family="Fraunces, Georgia, serif">quiet under the</text>
             <text x="232" y="168" fill="#757575" font-size="10" font-family="Fraunces, Georgia, serif">melody tone.</text>
             <rect x="232" y="180" width="92" height="20" rx="1" fill="#f5f5f5"/>
-            <text x="244" y="194" fill="#0a0a0a" font-size="10" font-family="Fraunces, Georgia, serif">Hear this bar</text>
+            <text x="244" y="194" fill="#0a0a0a" font-size="10" font-family="Fraunces, Georgia, serif">Play this bar</text>
           </svg>
         </figure>
       </section>
@@ -334,11 +342,19 @@
                 </g>
                 <path fill="#f5f5f5" d="M70 18c-16 2.4-28 16-28 32.4 0 16.4 12 30 28 32.4A32.5 32.5 0 0 1 38 50.4C38 32.8 51.8 18.4 69.4 18c.2 0 .4 0 .6 0z"/>
               </g>
-              <text x="180" y="128" text-anchor="middle" fill="#a8a8a8" font-size="13" font-family="Fraunces, Georgia, serif">Night studio. Clear notes.</text>
+              <text x="180" y="140" text-anchor="middle" fill="#a8a8a8" font-size="13" font-family="Fraunces, Georgia, serif">Night studio. Clear notes.</text>
             </svg>
           </figure>
         </div>
       </section>
+
+      <footer class="home-footer">
+        <svg class="lune-mark home-footer-mark" viewBox="0 0 40 40" width="18" height="18" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M26.2 7.2c-5.9.9-10.4 6-10.4 12.1 0 6.1 4.5 11.2 10.4 12.1A12.2 12.2 0 0 1 14 19.3c0-6.6 5.2-12 11.8-12.2.1 0 .3 0 .4 0z"/>
+        </svg>
+        <p class="home-footer-line">Lune · quiet practice, clear notes</p>
+        <p class="home-footer-keys">Space play · <span aria-hidden="true">&#8592; &#8594;</span> seek a bar · Esc close</p>
+      </footer>
     </main>
 
     <main class="discover" id="discover" hidden>
@@ -401,11 +417,16 @@
           <span id="stage-label" class="visually-hidden">Score</span>
         </div>
 
+        <p class="score-hint" id="score-hint" hidden>Click any bar for guidance</p>
+
         <div class="score-scroll" id="score-scroll">
           <div class="selection-hilites" id="selection-hilites" aria-hidden="true"></div>
+          <div class="hover-hilite" id="hover-hilite" hidden aria-hidden="true"></div>
           <div class="measure-hilite" id="measure-hilite" hidden></div>
           <div class="playhead-line" id="playhead-line" hidden></div>
-          <div id="osmd" class="score"></div>
+          <div class="score-page" id="score-page">
+            <div id="osmd" class="score"></div>
+          </div>
           <div id="scan" class="score scan" hidden></div>
         </div>
       </section>
@@ -430,18 +451,6 @@
             </div>
           </header>
           <div class="discover-chapters" id="explain-chapters"></div>
-          <div class="explain-ask" id="explain-ask">
-            <p class="about-kicker">Ask about a bar</p>
-            <h2 class="explain-ask-title">Pick a measure that will not sit.</h2>
-            <p class="explain-ask-lead" id="ask-banner">Tap a bar below for letter names, fingerings, and short practice notes.</p>
-            <div class="companion-tools explain-toggles" id="explain-toggles" aria-label="Help options">
-              <span class="tog-group" role="group" aria-label="Tips and lines">
-                <label class="tog pill"><input type="checkbox" id="tog-tips" checked> Tips</label>
-                <label class="tog pill"><input type="checkbox" id="tog-lines" checked> Lines</label>
-              </span>
-            </div>
-            <div class="bars slim-bars" id="bars" aria-label="Bars"></div>
-          </div>
         </div>
       </section>
 
@@ -469,15 +478,11 @@
               <div class="scrubber transport-scrub">
                 <div class="scrub-track-wrap">
                   <div class="scrub-ticks" id="scrub-ticks" aria-hidden="true"></div>
-                  <div class="scrub-region" id="scrub-region" hidden aria-hidden="true">
-                    <span class="scrub-region-fill" id="scrub-region-fill"></span>
-                    <button type="button" class="scrub-region-handle start" id="scrub-region-start" aria-label="Listen start" tabindex="-1"></button>
-                    <button type="button" class="scrub-region-handle end" id="scrub-region-end" aria-label="Listen end" tabindex="-1"></button>
-                  </div>
-                  <input type="range" id="scrub" min="0" max="1000" value="0" step="1" aria-label="Playback position — drag to jump in the piece">
+                  <input type="range" id="scrub" min="0" max="1000" value="0" step="1" aria-label="Playback position — drag to rewind or fast-forward">
                 </div>
                 <div class="scrub-meta">
                   <span id="scrub-bar">Bar —</span>
+                  <span class="scrub-keys" aria-hidden="true" title="Keyboard shortcuts">Space play &middot; &#8592; &#8594; bar</span>
                   <span id="scrub-time">0:00 / 0:00</span>
                 </div>
               </div>
@@ -509,19 +514,29 @@
       </header>
       <div class="coach-body" id="help-body"></div>
       <div class="help-actions">
-        <button type="button" class="primary" id="btn-hear">Hear selection</button>
+        <button type="button" class="primary" id="btn-hear">Play this bar</button>
+        <button type="button" class="quiet" id="btn-line">Play this line</button>
         <button type="button" class="quiet" id="btn-plan">Practice notes</button>
-        <button type="button" class="quiet" id="btn-stop-bar" hidden>Stop</button>
       </div>
     </div>
   </aside>
+
+  <div class="lune-loader" id="lune-loader" hidden role="status" aria-live="polite">
+    <div class="lune-loader-box">
+      <div class="loader-piano" aria-hidden="true">
+        <span class="lk w"></span><span class="lk w"></span><span class="lk w"></span><span class="lk w"></span><span class="lk w"></span><span class="lk w"></span><span class="lk w"></span>
+        <span class="lk b b1"></span><span class="lk b b2"></span><span class="lk b b3"></span><span class="lk b b4"></span><span class="lk b b5"></span>
+      </div>
+      <p class="lune-loader-text" id="lune-loader-text">Opening the score</p>
+    </div>
+  </div>
 
   <div class="toast" id="toast" hidden></div>
   <script src="/static/vendor/opensheetmusicdisplay.min.js"></script>
   <script src="/static/vendor/pdf.min.js"></script>
   <script src="/static/vendor/Tone.js"></script>
-  <script src="/static/piano.js?v=fix60"></script>
-  <script src="/static/annotate.js?v=fix60"></script>
-  <script src="/static/app.js?v=fix60"></script>
+  <script src="/static/piano.js?v=fix62"></script>
+  <script src="/static/annotate.js?v=fix62"></script>
+  <script src="/static/app.js?v=fix62"></script>
 </body>
 </html>

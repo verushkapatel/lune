@@ -2033,6 +2033,60 @@ window.LuneAnnotate = (function () {
     };
   }
 
+  /**
+   * All measure numbers engraved on the same system (line) as `measureNum`.
+   * Prefers OSMD's parentMusicSystem link; falls back to vertical-band
+   * grouping of measure bounds. Returns a sorted array or null.
+   */
+  function systemBarsFor(osmd, measureNum) {
+    const measureList = osmd?.graphic?.measureList;
+    const want = Number(measureNum);
+    if (!measureList || !Number.isFinite(want)) return null;
+
+    const items = [];
+    for (let mi = 0; mi < measureList.length; mi++) {
+      const sm0 = measureList[mi]?.[0];
+      if (!sm0) continue;
+      const num = Number(
+        sm0.parentSourceMeasure?.MeasureNumber || sm0.measureNumber || mi + 1
+      );
+      let sys = null;
+      try {
+        sys =
+          sm0.ParentStaffLine?.ParentMusicSystem ||
+          sm0.parentStaffLine?.parentMusicSystem ||
+          sm0.ParentMusicSystem ||
+          sm0.parentMusicSystem ||
+          null;
+      } catch {
+        sys = null;
+      }
+      let y = null;
+      try {
+        const pos = sm0.PositionAndShape?.AbsolutePosition;
+        if (pos?.y != null) y = pos.y;
+      } catch {
+        y = null;
+      }
+      items.push({ num, sys, y });
+    }
+    const mine = items.find((it) => it.num === want);
+    if (!mine) return null;
+
+    let group = [];
+    if (mine.sys) {
+      group = items.filter((it) => it.sys && it.sys === mine.sys).map((it) => it.num);
+    }
+    if (!group.length && mine.y != null) {
+      // Same vertical band = same engraved line (OSMD staff units; 4 ≈ safe tolerance)
+      group = items
+        .filter((it) => it.y != null && Math.abs(it.y - mine.y) < 4)
+        .map((it) => it.num);
+    }
+    if (!group.length) return null;
+    return [...new Set(group)].sort((a, b) => a - b);
+  }
+
   function measureAtPoint(osmd, host, clientX, clientY) {
     const svg = host?.querySelector("svg");
     if (!svg || !osmd?.graphic?.measureList) return null;
@@ -2041,33 +2095,51 @@ window.LuneAnnotate = (function () {
     pt.y = clientY;
     const local = pt.matrixTransform(svg.getScreenCTM().inverse());
 
+    // Y matters: systems stack vertically, so an x-only match would map a
+    // click on line 2 back to a line-1 bar that shares the same x range.
     let best = null;
     let bestDist = Infinity;
     const measureList = osmd.graphic.measureList;
     for (let mi = 0; mi < measureList.length; mi++) {
       const staffMeasures = measureList[mi];
       if (!staffMeasures?.[0]) continue;
-      const sm = staffMeasures[0];
-      const num = sm.parentSourceMeasure?.MeasureNumber || sm.measureNumber || mi + 1;
+      const sm0 = staffMeasures[0];
+      const num =
+        sm0.parentSourceMeasure?.MeasureNumber || sm0.measureNumber || mi + 1;
       let x0 = null;
       let x1 = null;
-      try {
-        const pos = sm.PositionAndShape;
-        if (pos?.AbsolutePosition && pos?.Size) {
-          x0 = pos.AbsolutePosition.x * 10;
-          x1 = x0 + pos.Size.width * 10;
+      let y0 = Infinity;
+      let y1 = -Infinity;
+      for (const sm of staffMeasures) {
+        if (!sm) continue;
+        try {
+          const pos = sm.PositionAndShape;
+          if (pos?.AbsolutePosition && pos?.Size) {
+            const ax = pos.AbsolutePosition.x * 10;
+            const ay = pos.AbsolutePosition.y * 10;
+            if (x0 == null) {
+              x0 = ax;
+              x1 = ax + pos.Size.width * 10;
+            }
+            y0 = Math.min(y0, ay);
+            y1 = Math.max(y1, ay + pos.Size.height * 10);
+          }
+        } catch {
+          /* skip staff */
         }
-      } catch {
-        /* skip */
       }
       if (x0 == null) {
         try {
           const xs = [];
-          for (const entry of sm.staffEntries || []) {
+          for (const entry of sm0.staffEntries || []) {
             for (const voice of entry.graphicalVoiceEntries || []) {
               for (const gn of voice.notes || []) {
                 const box = gnBox(gn, svg, osmd);
-                if (box) xs.push(box.cx);
+                if (box) {
+                  xs.push(box.cx);
+                  y0 = Math.min(y0, box.top);
+                  y1 = Math.max(y1, box.bottom);
+                }
               }
             }
           }
@@ -2080,9 +2152,20 @@ window.LuneAnnotate = (function () {
         }
       }
       if (x0 == null) continue;
-      const mid = (x0 + x1) / 2;
-      const inside = local.x >= x0 && local.x <= x1;
-      const dist = inside ? 0 : Math.abs(local.x - mid);
+      const hasY = Number.isFinite(y0) && Number.isFinite(y1);
+      // Generous vertical pad so clicks between the staves still hit the bar
+      const padY = 28;
+      const dx =
+        local.x >= x0 && local.x <= x1
+          ? 0
+          : Math.min(Math.abs(local.x - x0), Math.abs(local.x - x1));
+      const dy = !hasY
+        ? 0
+        : local.y >= y0 - padY && local.y <= y1 + padY
+          ? 0
+          : Math.min(Math.abs(local.y - (y0 - padY)), Math.abs(local.y - (y1 + padY)));
+      // Weight y heavily — never jump across systems on an x tie
+      const dist = dx + dy * 6;
       if (dist < bestDist) {
         bestDist = dist;
         best = Number(num);
@@ -2123,6 +2206,7 @@ window.LuneAnnotate = (function () {
     measureAtPoint,
     measureBoundsSvg,
     measureBoundsInHost,
+    systemBarsFor,
     readJobs,
     planJobs,
     MIN_LETTER_GAP,

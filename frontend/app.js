@@ -21,7 +21,7 @@ const COMPOSER_FACE_FILES = {
   rimsky: "rimsky.jpg",
   "rimsky-korsakov": "rimsky.jpg",
 };
-const COMPOSER_FACE_V = "fix60";
+const COMPOSER_FACE_V = "fix62";
 const COMPOSER_SILHOUETTE = `/static/assets/composers/silhouette.svg?v=${COMPOSER_FACE_V}`;
 
 const state = {
@@ -42,7 +42,8 @@ const state = {
   scrubbing: false,
   resumeAfterScrub: false,
   scrubRatio: 0,
-  timelineKind: null, // "piece" | "selection" | "bar" | null
+  timelineKind: null, // "piece" | null — transport always plays the whole piece
+  snippetEnd: null, // timeline seconds where a bar/line snippet auto-pauses
   keyboard: null,
   keyboardVisible: false,
   playRate: 1,
@@ -51,7 +52,6 @@ const state = {
   sessionSeq: 0,
   scoreReady: false,
   coachOpen: false,
-  selectingBars: false,
 };
 
 function toast(msg) {
@@ -61,6 +61,42 @@ function toast(msg) {
   el.hidden = false;
   clearTimeout(toast.t);
   toast.t = setTimeout(() => (el.hidden = true), 2800);
+}
+
+/* ---------- piano loader (shown while scores / samples load) ---------- */
+
+let _loaderCount = 0;
+
+function showLoader(text) {
+  const el = $("lune-loader");
+  if (!el) return;
+  _loaderCount += 1;
+  const label = $("lune-loader-text");
+  if (label && text) label.textContent = text;
+  el.hidden = false;
+}
+
+function hideLoader() {
+  const el = $("lune-loader");
+  if (!el) return;
+  _loaderCount = Math.max(0, _loaderCount - 1);
+  if (_loaderCount === 0) el.hidden = true;
+}
+
+/** Run an async task under the piano loader; always hides it afterwards. */
+async function withLoader(text, task) {
+  showLoader(text);
+  try {
+    return await task();
+  } finally {
+    hideLoader();
+  }
+}
+
+/** Load piano samples, showing the loader only on the slow first load. */
+async function ensureSamplesWithLoader() {
+  if (LunePiano.isReady?.()) return LunePiano.ensure();
+  return withLoader("Warming up the piano", () => LunePiano.ensure());
 }
 
 function escapeHtml(s) {
@@ -120,7 +156,7 @@ function closeSearchResults({ blur = false } = {}) {
 const SEARCH_LIMIT = 8;
 // Paint on the next frame only — coalesces burst keystrokes, ~0–16ms feel (no 100ms lag).
 const SEARCH_DEBOUNCE_MS = 0;
-const SEARCH_INDEX_URL = "/static/search-index.json?v=fix60";
+const SEARCH_INDEX_URL = "/static/search-index.json?v=fix62";
 /** Composers whose piano works are typically still under copyright — honest empty state. */
 const COPYRIGHT_ERA_COMPOSERS = [
   "ginastera", "prokofiev", "shostakovich", "khachaturian", "kabalevsky",
@@ -512,43 +548,44 @@ async function tryOpen(body) {
 
 async function fetchAndDiscover(works) {
   closeSearchResults({ blur: true });
-  toast("Loading the piece…");
   const typed = ($("q").value || "").trim();
-  let lastMiss = null;
-  // Light open only (no music21) — try best hits sequentially; Discover must feel instant.
-  for (const item of works.slice(0, 4)) {
-    const piece = await tryOpen({
-      title: item.title,
-      composer: item.composer || "",
-      epoch: item.epoch || "",
-      query: item.query || typed,
-      portrait: item.portrait || "",
-    });
-    if (!piece) continue;
-    if (piece.opened === false || piece.kind === "catalogue") {
-      lastMiss = { item, piece };
-      continue;
-    }
-    $("q").value = item.composer ? `${item.composer} — ${item.title}` : item.title;
-    await landOnDiscover(piece);
-    return;
-  }
-  // Last resort: raw typed search (composer nickname etc.)
-  if (typed.length >= 2) {
-    const piece = await tryOpen({ title: typed, composer: "", query: typed });
-    if (piece && piece.kind === "score") {
+  await withLoader("Finding the score", async () => {
+    let lastMiss = null;
+    // Light open only (no music21) — try best hits sequentially; Discover must feel instant.
+    for (const item of works.slice(0, 4)) {
+      const piece = await tryOpen({
+        title: item.title,
+        composer: item.composer || "",
+        epoch: item.epoch || "",
+        query: item.query || typed,
+        portrait: item.portrait || "",
+      });
+      if (!piece) continue;
+      if (piece.opened === false || piece.kind === "catalogue") {
+        lastMiss = { item, piece };
+        continue;
+      }
+      $("q").value = item.composer ? `${item.composer} — ${item.title}` : item.title;
       await landOnDiscover(piece);
       return;
     }
-    if (piece && (piece.opened === false || piece.kind === "catalogue")) {
-      lastMiss = lastMiss || { item: { title: typed }, piece };
+    // Last resort: raw typed search (composer nickname etc.)
+    if (typed.length >= 2) {
+      const piece = await tryOpen({ title: typed, composer: "", query: typed });
+      if (piece && piece.kind === "score") {
+        await landOnDiscover(piece);
+        return;
+      }
+      if (piece && (piece.opened === false || piece.kind === "catalogue")) {
+        lastMiss = lastMiss || { item: { title: typed }, piece };
+      }
     }
-  }
-  if (lastMiss) {
-    showDiscoverPage(lastMiss.piece, { canOpen: false });
-    return;
-  }
-  toast("No free score available");
+    if (lastMiss) {
+      showDiscoverPage(lastMiss.piece, { canOpen: false });
+      return;
+    }
+    toast("No free score available");
+  });
 }
 
 async function landOnDiscover(piece) {
@@ -796,8 +833,6 @@ function syncTogglesFromState() {
   const map = [
     ["tog-letters", state.scoreLetters],
     ["tog-fingers", state.scoreFingers],
-    ["tog-tips", state.showTips],
-    ["tog-lines", state.showLines],
   ];
   for (const [id, on] of map) {
     const el = $(id);
@@ -944,9 +979,6 @@ function renderExplainPanel(piece) {
     });
   }
 
-  const ask = $("explain-ask");
-  if (ask) ask.hidden = !canOpen;
-  if (canOpen) renderBarStrip();
 }
 
 function setStudioPanel(panel, { skipScore = false } = {}) {
@@ -958,7 +990,16 @@ function setStudioPanel(panel, { skipScore = false } = {}) {
 
   ["score", "explain", "piano"].forEach((name) => {
     const el = $(`panel-${name}`);
-    if (el) el.hidden = name !== next;
+    if (el) {
+      const wasHidden = el.hidden;
+      el.hidden = name !== next;
+      // Re-trigger the 200ms fade/rise each time a panel takes the stage.
+      if (wasHidden && !el.hidden) {
+        el.classList.remove("panel-in");
+        void el.offsetWidth;
+        el.classList.add("panel-in");
+      }
+    }
     const tab = $(`tab-${name}`);
     if (tab) {
       const on = name === next;
@@ -991,16 +1032,12 @@ function setStudioPanel(panel, { skipScore = false } = {}) {
 
   if (next === "explain") {
     renderExplainPanel(state.piece);
-    const selected = new Set(selectedBarsSorted());
-    document.querySelectorAll(".bar-card").forEach((el) => {
-      el.classList.toggle("on", selected.has(Number(el.dataset.bar)));
-    });
   }
 
   if (next === "score") {
     requestAnimationFrame(() => {
       paintSelectionHilites();
-      updateScrubRegionUi();
+      updateScoreHint();
     });
   }
 
@@ -1018,47 +1055,49 @@ async function ensureScoreReady() {
     state.piece.needsAnalysis ||
     !state.piece.debriefs ||
     !Object.keys(state.piece.debriefs).length;
-  if (needs) {
-    toast("Preparing the score…");
-    const full = await tryOpen({
-      title: state.piece.title || "",
-      composer: state.piece.composer || "",
-      epoch: state.piece.epoch || state.piece.era || "",
-      query: state.piece.openQuery || state.piece.query || ($("q").value || "").trim(),
-      portrait:
-        state.piece.overview?.composerInfo?.image ||
-        localComposerFaceUrl(state.piece.composer || "") ||
-        "",
-      analyze: true,
-    });
-    if (full && full.kind === "score" && full.musicxml) {
-      state.piece = full;
-      state.rawMusicxml = full.musicxml || "";
-      const s = activeSession();
-      if (s) {
-        s.piece = full;
-        s.rawMusicxml = full.musicxml || "";
-        s.shortTitle = shortPieceTitle(full.title || full.overview?.title);
+  return withLoader(needs ? "Reading the score" : "Engraving the page", async () => {
+    if (needs) {
+      const full = await tryOpen({
+        title: state.piece.title || "",
+        composer: state.piece.composer || "",
+        epoch: state.piece.epoch || state.piece.era || "",
+        query: state.piece.openQuery || state.piece.query || ($("q").value || "").trim(),
+        portrait:
+          state.piece.overview?.composerInfo?.image ||
+          localComposerFaceUrl(state.piece.composer || "") ||
+          "",
+        analyze: true,
+      });
+      if (full && full.kind === "score" && full.musicxml) {
+        state.piece = full;
+        state.rawMusicxml = full.musicxml || "";
+        const s = activeSession();
+        if (s) {
+          s.piece = full;
+          s.rawMusicxml = full.musicxml || "";
+          s.shortTitle = shortPieceTitle(full.title || full.overview?.title);
+        }
+        renderPieceTabs();
+        fillPieceChrome(full);
+        renderExplainPanel(full);
+      } else {
+        toast("Could not prepare this score");
+        return false;
       }
-      renderPieceTabs();
-      fillPieceChrome(full);
-      renderExplainPanel(full);
-    } else {
-      toast("Could not prepare this score");
-      return false;
     }
-  }
-  try {
-    await LunePiano.ensure();
-  } catch {
-    toast("Piano samples need internet the first time");
-  }
-  await renderScore();
-  state.scoreReady = true;
-  const s = activeSession();
-  if (s) s.scoreReady = true;
-  updateScrub({ progress: 0, total: 0, bar: null });
-  return true;
+    try {
+      await LunePiano.ensure();
+    } catch {
+      toast("Piano samples need internet the first time");
+    }
+    await renderScore();
+    state.scoreReady = true;
+    const s = activeSession();
+    if (s) s.scoreReady = true;
+    updateScrub({ progress: 0, total: 0, bar: null });
+    updateScoreHint();
+    return true;
+  });
 }
 
 async function openPieceSession(piece, { panel = "explain" } = {}) {
@@ -1154,17 +1193,6 @@ async function switchToScorePanel() {
   if (!ok) setStudioPanel("explain");
 }
 
-async function enterListenMode() {
-  await switchToScorePanel();
-}
-
-function enterAskMode() {
-  stopAll();
-  setStudioPanel("explain");
-  renderBarStrip();
-  toast("Tap a bar to ask");
-}
-
 /* ---------- listening / scrub ---------- */
 
 function pieceBarSpan() {
@@ -1195,9 +1223,8 @@ function selectionTitle(bars = selectedBarsSorted()) {
   return `Bars ${bars.join(", ")}`;
 }
 
+/** Transport always covers the whole piece; snippets seek within it. */
 function listenBarSpan() {
-  const span = selectionSpan();
-  if (span) return span;
   return pieceBarSpan();
 }
 
@@ -1223,11 +1250,6 @@ function pieceNotes() {
   return collectNotes(from, to);
 }
 
-function listenNotes() {
-  const [from, to] = listenBarSpan();
-  return collectNotes(from, to);
-}
-
 function playbackHandlers() {
   return {
     onTick: updateScrub,
@@ -1241,14 +1263,14 @@ function playbackHandlers() {
 
 /** Ensure the full-piece timeline is armed so scrub / Play-from-here works. */
 async function ensurePieceTimeline(seekRatio = null) {
-  const notes = listenNotes();
+  const notes = pieceNotes();
   if (!notes.length) return false;
   const ratio =
     seekRatio != null
       ? Math.max(0, Math.min(1, Number(seekRatio) || 0))
       : Math.max(0, Math.min(1, Number(state.scrubRatio) || 0));
   try {
-    await LunePiano.ensure();
+    await ensureSamplesWithLoader();
   } catch {
     toast("Could not load piano samples — check internet once");
     return false;
@@ -1258,9 +1280,8 @@ async function ensurePieceTimeline(seekRatio = null) {
   } catch {
     /* ignore */
   }
-  const kind = selectionSpan() ? "selection" : "piece";
-  if (!LunePiano.hasTimeline() || state.timelineKind !== kind) {
-    state.timelineKind = kind;
+  if (!LunePiano.hasTimeline() || state.timelineKind !== "piece") {
+    state.timelineKind = "piece";
     LunePiano.arm(notes, { ...playbackHandlers(), from: ratio });
   } else if (seekRatio != null) {
     LunePiano.seek(ratio, { resumeIfWasPlaying: false });
@@ -1269,12 +1290,23 @@ async function ensurePieceTimeline(seekRatio = null) {
     ? (LunePiano.progress() || 0) / LunePiano.duration()
     : ratio;
   renderScrubTicks();
-  updateScrubRegionUi();
   syncPlayButton();
   return true;
 }
 
 function updateScrub({ progress, total, bar }) {
+  // Bar/line snippets auto-pause at their end; playhead stays put.
+  if (
+    state.snippetEnd != null &&
+    LunePiano.isPlaying() &&
+    progress >= state.snippetEnd - 0.03
+  ) {
+    state.snippetEnd = null;
+    LunePiano.pause();
+    clearKeyboard();
+    syncPlayButton();
+    return;
+  }
   const scrub = $("scrub");
   if (scrub) {
     if (!state.scrubbing && total > 0) {
@@ -1289,7 +1321,6 @@ function updateScrub({ progress, total, bar }) {
   const barEl = $("scrub-bar");
   if (timeEl) timeEl.textContent = `${fmtTime(progress)} / ${fmtTime(total)}`;
   if (barEl) barEl.textContent = bar ? `Bar ${bar}` : "Bar —";
-  highlightPlayingBar(bar);
   placePlayhead(bar, progress, total);
   syncPlayButton();
 }
@@ -1316,6 +1347,23 @@ function syncPlayButton() {
     stop.disabled = !canStop;
     stop.setAttribute("aria-disabled", canStop ? "false" : "true");
   }
+  updateScoreHint();
+}
+
+/** Quiet affordance line above the score — changes with transport state. */
+function updateScoreHint() {
+  const hint = $("score-hint");
+  if (!hint) return;
+  const show = state.panel === "score" && !!state.scoreReady;
+  if (!show) {
+    hint.hidden = true;
+    return;
+  }
+  const next = LunePiano.isPlaying()
+    ? "Click a bar to jump there · drag the playhead to scrub"
+    : "Click any bar for guidance · drag the playhead to move";
+  if (hint.textContent !== next) hint.textContent = next;
+  hint.hidden = false;
 }
 
 function renderScrubTicks() {
@@ -1334,12 +1382,6 @@ function renderScrubTicks() {
     tick.title = `Bar ${m.bar}`;
     tick.dataset.bar = String(m.bar);
     host.appendChild(tick);
-  });
-}
-
-function highlightPlayingBar(bar) {
-  document.querySelectorAll(".bar-card").forEach((el) => {
-    el.classList.toggle("playing", bar && Number(el.dataset.bar) === Number(bar));
   });
 }
 
@@ -1438,10 +1480,12 @@ function placePlayhead(bar, progress = 0, total = 0) {
       }
       if (moved) {
         _playheadScrollAt = now;
+        // Cinematic follow: always glide, never jump (unless the user asked for calm).
+        const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
         scroll.scrollTo({
           top: nextTop,
           left: nextLeft,
-          behavior: barChanged ? "smooth" : "auto",
+          behavior: reduced ? "auto" : "smooth",
         });
       }
     }
@@ -1481,11 +1525,7 @@ function stopAll() {
   clearKeyboard();
   state.scrubRatio = 0;
   state.resumeAfterScrub = false;
-  state.timelineKind = state.timelineKind === "bar" ? null : state.timelineKind;
-  const stopBar = $("btn-stop-bar");
-  if (stopBar) stopBar.hidden = true;
-  const hear = $("btn-hear");
-  if (hear) hear.textContent = "Hear this bar";
+  state.snippetEnd = null;
   // MuseScore-like: Stop returns to the start of the piece, playhead visible at bar 1
   const total = (() => {
     try {
@@ -1514,7 +1554,6 @@ function stopAll() {
     if (hilite) hilite.hidden = true;
     updateScrub({ progress: 0, total: 0, bar: null });
   }
-  updateScrubRegionUi();
   syncPlayButton();
 }
 
@@ -1734,31 +1773,32 @@ function bindHomeChapters() {
 
 async function togglePlayback() {
   if (LunePiano.isPlaying()) {
+    state.snippetEnd = null;
     LunePiano.pause();
     syncPlayButton();
-    toast("Paused — drag to rewind, then Resume");
     return;
   }
-  const kind = selectionSpan() ? "selection" : "piece";
+  state.snippetEnd = null;
+  // Resume the whole-piece timeline from wherever the playhead sits.
   if (
-    (state.timelineKind === kind || state.timelineKind === "piece" || state.timelineKind === "selection") &&
+    state.timelineKind === "piece" &&
     LunePiano.hasTimeline() &&
     LunePiano.progress() > 0.02 &&
-    state.timelineKind === kind
+    LunePiano.progress() < LunePiano.duration() - 0.05
   ) {
     LunePiano.resume();
     syncPlayButton();
     return;
   }
   const from =
-    state.timelineKind === kind && LunePiano.hasTimeline() && LunePiano.duration()
+    state.timelineKind === "piece" && LunePiano.hasTimeline() && LunePiano.duration()
       ? (LunePiano.progress() || 0) / LunePiano.duration()
       : Math.max(0, Math.min(1, Number(state.scrubRatio) || 0));
-  await startPiecePlayback(from);
+  await startPiecePlayback(from >= 0.995 ? 0 : from);
 }
 
 async function startPiecePlayback(seekRatio = 0) {
-  const notes = listenNotes();
+  const notes = pieceNotes();
   if (!notes.length) {
     toast("Nothing to play");
     return;
@@ -1780,7 +1820,7 @@ async function startPiecePlayback(seekRatio = 0) {
   }
 
   try {
-    await LunePiano.ensure();
+    await ensureSamplesWithLoader();
   } catch {
     toast("Could not load piano samples — check internet once");
     return;
@@ -1792,55 +1832,91 @@ async function startPiecePlayback(seekRatio = 0) {
   }
   const ratio = Math.max(0, Math.min(1, Number(seekRatio) || 0));
   state.scrubRatio = ratio;
-  state.timelineKind = selectionSpan() ? "selection" : "piece";
+  state.timelineKind = "piece";
   await LunePiano.play(notes, {
     from: ratio,
     ...playbackHandlers(),
   });
   renderScrubTicks();
-  updateScrubRegionUi();
   syncPlayButton();
 }
 
-async function hearBar() {
+/**
+ * Play a span of bars on the full-piece timeline, then auto-pause at the
+ * span's end. The playhead stays where the snippet finished.
+ */
+async function playSnippet(fromBar, toBar) {
   if (LunePiano.isPlaying()) {
-    stopAll();
+    state.snippetEnd = null;
+    LunePiano.pause();
+    syncPlayButton();
+  }
+  const ok = await ensurePieceTimeline();
+  if (!ok) {
+    toast("Nothing to play");
+    return;
+  }
+  const marks = LunePiano.barMarkers?.() || [];
+  const total = LunePiano.duration() || 0;
+  if (!marks.length || !total) {
+    toast("Nothing to play");
+    return;
+  }
+  const startMark = marks.find((m) => Number(m.bar) === Number(fromBar)) || marks[0];
+  const after = marks.find((m) => Number(m.bar) > Number(toBar));
+  const end = after ? after.t : total;
+  if (state.panel === "score" && !state.keyboardVisible) applyKeyboardVisibility(true);
+  else ensureKeyboard();
+  state.snippetEnd = end;
+  LunePiano.seek(startMark.t / total, { resumeIfWasPlaying: false });
+  LunePiano.resume();
+  syncPlayButton();
+}
+
+/** Coach action: play the currently selected bar(s). */
+async function playSelectedBars() {
+  if (LunePiano.isPlaying()) {
+    state.snippetEnd = null;
+    LunePiano.pause();
+    syncPlayButton();
+    refreshCoachChrome();
     return;
   }
   const bars = selectedBarsSorted();
   if (!bars.length && state.selected) bars.push(Number(state.selected));
   if (!bars.length) {
-    toast("Select a bar first");
+    toast("Pick a bar first");
     return;
   }
-  const notes = collectNotes(bars[0], bars[bars.length - 1]);
-  if (!notes.length) {
-    toast("Nothing to play in this selection");
+  await playSnippet(bars[0], bars[bars.length - 1]);
+  refreshCoachChrome();
+}
+
+/** Bars engraved on the same line (system) as the given bar. */
+function lineBarsFor(num) {
+  const bar = Number(num);
+  if (!Number.isFinite(bar)) return null;
+  const viaOsmd = state.osmd ? LuneAnnotate.systemBarsFor?.(state.osmd, bar) : null;
+  if (viaOsmd?.length) return viaOsmd;
+  // Score not rendered (coach opened from Explain) — fall back to a 4-bar phrase.
+  const [from, to] = pieceBarSpan();
+  const start = Math.max(from, bar - ((bar - from) % 4));
+  return rangeBars(start, Math.min(to, start + 3));
+}
+
+/** Coach action: play the whole line (system) the selected bar sits on. */
+async function playSelectedLine() {
+  const bar = Number(state.selected || selectedBarsSorted()[0]);
+  if (!bar) {
+    toast("Pick a bar first");
     return;
   }
-  const hearBtn = $("btn-hear");
-  if (hearBtn) hearBtn.textContent = "Stop";
-  const stopBar = $("btn-stop-bar");
-  if (stopBar) stopBar.hidden = false;
-  if (state.keyboardVisible || state.panel === "piano" || state.panel === "score") {
-    if (state.panel === "score" && !state.keyboardVisible) applyKeyboardVisibility(true);
-    else ensureKeyboard();
+  const line = lineBarsFor(bar);
+  if (!line?.length) {
+    toast("Could not find this line");
+    return;
   }
-  state.timelineKind = "selection";
-  await LunePiano.play(notes, {
-    onTick: updateScrub,
-    onKeys: onPianoKeys,
-    onEnd: () => {
-      if (hearBtn) hearBtn.textContent = "Hear selection";
-      if (stopBar) stopBar.hidden = true;
-      clearKeyboard();
-      state.timelineKind = null;
-      syncPlayButton();
-    },
-  });
-  renderScrubTicks();
-  updateScrubRegionUi();
-  syncPlayButton();
+  await playSnippet(line[0], line[line.length - 1]);
 }
 
 /* ---------- score render with annotations ---------- */
@@ -1884,7 +1960,6 @@ function bindOsmdRenderOverlays(osmd) {
     if (state.osmd !== osmd) return;
     applyScoreOverlays();
     paintSelectionHilites();
-    updateScrubRegionUi();
   };
   osmd.render = function luneRender(...args) {
     const result = orig(...args);
@@ -1955,20 +2030,20 @@ async function renderScore() {
     if (state.osmd !== osmd) return;
     applyScoreOverlays();
     paintSelectionHilites();
-    updateScrubRegionUi();
   });
 }
 
-/** Click / drag measures on the engraved score for practice selection — stay on Score. */
+/**
+ * Clicks on the engraved score.
+ * Playing: a click seeks playback to that bar and keeps going.
+ * Paused: a click opens the coach with that bar's guidance
+ * (shift extends the range, cmd/ctrl toggles bars for coaching info).
+ */
 function wireScoreMeasureClicks() {
   const host = $("osmd");
   if (!host || host.dataset.luneClickBound === "1") return;
   host.dataset.luneClickBound = "1";
   host.classList.add("score-interactive");
-
-  let dragOrigin = null;
-  let dragMoved = false;
-  let suppressClick = false;
 
   const nearPlayhead = (e) => {
     const line = $("playhead-line");
@@ -1985,59 +2060,7 @@ function wireScoreMeasureClicks() {
     return Number(num);
   };
 
-  host.addEventListener("pointerdown", (e) => {
-    if (e.button != null && e.button !== 0) return;
-    if (state.panel !== "score") return;
-    if (e.target.closest?.("button, a, input, label")) return;
-    if (nearPlayhead(e)) return;
-    const num = barAt(e.clientX, e.clientY);
-    if (!num) return;
-    dragOrigin = num;
-    dragMoved = false;
-    state.selectingBars = true;
-    try {
-      host.setPointerCapture?.(e.pointerId);
-    } catch {
-      /* ignore */
-    }
-  });
-
-  host.addEventListener("pointermove", (e) => {
-    if (dragOrigin == null) return;
-    const num = barAt(e.clientX, e.clientY);
-    if (!num || num === dragOrigin) return;
-    dragMoved = true;
-    setBarSelection(rangeBars(dragOrigin, num), { open: true, primary: num });
-  });
-
-  const endDrag = (e) => {
-    if (dragOrigin == null) return;
-    const origin = dragOrigin;
-    const moved = dragMoved;
-    dragOrigin = null;
-    dragMoved = false;
-    state.selectingBars = false;
-    try {
-      host.releasePointerCapture?.(e.pointerId);
-    } catch {
-      /* ignore */
-    }
-    if (moved) {
-      suppressClick = true;
-      setTimeout(() => {
-        suppressClick = false;
-      }, 0);
-    }
-  };
-  host.addEventListener("pointerup", endDrag);
-  host.addEventListener("pointercancel", endDrag);
-
   host.addEventListener("click", (e) => {
-    if (suppressClick) {
-      e.preventDefault();
-      e.stopPropagation();
-      return;
-    }
     if (!state.piece?.debriefs) return;
     if (state.panel !== "score") return;
     if (e.target.closest?.("button, a, input, label")) return;
@@ -2052,6 +2075,35 @@ function wireScoreMeasureClicks() {
     }
     applyBarClick(num, e);
   });
+
+  // Desktop affordance: outline the bar under the cursor so clicks feel safe.
+  if (window.matchMedia?.("(pointer: fine)")?.matches) {
+    const hover = $("hover-hilite");
+    let raf = 0;
+    host.addEventListener("pointermove", (e) => {
+      if (!hover || state.panel !== "score" || !state.osmd) return;
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const num = barAt(e.clientX, e.clientY);
+        const bounds = num
+          ? LuneAnnotate.measureBoundsInHost?.(state.osmd, host, num)
+          : null;
+        if (!bounds) {
+          hover.hidden = true;
+          return;
+        }
+        hover.hidden = false;
+        hover.style.left = `${bounds.left}px`;
+        hover.style.top = `${bounds.top}px`;
+        hover.style.width = `${bounds.width}px`;
+        hover.style.height = `${bounds.height}px`;
+      });
+    });
+    host.addEventListener("pointerleave", () => {
+      if (hover) hover.hidden = true;
+    });
+  }
 }
 
 function rangeBars(a, b) {
@@ -2065,6 +2117,12 @@ function rangeBars(a, b) {
 }
 
 function applyBarClick(num, e) {
+  // While playing, a bar click is a seek — jump there and keep going.
+  if (LunePiano.isPlaying() && state.timelineKind === "piece") {
+    state.snippetEnd = null;
+    LunePiano.seekToBar?.(num, { resumeIfWasPlaying: true });
+    return;
+  }
   const meta = !!(e.metaKey || e.ctrlKey);
   const shift = !!e.shiftKey;
   if (meta) {
@@ -2096,18 +2154,8 @@ function setBarSelection(bars, { open = true, primary = null } = {}) {
     s.selected = state.selected;
     s.selectedBars = [...next];
   }
-  document.querySelectorAll(".bar-card").forEach((el) => {
-    const n = Number(el.dataset.bar);
-    el.classList.toggle("on", next.includes(n));
-  });
   paintSelectionHilites();
-  updateScrubRegionUi();
   if (open) openBarCoach();
-  // Re-arm listen timeline to selection span when idle
-  if (next.length && !LunePiano.isPlaying()) {
-    state.timelineKind = null;
-    state.scrubRatio = 0;
-  }
 }
 
 function clearBarSelection({ close = true } = {}) {
@@ -2118,9 +2166,7 @@ function clearBarSelection({ close = true } = {}) {
     s.selected = null;
     s.selectedBars = [];
   }
-  document.querySelectorAll(".bar-card").forEach((el) => el.classList.remove("on"));
   paintSelectionHilites();
-  updateScrubRegionUi();
   if (close) closeCoach();
   else refreshCoachChrome();
 }
@@ -2146,97 +2192,6 @@ function paintSelectionHilites() {
   }
 }
 
-function barRatioOnPieceTimeline(bar) {
-  const marks = LunePiano.barMarkers?.() || [];
-  if (!marks.length) {
-    const [from, to] = pieceBarSpan();
-    if (to <= from) return 0;
-    return Math.max(0, Math.min(1, (Number(bar) - from) / (to - from)));
-  }
-  const hit = marks.find((m) => Number(m.bar) === Number(bar));
-  if (hit) return hit.ratio;
-  // Approximate between nearest markers
-  let prev = marks[0];
-  for (const m of marks) {
-    if (Number(m.bar) > Number(bar)) break;
-    prev = m;
-  }
-  return prev?.ratio || 0;
-}
-
-function updateScrubRegionUi() {
-  const region = $("scrub-region");
-  const fill = $("scrub-region-fill");
-  const startH = $("scrub-region-start");
-  const endH = $("scrub-region-end");
-  if (!region || !fill) return;
-  const span = selectionSpan();
-  if (!span) {
-    region.hidden = true;
-    return;
-  }
-  // Region is meaningful on the active listen timeline (selection or piece)
-  let a = 0;
-  let b = 1;
-  if (state.timelineKind === "selection" && LunePiano.hasTimeline()) {
-    a = 0;
-    b = 1;
-  } else if (LunePiano.hasTimeline() && state.timelineKind === "piece") {
-    a = barRatioOnPieceTimeline(span[0]);
-    const marks = LunePiano.barMarkers?.() || [];
-    const next = marks.find((m) => Number(m.bar) > span[1]);
-    b = next ? next.ratio : 1;
-  } else {
-    const [from, to] = pieceBarSpan();
-    const width = Math.max(1, to - from + 1);
-    a = (span[0] - from) / width;
-    b = (span[1] - from + 1) / width;
-  }
-  a = Math.max(0, Math.min(1, a));
-  b = Math.max(a, Math.min(1, b));
-  region.hidden = false;
-  fill.style.left = `${a * 100}%`;
-  fill.style.width = `${(b - a) * 100}%`;
-  if (startH) startH.style.left = `${a * 100}%`;
-  if (endH) endH.style.left = `${b * 100}%`;
-}
-
-function bindScrubRegionHandles() {
-  const startH = $("scrub-region-start");
-  const endH = $("scrub-region-end");
-  if (!startH || startH.dataset.bound === "1") return;
-  startH.dataset.bound = "1";
-
-  const dragHandle = (which, e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const wrap = $("scrub")?.closest(".scrub-track-wrap");
-    if (!wrap) return;
-    const [pieceFrom, pieceTo] = pieceBarSpan();
-    const onMove = (ev) => {
-      const r = wrap.getBoundingClientRect();
-      const ratio = Math.max(0, Math.min(1, (ev.clientX - r.left) / Math.max(1, r.width)));
-      const bar = Math.round(pieceFrom + ratio * (pieceTo - pieceFrom));
-      const clamped = Math.max(pieceFrom, Math.min(pieceTo, bar));
-      const span = selectionSpan() || [clamped, clamped];
-      let from = span[0];
-      let to = span[1];
-      if (which === "start") from = Math.min(clamped, to);
-      else to = Math.max(clamped, from);
-      setBarSelection(rangeBars(from, to), { open: true, primary: clamped });
-    };
-    const onUp = () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-    onMove(e);
-  };
-  startH.addEventListener("pointerdown", (e) => dragHandle("start", e));
-  endH.addEventListener("pointerdown", (e) => dragHandle("end", e));
-}
-
 async function refreshScoreAnnotations() {
   if (!state.piece?.musicxml) return;
   const roomy = scoreNeedsRoom();
@@ -2248,35 +2203,6 @@ async function refreshScoreAnnotations() {
     return;
   }
   await renderScore();
-}
-
-function renderBarStrip() {
-  const host = $("bars");
-  if (!host) return;
-  host.innerHTML = "";
-  const debriefs = state.piece?.debriefs || {};
-  const numbers = Object.keys(debriefs).map(Number).sort((a, b) => a - b);
-  const hot = new Set((state.piece.hardSpots || []).map((s) => s.measure));
-  const selected = new Set(selectedBarsSorted());
-  for (const num of numbers) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "bar-card" + (hot.has(num) ? " hot" : "");
-    if (selected.has(num)) btn.classList.add("on");
-    btn.dataset.bar = String(num);
-    btn.innerHTML = `<div class="n">${num}${hot.has(num) ? " ·" : ""}</div>`;
-    btn.title = hot.has(num) ? `Bar ${num} · harder spot` : `Bar ${num}`;
-    btn.addEventListener("click", (e) => {
-      // Explain strip: multi-select works the same; never force Explain from Score
-      applyBarClick(num, e);
-    });
-    host.appendChild(btn);
-  }
-}
-
-function selectBar(num) {
-  // Legacy single-bar entry — stays on current panel (Score stays Score)
-  setBarSelection([num], { open: true, primary: num });
 }
 
 /** Group simultaneous tones so chords render as a vertical stack, not one pile. */
@@ -2323,18 +2249,9 @@ function lettersBlock(d) {
 
 function deepenBarCopy(d, num) {
   const tips = [];
-  if (d?.howToPlay?.length) tips.push(...d.howToPlay);
-  if (d?.focus?.length) {
-    for (const line of d.focus) {
-      if (!tips.includes(line)) tips.push(line);
-    }
-  }
-  if (d?.harmony?.length) {
-    tips.push(`Harmony in this bar: ${d.harmony.join(", ")}.`);
-  }
-  if (d?.dynamics?.length) {
-    tips.push(`Shape the dynamics: ${d.dynamics.join(", ")}.`);
-  }
+  // The advice engine's specific tips lead; everything else is supporting info.
+  if (d?.advice?.length) tips.push(...d.advice);
+  else if (d?.howToPlay?.length) tips.push(...d.howToPlay);
   if (d?.expressions?.length) {
     tips.push(`Expression marks: ${d.expressions.join(", ")}.`);
   }
@@ -2349,9 +2266,6 @@ function deepenBarCopy(d, num) {
       tips.push(`Bar ${num} is quiet — use it as a breath or check your posture.`);
     }
   }
-  if (d?.difficulty?.isHard || d?.split?.needed) {
-    tips.push("This bar rewards slow loops: four clean repeats before raising the tempo.");
-  }
   return tips;
 }
 
@@ -2359,8 +2273,10 @@ function barSectionHtml(num, d) {
   if (!d?.found) {
     return `<section class="coach-bar-block"><h3>Bar ${num}</h3><p class="dim">No notes here.</p></section>`;
   }
-  const hard = d.difficulty?.isHard || d.split?.needed;
-  let html = `<section class="coach-bar-block"><h3>Bar ${num}${hard ? " · needs care" : ""}</h3>`;
+  const headline = (d.headline || "").trim();
+  let html = `<section class="coach-bar-block"><h3>Bar ${num}${
+    headline ? `<span class="bar-headline">${escapeHtml(headline)}</span>` : ""
+  }</h3>`;
   html += lettersBlock(d);
 
   // Always surface finger numbers in the coach (score overlay remains Letters XOR Fingers)
@@ -2451,17 +2367,70 @@ function refreshCoachChrome() {
   const clear = $("coach-clear");
   if (clear) clear.hidden = bars.length < 1;
   const hear = $("btn-hear");
-  if (hear && hear.textContent !== "Stop") {
-    hear.textContent = bars.length > 1 ? "Hear selection" : "Hear this bar";
+  if (hear) {
+    hear.textContent =
+      bars.length > 1
+        ? `Play bars ${bars[0]}\u2013${bars[bars.length - 1]}`
+        : "Play this bar";
+    hear.disabled = !bars.length;
   }
+  const lineBtn = $("btn-line");
+  if (lineBtn) lineBtn.disabled = !bars.length;
 }
 
-function showBarHelp(num) {
-  if (num != null && !selectedBarsSorted().includes(Number(num))) {
-    setBarSelection([num], { open: true, primary: num });
-    return;
+/** Aggregate the engraved line's bars into one focused summary. */
+function lineSummaryHtml(bar) {
+  const line = lineBarsFor(bar);
+  if (!line || line.length < 2) return "";
+  const debriefs = state.piece?.debriefs || {};
+  let hardest = null;
+  const tagCounts = new Map();
+  for (const n of line) {
+    const d = debriefs[String(n)];
+    if (!d?.found) continue;
+    const score = Number(d.difficulty?.score) || 0;
+    if (!hardest || score > hardest.score) hardest = { num: n, score, d };
+    for (const t of d.tags || []) tagCounts.set(t, (tagCounts.get(t) || 0) + 1);
   }
-  openBarCoach();
+  if (!hardest) return "";
+  const TAG_LABELS = {
+    leap: "wide leaps",
+    "wide-chord": "wide chords",
+    chord: "chord voicing",
+    chromatic: "chromatic runs",
+    "scale-run": "scale runs",
+    dotted: "dotted rhythms",
+    syncopation: "syncopation",
+    dense: "busy writing",
+    grace: "grace notes",
+    "thumb-black": "thumbs on black keys",
+    "black-keys": "black-key terrain",
+    "hands-together": "two busy hands",
+    "repeat-figure": "repeated figures",
+    dynamics: "dynamic shaping",
+    tempo: "tempo changes",
+  };
+  let common = "";
+  let best = 0;
+  for (const [tag, count] of tagCounts) {
+    if (count >= 2 && count > best) {
+      best = count;
+      common = TAG_LABELS[tag] || tag;
+    }
+  }
+  const tip = hardest.d.advice?.[0] || "";
+  let html = `<section class="coach-line-block"><h4>This line · bars ${line[0]}\u2013${line[line.length - 1]}</h4><ul class="line-summary">`;
+  html += `<li><strong>Hardest bar:</strong> bar ${hardest.num}${
+    hardest.d.headline ? ` (${escapeHtml(hardest.d.headline)})` : ""
+  }.</li>`;
+  if (common) {
+    html += `<li><strong>Running theme:</strong> ${escapeHtml(common)} across the line.</li>`;
+  }
+  if (tip) {
+    html += `<li><strong>One focus:</strong> ${escapeHtml(tip)}</li>`;
+  }
+  html += `</ul></section>`;
+  return html;
 }
 
 function openBarCoach() {
@@ -2471,18 +2440,21 @@ function openBarCoach() {
   const body = $("help-body");
   if (!body) return;
   if (!bars.length) {
-    body.innerHTML = `<p class="dim">Click a bar on the score for pitches, fingers, and practice notes. Shift-drag to select a range.</p>`;
+    body.innerHTML = `<p class="dim">Click any bar on the score for its notes, fingers, and practice guidance. Shift-click extends to a range.</p>`;
     return;
   }
   let html = "";
   if (bars.length > 1) {
-    html += `<p class="coach-lead">Listening and coaching cover ${escapeHtml(
+    html += `<p class="coach-lead">Coaching covers ${escapeHtml(
       selectionTitle(bars)
-    )}. Play will loop this span until you clear the selection.</p>`;
+    )}. \u201cPlay bars\u201d below plays just this span.</p>`;
   }
   for (const num of bars) {
     const d = state.piece?.debriefs?.[String(num)];
     html += barSectionHtml(num, d);
+  }
+  if (bars.length === 1) {
+    html += lineSummaryHtml(bars[0]);
   }
   body.innerHTML = html;
 }
@@ -2541,12 +2513,13 @@ function downloadScore() {
 }
 
 async function openFile(file) {
-  toast(`Opening ${file.name}…`);
-  const form = new FormData();
-  form.append("file", file, file.name);
-  const res = await fetch("/api/piece", { method: "POST", body: form });
-  if (!res.ok) throw new Error("Could not open file");
-  await landOnDiscover(await res.json());
+  await withLoader(`Opening ${file.name}`, async () => {
+    const form = new FormData();
+    form.append("file", file, file.name);
+    const res = await fetch("/api/piece", { method: "POST", body: form });
+    if (!res.ok) throw new Error("Could not open file");
+    await landOnDiscover(await res.json());
+  });
 }
 
 function goHome({ keepTabs = false } = {}) {
@@ -2576,6 +2549,26 @@ function bind() {
   on("q", "focus", () => {
     ensureSearchIndex();
   });
+  // Arrow keys walk the typeahead; Enter opens the highlighted hit.
+  on("q", "keydown", (e) => {
+    const box = $("results");
+    if (!box || box.hidden) return;
+    const items = [...box.querySelectorAll("button.result:not(.result-empty)")];
+    if (!items.length) return;
+    const activeIdx = items.findIndex((el) => el.classList.contains("is-active"));
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const dir = e.key === "ArrowDown" ? 1 : -1;
+      const next = activeIdx < 0
+        ? (dir > 0 ? 0 : items.length - 1)
+        : (activeIdx + dir + items.length) % items.length;
+      items.forEach((el, i) => el.classList.toggle("is-active", i === next));
+      items[next].scrollIntoView({ block: "nearest" });
+    } else if (e.key === "Enter" && activeIdx >= 0) {
+      e.preventDefault();
+      items[activeIdx].click();
+    }
+  });
   // Prefetch the free-score index so the first keystroke is already local.
   ensureSearchIndex();
   document.addEventListener("click", (e) => {
@@ -2586,6 +2579,26 @@ function bind() {
       }
     }
   });
+  /* Global keyboard shortcuts — Space play/pause, arrows seek a bar, Esc closes. */
+  const SHORTCUTS_HINT = "Space play/pause · \u2190 \u2192 seek a bar · Esc closes panels";
+
+  async function seekByBars(delta) {
+    if (!state.piece?.debriefs) return;
+    if (!LunePiano.hasTimeline() || state.timelineKind !== "piece") {
+      const ok = await ensurePieceTimeline();
+      if (!ok) return;
+    }
+    const marks = LunePiano.barMarkers?.() || [];
+    if (!marks.length) return;
+    const cur = Number(LunePiano.currentBar?.() ?? marks[0].bar);
+    let idx = marks.findIndex((m) => Number(m.bar) === cur);
+    if (idx < 0) idx = 0;
+    const next = Math.max(0, Math.min(marks.length - 1, idx + delta));
+    state.snippetEnd = null;
+    LunePiano.seekToBar?.(marks[next].bar, { resumeIfWasPlaying: true });
+    syncPlayButton();
+  }
+
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       if (state.coachOpen) {
@@ -2594,6 +2607,24 @@ function bind() {
         return;
       }
       closeSearchResults({ blur: true });
+      return;
+    }
+    // Never steal keys from typing or focused controls.
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const t = e.target;
+    if (t?.closest?.("input, textarea, select, button, a, label, [contenteditable]")) return;
+    if (!document.body.classList.contains("is-studio")) return;
+    if (e.code === "Space") {
+      e.preventDefault();
+      togglePlayback().catch((err) => toast(err.message));
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault();
+      seekByBars(1).catch(() => {});
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      seekByBars(-1).catch(() => {});
+    } else if (e.key === "?") {
+      toast(SHORTCUTS_HINT);
     }
   });
 
@@ -2638,7 +2669,6 @@ function bind() {
     e.preventDefault();
     stopAll();
   });
-  on("btn-stop-bar", "click", stopAll);
   on("btn-toggle-kbd", "click", () => {
     setKeyboardVisible(!state.keyboardVisible);
   });
@@ -2724,7 +2754,6 @@ function bind() {
   }
 
   bindPlayheadScrub();
-  bindScrubRegionHandles();
 
   document.querySelectorAll(".speed-btn").forEach((btn) => {
     btn.addEventListener("click", () => setPlayRate(btn.dataset.rate));
@@ -2819,31 +2848,15 @@ function bind() {
       applyAnnoMode(e.target.value || "off");
     });
   });
-  on("tog-tips", "change", (e) => {
-    state.showTips = e.target.checked;
-    e.target.closest(".tog")?.classList.toggle("on", e.target.checked);
-    snapshotActiveSession();
-    if (selectedBarsSorted().length) openBarCoach();
-  });
-  on("tog-lines", "change", (e) => {
-    state.showLines = e.target.checked;
-    e.target.closest(".tog")?.classList.toggle("on", e.target.checked);
-    snapshotActiveSession();
-    if (selectedBarsSorted().length) openBarCoach();
-  });
   // Sync toggles: HTML checked attrs are the source of truth at boot.
   // Letters/Fingers stay mutually exclusive if markup ever has both checked.
   const letterEl = $("tog-letters");
   const fingerEl = $("tog-fingers");
-  const tipsEl = $("tog-tips");
-  const linesEl = $("tog-lines");
   if (letterEl && fingerEl && letterEl.checked && fingerEl.checked) {
     fingerEl.checked = false;
   }
   if (letterEl) state.scoreLetters = !!letterEl.checked;
   if (fingerEl) state.scoreFingers = !!fingerEl.checked;
-  if (tipsEl) state.showTips = !!tipsEl.checked;
-  if (linesEl) state.showLines = !!linesEl.checked;
   // Prefer visible segmented control if present
   const annoNotes = $("anno-notes");
   const annoFingers = $("anno-fingers");
@@ -2861,12 +2874,13 @@ function bind() {
     }
   }
   syncAnnoSegUi();
-  ["tog-letters", "tog-fingers", "tog-tips", "tog-lines"].forEach((id) => {
+  ["tog-letters", "tog-fingers"].forEach((id) => {
     const el = $(id);
     if (el) el.closest(".tog")?.classList.toggle("on", !!el.checked);
   });
 
-  on("btn-hear", "click", () => hearBar().catch((e) => toast(e.message)));
+  on("btn-hear", "click", () => playSelectedBars().catch((e) => toast(e.message)));
+  on("btn-line", "click", () => playSelectedLine().catch((e) => toast(e.message)));
   on("btn-plan", "click", () => askPlan().catch((e) => toast(e.message)));
   on("btn-download", "click", downloadScore);
   on("coach-close", "click", closeCoach);

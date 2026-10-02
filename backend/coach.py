@@ -2,11 +2,17 @@
 
 No AI provider, no API key, no network. Everything here is deterministic from
 MusicXML analysis so Lune stays free for the operator and the musician.
+
+The advice engine reads concrete musical facts out of each bar — leaps,
+chord spans, chromatic/scale runs, dotted rhythms, syncopation, grace notes,
+fingering landmines — and maps them to standard, publicly-known piano
+pedagogy (silent jump practice, 1-3-1-3 chromatic fingering, rolling wide
+chords, subdividing dotted rhythms, hands-separate work).
 """
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from backend.analyzer import MeasureInfo, NoteInfo, ScoreAnalysis
 
@@ -17,6 +23,25 @@ FOCUS_LABELS = {
     "multiple voices": "More than one line at once — decide which voice sings loudest.",
     "awkward fingering spots": "The hand shape is tricky — trust the finger numbers.",
     "dynamic change": "The volume changes here — plan the soft or loud before you arrive.",
+}
+
+# Short on-score labels for challenge tags (headline chips, line summaries).
+TAG_LABELS = {
+    "leap": "wide leap",
+    "wide-chord": "wide chord",
+    "chord": "chord voicing",
+    "chromatic": "chromatic run",
+    "scale-run": "scale run",
+    "dotted": "dotted rhythm",
+    "syncopation": "syncopation",
+    "dense": "busy bar",
+    "grace": "grace notes",
+    "thumb-black": "thumb on black key",
+    "black-keys": "black-key terrain",
+    "hands-together": "both hands busy",
+    "repeat-figure": "repeated figure",
+    "dynamics": "dynamic shape",
+    "tempo": "tempo change",
 }
 
 
@@ -194,6 +219,336 @@ def _pack_note(n: NoteInfo) -> Dict[str, Any]:
         "black": n.is_black_key,
         "hand": n.hand,
     }
+
+
+_INTERVAL_NAMES = {
+    1: "semitone",
+    2: "whole step",
+    3: "minor 3rd",
+    4: "major 3rd",
+    5: "4th",
+    6: "tritone",
+    7: "5th",
+    8: "minor 6th",
+    9: "major 6th",
+    10: "minor 7th",
+    11: "major 7th",
+    12: "octave",
+    13: "minor 9th",
+    14: "9th",
+    15: "minor 10th",
+    16: "10th",
+}
+
+
+def _interval_name(semitones: int) -> str:
+    s = abs(int(semitones))
+    if s in _INTERVAL_NAMES:
+        return _INTERVAL_NAMES[s]
+    if s == 24:
+        return "two octaves"
+    if 17 <= s <= 28:
+        inner = _INTERVAL_NAMES.get(s - 12)
+        if inner:
+            return f"octave plus a {inner}"
+    return f"stretch of {s} semitones"
+
+
+def _an_interval(semitones: int) -> str:
+    """Interval name with its article: 'an octave', 'a 10th'."""
+    name = _interval_name(semitones)
+    article = "an" if name[0].lower() in "aeio8" else "a"
+    return f"{article} {name}"
+
+
+def _hand_name(hand: str) -> str:
+    return "Right hand" if hand == "RH" else "Left hand"
+
+
+def _onset_groups(notes: List[NoteInfo]) -> List[List[NoteInfo]]:
+    """Notes grouped by onset time (chords together), graces excluded."""
+    by_offset: Dict[float, List[NoteInfo]] = {}
+    for n in notes:
+        if n.is_grace:
+            continue
+        by_offset.setdefault(round(n.offset, 4), []).append(n)
+    return [by_offset[k] for k in sorted(by_offset)]
+
+
+def _outline(groups: List[List[NoteInfo]], hand: str) -> List[NoteInfo]:
+    """The moving line a hand actually travels: top voice for RH, bass for LH."""
+    if hand == "LH":
+        return [min(g, key=lambda n: n.midi) for g in groups]
+    return [max(g, key=lambda n: n.midi) for g in groups]
+
+
+def _meter(measure: MeasureInfo, fallback_ts: str = "") -> Tuple[float, float]:
+    """(beat count, beat length in quarter-lengths) for the bar's meter."""
+    ts = measure.time_signature or fallback_ts or "4/4"
+    try:
+        num, den = ts.split("/")
+        beat_len = 4.0 / float(den)
+        return float(num), beat_len
+    except Exception:
+        return 4.0, 1.0
+
+
+def _hand_advice(measure: MeasureInfo, hand: str) -> List[Tuple[float, str, str]]:
+    """Specific, pedagogy-backed tips for one hand in one bar.
+
+    Returns (priority, tag, text) tuples; higher priority surfaces first.
+    """
+    notes = [n for n in measure.notes if n.hand == hand]
+    if not notes:
+        return []
+    tips: List[Tuple[float, str, str]] = []
+    label = _hand_name(hand)
+    groups = _onset_groups(notes)
+    line = _outline(groups, hand)
+
+    # --- Leaps: the hand has to travel. Classic fix: silent jump practice. ---
+    best_leap = None
+    for a, b in zip(line, line[1:]):
+        gap = abs(b.midi - a.midi)
+        if gap >= 9 and (best_leap is None or gap > best_leap[0]):
+            best_leap = (gap, a, b)
+    if best_leap:
+        gap, a, b = best_leap
+        direction = "up" if b.midi > a.midi else "down"
+        tips.append((
+            4.0 + gap / 6.0,
+            "leap",
+            f"{label} leaps {direction} {_an_interval(gap)} — "
+            f"{_note_letter(a)} to {_note_letter(b)}. Practise the jump silently first: "
+            f"eyes find {_note_letter(b)} before the hand leaves {_note_letter(a)}, "
+            "then add sound once the distance feels automatic.",
+        ))
+
+    # --- Chord spans: roll what you cannot reach; voice the top. ---
+    widest = None
+    for g in groups:
+        if len(g) < 2:
+            continue
+        span = max(n.midi for n in g) - min(n.midi for n in g)
+        if span >= 7 and (widest is None or span > widest[0]):
+            widest = (span, g)
+    if widest:
+        span, g = widest
+        ordered = sorted(g, key=lambda n: n.midi)
+        lo, hi = ordered[0], ordered[-1]
+        names = "+".join(_note_letter(n) for n in ordered)
+        if span >= 14:
+            tips.append((
+                4.2,
+                "wide-chord",
+                f"{label} chord {names} spans {_an_interval(span)} — if the reach "
+                f"is too wide, roll it gently from {_note_letter(lo)} up, landing "
+                f"{_note_letter(hi)} exactly on the beat.",
+            ))
+        else:
+            tips.append((
+                2.0,
+                "chord",
+                f"{label} chord {names} — shape the hand in the air before landing, "
+                f"and let the top note {_note_letter(hi)} sing above the others.",
+            ))
+
+    # --- Chromatic runs: 1-3-1-3 standard fingering. ---
+    chrom = 0
+    best_chrom = 0
+    chrom_start = 0
+    for i, (a, b) in enumerate(zip(line, line[1:])):
+        if abs(b.midi - a.midi) == 1:
+            chrom += 1
+            if chrom > best_chrom:
+                best_chrom = chrom
+                chrom_start = i - chrom + 1
+        else:
+            chrom = 0
+    if best_chrom >= 3:
+        seg = line[chrom_start : chrom_start + best_chrom + 1]
+        tips.append((
+            3.6,
+            "chromatic",
+            f"Chromatic run {_note_letter(seg[0])} to {_note_letter(seg[-1])} in the "
+            f"{label.lower()} — use the standard chromatic fingering 1-3-1-3: thumb on "
+            "white keys, finger 3 on black keys, hand gliding close to the fallboard.",
+        ))
+    else:
+        # --- Scale runs: smooth thumb-under, practise in groups. ---
+        run = 0
+        best_run = 0
+        run_start = 0
+        direction = 0
+        for i, (a, b) in enumerate(zip(line, line[1:])):
+            step = b.midi - a.midi
+            same_dir = (step > 0 and direction >= 0) or (step < 0 and direction <= 0)
+            if 1 <= abs(step) <= 2 and same_dir:
+                run += 1
+                direction = 1 if step > 0 else -1
+                if run > best_run:
+                    best_run = run
+                    run_start = i - run + 1
+            else:
+                run = 0
+                direction = 0
+        if best_run >= 5:
+            seg = line[run_start : run_start + best_run + 1]
+            tips.append((
+                3.0,
+                "scale-run",
+                f"Scale run {_note_letter(seg[0])} to {_note_letter(seg[-1])} in the "
+                f"{label.lower()} — keep the thumb-under crossing silent and level, and "
+                "practise it in groups of four with a small pause between groups.",
+            ))
+
+    # --- Thumb forced onto a black key: adjust hand position. ---
+    for n in notes:
+        if n.fingering == 1 and n.is_black_key:
+            tips.append((
+                2.6,
+                "thumb-black",
+                f"Finger 1 lands on {_note_letter(n)}, a black key — move the whole "
+                "hand slightly into the keys so the thumb reaches it without twisting.",
+            ))
+            break
+
+    # --- Repeated figure: spot it, loop it once, reuse it. ---
+    iv = [b.midi - a.midi for a, b in zip(line, line[1:])]
+    if len(iv) >= 6 and len(iv) % 2 == 0:
+        half = len(iv) // 2
+        if iv[:half] == iv[half:]:
+            tips.append((
+                1.6,
+                "repeat-figure",
+                f"The {label.lower()} repeats the same figure twice in this bar — "
+                "perfect the first statement slowly and the repeat comes free.",
+            ))
+
+    return tips
+
+
+def bar_advice(
+    measure: MeasureInfo, fallback_ts: str = ""
+) -> Tuple[List[str], List[str], str]:
+    """Concrete practice advice for one bar.
+
+    Returns (advice_texts, tags, headline). Every sentence references actual
+    notes, intervals, rhythms or fingers found in the bar.
+    """
+    tips: List[Tuple[float, str, str]] = []
+    tips.extend(_hand_advice(measure, "RH"))
+    tips.extend(_hand_advice(measure, "LH"))
+
+    pitched = [n for n in measure.notes if not n.is_grace]
+    onsets = sorted({round(n.offset, 4) for n in pitched})
+    beats, beat_len = _meter(measure, fallback_ts)
+
+    # --- Dotted rhythms: subdivide and count. ---
+    dotted = [n for n in pitched if "dotted" in (n.duration or "")]
+    if dotted:
+        names = ", ".join(dict.fromkeys(_note_letter(n) for n in dotted[:4]))
+        tips.append((
+            2.8,
+            "dotted",
+            f"Dotted rhythm on {names} — subdivide and count the small beats aloud "
+            "(\u201c1-and-a, 2-and-a\u201d) so the short note arrives exactly late, never lazy.",
+        ))
+
+    # --- Syncopation: more off-beat than on-beat attacks (meter-aware). ---
+    def _is_off_beat(t: float) -> bool:
+        pos = t / beat_len
+        return abs(pos - round(pos)) > 0.2
+
+    if len(onsets) >= 4:
+        off_beats = [t for t in onsets if _is_off_beat(t)]
+        if len(off_beats) > len(onsets) / 2:
+            off_notes = [n for n in pitched if _is_off_beat(n.offset)]
+            names = ", ".join(dict.fromkeys(_note_letter(n) for n in off_notes[:4]))
+            tips.append((
+                2.9,
+                "syncopation",
+                f"Syncopation — {names} land between the beats. Tap a steady pulse "
+                "with one hand and say the rhythm out loud before playing it.",
+            ))
+
+    # --- Density: many attacks per beat. ---
+    if beats > 0 and len(onsets) / beats >= 2.5 and len(pitched) >= 8:
+        tips.append((
+            2.4,
+            "dense",
+            f"{len(pitched)} notes across {len(onsets)} attacks in one bar — practise "
+            "in chunks of three or four notes, stop on the first note of each chunk, "
+            "then glue the joins at half speed.",
+        ))
+
+    # --- Grace notes: before the beat, lightly. ---
+    graces = [n for n in measure.notes if n.is_grace]
+    if graces:
+        names = ", ".join(dict.fromkeys(_note_letter(n) for n in graces[:3]))
+        tips.append((
+            2.2,
+            "grace",
+            f"Grace note on {names} — flick it lightly just before the beat; the main "
+            "note keeps the pulse, the ornament never steals time.",
+        ))
+
+    # --- Black-key terrain. ---
+    blacks = [n for n in pitched if n.is_black_key]
+    if pitched and len(blacks) >= max(3, len(pitched) // 2):
+        names = ", ".join(dict.fromkeys(_note_letter(n) for n in blacks[:4]))
+        tips.append((
+            1.8,
+            "black-keys",
+            f"Mostly black keys here ({names}) — play nearer the fallboard where the "
+            "black keys sit, with firm curved fingertips.",
+        ))
+
+    # --- Both hands busy: hands separate first. ---
+    rh_onsets = {round(n.offset, 4) for n in pitched if n.hand == "RH"}
+    lh_onsets = {round(n.offset, 4) for n in pitched if n.hand == "LH"}
+    if len(rh_onsets) >= 3 and len(lh_onsets) >= 3:
+        tips.append((
+            1.5,
+            "hands-together",
+            f"Both hands are active ({len(rh_onsets)} right-hand and {len(lh_onsets)} "
+            "left-hand attacks) — practise hands separately until each is easy, then "
+            "join at half speed before returning to tempo.",
+        ))
+
+    # --- Markings. ---
+    if measure.dynamics:
+        dyn = ", ".join(dict.fromkeys(d.text for d in measure.dynamics))
+        tips.append((
+            1.2,
+            "dynamics",
+            f"Marked {dyn} — decide the sound before the bar begins and let the arm "
+            "weight, not finger force, make the change.",
+        ))
+    if measure.tempo:
+        tips.append((
+            1.1,
+            "tempo",
+            f"Tempo marking here: {measure.tempo} — set the new pulse by counting one "
+            "silent bar before you continue.",
+        ))
+
+    # Order, dedupe by tag, cap.
+    tips.sort(key=lambda t: -t[0])
+    seen = set()
+    texts: List[str] = []
+    tags: List[str] = []
+    for _, tag, text in tips:
+        if tag in seen:
+            continue
+        seen.add(tag)
+        texts.append(text)
+        tags.append(tag)
+        if len(texts) >= 5:
+            break
+
+    headline = " · ".join(TAG_LABELS.get(t, t) for t in tags[:2])
+    return texts, tags, headline
 
 
 def _focus_points(measure: MeasureInfo, difficulty: Dict[str, Any]) -> List[str]:
@@ -385,22 +740,18 @@ def measure_debrief(analysis: ScoreAnalysis, number: int) -> Dict[str, Any]:
     rh = [n for n in measure.notes if n.hand == "RH"]
     lh = [n for n in measure.notes if n.hand == "LH"]
 
-    how_to_play: List[str] = []
-    if difficulty["reasons"] != ["straightforward"]:
-        how_to_play.append("Watch for: " + ", ".join(difficulty["reasons"]) + ".")
-    if any(n.is_chord_member for n in measure.notes):
+    advice, tags, headline = bar_advice(measure, analysis.time_signature)
+
+    # Keep howToPlay for UI compatibility, but fill it with the specific advice.
+    how_to_play: List[str] = list(advice)
+    if not how_to_play and (rh or lh):
+        letters = [
+            _note_letter(n)
+            for n in sorted(measure.notes, key=lambda n: (n.offset, -n.midi))[:6]
+        ]
         how_to_play.append(
-            "Build chords from the bottom note up; keep the top note singing."
-        )
-    if rh and lh:
-        how_to_play.append("Hands together only after each hand is clean alone.")
-    if measure.dynamics:
-        how_to_play.append(
-            "Dynamics here: " + ", ".join(d.text for d in measure.dynamics) + "."
-        )
-    if any(n.fingering for n in measure.notes):
-        how_to_play.append(
-            "Use the suggested finger numbers until the shape feels automatic."
+            f"A calm bar — {', '.join(letters)}. Keep a steady pulse and use it to "
+            "look ahead to the next bar."
         )
 
     split = _split_practice(measure, difficulty)
@@ -422,7 +773,10 @@ def measure_debrief(analysis: ScoreAnalysis, number: int) -> Dict[str, Any]:
         "measure": number,
         "found": True,
         "difficulty": difficulty,
-        "focus": _focus_points(measure, difficulty),
+        "advice": advice,
+        "tags": tags,
+        "headline": headline,
+        "focus": advice or _focus_points(measure, difficulty),
         "lineAdvice": lines,
         "rh": [_pack_note(n) for n in sorted(rh, key=lambda n: (n.offset, -n.midi))],
         "lh": [_pack_note(n) for n in sorted(lh, key=lambda n: (n.offset, -n.midi))],
