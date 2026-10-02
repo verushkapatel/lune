@@ -615,6 +615,26 @@ body.is-home .top-search .search-go:hover {
 }
 .result-empty-link:hover { color: var(--text); }
 
+.btn-search {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid #3a3a3a;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.btn-search:hover,
+body.phone-search-open .btn-search {
+  border-color: #f0f0f0;
+  color: #f2f2f2;
+}
+.upload-icon { display: none; }
 .upload-btn {
   border-color: var(--line-strong);
   color: var(--text);
@@ -2691,27 +2711,62 @@ body.coach-open.is-panel-score .studio-dock {
     font-size: 11px;
     letter-spacing: 0.16em;
   }
+  .bar {
+    position: relative;
+  }
+  body:not(.is-studio) .bar {
+    flex-wrap: nowrap;
+  }
+  .btn-search {
+    display: inline-flex;
+    margin-left: auto;
+  }
+  body.is-studio .btn-search {
+    display: none;
+  }
   .top-search {
-    flex: 1 1 auto;
-    min-width: 0;
+    display: none;
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    top: 100%;
+    flex: none;
+    order: 0;
     max-width: none;
-    order: 3;
-    flex-basis: 100%;
+    z-index: 40;
+    padding-top: 8px;
+  }
+  body.phone-search-open .top-search,
+  body.is-studio.studio-search-open .top-search {
+    display: flex;
+  }
+  .top-search .search-go {
+    display: none;
   }
   .top-search input {
     min-width: 0;
-    padding: 11px 4px;
+    padding: 11px 16px;
     font-size: 16px; /* avoid iOS zoom */
   }
-  .top-search button,
-  .quiet,
-  .upload-btn {
-    padding: 11px 14px;
-    min-height: 44px;
-  }
+  .upload-label { display: none; }
+  .upload-icon { display: block; }
   #btn-open {
-    flex-shrink: 0;
-    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    min-height: 36px;
+    margin-left: 8px;
+    padding: 0;
+  }
+  body.is-studio #btn-open {
+    display: none;
+  }
+  body.phone-search-open .results,
+  body.is-studio.studio-search-open .results {
+    top: 108px;
   }
   .results { left: 12px; right: 12px; max-width: none; }
   .home-hero {
@@ -2981,6 +3036,9 @@ body.coach-open.is-panel-score .studio-dock {
   .bar {
     padding: 6px 10px;
     gap: 6px;
+    flex-wrap: nowrap;
+  }
+  body.is-studio .bar {
     flex-wrap: wrap;
   }
   body.is-studio .bar {
