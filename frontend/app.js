@@ -21,7 +21,7 @@ const COMPOSER_FACE_FILES = {
   rimsky: "rimsky.jpg",
   "rimsky-korsakov": "rimsky.jpg",
 };
-const COMPOSER_FACE_V = "fix62";
+const COMPOSER_FACE_V = "fix65";
 const COMPOSER_SILHOUETTE = `/static/assets/composers/silhouette.svg?v=${COMPOSER_FACE_V}`;
 
 const state = {
@@ -156,7 +156,7 @@ function closeSearchResults({ blur = false } = {}) {
 const SEARCH_LIMIT = 8;
 // Paint on the next frame only — coalesces burst keystrokes, ~0–16ms feel (no 100ms lag).
 const SEARCH_DEBOUNCE_MS = 0;
-const SEARCH_INDEX_URL = "/static/search-index.json?v=fix62";
+const SEARCH_INDEX_URL = "/static/search-index.json?v=fix65";
 /** Composers whose piano works are typically still under copyright — honest empty state. */
 const COPYRIGHT_ERA_COMPOSERS = [
   "ginastera", "prokofiev", "shostakovich", "khachaturian", "kabalevsky",
@@ -1037,7 +1037,6 @@ function setStudioPanel(panel, { skipScore = false } = {}) {
   if (next === "score") {
     requestAnimationFrame(() => {
       paintSelectionHilites();
-      updateScoreHint();
     });
   }
 
@@ -1095,7 +1094,6 @@ async function ensureScoreReady() {
     const s = activeSession();
     if (s) s.scoreReady = true;
     updateScrub({ progress: 0, total: 0, bar: null });
-    updateScoreHint();
     return true;
   });
 }
@@ -1347,23 +1345,6 @@ function syncPlayButton() {
     stop.disabled = !canStop;
     stop.setAttribute("aria-disabled", canStop ? "false" : "true");
   }
-  updateScoreHint();
-}
-
-/** Quiet affordance line above the score — changes with transport state. */
-function updateScoreHint() {
-  const hint = $("score-hint");
-  if (!hint) return;
-  const show = state.panel === "score" && !!state.scoreReady;
-  if (!show) {
-    hint.hidden = true;
-    return;
-  }
-  const next = LunePiano.isPlaying()
-    ? "Click a bar to jump there · drag the playhead to scrub"
-    : "Click any bar for guidance · drag the playhead to move";
-  if (hint.textContent !== next) hint.textContent = next;
-  hint.hidden = false;
 }
 
 function renderScrubTicks() {
@@ -1674,7 +1655,7 @@ function syncKbdToggleUi() {
   if (!btn) return;
   const on = !!state.keyboardVisible && state.panel === "score";
   btn.setAttribute("aria-pressed", on ? "true" : "false");
-  btn.textContent = on ? "Hide keyboard" : "Show keyboard";
+  btn.textContent = on ? "Hide" : "Keys";
   btn.classList.toggle("on", on);
 }
 
@@ -2011,6 +1992,8 @@ async function renderScore() {
     const roomy = wantLetters || wantFingers;
     osmd.EngravingRules.BetweenStaffDistance = roomy ? 9.5 : 3.5;
     osmd.EngravingRules.StaffDistance = roomy ? 18 : 7.5;
+    const wide = ($("osmd")?.clientWidth || 900) >= 720;
+    osmd.zoom = wide ? 1.18 : 1.08;
     if (wantFingers) {
       osmd.EngravingRules.FingeringPaddingY = 0.85;
       osmd.EngravingRules.FingeringOffsetY = 0.35;

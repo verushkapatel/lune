@@ -390,25 +390,24 @@ window.LuneAnnotate = (function () {
     if (hostW < 520) dens = Math.min(1, dens + 0.28);
     else if (hostW < 720) dens = Math.min(1, dens + 0.14);
     if (scale > 1.35) dens = Math.min(1, dens + 0.12);
-    // Quiet glyphs — readable, not billboard.
-    const targetPx =
-      dens > 0.75 ? 8.2 : dens > 0.55 ? 9.0 : dens > 0.35 ? 9.8 : dens > 0.2 ? 10.6 : 11.4;
-    let uu = targetPx / Math.max(scale, 0.25);
-    uu = Math.min(uu, Math.max(8.0, avgH * (dens > 0.55 ? 0.82 : 0.95)));
-    uu = Math.max(8.0, Math.min(11.2, uu));
+    // Fill the notehead — readable white glyph, still inside the oval.
+    let uu = avgH * (dens > 0.6 ? 0.82 : dens > 0.35 ? 0.9 : 0.98);
+    uu = Math.max(8.4, Math.min(14.5, uu));
+    if (hostW < 520) uu = Math.min(uu, 11.5);
     FONT_LETTER = Math.round(uu * 10) / 10;
     FONT_FINGER = FONT_LETTER;
     LETTER_H = FONT_LETTER * 0.86;
     FINGER_H = FONT_FINGER * 0.86;
     LETTER_CHAR_W = FONT_LETTER * 0.46;
     FINGER_W = FONT_FINGER * 0.52;
-    MIN_LETTER_GAP = Math.max(10.8, LETTER_H + 2.6);
-    MIN_FINGER_GAP = Math.max(10.5, FINGER_H + 2.2);
-    MIN_CROSS_GAP = Math.max(2.5, FONT_LETTER * 0.25);
+    MIN_LETTER_GAP = Math.max(avgH * 0.55, LETTER_H * 0.55);
+    MIN_FINGER_GAP = Math.max(avgH * 0.55, FINGER_H * 0.55);
+    MIN_CROSS_GAP = Math.max(1.2, FONT_LETTER * 0.12);
     LETTER_X_PAD = Math.max(4.2, FONT_LETTER * 0.4);
     FINGER_Y_PAD = Math.max(6.5, FONT_FINGER * 0.6);
     LETTER_BELOW = Math.max(FONT_LETTER * 0.68, LETTER_H * 0.65 + 2.5);
-    HALO_STROKE = Math.min(0.5, Math.max(0.2, 0.4 / Math.max(scale, 0.4)));
+    // Dark outline so white glyphs read on filled AND open noteheads.
+    HALO_STROKE = Math.max(0.85, Math.min(2.2, 1.7 / Math.max(scale, 0.35)));
     return { fontSize: FONT_LETTER, dens, avgH, medDx, scale, hostW, halo: HALO_STROKE };
   }
 
@@ -991,13 +990,30 @@ window.LuneAnnotate = (function () {
       }
     }
 
+    function planOnHead(job, kind, label, extra = {}) {
+      const n = String(label || "").length;
+      const shrink = n >= 3 ? 0.88 : n === 2 ? 0.94 : 1;
+      const base = extra.fontSize || (kind === "finger" ? FONT_FINGER : FONT_LETTER);
+      return {
+        job,
+        kind,
+        label,
+        x: job.headCx,
+        y: job.headCy,
+        anchor: "middle",
+        side: "on",
+        isChord: !!job.isChord,
+        chordId: job.chordId || null,
+        fontSize: Math.max(8.0, base * shrink),
+        essential: extra.essential ?? !!job.isChord,
+      };
+    }
+
     function planChordStack(group) {
-      // Visual order by headCy (top→bottom); pitch used only as tie-break
       const ordered = [...group].sort(
         (a, b) => a.headCy - b.headCy || (b.midi || 0) - (a.midi || 0)
       );
 
-      // If heads span horizontally (mis-tagged arpeggio), treat as singles
       const hxSpan =
         Math.max(...ordered.map((j) => j.headCx)) -
         Math.min(...ordered.map((j) => j.headCx));
@@ -1010,47 +1026,14 @@ window.LuneAnnotate = (function () {
         return;
       }
 
-      const colLeft = Math.min(...ordered.map((j) => j.accidentalLeft ?? j.headLeft));
-      const colRight = Math.max(...ordered.map((j) => j.headRight));
-      const minCx = Math.min(...ordered.map((j) => j.headCx));
-      let side = "left";
-      if (minCx < 165) side = "right";
-      const hasAcc = ordered.some((j) => {
-        const headLeft = j.headCx - (j.headW || 12) / 2;
-        return (j.accidentalLeft ?? j.headLeft) < headLeft - 1.5;
-      });
-      // Tight glue — MuseScore-clear, not floating far left
-      const pad =
-        Math.max(LETTER_X_PAD + 3.5, FONT_LETTER * 0.72, 8.5) + (hasAcc ? 5 : 1);
-      const baseX = side === "left" ? colLeft - pad : colRight + pad;
-      const anchor = side === "left" ? "end" : "start";
-      // Chord gaps track the heads; never invent a mid-staff tower
-      const letterGap = Math.max(
-        FONT_LETTER * 0.92,
-        Math.min(MIN_LETTER_GAP, FONT_LETTER * 1.05)
-      );
-      const fingerGap = Math.max(FONT_FINGER * 0.9, Math.min(MIN_FINGER_GAP, FONT_FINGER * 1.05));
-      const letterYs = stackYsEqual(
-        ordered.map((j) => j.headCy),
-        letterGap,
-        { maxExtra: FONT_LETTER * 0.55 }
-      );
-      const fingerYs = stackYsEqual(
-        ordered.map((j) => j.headTop - FINGER_Y_PAD * 0.85),
-        fingerGap,
-        { maxExtra: FONT_FINGER * 0.5 }
-      );
       const chordFont =
-        ordered.length >= 5
-          ? Math.max(8.2, FONT_LETTER - 1.6)
-          : ordered.length >= 4
-            ? Math.max(8.5, FONT_LETTER - 1.1)
-            : ordered.length >= 3
-              ? Math.max(8.8, FONT_LETTER - 0.6)
-              : FONT_LETTER;
+        ordered.length >= 4
+          ? Math.max(8.2, FONT_LETTER - 1.2)
+          : ordered.length >= 3
+            ? Math.max(8.8, FONT_LETTER - 0.6)
+            : FONT_LETTER;
 
-      for (let i = 0; i < ordered.length; i++) {
-        const job = ordered[i];
+      for (const job of ordered) {
         if (fingers) {
           const digit = fingerDigit(job.info) || (
             job.fingering != null && /^[1-5]$/.test(String(job.fingering).trim())
@@ -1058,37 +1041,19 @@ window.LuneAnnotate = (function () {
               : null
           );
           if (digit) {
-            plans.push({
-              job,
-              kind: "finger",
-              label: digit,
-              x: job.headCx,
-              y: fingerYs[i],
-              anchor: "middle",
-              side: "above",
-              isChord: true,
-              chordId: job.chordId,
-              fontSize: Math.max(8.5, FONT_FINGER - (ordered.length >= 4 ? 0.8 : 0)),
+            plans.push(planOnHead(job, "finger", digit, {
+              fontSize: chordFont,
               essential: true,
-            });
+            }));
           }
         }
         if (letters) {
           const label = scoreLabel(job.info, { withOctave: false });
           if (label) {
-            plans.push({
-              job,
-              kind: "letter",
-              label,
-              x: baseX,
-              y: letterYs[i],
-              anchor,
-              side,
-              isChord: true,
-              chordId: job.chordId,
+            plans.push(planOnHead(job, "letter", label, {
               fontSize: chordFont,
               essential: true,
-            });
+            }));
           }
         }
       }
@@ -1132,19 +1097,7 @@ window.LuneAnnotate = (function () {
           }
           if (!skip) {
             lastX.finger[staff] = job.headCx;
-            plans.push({
-              job,
-              kind: "finger",
-              label: digit,
-              x: job.headCx,
-              y: job.headTop - FINGER_Y_PAD * 0.9,
-              anchor: "middle",
-              side: "above",
-              isChord: false,
-              chordId: null,
-              fontSize: FONT_FINGER,
-              essential: false,
-            });
+            plans.push(planOnHead(job, "finger", digit, { essential: false }));
           }
         }
       }
@@ -1172,32 +1125,11 @@ window.LuneAnnotate = (function () {
           }
         }
         if (skip) continue;
-        const runIndex = (lastX.letterCount = (lastX.letterCount || 0) + 1);
         lastX.letter[staff] = job.headCx;
-
-        // Side labels glued to the head — quieter and clearer than below-lane runs.
-        let side = job.preferRight ? "right" : "left";
-        if (fingers) side = "left";
-        if (dens > 0.55 && runIndex % 2 === 0) {
-          side = side === "left" ? "right" : "left";
-        }
-        const pad = Math.max(LETTER_X_PAD + 0.8, FONT_LETTER * 0.42);
-        const x = side === "left" ? job.headLeft - pad : job.headRight + pad;
-        const yStagger =
-          dens > 0.5 ? ((runIndex % 2 === 0 ? -1 : 1) * FONT_LETTER * 0.28) : 0;
-        plans.push({
-          job,
-          kind: "letter",
-          label,
-          x,
-          y: job.headCy + yStagger,
-          anchor: side === "left" ? "end" : "start",
-          side,
-          isChord: false,
-          chordId: null,
-          fontSize: dens > 0.65 ? Math.max(9.0, FONT_LETTER - 0.6) : FONT_LETTER,
+        plans.push(planOnHead(job, "letter", label, {
+          fontSize: dens > 0.65 ? Math.max(8.4, FONT_LETTER - 0.4) : FONT_LETTER,
           essential: false,
-        });
+        }));
       }
     }
 
@@ -1228,6 +1160,7 @@ window.LuneAnnotate = (function () {
     }
     for (const group of byChord.values()) {
       if (group.length < 2) continue;
+      if (group[0].side === "on") continue;
       group.sort((a, b) => a.job.headCy - b.job.headCy || a.y - b.y);
       const gap = Math.max(
         (group[0].fontSize || FONT_LETTER) * 0.92,
@@ -1254,6 +1187,7 @@ window.LuneAnnotate = (function () {
     }
     for (const group of byChordF.values()) {
       if (group.length < 2) continue;
+      if (group[0].side === "on") continue;
       group.sort((a, b) => a.job.headCy - b.job.headCy || a.y - b.y);
       const gap = Math.max(
         (group[0].fontSize || FONT_FINGER) * 0.9,
@@ -1291,6 +1225,15 @@ window.LuneAnnotate = (function () {
 
           const pa = a.plan;
           const pb = b.plan;
+          if (pa.side === "on" && pb.side === "on") {
+            const minFs = 8.0;
+            if ((pa.fontSize || FONT_LETTER) > minFs) {
+              pa.fontSize = Math.max(minFs, (pa.fontSize || FONT_LETTER) - 0.35);
+              pb.fontSize = Math.max(minFs, (pb.fontSize || FONT_LETTER) - 0.35);
+              moved += 1;
+            }
+            continue;
+          }
           const sameChord =
             pa.isChord && pb.isChord && pa.chordId && pa.chordId === pb.chordId;
 
@@ -1558,7 +1501,7 @@ window.LuneAnnotate = (function () {
     }
     for (const group of byId.values()) {
       if (group.length < 2) continue;
-      // Bail if heads span horizontally — not a true vertical chord column
+      if (group[0].getAttribute("data-lune-side") === "on") continue;
       const hxs = group.map((el) => Number(el.getAttribute("data-lune-head-x") || 0));
       if (Math.max(...hxs) - Math.min(...hxs) > 22) continue;
       group.sort((a, b) => {
@@ -1593,6 +1536,7 @@ window.LuneAnnotate = (function () {
     }
     for (const group of byId.values()) {
       if (group.length < 2) continue;
+      if (group[0].getAttribute("data-lune-side") === "on") continue;
       const hxs = group.map((el) => Number(el.getAttribute("data-lune-head-x") || 0));
       if (Math.max(...hxs) - Math.min(...hxs) > 22) continue;
       group.sort((a, b) => {
@@ -1639,6 +1583,22 @@ window.LuneAnnotate = (function () {
           if (!b || b.el.getAttribute("data-lune-soft-hide") === "1") continue;
           if (b.left - a.right > FONT_LETTER * 3) break;
           if (edgeGap(a, b) >= MIN_EDGE_GAP) continue;
+          if (
+            a.el.getAttribute("data-lune-side") === "on" &&
+            b.el.getAttribute("data-lune-side") === "on"
+          ) {
+            let victim = null;
+            if (!a.essential && !b.essential) victim = b.x >= a.x ? b : a;
+            else if (!a.essential) victim = a;
+            else if (!b.essential) victim = b;
+            if (victim) {
+              victim.el.style.opacity = "0";
+              victim.el.setAttribute("data-lune-soft-hide", "1");
+              victim.el.setAttribute("aria-hidden", "true");
+              hidden += 1;
+            }
+            continue;
+          }
           // Prefer hiding non-chord (non-essential) labels.
           let victim = null;
           if (!a.essential && !b.essential) victim = b.x >= a.x ? b : a;
