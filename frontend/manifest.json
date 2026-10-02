@@ -2,27 +2,27 @@
   "name": "Lune",
   "short_name": "Lune",
   "description": "A night-studio companion for pianists — find a public-domain score, hear it, then read the bars that feel hard.",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "../",
+  "scope": "../",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#0a0a0a",
   "theme_color": "#0a0a0a",
   "icons": [
     {
-      "src": "/static/assets/icon-192.png",
+      "src": "assets/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/static/assets/icon-512.png",
+      "src": "assets/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/static/assets/icon-maskable-512.png",
+      "src": "assets/icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
