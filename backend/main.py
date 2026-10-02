@@ -654,6 +654,39 @@ def _piece_cache_key(path: Path, hand_span: str) -> str:
     return f"{path.resolve()}:{hand_span}:{mtime}"
 
 
+# Analysis survives restarts: a long score is analysed once per file version.
+_ANALYSIS_CACHE_VERSION = "a2"
+_DISK_CACHE_DIR = Path(os.environ.get("LUNE_CACHE_DIR") or (Path.home() / ".cache" / "lune" / "analysis"))
+
+
+def _disk_cache_path(key: str) -> Path:
+    import hashlib
+
+    digest = hashlib.sha1(f"{_ANALYSIS_CACHE_VERSION}|{key}".encode("utf-8")).hexdigest()
+    return _DISK_CACHE_DIR / f"{digest}.json"
+
+
+def _disk_cache_get(key: str) -> Optional[Dict[str, Any]]:
+    try:
+        target = _disk_cache_path(key)
+        if not target.exists():
+            return None
+        return json.loads(target.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def _disk_cache_put(key: str, payload: Dict[str, Any]) -> None:
+    try:
+        _DISK_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        target = _disk_cache_path(key)
+        tmp = target.with_suffix(".tmp")
+        tmp.write_text(json.dumps(payload), encoding="utf-8")
+        tmp.replace(target)
+    except Exception:
+        pass  # cache is an optimisation only
+
+
 def _piece_from_path_cached(
     path: Path,
     hand_span: str = "medium",
@@ -664,10 +697,16 @@ def _piece_from_path_cached(
     key = _piece_cache_key(path, hand_span)
     with _piece_cache_lock:
         hit = _piece_cache.get(key)
+    if hit is None:
+        hit = _disk_cache_get(key)
+        if hit is not None:
+            with _piece_cache_lock:
+                _piece_cache[key] = hit
     if hit is not None:
         payload = copy.deepcopy(hit)
     else:
         payload = _piece_from_path(path, hand_span=hand_span, filename=filename, meta=meta)
+        _disk_cache_put(key, payload)
         with _piece_cache_lock:
             _piece_cache[key] = copy.deepcopy(payload)
             while len(_piece_cache) > _PIECE_CACHE_MAX:

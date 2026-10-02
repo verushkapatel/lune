@@ -2622,29 +2622,40 @@ body.coach-open.is-panel-score .studio-dock {
    Quiet but readable — engraver ink, not washed-out grey. */
 #osmd svg text.lune-letter {
   font-family: var(--serif);
-  font-weight: 700;
-  letter-spacing: 0;
-  fill: #ffffff;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  /* a shade softer than the engraving so letters read as guidance, not notes */
+  fill: #3a3a3a;
   fill-opacity: 1;
   paint-order: stroke fill;
-  stroke: #111111;
+  stroke: #fafafa;
+  /* paper-coloured halo: staff lines never strike through a label */
+  stroke-width: 2.6px;
   stroke-linejoin: round;
-  stroke-linecap: round;
   stroke-opacity: 1;
   pointer-events: none;
   user-select: none;
 }
+#osmd svg .lune-leader-layer line,
+#osmd svg line.lune-leader {
+  stroke: #1a1a1a;
+  stroke-width: 0.45;
+  stroke-opacity: 0.42;
+  fill: none;
+  pointer-events: none;
+}
 #osmd svg text.lune-finger {
   font-family: var(--serif);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0;
   font-variant-numeric: tabular-nums;
-  fill: #ffffff;
-  fill-opacity: 1;
+  fill: #1a1a1a;
+  fill-opacity: 0.94;
   paint-order: stroke fill;
-  stroke: #111111;
+  stroke: #fafafa;
+  /* paper-coloured halo: staff lines never strike through a label */
+  stroke-width: 2.6px;
   stroke-linejoin: round;
-  stroke-linecap: round;
   stroke-opacity: 1;
   pointer-events: none;
   user-select: none;
@@ -3214,4 +3225,114 @@ body.coach-open.is-panel-score .studio-dock {
   .lune-loader-text::after {
     animation: none;
   }
+}
+
+/* ===================================================================
+   Night-navy accents — a very deep navy woven into the black so the
+   studio has a little texture and a sense of a night sky. Kept low in
+   contrast: the music and the white paper stay the brightest things.
+   =================================================================== */
+:root {
+  --navy-abyss: #050b1c;   /* deepest wash */
+  --navy-deep: #0a1530;    /* surfaces, glows */
+  --navy: #13244d;         /* borders, active edges */
+  --navy-line: #1d3366;    /* hairlines, staff lines in the logo */
+  --navy-ink: #2c4a8a;     /* the only "visible" navy: focus + highlights */
+}
+
+/* sky: a navy wash rising from the top-left corner */
+body,
+#app {
+  background:
+    radial-gradient(1200px 700px at 8% -10%, rgba(19, 36, 77, 0.55), transparent 62%),
+    radial-gradient(900px 600px at 105% 110%, rgba(10, 21, 48, 0.7), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+/* the logo: white moon over navy staff lines, with a faint navy halo */
+.lune-mark g {
+  stroke: var(--navy-ink);
+  opacity: 0.95;
+}
+.lune-mark path {
+  filter: drop-shadow(0 0 5px rgba(44, 74, 138, 0.55));
+}
+.home-mark path {
+  filter: drop-shadow(0 0 18px rgba(44, 74, 138, 0.6));
+}
+
+/* header bar picks up the sky */
+.bar {
+  background: linear-gradient(180deg, rgba(10, 21, 48, 0.55), rgba(10, 10, 10, 0.0)) , rgba(10, 10, 10, 0.72);
+  border-bottom-color: rgba(29, 51, 102, 0.55) !important;
+}
+
+/* search + inputs: navy edge, navy-ink focus */
+#q {
+  border-color: var(--navy) !important;
+  background-color: rgba(5, 11, 28, 0.6) !important;
+}
+#q:focus,
+#q:focus-visible {
+  border-color: var(--navy-ink) !important;
+  box-shadow: 0 0 0 3px rgba(44, 74, 138, 0.28) !important;
+  outline: none;
+}
+button:focus-visible,
+input:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+  outline-color: var(--navy-ink);
+}
+
+/* segmented controls / tabs: navy rails */
+.studio-seg,
+.anno-seg,
+.piece-tabs {
+  border-color: var(--navy) !important;
+  background-color: rgba(5, 11, 28, 0.55) !important;
+}
+
+/* quiet buttons + cards get a navy edge instead of grey */
+.quiet,
+button.quiet,
+.result,
+.search-results,
+#search-results {
+  border-color: var(--navy) !important;
+}
+.search-results,
+#search-results {
+  background: linear-gradient(180deg, rgba(10, 21, 48, 0.92), rgba(8, 10, 18, 0.96)) !important;
+}
+
+/* the paper sits on a navy shadow, like a page under lamplight at night */
+.score-page {
+  box-shadow: 0 24px 60px rgba(5, 11, 28, 0.85), 0 0 0 1px rgba(29, 51, 102, 0.45);
+}
+
+/* bar selection / playhead highlights on the score use navy-ink */
+#osmd svg .lune-hilite,
+#osmd svg rect.lune-sel,
+#osmd svg .lune-playhead {
+  fill: rgba(44, 74, 138, 0.14) !important;
+  stroke: rgba(44, 74, 138, 0.55) !important;
+}
+
+/* scrub bar thumb + fill */
+input[type="range"] {
+  accent-color: var(--navy-ink);
+}
+
+/* toast: a navy-edged note */
+.toast {
+  border: 1px solid var(--navy-line);
+  box-shadow: 0 12px 34px rgba(5, 11, 28, 0.7);
+}
+
+/* text selection */
+::selection {
+  background: rgba(44, 74, 138, 0.55);
+  color: #fff;
 }

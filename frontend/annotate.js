@@ -5,16 +5,15 @@
  *        OSMD may list the same MeasureNumber more than once (system /
  *        fragment splits) — we merge those into ONE pool so a sparse
  *        fragment cannot leftover-synthesize a vertical label pile.
- * Plan:  decide side/stack/x/y/font for every job; resolve label↔label
- *        rectangle collisions. Chord stacks stay beside their heads with
- *        tight gaps — never an equal-gap tower through the staff.
+ * Plan:  obstacle map + candidate slots around each notehead. Chord tones
+ *        stay in pitch order; singles are never dropped. If a run still
+ *        collides, the caller raises OSMD spacing, then we drop font to
+ *        9.5px, then a staff-lane with a hairline leader.
  * Place: draw once from the plan. Re-run after resize / OSMD render.
  *
- * Thinning policy (engraver-like, dense Romantic pages):
- *   - Simultaneous chord tones (triad/tetrad/…) are NEVER dropped.
- *   - In ultra-dense melodic runs, prefer chord tones + near-downbeats
- *     over every demisemiquaver when labels would otherwise mash.
- *   - Pitch-class only on dense/chord labels (Ab not Ab4).
+ * Labels are one per debrief pitched tone (collectLetters), not one per
+ * engraved notehead. Grace notes are skipped in isPitchedGraphicNote.
+ * Tied continuations that share a debrief tone do not get a second label.
  *
  * Letters XOR Fingers is enforced by the caller (app.js toggles).
  */
@@ -35,6 +34,16 @@ window.LuneAnnotate = (function () {
   let HALO_STROKE = 0.55;
   const MIN_EDGE_GAP = 3.0;
   const Y_BREAK = 36;
+  const FONT_FLOOR_PX = 10.5;
+  const SLOT_PAD = 1.5;
+  const MAX_SPACING_PASSES = 3;
+  const LEADER_STAFF_GAP = 10;
+  let LAST_LEADERS = [];
+  // Labels come from engraved heads only; never invent a label for a tone
+  // the page does not show.
+  const SYNTHESIZE_UNSEEN = false;
+  // printed bar number → analysis (debrief) key, filled by readJobs
+  const MEASURE_TO_DEBRIEF = new Map();
 
   function text(el, value) {
     el.textContent = value;
@@ -241,9 +250,9 @@ window.LuneAnnotate = (function () {
   /* ---------- geometry helpers ---------- */
 
   function clearLetterOverlays(host) {
-    host?.querySelectorAll(".lune-letter-layer, .lune-finger-layer, .lune-letter-html").forEach((n) =>
-      n.remove()
-    );
+    host?.querySelectorAll(
+      ".lune-letter-layer, .lune-finger-layer, .lune-leader-layer, .lune-audit-layer, .lune-letter-html"
+    ).forEach((n) => n.remove());
   }
 
   function collectLetters(debriefs) {
@@ -390,32 +399,63 @@ window.LuneAnnotate = (function () {
     if (hostW < 520) dens = Math.min(1, dens + 0.28);
     else if (hostW < 720) dens = Math.min(1, dens + 0.14);
     if (scale > 1.35) dens = Math.min(1, dens + 0.12);
-    // Fill the notehead — readable white glyph, still inside the oval.
-    let uu = avgH * (dens > 0.6 ? 0.82 : dens > 0.35 ? 0.9 : 0.98);
-    uu = Math.max(8.4, Math.min(14.5, uu));
-    if (hostW < 520) uu = Math.min(uu, 11.5);
+    // Quiet glyphs — readable beside the head, not on it.
+    const targetPx =
+      dens > 0.75 ? 10.8 : dens > 0.55 ? 11.4 : dens > 0.35 ? 12.2 : dens > 0.2 ? 12.8 : 13.4;
+    let uu = targetPx / Math.max(scale, 0.25);
+    // readable on screen, but never towering over a notehead
+    uu = Math.min(uu, Math.max(10.5 / Math.max(scale, 0.25), avgH * (dens > 0.55 ? 1.2 : 1.35)));
+    const floorUu = FONT_FLOOR_PX / Math.max(scale, 0.25);
+    uu = Math.max(floorUu, Math.min(15, uu));
+    if (hostW < 520) uu = Math.max(floorUu, Math.min(uu, 11.2));
     FONT_LETTER = Math.round(uu * 10) / 10;
     FONT_FINGER = FONT_LETTER;
     LETTER_H = FONT_LETTER * 0.86;
     FINGER_H = FONT_FINGER * 0.86;
     LETTER_CHAR_W = FONT_LETTER * 0.46;
     FINGER_W = FONT_FINGER * 0.52;
-    MIN_LETTER_GAP = Math.max(avgH * 0.55, LETTER_H * 0.55);
-    MIN_FINGER_GAP = Math.max(avgH * 0.55, FINGER_H * 0.55);
-    MIN_CROSS_GAP = Math.max(1.2, FONT_LETTER * 0.12);
+    MIN_LETTER_GAP = Math.max(10.8, LETTER_H + 2.6);
+    MIN_FINGER_GAP = Math.max(10.5, FINGER_H + 2.2);
+    MIN_CROSS_GAP = Math.max(2.5, FONT_LETTER * 0.25);
     LETTER_X_PAD = Math.max(4.2, FONT_LETTER * 0.4);
     FINGER_Y_PAD = Math.max(6.5, FONT_FINGER * 0.6);
     LETTER_BELOW = Math.max(FONT_LETTER * 0.68, LETTER_H * 0.65 + 2.5);
-    // Dark outline so white glyphs read on filled AND open noteheads.
-    HALO_STROKE = Math.max(0.85, Math.min(2.2, 1.7 / Math.max(scale, 0.35)));
+    HALO_STROKE = Math.min(0.55, Math.max(0.25, 0.45 / Math.max(scale, 0.4)));
     return { fontSize: FONT_LETTER, dens, avgH, medDx, scale, hostW, halo: HALO_STROKE };
+  }
+
+  // Real glyph widths, measured once per (text, size) in the live score SVG
+  // with the same CSS class — estimates under-sized "Bb"/"F#" and let them
+  // clip neighbouring accidentals.
+  let MEASURE_SVG = null;
+  const WIDTH_CACHE = new Map();
+  function measuredWidth(label, kind, fs) {
+    if (!MEASURE_SVG || !label) return null;
+    const key = `${kind}|${label}|${fs}`;
+    if (WIDTH_CACHE.has(key)) return WIDTH_CACHE.get(key);
+    try {
+      const t = makeText(kind === "finger" ? "lune-finger" : "lune-letter", 0, 0, label, "start", {}, fs);
+      t.setAttribute("visibility", "hidden");
+      MEASURE_SVG.appendChild(t);
+      const w = t.getBBox().width;
+      t.remove();
+      if (Number.isFinite(w) && w > 0) {
+        WIDTH_CACHE.set(key, w);
+        return w;
+      }
+    } catch {
+      /* fall back to the estimate */
+    }
+    return null;
   }
 
   function labelWidth(label, kind, fontSize) {
     const fs = fontSize || (kind === "finger" ? FONT_FINGER : FONT_LETTER);
-    if (kind === "finger") return Math.max(fs * 0.52, FINGER_W);
+    const real = measuredWidth(String(label || ""), kind, fs);
+    if (real) return real;
+    if (kind === "finger") return Math.max(fs * 0.72, FINGER_W);
     const n = String(label || "").length;
-    return Math.max(fs * 0.62, n * fs * 0.48);
+    return Math.max(fs * 0.82, n * fs * 0.72);
   }
 
   function unitPx(osmd) {
@@ -455,7 +495,51 @@ window.LuneAnnotate = (function () {
     }
   }
 
+  /** Printed bar number. A pickup bar is 0 — never let `||` turn it into 1. */
+  function measureNumOf(sm, mi) {
+    const a = sm?.parentSourceMeasure?.MeasureNumber;
+    if (Number.isFinite(a)) return a;
+    const b = sm?.measureNumber;
+    if (Number.isFinite(b)) return b;
+    return mi + 1;
+  }
+
+  const STEP_NAMES = { 0: "C", 2: "D", 4: "E", 5: "F", 7: "G", 9: "A", 11: "B" };
+  const ACC_TEXT = { "-2": "bb", "-1": "b", "0": "", "1": "#", "2": "##" };
+
+  /** Spelled pitch straight from the engraved note, e.g. "D#5" / "Bb3". */
+  function spellGraphicPitch(gn) {
+    try {
+      const p = gn?.sourceNote?.Pitch;
+      const midi = graphicMidi(gn);
+      if (!p || midi == null) return null;
+      const step = STEP_NAMES[p.FundamentalNote];
+      if (!step) return null;
+      const alt = Math.round(Number(p.AccidentalHalfTones) || 0);
+      const acc = ACC_TEXT[String(alt)] ?? "";
+      const octave = Math.floor((midi - alt) / 12) - 1;
+      return `${step}${acc}${octave}`;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Second+ note of a tie chain: the key is already held, so no new label. */
+  function isTieContinuation(gn) {
+    try {
+      const sn = gn?.sourceNote;
+      const tie = sn?.NoteTie;
+      if (!tie) return false;
+      const start = tie.StartNote ?? tie.Notes?.[0];
+      return !!start && start !== sn;
+    } catch {
+      return false;
+    }
+  }
+
   function isPitchedGraphicNote(gn) {
+    // Grace notes are unlabelled on purpose (debrief omits them).
+    // Tied continuations share the start tone's debrief entry — no second label.
     try {
       if (gn?.isRest?.() || gn?.isRest) return false;
       if (gn?.isGraceNote || gn?.sourceNote?.IsGraceNote || gn?.sourceNote?.isGraceNote) {
@@ -598,6 +682,26 @@ window.LuneAnnotate = (function () {
   }
 
   function stemDir(gn) {
+    // VexFlow knows the engraved direction: 1 = up, -1 = down. OSMD's own
+    // enum is Up = 0 / Down = 1 and usually lives on the voice entry, so the
+    // source-note check below is only a fallback.
+    try {
+      const vf = gn?.vfnote?.[0];
+      if (vf && typeof vf.getStemDirection === "function" && (!vf.hasStem || vf.hasStem())) {
+        const d = vf.getStemDirection();
+        if (d === 1 || d === -1) return d;
+      }
+    } catch {
+      /* rests / stemless notes throw — fall through */
+    }
+    try {
+      const ve = gn?.sourceNote?.ParentVoiceEntry;
+      const d = ve?.StemDirection ?? ve?.stemDirection;
+      if (d === 0) return 1;
+      if (d === 1) return -1;
+    } catch {
+      /* ignore */
+    }
     try {
       const sn = gn?.sourceNote || gn?.SourceNote;
       const dir = sn?.StemDirection || sn?.stemDirection;
@@ -640,7 +744,22 @@ window.LuneAnnotate = (function () {
     for (const [k, v] of Object.entries(attrs)) {
       if (v != null) t.setAttribute(k, String(v));
     }
-    t.textContent = label;
+    // Letter + accidental: the ♯/♭ is a smaller, tucked-in superscript so a
+    // label like "D♯" stays as narrow as a plain letter and fits beside its
+    // own note instead of being pushed above/below it.
+    const m = className === "lune-letter" ? String(label || "").match(/^([A-G])([♯♭]+)$/) : null;
+    if (m) {
+      t.textContent = m[1];
+      const acc = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
+      acc.setAttribute("class", "lune-acc");
+      acc.setAttribute("font-size", String(Math.round(fs * 0.72 * 10) / 10));
+      acc.setAttribute("dx", String(-fs * 0.04));
+      acc.setAttribute("dy", String(-fs * 0.22));
+      acc.textContent = m[2];
+      t.appendChild(acc);
+    } else {
+      t.textContent = label;
+    }
     return t;
   }
 
@@ -717,17 +836,70 @@ window.LuneAnnotate = (function () {
     for (let mi = 0; mi < measureList.length; mi++) {
       const staffMeasures = measureList[mi];
       if (!staffMeasures) continue;
-      const measureNum =
-        staffMeasures[0]?.parentSourceMeasure?.MeasureNumber ||
-        staffMeasures[0]?.measureNumber ||
-        mi + 1;
+      const measureNum = measureNumOf(staffMeasures[0], mi);
       if (!byNum.has(measureNum)) byNum.set(measureNum, []);
       byNum.get(measureNum).push({ mi, staffMeasures });
     }
 
+    // Bar numbers can disagree between the analysis (music21) and the page
+    // (OSMD): pickups numbered 0 vs 1, repeat endings, etc. Match each printed
+    // bar to the analysed bar whose notes actually fit, searching nearby
+    // numbers and keeping the running offset when it already works.
+    const pcScore = (graphicMidis, d) => {
+      const pool = [...(d?.rh || []), ...(d?.lh || [])].map((n) => Number(n.midi) || 0);
+      if (!pool.length || !graphicMidis.length) return 0;
+      const left = pool.slice();
+      let score = 0;
+      for (const g of graphicMidis) {
+        let i = left.indexOf(g);
+        if (i >= 0) { score += 1; left.splice(i, 1); continue; }
+        i = left.findIndex((x) => (x - g) % 12 === 0);
+        if (i >= 0) { score += 0.6; left.splice(i, 1); }
+      }
+      return score / Math.max(graphicMidis.length, pool.length);
+    };
+    let runningShift = 0;
+    const usedKeys = new Set();
+    const pickDebrief = (measureNum, fragments) => {
+      const g = [];
+      for (const { staffMeasures } of fragments) {
+        for (const sm of staffMeasures || []) {
+          for (const entry of sm?.staffEntries || []) {
+            for (const voice of entry.graphicalVoiceEntries || []) {
+              for (const gn of voice.notes || []) {
+                if (!isPitchedGraphicNote(gn) || isTieContinuation(gn)) continue;
+                const m = graphicMidi(gn);
+                if (m != null) g.push(m);
+              }
+            }
+          }
+        }
+      }
+      let best = null;
+      let bestScore = -1;
+      for (const shift of [runningShift, 0, -1, 1, -2, 2]) {
+        const key = String(measureNum + shift);
+        const d = debriefs[key];
+        if (!d || usedKeys.has(key)) continue;
+        const sc = pcScore(g, d) - Math.abs(shift - runningShift) * 0.02;
+        if (sc > bestScore + 1e-6) { bestScore = sc; best = { key, d, shift }; }
+      }
+      if (!best || (g.length && bestScore < 0.25)) {
+        const d = debriefs[String(measureNum)];
+        return d && !usedKeys.has(String(measureNum)) ? { key: String(measureNum), d, shift: 0 } : null;
+      }
+      runningShift = best.shift;
+      return best;
+    };
+
     for (const [measureNum, fragments] of byNum.entries()) {
-      const d = debriefs[String(measureNum)];
-      if (!d) continue;
+      // No analysed bar fits: letters still come from the engraved notes.
+      const picked = pickDebrief(measureNum, fragments) || { key: null, d: { rh: [], lh: [] } };
+      if (picked.key != null) {
+        usedKeys.add(picked.key);
+        MEASURE_TO_DEBRIEF.set(measureNum, picked.key);
+      }
+      const d = picked.d;
 
       const pool = [
         ...sortPack(d.rh).map((n) => ({ ...n, hand: n.hand || "RH" })),
@@ -812,11 +984,21 @@ window.LuneAnnotate = (function () {
         const paired = [];
         const usedInfos = [];
         for (const item of sub) {
+          if (isTieContinuation(item.gn)) continue;
+          // Exact pitch only: a near miss (D vs D#, or an octave off) used to
+          // borrow another note's name and finger. The engraved note is the
+          // truth for the letter; the analysis only adds the finger digit.
           let info = takeBestInfo(pool, item.midi, { preferHand, maxDist: 0 });
-          if (!info) info = takeBestInfo(pool, item.midi, { preferHand, maxDist: 1 });
-          if (!info) info = takeBestInfo(pool, item.midi, { preferHand, maxDist: 12 });
+          // 8va / 8vb: page shows written pitch, analysis has sounding pitch
+          if (!info && item.midi != null) info = takeBestInfo(pool, item.midi + 12, { preferHand, maxDist: 0 });
+          if (!info && item.midi != null) info = takeBestInfo(pool, item.midi - 12, { preferHand, maxDist: 0 });
+          const spelled = spellGraphicPitch(item.gn);
+          if (info && spelled) info = { ...info, pitch: spelled };
+          if (!info && spelled) {
+            info = { pitch: spelled, midi: item.midi, fingering: null, hand: preferHand, fromScore: true };
+          }
           paired.push({ ...item, info });
-          if (info) usedInfos.push(info);
+          if (info && !info.fromScore) usedInfos.push(info);
         }
 
         // Same-offset chord siblings still in the pool (OSMD dropped a head).
@@ -827,7 +1009,7 @@ window.LuneAnnotate = (function () {
           usedInfos.every(
             (u) => Math.abs((u.offset || 0) - (usedInfos[0].offset || 0)) < 1e-4
           );
-        if (usedInfos.length && sub.length > 1 && usedSameOffset) {
+        if (SYNTHESIZE_UNSEEN && usedInfos.length && sub.length > 1 && usedSameOffset) {
           const midOff =
             usedInfos.reduce((a, i) => a + (Number(i.offset) || 0), 0) /
             usedInfos.length;
@@ -848,7 +1030,7 @@ window.LuneAnnotate = (function () {
             leftover.unshift(pool.splice(pi, 1)[0]);
           }
           // Cap synthesis — never invent a pile of phantom labels
-          if (leftover.length > 2) leftover.length = 2;
+          if (leftover.length > 8) leftover.length = 8;
         }
 
         const isChord = sub.length > 1 || leftover.length > 0;
@@ -886,6 +1068,7 @@ window.LuneAnnotate = (function () {
             isChord,
             chordId,
             stemDir: stemDir(gn),
+            vfNote: gn,
             preferRight,
             synthetic: false,
             offset: Number(info.offset) || 0,
@@ -949,19 +1132,62 @@ window.LuneAnnotate = (function () {
         }
       }
 
-      // Leftover pool tones: do NOT synthesize floating labels onto an
-      // anchor x (that created the Ab/Eb/C tower). Record as missing only.
-      // True chord-sibling gaps were already handled above.
+      // Remaining unmatched debrief tones: still place them, glued to the
+      // nearest real head in this bar (never a shared dump-x tower).
+      if (pool.length && !SYNTHESIZE_UNSEEN) {
+        // Analysis tones with no engraved head (grace notes, tie tails):
+        // nothing to point at, so no label — a floating letter misleads.
+        pool.length = 0;
+      }
       if (pool.length) {
+        const barJobs = jobs.filter((j) => j.measure === measureNum);
         for (const info of pool) {
-          completeness.missing.push({
+          const label = scoreLabel(info, { withOctave: false });
+          if (!label || !barJobs.length) {
+            completeness.missing.push({
+              measure: measureNum,
+              pitch: info?.pitch || info?.letter,
+              midi: info?.midi,
+              reason: "no-graphic-head",
+            });
+            completeness.chordComplete = false;
+            continue;
+          }
+          let best = barJobs[0];
+          let bd = Math.abs((best.midi || 0) - (info.midi || 0));
+          for (const j of barJobs) {
+            const d = Math.abs((j.midi || 0) - (info.midi || 0));
+            if (d < bd) {
+              bd = d;
+              best = j;
+            }
+          }
+          const dy = ((info.midi || 0) >= (best.midi || 0) ? -1 : 1) * Math.max(8, MIN_LETTER_GAP * 0.7);
+          jobs.push({
             measure: measureNum,
-            pitch: info?.pitch || info?.letter,
-            midi: info?.midi,
-            reason: "no-graphic-head",
+            staff: best.staff,
+            midi: info.midi,
+            pitchLabel: scoreLabel(info, { withOctave: true }),
+            fingering: info.fingering,
+            info,
+            headCx: best.headCx,
+            headCy: best.headCy + dy,
+            headW: best.headW,
+            headH: best.headH,
+            headLeft: best.headLeft,
+            headRight: best.headRight,
+            headTop: best.headCy + dy - best.headH / 2,
+            headBottom: best.headCy + dy + best.headH / 2,
+            accidentalLeft: best.accidentalLeft,
+            isChord: true,
+            chordId: best.chordId || `m${measureNum}-s${best.staff}-rest`,
+            stemDir: best.stemDir,
+            preferRight: best.preferRight,
+            synthetic: true,
+            offset: Number(info.offset) || 0,
           });
+          completeness.read += 1;
         }
-        if (pool.length) completeness.chordComplete = false;
         pool.length = 0;
       }
     }
@@ -969,19 +1195,788 @@ window.LuneAnnotate = (function () {
     return { jobs, completeness, metrics };
   }
 
-  /* ---------- PLAN ---------- */
+  /* ---------- OBSTACLE MAP + CANDIDATE SLOTS ---------- */
 
-  function planJobs(jobs, opts, metrics) {
-    const letters = !!opts.letters;
-    const fingers = !!opts.fingers;
-    const dens = metrics?.dens || 0;
-    const medDx = metrics?.medDx || 40;
+
+  function svgUserBox(el, svg) {
+    try {
+      const b = el.getBBox();
+      if (!Number.isFinite(b.x) || !Number.isFinite(b.width)) return null;
+      if (b.width < 0.35 || b.height < 0.35) return null;
+      const root = svg || el.ownerSVGElement;
+      const elCtm = el.getScreenCTM?.();
+      const svgCtm = root?.getScreenCTM?.();
+      if (root && elCtm && svgCtm) {
+        let inv;
+        try {
+          inv = svgCtm.inverse();
+        } catch {
+          inv = null;
+        }
+        if (inv) {
+          const pts = [
+            [b.x, b.y],
+            [b.x + b.width, b.y],
+            [b.x, b.y + b.height],
+            [b.x + b.width, b.y + b.height],
+          ].map(([x, y]) => {
+            const pt = root.createSVGPoint();
+            pt.x = x;
+            pt.y = y;
+            return pt.matrixTransform(elCtm).matrixTransform(inv);
+          });
+          const xs = pts.map((p) => p.x);
+          const ys = pts.map((p) => p.y);
+          const left = Math.min(...xs);
+          const top = Math.min(...ys);
+          const right = Math.max(...xs);
+          const bottom = Math.max(...ys);
+          return { left, top, right, bottom, w: right - left, h: bottom - top };
+        }
+      }
+      return {
+        left: b.x,
+        top: b.y,
+        right: b.x + b.width,
+        bottom: b.y + b.height,
+        w: b.width,
+        h: b.height,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  // Obstacles only change when OSMD re-renders, so build them once per
+  // render (svg node + note count + size) and reuse for plan, audit, nudge.
+  let OBST_CACHE = null;
+  function obstacleKey(svg) {
+    return `${svg.getAttribute("width")}|${svg.getAttribute("height")}|${svg.querySelectorAll("g.vf-stavenote").length}`;
+  }
+  function collectObstacles(host) {
+    const svg = host?.querySelector?.("svg");
+    if (!svg) return { svg: null, items: [] };
+    const key = obstacleKey(svg);
+    if (OBST_CACHE && OBST_CACHE.svg === svg && OBST_CACHE.key === key) return OBST_CACHE.result;
+    const result = collectObstaclesUncached(host, svg);
+    result.grid = buildGrid(result.items);
+    Object.defineProperty(result.items, "__grid", { value: result.grid, enumerable: false });
+    OBST_CACHE = { svg, key, result };
+    return result;
+  }
+
+  const CELL = 48;
+  function buildGrid(items) {
+    const grid = new Map();
+    items.forEach((it, idx) => {
+      const x0 = Math.floor(it.box.left / CELL), x1 = Math.floor(it.box.right / CELL);
+      const y0 = Math.floor(it.box.top / CELL), y1 = Math.floor(it.box.bottom / CELL);
+      for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) {
+        const k = x * 100003 + y;
+        let arr = grid.get(k);
+        if (!arr) grid.set(k, (arr = []));
+        arr.push(idx);
+      }
+    });
+    return grid;
+  }
+  function gridQuery(grid, items, box, pad) {
+    const p = pad || 0;
+    const x0 = Math.floor((box.left - p) / CELL), x1 = Math.floor((box.right + p) / CELL);
+    const y0 = Math.floor((box.top - p) / CELL), y1 = Math.floor((box.bottom + p) / CELL);
+    const seen = new Set();
+    const out = [];
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) {
+      const arr = grid.get(x * 100003 + y);
+      if (!arr) continue;
+      for (const idx of arr) {
+        if (seen.has(idx)) continue;
+        seen.add(idx);
+        out.push(items[idx]);
+      }
+    }
+    return out;
+  }
+
+  function collectObstaclesUncached(host, svg) {
+    const items = [];
+    const skip = (el) =>
+      el.closest?.(".lune-letter-layer, .lune-finger-layer, .lune-leader-layer, .lune-audit-layer");
+
+    const add = (els, kind, precise) => {
+      for (const el of els) {
+        if (skip(el)) continue;
+        const box = svgUserBox(el, svg);
+        if (!box) continue;
+        const tag = (el.tagName || "").toLowerCase();
+        const canSample =
+          typeof el.isPointInFill === "function" &&
+          (tag === "path" || tag === "ellipse" || tag === "polygon");
+        const bulky = box.w > 70 || box.h > 90;
+        // Long text ("Poco moto", "cresc.") is a solid block and must stay.
+        if (bulky && !canSample && kind !== "text") continue;
+        // Shape sampling only pays off for big diagonal ink (beams, slurs,
+        // flags, clefs). Small glyphs — augmentation dots are 4×4 — fall
+        // between sample points, so they use their plain box.
+        // stems/flags are thin: their box IS their ink
+        const big = box.w > 14 && box.h > 6;
+        items.push({ kind, el, box, precise: big && (!!precise || canSample) });
+      }
+    };
+
+    const addGlyphs = (selector, kind, precise) => {
+      const roots = [...svg.querySelectorAll(selector)];
+      const glyphs = [];
+      for (const root of roots) {
+        if (skip(root)) continue;
+        const inner = [...root.querySelectorAll("path, ellipse, polygon, text")];
+        if (inner.length) glyphs.push(...inner);
+        else glyphs.push(root);
+      }
+      add(glyphs, kind, precise);
+    };
+
+    add(svg.querySelectorAll(".vf-notehead, g.vf-notehead"), "notehead", false);
+    add(
+      svg.querySelectorAll("g.vf-modifiers path, g.vf-modifiers ellipse, .vf-accidental, .vf-dot"),
+      "accidental",
+      false
+    );
+    add(svg.querySelectorAll(".vf-stem, g.vf-stem line, g.vf-stem path, .vf-stem path"), "stem", false);
+    addGlyphs("g.vf-beam, .vf-beam", "beam", true);
+    addGlyphs("g.vf-flag, .vf-flag", "flag", true);
+    addGlyphs("g.vf-curve, .vf-curve", "tie", true);
+    add(svg.querySelectorAll("g.vf-text text, text.vf-annotation"), "text", false);
+    add(
+      [...svg.querySelectorAll("text")].filter((t) => {
+        if (skip(t)) return false;
+        if (t.classList?.contains("lune-letter") || t.classList?.contains("lune-finger")) return false;
+        const s = (t.textContent || "").trim();
+        return s.length >= 2 || /^(pp|p|mp|mf|f|ff|sf|sfz|\d+)$/i.test(s);
+      }),
+      "text",
+      false
+    );
+    addGlyphs(
+      "g.vf-clef, .vf-clef, g.vf-timesignature, .vf-timesignature, g.vf-keysignature, .vf-keysignature",
+      "clef",
+      true
+    );
+    addGlyphs("g.vf-barline, .vf-barline, .vf-staveconnector", "barline", false);
+    // OSMD 1.8 draws barlines as bare <rect>s and repeat dots as arc <path>s
+    // directly under g.vf-measure (no vf-barline class) — catch those too.
+    const barRects = [];
+    const repeatDots = [];
+    for (const m of svg.querySelectorAll("g.vf-measure")) {
+      for (const c of m.children) {
+        const tag = (c.tagName || "").toLowerCase();
+        if (tag === "rect") barRects.push(c);
+        else if (tag === "path" && /A/.test(c.getAttribute("d") || "")) repeatDots.push(c);
+      }
+    }
+    add(barRects, "barline", false);
+    add(repeatDots, "accidental", false);
+    add(svg.querySelectorAll("g.vf-rest path, .vf-rest path"), "notehead", false);
+    return { svg, items };
+  }
+
+  function aabbHits(a, b, pad) {
+    const p = pad ?? 0;
+    return a.left < b.right + p && a.right + p > b.left && a.top < b.bottom + p && a.bottom + p > b.top;
+  }
+
+  function labelBoxAt(x, y, w, h, anchor) {
+    // y is vertical centre (dominant-baseline: middle on placed text).
+    let left = x;
+    if (anchor === "middle") left = x - w / 2;
+    else if (anchor === "end") left = x - w;
+    return { left, top: y - h / 2, right: left + w, bottom: y + h / 2, w, h };
+  }
+
+  function sampleShapeHit(svg, obs, box) {
+    const el = obs.el;
+    if (typeof el.isPointInFill !== "function") return true;
+    if (!obs.toLocal) {
+      // svg user space → element local space; scroll-invariant, so compute once
+      try {
+        const svgCtm = svg.getScreenCTM?.();
+        const ctm = el.getScreenCTM?.();
+        if (!svgCtm || !ctm) return true;
+        obs.toLocal = ctm.inverse().multiply(svgCtm);
+      } catch {
+        return true;
+      }
+    }
+    const toLocal = obs.toLocal;
+    if (obs.stroked === undefined) {
+      const f = (el.getAttribute("fill") || "").toLowerCase();
+      obs.stroked = f === "none" || f === "transparent";
+    }
+    // ~2px grid: slurs and beam edges are thin enough to slip between a
+    // coarse 4×3 sample and still cut through a letter.
+    const cols = Math.min(10, Math.max(4, Math.ceil(box.w / 2)));
+    const rows = Math.min(8, Math.max(3, Math.ceil(box.h / 2)));
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const x = box.left + ((c + 0.5) / cols) * box.w;
+        const y = box.top + ((r + 0.5) / rows) * box.h;
+        const pt = svg.createSVGPoint();
+        pt.x = x;
+        pt.y = y;
+        const loc = pt.matrixTransform(toLocal);
+        try {
+          if (el.isPointInFill(loc)) return true;
+          if (obs.stroked && el.isPointInStroke(loc)) return true;
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    return false;
+  }
+
+  function obstacleHitsLabel(svg, obs, box, pad) {
+    if (!aabbHits(obs.box, box, pad)) return false;
+    if (!obs.precise) return true;
+    const p = (pad ?? 0) + 0.6;
+    const grown = { left: box.left - p, top: box.top - p, right: box.right + p, bottom: box.bottom + p, w: box.w + 2 * p, h: box.h + 2 * p };
+    return sampleShapeHit(svg, obs, grown);
+  }
+
+  function slotHitsObstacles(svg, obstacles, box, pad) {
+    const list = obstacles && obstacles.__grid ? gridQuery(obstacles.__grid, obstacles, box, pad) : obstacles;
+    for (const obs of list) {
+      if (obstacleHitsLabel(svg, obs, box, pad)) return obs.kind;
+    }
+    return null;
+  }
+
+  function slotHitsPlaced(placed, box, pad) {
+    for (const p of placed) {
+      if (aabbHits(p.box, box, pad)) return true;
+    }
+    return false;
+  }
+
+  function staffExtentsForY(staffYs, y) {
+    if (!staffYs.length) return { top: y - 40, bottom: y + 40 };
+    let best = staffYs[0];
+    let bestD = Infinity;
+    for (const s of staffYs) {
+      const mid = (s.top + s.bottom) / 2;
+      const d = Math.abs(y - mid);
+      if (d < bestD) {
+        bestD = d;
+        best = s;
+      }
+    }
+    return best;
+  }
+
+  function collectStaffYs(host) {
+    const svg = host?.querySelector?.("svg");
+    if (!svg) return [];
+    const out = [];
+    for (const g of svg.querySelectorAll("g.vf-stave")) {
+      const box = svgUserBox(g);
+      if (box) out.push({ top: box.top, bottom: box.bottom, left: box.left, right: box.right });
+    }
+    if (out.length) return out;
+    // OSMD 1.8: each g.vf-measure starts with five horizontal staff-line paths.
+    for (const m of svg.querySelectorAll("g.vf-measure")) {
+      const ys = [];
+      let left = Infinity;
+      let right = -Infinity;
+      for (const c of m.children) {
+        if ((c.tagName || "").toLowerCase() !== "path") continue;
+        const d = c.getAttribute("d") || "";
+        const mm = d.match(/^M\s*([\d.-]+)[ ,]([\d.-]+)\s*L\s*([\d.-]+)[ ,]([\d.-]+)\s*$/);
+        if (!mm || Math.abs(Number(mm[2]) - Number(mm[4])) > 0.01) continue;
+        ys.push(Number(mm[2]));
+        left = Math.min(left, Number(mm[1]), Number(mm[3]));
+        right = Math.max(right, Number(mm[1]), Number(mm[3]));
+      }
+      // five evenly spaced lines = the staff (ignore stray brackets/ledgers)
+      const u = [...new Set(ys.map((y) => Math.round(y * 10) / 10))].sort((a, b) => a - b);
+      for (let i = 0; i + 4 < u.length; i++) {
+        const g = u[i + 1] - u[i];
+        if (g < 2) continue;
+        let even = true;
+        for (let k = 1; k < 4; k++) {
+          if (Math.abs(u[i + k + 1] - u[i + k] - g) > 0.6) even = false;
+        }
+        if (even) {
+          out.push({ top: u[i], bottom: u[i + 4], left, right });
+          break;
+        }
+      }
+    }
+    if (out.length) {
+      // Merge measures of the same staff row into one band per system staff.
+      out.sort((a, b) => a.top - b.top || a.left - b.left);
+      const rows = [];
+      for (const s of out) {
+        const r = rows.find((x) => Math.abs(x.top - s.top) < 2 && Math.abs(x.bottom - s.bottom) < 2);
+        if (r) {
+          r.left = Math.min(r.left, s.left);
+          r.right = Math.max(r.right, s.right);
+        } else rows.push({ ...s });
+      }
+      return rows;
+    }
+    const lines = [...svg.querySelectorAll(".vf-stave line, g.vf-stave line")];
+    const buckets = [];
+    for (const ln of lines) {
+      const box = svgUserBox(ln);
+      if (!box) continue;
+      const mid = (box.top + box.bottom) / 2;
+      let hit = buckets.find((b) => Math.abs(b.mid - mid) < 3);
+      if (!hit) {
+        hit = { mid, top: box.top, bottom: box.bottom, left: box.left, right: box.right };
+        buckets.push(hit);
+      } else {
+        hit.top = Math.min(hit.top, box.top);
+        hit.bottom = Math.max(hit.bottom, box.bottom);
+        hit.left = Math.min(hit.left, box.left);
+        hit.right = Math.max(hit.right, box.right);
+      }
+    }
+    buckets.sort((a, b) => a.mid - b.mid);
+    const staves = [];
+    for (const b of buckets) {
+      const last = staves[staves.length - 1];
+      if (last && b.mid - last.bottom < 14) {
+        last.bottom = Math.max(last.bottom, b.bottom);
+        last.top = Math.min(last.top, b.top);
+        last.right = Math.max(last.right, b.right);
+        last.left = Math.min(last.left, b.left);
+      } else {
+        staves.push({ top: b.top, bottom: b.bottom, left: b.left, right: b.right });
+      }
+    }
+    return staves;
+  }
+
+  function jobHead(job) {
+    const w = job.headW || 12;
+    const h = job.headH || 10;
+    return {
+      cx: job.headCx,
+      cy: job.headCy,
+      left: job.headLeft ?? job.headCx - w / 2,
+      right: job.headRight ?? job.headCx + w / 2,
+      top: job.headTop ?? job.headCy - h / 2,
+      bottom: job.headBottom ?? job.headCy + h / 2,
+      w,
+      h,
+    };
+  }
+
+  function jobLabel(job, kind) {
+    if (kind === "finger") {
+      return (
+        fingerDigit(job.info) ||
+        (job.fingering != null && /^[1-5]$/.test(String(job.fingering).trim())
+          ? String(job.fingering).trim()
+          : null)
+      );
+    }
+    return musicalAccidentals(scoreLabel(job.info, { withOctave: false }));
+  }
+
+  /** "F#" → "F♯", "Bb" → "B♭": real accidentals read as music, not typing. */
+  function musicalAccidentals(label) {
+    const m = String(label || "").match(/^([A-G])(##|#|bb|b)?$/);
+    if (!m) return label;
+    const acc = { "##": "♯♯", "#": "♯", bb: "♭♭", b: "♭" }[m[2] || ""] || "";
+    return m[1] + acc;
+  }
+
+  function jobLabelSize(job, kind) {
+    const label = jobLabel(job, kind);
+    const fs = kind === "finger" ? FONT_FINGER : FONT_LETTER;
+    const w = labelWidth(label || "C", kind, fs) + 1.8;
+    const h = fs * 1.18;
+    return { label, w, h, fs };
+  }
+
+  function jobStemDir(job) {
+    return Number(job.stemDir) >= 0 ? 1 : -1;
+  }
+
+  function nearbyKind(obstacles, head, kind, padX) {
+    const hits = [];
+    const q = { left: head.left - padX, right: head.right + padX, top: head.top - 28, bottom: head.bottom + 28 };
+    const list = obstacles && obstacles.__grid ? gridQuery(obstacles.__grid, obstacles, q, 0) : obstacles || [];
+    for (const obs of list) {
+      if (obs.kind !== kind) continue;
+      if (obs.box.right < head.left - padX || obs.box.left > head.right + padX) continue;
+      if (obs.box.bottom < head.top - 28 || obs.box.top > head.bottom + 28) continue;
+      hits.push(obs);
+    }
+    return hits;
+  }
+
+  function beamPrefersBelow(job, obstacles) {
+    const head = jobHead(job);
+    const beams = nearbyKind(obstacles, head, "beam", 18);
+    let above = 0;
+    let below = 0;
+    for (const b of beams) {
+      const mid = (b.box.top + b.box.bottom) / 2;
+      if (mid <= head.cy) above += 1;
+      else below += 1;
+    }
+    if (above > below) return true;
+    if (below > above) return false;
+    return jobStemDir(job) > 0;
+  }
+
+  function tieOnSide(job, obstacles, below) {
+    const head = jobHead(job);
+    const ties = nearbyKind(obstacles, head, "tie", 22);
+    for (const t of ties) {
+      const mid = (t.box.top + t.box.bottom) / 2;
+      if (below && mid >= head.cy - 2) return true;
+      if (!below && mid <= head.cy + 2) return true;
+    }
+    return false;
+  }
+
+  function letterCandidates(job, w, h, staff, obstacles) {
+    const head = jobHead(job);
+    const pad = LETTER_X_PAD;
+    const stem = jobStemDir(job);
+    const cy = head.cy;
+    const above = head.top - 2 - h / 2;
+    const below = head.bottom + 2 + h / 2;
+    const stems = nearbyKind(obstacles, head, "stem", 10);
+    const dots = nearbyKind(obstacles, head, "accidental", 14);
+    let pastR = head.right + pad;
+    let pastL = head.left - pad;
+    for (const s of stems) {
+      pastR = Math.max(pastR, s.box.right + pad);
+      pastL = Math.min(pastL, s.box.left - pad);
+    }
+    for (const d of dots) {
+      if (d.box.left >= head.cx) pastR = Math.max(pastR, d.box.right + pad);
+      else pastL = Math.min(pastL, d.box.left - pad);
+    }
+    const flags = nearbyKind(obstacles, head, "flag", 16);
+    const clefs = nearbyKind(obstacles, head, "clef", 40);
+    for (const f of flags) {
+      pastR = Math.max(pastR, f.box.right + pad + 5);
+      pastL = Math.min(pastL, f.box.left - pad);
+    }
+    for (const c of clefs) {
+      pastR = Math.max(pastR, c.box.right + pad + 2);
+    }
+    const laneAbove = staff.top - LEADER_STAFF_GAP - h / 2;
+    const laneBelow = staff.bottom + LEADER_STAFF_GAP + h / 2;
+    const out = [];
+    const push = (x, y, anchor, lane) => out.push({ x, y, anchor, lane: !!lane });
+    const systemStart = head.cx < (staff.left || 0) + 95 || head.cx < 145;
+    // Reading order: a letter belongs to the note on its LEFT. So try the
+    // right side first, then straight above/below (unambiguous because it is
+    // centred on the head), and only then the left side.
+    const tight = Math.max(3.5, pad * 0.6);
+    push(head.right + tight, cy, "start", false);
+    push(head.right + pad, cy, "start", false);
+    push(pastR, cy, "start", false);
+    if (systemStart) {
+      push(pastR + 6, cy, "start", false);
+      push(pastR + 12, cy, "start", false);
+    }
+    // stem up (stem on the right, rising) → below is clear; stem down → above
+    const firstV = stem > 0 ? below : above;
+    const secondV = stem > 0 ? above : below;
+    const stepV = h * 0.9;
+    push(head.cx, firstV, "middle", false);
+    // just above/below but nudged right, clear of the note's own ♯/♭ glyph
+    push(head.cx - 1, firstV, "start", false);
+    push(head.cx, secondV, "middle", false);
+    push(head.cx - 1, secondV, "start", false);
+    push(head.right + tight, firstV, "start", false);
+    push(head.right + tight, secondV, "start", false);
+    push(head.cx, firstV + (stem > 0 ? stepV : -stepV), "middle", false);
+    push(head.right + tight, cy - h * 0.55, "start", false);
+    push(head.right + tight, cy + h * 0.55, "start", false);
+    if (!systemStart) {
+      push(head.left - pad, cy, "end", false);
+      push(pastL, cy, "end", false);
+    }
+    push(head.cx, secondV + (stem > 0 ? -stepV : stepV), "middle", false);
+    if (stem < 0) {
+      push(head.cx, laneBelow, "middle", true);
+      push(head.cx, laneAbove, "middle", true);
+    } else {
+      push(head.cx, laneAbove, "middle", true);
+      push(head.cx, laneBelow, "middle", true);
+    }
+    return out;
+  }
+
+  function fingerCandidates(job, w, h, staff, obstacles) {
+    const head = jobHead(job);
+    const preferBelow = beamPrefersBelow(job, obstacles);
+    const tied = tieOnSide(job, obstacles, preferBelow);
+    const cy = head.cy;
+    const above = head.top - FINGER_Y_PAD - h / 2;
+    const below = head.bottom + FINGER_Y_PAD + h / 2;
+    const laneAbove = staff.top - LEADER_STAFF_GAP - h / 2;
+    const laneBelow = staff.bottom + LEADER_STAFF_GAP + h / 2;
+    const out = [];
+    const push = (x, y, anchor, lane) => out.push({ x, y, anchor, lane: !!lane });
+    // Engraver order: the side away from the stem/beam (unless a tie sits
+    // there), stepping further out before ever switching sides, and only
+    // then beside the head. Digits beside a head inside the staff read as
+    // belonging to the neighbouring note, so that is a late fallback.
+    const firstBelow = tied ? !preferBelow : preferBelow;
+    const step = h * 0.95;
+    const tiers = [0, 0.45, 1, 1.6, 2.3];
+    for (const t of tiers) {
+      if (firstBelow) push(head.cx, below + t * step, "middle", false);
+      else push(head.cx, above - t * step, "middle", false);
+    }
+    for (const t of [0, 0.5, 1]) {
+      if (firstBelow) push(head.cx, above - t * step, "middle", false);
+      else push(head.cx, below + t * step, "middle", false);
+    }
+    for (const dx of [3, 6]) {
+      if (firstBelow) push(head.cx + dx, below + step * 0.45, "middle", false);
+      else push(head.cx + dx, above - step * 0.45, "middle", false);
+    }
+    push(head.right + 3, cy, "start", false);
+    push(head.left - 3, cy, "end", false);
+    if (preferBelow) {
+      push(head.cx, laneBelow, "middle", true);
+      push(head.cx, laneAbove, "middle", true);
+    } else {
+      push(head.cx, laneAbove, "middle", true);
+      push(head.cx, laneBelow, "middle", true);
+    }
+    return out;
+  }
+
+  function pickSlot(job, kind, w, h, svg, obstacles, placed, staff, allowLane) {
+    const cands = (kind === "finger"
+      ? fingerCandidates(job, w, h, staff, obstacles)
+      : letterCandidates(job, w, h, staff, obstacles)
+    ).filter((c) => allowLane || !c.lane);
+    for (const c of cands) {
+      const box = labelBoxAt(c.x, c.y, w, h, c.anchor);
+      if (slotHitsPlaced(placed, box, SLOT_PAD)) continue;
+      if (slotHitsObstacles(svg, obstacles, box, SLOT_PAD)) continue;
+      return { ...c, box, w, h };
+    }
+    const head = jobHead(job);
+    // Nearest clear spot on rings around the head — always prefer a label a
+    // little further away over one sitting on ink.
+    const ringStep = Math.max(3, h * 0.35);
+    for (let r = ringStep; r <= h * 4.2; r += ringStep) {
+      const pts = [];
+      const n = Math.max(8, Math.round((2 * Math.PI * r) / ringStep));
+      for (let k = 0; k < n; k++) {
+        const a = (k / n) * Math.PI * 2;
+        pts.push([head.cx + Math.cos(a) * (r + w / 2), head.cy + Math.sin(a) * (r + h / 2)]);
+      }
+      // right side first (reading order), then vertical, then left
+      pts.sort((p, q) => {
+        const sp = p[0] >= head.cx - 1 ? 0 : 1;
+        const sq = q[0] >= head.cx - 1 ? 0 : 1;
+        if (sp !== sq) return sp - sq;
+        return Math.hypot(p[0] - head.cx, p[1] - head.cy) - Math.hypot(q[0] - head.cx, q[1] - head.cy);
+      });
+      for (const [x, y] of pts) {
+        const box = labelBoxAt(x, y, w, h, "middle");
+        if (slotHitsPlaced(placed, box, SLOT_PAD)) continue;
+        if (slotHitsObstacles(svg, obstacles, box, SLOT_PAD)) continue;
+        return { x, y, anchor: "middle", lane: false, box, w, h };
+      }
+    }
+    const nudges = [6, 12, 18, -6, -12];
+    for (const dx of nudges) {
+      const x = head.cx + dx;
+      const y = allowLane ? (staff.top - LEADER_STAFF_GAP - h / 2) : head.cy;
+      const box = labelBoxAt(x, y, w, h, "middle");
+      if (slotHitsPlaced(placed, box, SLOT_PAD)) continue;
+      if (slotHitsObstacles(svg, obstacles, box, SLOT_PAD)) continue;
+      return { x, y, anchor: "middle", lane: !!allowLane, box, w, h };
+    }
+    const last = cands[cands.length - 1] || { x: jobHead(job).cx, y: jobHead(job).cy, anchor: "middle", lane: !!allowLane };
+    const box = labelBoxAt(last.x, last.y, w, h, last.anchor);
+    return { ...last, box, w, h, failed: true };
+  }
+
+  function chordColumnX(tones, kind, w, stem, obstacles) {
+    const pad = LETTER_X_PAD * 0.7 + 1;
+    let right = Math.max(...tones.map((t) => jobHead(t).right));
+    // clear the chord's own stem / dots / flag on the right-hand side
+    const top = Math.min(...tones.map((t) => jobHead(t).top));
+    const bottom = Math.max(...tones.map((t) => jobHead(t).bottom));
+    const cxs = tones.map((t) => t.headCx);
+    const minCx = Math.min(...cxs);
+    const maxCx = Math.max(...cxs);
+    for (const o of obstacles || []) {
+      if (!["stem", "accidental", "flag"].includes(o.kind)) continue;
+      if (o.box.bottom < top - 2 || o.box.top > bottom + 2) continue;
+      if (o.box.left < minCx - 2 || o.box.left > maxCx + 16) continue;
+      if (o.kind === "accidental" && o.box.left < maxCx) continue; // accidentals sit left
+      right = Math.max(right, o.box.right);
+    }
+    return { x: right + pad, anchor: "start" };
+  }
+
+  function boxClear(svg, obstacles, placed, box) {
+    return !slotHitsPlaced(placed, box, SLOT_PAD) && !slotHitsObstacles(svg, obstacles, box, SLOT_PAD);
+  }
+
+  function placeChordSlots(tones, kind, svg, obstacles, placed, staffYs, allowLane) {
+    tones.sort((a, b) => (a.midi || 0) - (b.midi || 0)); // low → high
+    const stem = jobStemDir(tones[0]);
     const plans = [];
+    const sizes = tones.map((t) => jobLabelSize(t, kind));
 
-    // Group by chordId for stack planning
+    if (kind === "finger") {
+      // One vertical stack, pitch order top→bottom (top digit = top note),
+      // on the side away from the stem/beam; push further out until clear.
+      const preferBelow = beamPrefersBelow(tones[0], obstacles);
+      const cx = tones.reduce((s, t) => s + t.headCx, 0) / tones.length;
+      const chordTop = Math.min(...tones.map((t) => jobHead(t).top));
+      const chordBottom = Math.max(...tones.map((t) => jobHead(t).bottom));
+      const h = Math.max(...sizes.map((z) => z.h));
+      const lineH = h * 0.92;
+      const n = tones.length;
+      const tryStack = (below, extra, dx) => {
+        const boxes = [];
+        for (let i = 0; i < n; i++) {
+          // i = 0 is the LOWEST note
+          const { w } = sizes[i];
+          const y = below
+            ? chordBottom + FINGER_Y_PAD * 0.7 + extra + lineH * (n - 1 - i) + h / 2
+            : chordTop - FINGER_Y_PAD * 0.7 - extra - lineH * i - h / 2;
+          const box = labelBoxAt(cx + dx, y, w, h, "middle");
+          if (!boxClear(svg, obstacles, placed.concat(boxes.map((b) => ({ box: b.box }))), box)) return null;
+          boxes.push({ x: cx + dx, y, box, w, h });
+        }
+        return boxes;
+      };
+      let stack = null;
+      for (const below of [preferBelow, !preferBelow]) {
+        for (const extra of [0, h * 0.5, h, h * 1.6, h * 2.4]) {
+          for (const dx of [0, 4, -4]) {
+            stack = tryStack(below, extra, dx);
+            if (stack) break;
+          }
+          if (stack) break;
+        }
+        if (stack) break;
+      }
+      if (stack) {
+        for (let i = 0; i < n; i++) {
+          const s = stack[i];
+          const slot = { x: s.x, y: s.y, anchor: "middle", lane: false, box: s.box, w: s.w, h: s.h, fs: sizes[i].fs };
+          const plan = jobToPlan(tones[i], kind, slot, sizes[i].label);
+          plans.push(plan);
+          placed.push({ box: s.box, plan });
+        }
+        return plans;
+      }
+    } else {
+      // Letters: one column right of the whole chord (past its stem), each
+      // letter level with its own head. Seconds alternate into a 2nd column.
+      const col = chordColumnX(tones, kind, sizes[0].w, stem, obstacles);
+      const altShift = Math.max(...sizes.map((z) => z.w)) + 2.5;
+      const ys = tones.map((t) => jobHead(t).cy);
+      const hgt = Math.max(...sizes.map((z) => z.h));
+      // labels in one column must not overlap vertically: spread minimally
+      const colYs = ys.slice();
+      const useAlt = new Array(tones.length).fill(false);
+      for (let i = 1; i < tones.length; i++) {
+        if (colYs[i - 1] - colYs[i] < hgt * 0.88) {
+          // too close to the label below it → second column
+          if (!useAlt[i - 1]) useAlt[i] = true;
+        }
+      }
+      let ok = true;
+      const slots = [];
+      for (let i = 0; i < tones.length; i++) {
+        const { w, h } = sizes[i];
+        const x = useAlt[i] ? col.x + altShift : col.x;
+        const box = labelBoxAt(x, colYs[i], w, h, "start");
+        if (!boxClear(svg, obstacles, placed.concat(slots.map((b) => ({ box: b.box }))), box)) {
+          ok = false;
+          break;
+        }
+        slots.push({ x, y: colYs[i], anchor: "start", lane: false, box, w, h, fs: sizes[i].fs });
+      }
+      if (ok) {
+        for (let i = 0; i < tones.length; i++) {
+          const plan = jobToPlan(tones[i], kind, slots[i], sizes[i].label);
+          plans.push(plan);
+          placed.push({ box: slots[i].box, plan });
+        }
+        return plans;
+      }
+    }
+
+    // Fallback: place each tone on its own (highest note first so the top
+    // of the chord gets the nearest slot), never dropping a tone.
+    const order = tones.map((t, i) => i).reverse();
+    for (const i of order) {
+      const job = tones[i];
+      const { label, w, h, fs } = sizes[i];
+      if (!label) continue;
+      const staff = staffExtentsForY(staffYs, jobHead(job).cy);
+      const slot = pickSlot(job, kind, w, h, svg, obstacles, placed, staff, allowLane);
+      slot.fs = fs;
+      const plan = jobToPlan(job, kind, slot, label);
+      plans.push(plan);
+      placed.push({ box: slot.box, plan });
+    }
+    return plans;
+  }
+
+  function jobToPlan(job, kind, slot, label) {
+    const fontSize = slot.fs || FONT_LETTER;
+    const head = jobHead(job);
+    const text = label || jobLabel(job, kind) || "";
+    return {
+      kind,
+      job,
+      label: text,
+      text,
+      x: slot.x,
+      y: slot.y,
+      fontSize,
+      w: slot.w,
+      h: slot.h,
+      anchor: slot.anchor || "start",
+      baseline: "middle",
+      side: slot.lane ? "lane" : slot.anchor === "middle" ? "above" : slot.anchor === "end" ? "left" : "right",
+      essential: true,
+      chordId: job.chordId || null,
+      isChord: job.isChord,
+      midi: job.midi,
+      octave: job.octave,
+      leader: slot.lane
+        ? { x1: head.cx, y1: head.cy, x2: slot.x, y2: slot.y }
+        : null,
+      failed: !!slot.failed,
+    };
+  }
+
+  function placeAllJobs(jobs, host, kind, allowLane) {
+    const { svg, items: obstacles } = collectObstacles(host);
+    if (MEASURE_SVG !== svg) WIDTH_CACHE.clear();
+    MEASURE_SVG = svg;
+    const staffYs = collectStaffYs(host);
+    const placed = [];
+    const plans = [];
     const groups = new Map();
     const singles = [];
     for (const job of jobs) {
+      if (!jobLabel(job, kind)) continue;
       if (job.isChord && job.chordId) {
         if (!groups.has(job.chordId)) groups.set(job.chordId, []);
         groups.get(job.chordId).push(job);
@@ -989,160 +1984,238 @@ window.LuneAnnotate = (function () {
         singles.push(job);
       }
     }
-
-    function planOnHead(job, kind, label, extra = {}) {
-      const n = String(label || "").length;
-      const shrink = n >= 3 ? 0.88 : n === 2 ? 0.94 : 1;
-      const base = extra.fontSize || (kind === "finger" ? FONT_FINGER : FONT_LETTER);
-      return {
-        job,
-        kind,
-        label,
-        x: job.headCx,
-        y: job.headCy,
-        anchor: "middle",
-        side: "on",
-        isChord: !!job.isChord,
-        chordId: job.chordId || null,
-        fontSize: Math.max(8.0, base * shrink),
-        essential: extra.essential ?? !!job.isChord,
-      };
+    const chordGroups = [...groups.values()].sort((a, b) => {
+      const ax = Math.min(...a.map((j) => j.headCx));
+      const bx = Math.min(...b.map((j) => j.headCx));
+      if (ax !== bx) return ax - bx;
+      return Math.min(...a.map((j) => j.midi || 0)) - Math.min(...b.map((j) => j.midi || 0));
+    });
+    for (const tones of chordGroups) {
+      plans.push(...placeChordSlots(tones, kind, svg, obstacles, placed, staffYs, allowLane));
     }
-
-    function planChordStack(group) {
-      const ordered = [...group].sort(
-        (a, b) => a.headCy - b.headCy || (b.midi || 0) - (a.midi || 0)
-      );
-
-      const hxSpan =
-        Math.max(...ordered.map((j) => j.headCx)) -
-        Math.min(...ordered.map((j) => j.headCx));
-      if (hxSpan > 22 && ordered.length >= 2) {
-        for (const job of ordered) {
-          job.isChord = false;
-          job.chordId = null;
-          singles.push(job);
-        }
-        return;
-      }
-
-      const chordFont =
-        ordered.length >= 4
-          ? Math.max(8.2, FONT_LETTER - 1.2)
-          : ordered.length >= 3
-            ? Math.max(8.8, FONT_LETTER - 0.6)
-            : FONT_LETTER;
-
-      for (const job of ordered) {
-        if (fingers) {
-          const digit = fingerDigit(job.info) || (
-            job.fingering != null && /^[1-5]$/.test(String(job.fingering).trim())
-              ? String(job.fingering).trim()
-              : null
-          );
-          if (digit) {
-            plans.push(planOnHead(job, "finger", digit, {
-              fontSize: chordFont,
-              essential: true,
-            }));
-          }
-        }
-        if (letters) {
-          const label = scoreLabel(job.info, { withOctave: false });
-          if (label) {
-            plans.push(planOnHead(job, "letter", label, {
-              fontSize: chordFont,
-              essential: true,
-            }));
-          }
-        }
-      }
-    }
-
-    for (const group of groups.values()) planChordStack(group);
-
-    // Density tracker for singles only
-    const lastX = { letter: {}, finger: {} };
-    // Sort singles left→right so thinning prefers earlier / downbeat notes
-    singles.sort(
-      (a, b) =>
-        a.headCx - b.headCx ||
-        (a.offset || 0) - (b.offset || 0) ||
-        a.headCy - b.headCy
-    );
-
-    function nearDownbeat(job) {
-      const off = Number(job.offset ?? job.info?.offset ?? 0);
-      const frac = Math.abs(off - Math.round(off));
-      return frac < 0.08 || frac > 0.92;
-    }
-
+    singles.sort((a, b) => {
+      const offA = Number(a.offset ?? a.info?.offset ?? 1);
+      const offB = Number(b.offset ?? b.info?.offset ?? 1);
+      const da = Math.abs(offA - Math.round(offA)) < 0.08 ? 0 : 1;
+      const db = Math.abs(offB - Math.round(offB)) < 0.08 ? 0 : 1;
+      if (da !== db) return da - db;
+      if (a.headCx !== b.headCx) return a.headCx - b.headCx;
+      return a.headCy - b.headCy;
+    });
     for (const job of singles) {
-      const staff = job.staff;
-      if (fingers) {
-        const digit = fingerDigit(job.info) || (
-          job.fingering != null && /^[1-5]$/.test(String(job.fingering).trim())
-            ? String(job.fingering).trim()
-            : null
-        );
-        if (digit) {
-          let skip = false;
-          if (dens >= 0.32 || medDx < 26) {
-            const prev = lastX.finger[staff];
-            const need = dens > 0.75 ? FINGER_W * 1.4 : dens > 0.55 ? FINGER_W * 1.15 : FINGER_W * 0.95;
-            if (prev != null && job.headCx - prev < need) {
-              // Keep downbeats when thinning dense finger runs
-              skip = !nearDownbeat(job);
-            }
-          }
-          if (!skip) {
-            lastX.finger[staff] = job.headCx;
-            plans.push(planOnHead(job, "finger", digit, { essential: false }));
-          }
-        }
-      }
-      if (letters) {
-        // Pitch class only — octave digits billboard dense Romantic pages.
-        let label = scoreLabel(job.info, { withOctave: false });
-        if (!label) continue;
-
-        let skip = false;
-        const lw = labelWidth(label, "letter");
-        if (dens >= 0.22 || medDx < 30) {
-          const prev = lastX.letter[staff];
-          const need =
-            dens > 0.7
-              ? lw * 1.85
-              : dens > 0.5
-                ? lw * 1.55
-                : dens > 0.32
-                  ? lw * 1.25
-                  : lw * 1.05;
-          if (prev != null && job.headCx - prev < need) {
-            // Ultra-dense melodic runs: keep downbeats, drop in-between
-            // demisemiquavers. Chord tones are never in this singles path.
-            skip = dens > 0.55 ? !nearDownbeat(job) : true;
-          }
-        }
-        if (skip) continue;
-        lastX.letter[staff] = job.headCx;
-        plans.push(planOnHead(job, "letter", label, {
-          fontSize: dens > 0.65 ? Math.max(8.4, FONT_LETTER - 0.4) : FONT_LETTER,
-          essential: false,
-        }));
-      }
+      const { label, w, h, fs } = jobLabelSize(job, kind);
+      if (!label) continue;
+      const staff = staffExtentsForY(staffYs, job.headCy);
+      const slot = pickSlot(job, kind, w, h, svg, obstacles, placed, staff, allowLane);
+      slot.fs = fs;
+      const plan = jobToPlan(job, kind, slot, label);
+      plans.push(plan);
+      placed.push({ box: slot.box, plan });
     }
-
-    resolvePlanCollisions(plans);
     return plans;
   }
 
-  /**
-   * Global collision planner on planned bboxes.
-   * Prefer: shrink font slightly → shift chord stack as unit → stagger singles
-   * → thin octave digits. NEVER drop essential (chord) labels.
-   */
+  const AUDIT_KIND_KEYS = {
+    notehead: "notehead",
+    accidental: "accidentalOrDot",
+    stem: "stem",
+    beam: "beam",
+    flag: "flag",
+    tie: "tieOrSlur",
+    text: "text",
+    clef: "clefOrTimeOrKey",
+    barline: "barline",
+  };
+
+  function emptyAuditCounts() {
+    return {
+      labelVsLabel: 0,
+      notehead: 0,
+      accidentalOrDot: 0,
+      stem: 0,
+      beam: 0,
+      flag: 0,
+      tieOrSlur: 0,
+      text: 0,
+      clefOrTimeOrKey: 0,
+      barline: 0,
+    };
+  }
+
+  function auditOverlays(host) {
+    const svg = host?.querySelector?.("svg");
+    const counts = emptyAuditCounts();
+    const offenders = [];
+    if (!svg) return { ok: true, counts, offenders, labelCount: 0 };
+    const labels = [...svg.querySelectorAll("text.lune-letter, text.lune-finger")].filter(
+      (el) => el.getAttribute("visibility") !== "hidden"
+    );
+    const boxes = labels.map((el) => {
+      // our label layers carry no transform: getBBox is already svg user space
+      let box = null;
+      try {
+        const b = el.getBBox();
+        box = { left: b.x, top: b.y, right: b.x + b.width, bottom: b.y + b.height, w: b.width, h: b.height };
+      } catch {
+        box = svgUserBox(el, svg);
+      }
+      const measureRaw = el.getAttribute("data-lune-measure");
+      const measure = measureRaw ? Number(measureRaw) : null;
+      return { el, box, text: (el.textContent || "").trim(), measure };
+    }).filter((row) => row.box);
+    for (let i = 0; i < boxes.length; i++) {
+      for (let j = i + 1; j < boxes.length; j++) {
+        if (aabbHits(boxes[i].box, boxes[j].box, SLOT_PAD)) {
+          counts.labelVsLabel += 1;
+          if (offenders.length < 80) {
+            offenders.push({
+              category: "labelVsLabel",
+              text: `${boxes[i].text}+${boxes[j].text}`,
+              x: boxes[i].box.left,
+              y: boxes[i].box.top,
+              measure: boxes[i].measure,
+              box: boxes[i].box,
+            });
+          }
+        }
+      }
+    }
+    const { items } = collectObstacles(host);
+    for (const row of boxes) {
+      for (const obs of gridQuery(items.__grid, items, row.box, SLOT_PAD)) {
+        if (!obstacleHitsLabel(svg, obs, row.box, SLOT_PAD)) continue;
+        const key = AUDIT_KIND_KEYS[obs.kind] || obs.kind;
+        counts[key] = (counts[key] || 0) + 1;
+        if (offenders.length < 80) {
+          offenders.push({
+            category: key,
+            text: row.text,
+            x: row.box.left,
+            y: row.box.top,
+            measure: row.measure,
+            box: row.box,
+          });
+        }
+        break;
+      }
+    }
+    const ok = Object.values(counts).every((n) => n === 0);
+    return { ok, counts, offenders, labelCount: labels.length };
+  }
+
+  function nudgeOffenderNodes(host) {
+    const svg = host?.querySelector?.("svg");
+    if (!svg) return auditOverlays(host);
+    const audit = auditOverlays(host);
+    if (audit.ok || !audit.offenders.length) return audit;
+    // Local repair: move only the flagged labels, checking each move against
+    // nearby ink and the other labels — never a full re-audit per try.
+    const { items } = collectObstacles(host);
+    const nodes = [...svg.querySelectorAll("text.lune-letter, text.lune-finger")];
+    const boxOf = (el) => {
+      const b = el.getBBox();
+      return { left: b.x, top: b.y, right: b.x + b.width, bottom: b.y + b.height, w: b.width, h: b.height };
+    };
+    const boxes = new Map(nodes.map((el) => [el, boxOf(el)]));
+    const clashes = (el, box) => {
+      for (const obs of gridQuery(items.__grid, items, box, SLOT_PAD)) {
+        if (obstacleHitsLabel(svg, obs, box, SLOT_PAD)) return true;
+      }
+      for (const [other, ob] of boxes) {
+        if (other !== el && aabbHits(ob, box, SLOT_PAD)) return true;
+      }
+      return false;
+    };
+    const tries = [[4, 0], [8, 0], [0, -6], [0, 6], [12, 0], [0, -11], [0, 11], [-6, 0], [10, -8], [10, 8], [-10, -8], [-10, 8], [16, 0], [0, -16], [0, 16]];
+    const done = new Set();
+    for (const off of audit.offenders) {
+      const el = nodes.find((t) => {
+        if (done.has(t)) return false;
+        const b = boxes.get(t);
+        return b && Math.abs(b.left - off.x) < 1.5 && Math.abs(b.top - off.y) < 1.5;
+      });
+      if (!el) continue;
+      done.add(el);
+      const b0 = boxes.get(el);
+      if (!clashes(el, b0)) continue;
+      const x0 = Number(el.getAttribute("x"));
+      const y0 = Number(el.getAttribute("y"));
+      for (const [dx, dy] of tries) {
+        const nb = { ...b0, left: b0.left + dx, right: b0.right + dx, top: b0.top + dy, bottom: b0.bottom + dy };
+        if (clashes(el, nb)) continue;
+        el.setAttribute("x", String(x0 + dx));
+        el.setAttribute("y", String(y0 + dy));
+        boxes.set(el, nb);
+        break;
+      }
+    }
+    return auditOverlays(host);
+  }
+
+  function drawAuditBoxes(host, audit) {
+    const svg = host?.querySelector?.("svg");
+    if (!svg) return;
+    svg.querySelector(".lune-audit-layer")?.remove();
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("audit") !== "1" || !audit?.offenders?.length) return;
+    const ns = "http://www.w3.org/2000/svg";
+    const g = document.createElementNS(ns, "g");
+    g.classList.add("lune-audit-layer");
+    for (const off of audit.offenders) {
+      if (!off.box) continue;
+      const r = document.createElementNS(ns, "rect");
+      r.setAttribute("x", String(off.box.left - 1));
+      r.setAttribute("y", String(off.box.top - 1));
+      r.setAttribute("width", String(off.box.w + 2));
+      r.setAttribute("height", String(off.box.h + 2));
+      r.setAttribute("fill", "none");
+      r.setAttribute("stroke", "#c44");
+      r.setAttribute("stroke-width", "0.9");
+      r.setAttribute("pointer-events", "none");
+      g.appendChild(r);
+    }
+    svg.appendChild(g);
+  }
+
+  function logFailedLeaders(plans) {
+    const failed = plans.filter((p) => p.failed);
+    for (const p of failed) {
+      const m = p.job?.measure ?? "?";
+      console.warn("[lune overlay] unresolved label", {
+        measure: m,
+        text: p.label || p.text,
+        x: p.x,
+        y: p.y,
+      });
+    }
+    return plans.filter((p) => p.leader).map((p) => ({
+      measure: p.job?.measure ?? null,
+      text: p.label || p.text,
+      x: p.x,
+      y: p.y,
+      kind: p.kind,
+    }));
+  }
+
+  /* ---------- PLAN ---------- */
+
+  function planJobs(jobs, opts, metrics, host) {
+    const letters = !!opts.letters;
+    const fingers = !!opts.fingers;
+    const kind = fingers ? "finger" : "letter";
+    if (!letters && !fingers) return [];
+    const allowLane = !!opts.allowLane;
+    return placeAllJobs(jobs, host, kind, allowLane);
+  }
+
+  /** Nested name kept for callers / grep; chord stacks live in placeChordSlots. */
+  function planChordStack(tones, kind, svg, obstacles, placed, staffYs, allowLane) {
+    return placeChordSlots(tones, kind, svg, obstacles, placed, staffYs, allowLane);
+  }
+
   function resolvePlanCollisions(plans) {
+    // Slot picker already tested obstacles + placed labels. Do not drop or shrink.
+    return;
     if (plans.length < 2) return;
 
     const refresh = () =>
@@ -1382,15 +2455,29 @@ window.LuneAnnotate = (function () {
     const svg = host?.querySelector("svg");
     if (!svg || !plans.length) return 0;
 
+    svg.querySelector(".lune-leader-layer")?.remove();
+    const layerLeaders = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    layerLeaders.setAttribute("class", "lune-leader-layer");
     const layerLetters = document.createElementNS("http://www.w3.org/2000/svg", "g");
     layerLetters.setAttribute("class", "lune-letter-layer");
     const layerFingers = document.createElementNS("http://www.w3.org/2000/svg", "g");
     layerFingers.setAttribute("class", "lune-finger-layer");
+    svg.appendChild(layerLeaders);
     svg.appendChild(layerLetters);
     svg.appendChild(layerFingers);
 
     let placed = 0;
     for (const p of plans) {
+      if (p.leader) {
+        const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        ln.setAttribute("x1", String(p.leader.x1));
+        ln.setAttribute("y1", String(p.leader.y1));
+        ln.setAttribute("x2", String(p.leader.x2));
+        ln.setAttribute("y2", String(p.leader.y2));
+        ln.setAttribute("class", "lune-leader");
+        ln.setAttribute("pointer-events", "none");
+        layerLeaders.appendChild(ln);
+      }
       const cls = p.kind === "finger" ? "lune-finger" : "lune-letter";
       const layer = p.kind === "finger" ? layerFingers : layerLetters;
       layer.appendChild(
@@ -1407,6 +2494,7 @@ window.LuneAnnotate = (function () {
             "data-lune-head-x": p.job.headCx,
             "data-lune-head-y": p.job.headCy,
             "data-lune-midi": p.job.midi,
+            "data-lune-measure": p.job.measure ?? "",
             "data-lune-essential": p.essential ? "1" : "0",
           },
           p.fontSize
@@ -1419,7 +2507,7 @@ window.LuneAnnotate = (function () {
 
   function hideOsmdLetterLyrics(host) {
     host?.querySelectorAll("text").forEach((t) => {
-      if (t.closest?.(".lune-letter-layer, .lune-finger-layer")) return;
+      if (t.closest?.(".lune-letter-layer, .lune-finger-layer, .lune-leader-layer")) return;
       const s = (t.textContent || "").trim();
       if (/^[A-Ga-g][#b♭♯]?$/.test(s) || /^[A-Ga-g][#b♭♯]?\d$/.test(s)) {
         t.style.opacity = "0";
@@ -1431,7 +2519,7 @@ window.LuneAnnotate = (function () {
 
   function hideOsmdFingerings(host) {
     host?.querySelectorAll("text").forEach((t) => {
-      if (t.closest?.(".lune-letter-layer, .lune-finger-layer")) return;
+      if (t.closest?.(".lune-letter-layer, .lune-finger-layer, .lune-leader-layer")) return;
       if (t.classList?.contains("lune-finger") || t.classList?.contains("lune-letter")) return;
       const cls = (t.getAttribute("class") || "").toLowerCase();
       const s = (t.textContent || "").trim();
@@ -1442,7 +2530,7 @@ window.LuneAnnotate = (function () {
       }
     });
     host?.querySelectorAll(".vf-fingering, g.vf-fingering").forEach((el) => {
-      if (el.closest?.(".lune-letter-layer, .lune-finger-layer")) return;
+      if (el.closest?.(".lune-letter-layer, .lune-finger-layer, .lune-leader-layer")) return;
       if (el.classList?.contains("lune-finger-layer")) return;
       el.style.opacity = "0";
       el.setAttribute("data-lune-hidden-finger", "1");
@@ -1450,7 +2538,7 @@ window.LuneAnnotate = (function () {
     // Circles / markers OSMD sometimes draws around fingering digits — never our layers
     host?.querySelectorAll("g[class*='finger'], .vf-modifiers").forEach((el) => {
       if (el.classList?.contains("lune-finger-layer") || el.classList?.contains("lune-letter-layer")) return;
-      if (el.closest?.(".lune-letter-layer, .lune-finger-layer")) return;
+      if (el.closest?.(".lune-letter-layer, .lune-finger-layer, .lune-leader-layer")) return;
       const own = el.querySelector?.(":scope > text, text");
       const txt = ((own && own.textContent) || "").trim();
       if (!/^[1-5]$/.test(txt)) return;
@@ -1489,6 +2577,7 @@ window.LuneAnnotate = (function () {
 
 
   function restackChordLetterColumns(host) {
+    return 0;
     const nodes = [
       ...(host?.querySelectorAll(".lune-letter-layer text.lune-letter[data-lune-chord='1']") || []),
     ].filter((t) => t.getAttribute("data-lune-soft-hide") !== "1");
@@ -1524,6 +2613,7 @@ window.LuneAnnotate = (function () {
   }
 
   function restackChordFingerColumns(host) {
+    return 0;
     const nodes = [
       ...(host?.querySelectorAll(".lune-finger-layer text.lune-finger[data-lune-chord='1']") || []),
     ];
@@ -1565,159 +2655,37 @@ window.LuneAnnotate = (function () {
   }
 
   function hideSoftCollidingLetters(host) {
-    const letters = [
-      ...(host?.querySelectorAll(".lune-letter-layer text.lune-letter, text.lune-letter") || []),
-    ]
-      .filter((t) => t.getAttribute("data-lune-hidden-lyric") !== "1")
-      .map((el) => approxBBox(el, "letter"));
-    if (letters.length < 2) return 0;
-    letters.sort((a, b) => a.left - b.left || a.y - b.y);
-    let hidden = 0;
-    for (let pass = 0; pass < 10; pass++) {
-      let moved = false;
-      for (let i = 0; i < letters.length; i++) {
-        const a = letters[i];
-        if (!a || a.el.getAttribute("data-lune-soft-hide") === "1") continue;
-        for (let j = i + 1; j < letters.length; j++) {
-          const b = letters[j];
-          if (!b || b.el.getAttribute("data-lune-soft-hide") === "1") continue;
-          if (b.left - a.right > FONT_LETTER * 3) break;
-          if (edgeGap(a, b) >= MIN_EDGE_GAP) continue;
-          if (
-            a.el.getAttribute("data-lune-side") === "on" &&
-            b.el.getAttribute("data-lune-side") === "on"
-          ) {
-            let victim = null;
-            if (!a.essential && !b.essential) victim = b.x >= a.x ? b : a;
-            else if (!a.essential) victim = a;
-            else if (!b.essential) victim = b;
-            if (victim) {
-              victim.el.style.opacity = "0";
-              victim.el.setAttribute("data-lune-soft-hide", "1");
-              victim.el.setAttribute("aria-hidden", "true");
-              hidden += 1;
-            }
-            continue;
-          }
-          // Prefer hiding non-chord (non-essential) labels.
-          let victim = null;
-          if (!a.essential && !b.essential) victim = b.x >= a.x ? b : a;
-          else if (!a.essential) victim = a;
-          else if (!b.essential) victim = b;
-          if (!victim) {
-            // Both essential (chord): fan in x first; only nudge y within the
-            // chord's natural band — never grow a tower through the staff.
-            const sameChord =
-              a.el.getAttribute("data-lune-chord-id") &&
-              a.el.getAttribute("data-lune-chord-id") ===
-                b.el.getAttribute("data-lune-chord-id");
-            if (!sameChord) {
-              // Unrelated chords sharing space: hide neither; fan the lower one in x
-              const mover = b.y >= a.y ? b : a;
-              const side = mover.el.getAttribute("data-lune-side") || "left";
-              const nx =
-                Number(mover.el.getAttribute("x") || mover.x) +
-                (side === "left" ? -1 : 1) * Math.max(3.5, FONT_LETTER * 0.4) * (pass + 1);
-              mover.el.setAttribute("x", String(nx));
-              mover.x = nx;
-              if (mover.el.getAttribute("text-anchor") === "end") {
-                mover.left = nx - mover.w;
-                mover.right = nx;
-              } else {
-                mover.left = nx;
-                mover.right = nx + mover.w;
-              }
-              moved = true;
-              continue;
-            }
-            const lower = b.y >= a.y ? b : a;
-            const upper = lower === b ? a : b;
-            if (pass < 4) {
-              const need = Math.max(2.5, FONT_LETTER * 0.4);
-              const ny = Number(lower.el.getAttribute("y") || lower.y) + need;
-              lower.el.setAttribute("y", String(ny));
-              lower.y = ny;
-              lower.top = ny - lower.h / 2;
-              lower.bottom = ny + lower.h / 2;
-              const fs = Math.max(7.8, Number(lower.el.getAttribute("font-size") || FONT_LETTER) - 0.45);
-              lower.el.setAttribute("font-size", String(fs));
-              lower.h = fs * 0.92;
-              lower.top = lower.y - lower.h / 2;
-              lower.bottom = lower.y + lower.h / 2;
-              moved = true;
-            }
-            continue;
-          }
-          victim.el.style.opacity = "0";
-          victim.el.setAttribute("data-lune-soft-hide", "1");
-          victim.el.setAttribute("aria-hidden", "true");
-          hidden += 1;
-          moved = true;
-        }
-      }
-      if (!moved) break;
-    }
-    return hidden;
+    // Labels are never removed. Slot picking + spacing/font/lane escalation
+    // own collision handling.
+    return 0;
   }
 
-    function assertOverlaySeparation(host) {
-    const letters = [
-      ...(host?.querySelectorAll(".lune-letter-layer text.lune-letter, text.lune-letter") || []),
-    ]
-      .filter((t) => t.getAttribute("data-lune-hidden-lyric") !== "1")
-      .map((el) => approxBBox(el, "letter"));
-    const fingers = [
-      ...(host?.querySelectorAll(".lune-finger-layer text.lune-finger, text.lune-finger") || []),
-    ].map((el) => approxBBox(el, "finger"));
-
-    let letterLetter = 0;
-    let letterMin = Infinity;
-    const colTol = 2.4;
-    for (let i = 0; i < letters.length; i++) {
-      for (let j = i + 1; j < letters.length; j++) {
-        const a = letters[i];
-        const b = letters[j];
-        const dx = Math.abs(a.x - b.x);
-        const dy = Math.abs(a.y - b.y);
-        if (dx < letterMin && dy < letterMin) letterMin = Math.hypot(dx, dy);
-        if (dx <= colTol && dy < MIN_LETTER_GAP - 1.25 && dy < FONT_LETTER * 5 && edgeGap(a, b) < MIN_EDGE_GAP) {
-          letterLetter += 1;
-          continue;
-        }
-        if (dx < FONT_LETTER * 4.5 && dy < FONT_LETTER * 3.5 && edgeGap(a, b) < 0) {
-          letterLetter += 1;
-        }
-      }
-    }
-    if (!Number.isFinite(letterMin)) letterMin = null;
-
-    let fingerFinger = 0;
-    let fingerMin = Infinity;
-    for (let i = 0; i < fingers.length; i++) {
-      for (let j = i + 1; j < fingers.length; j++) {
-        const a = fingers[i];
-        const b = fingers[j];
-        if (Math.abs(a.x - b.x) > 3.25) continue;
-        const dy = Math.abs(a.y - b.y);
-        if (dy < fingerMin) fingerMin = dy;
-        if (dy < MIN_FINGER_GAP - 0.5 && dy < FONT_FINGER * 5) fingerFinger += 1;
-      }
-    }
-    if (!Number.isFinite(fingerMin)) fingerMin = null;
-
+  function assertOverlaySeparation(host) {
+    const audit = auditOverlays(host);
+    drawAuditBoxes(host, audit);
+    const letters = [...(host?.querySelectorAll("text.lune-letter") || [])].filter(
+      (t) => t.getAttribute("visibility") !== "hidden"
+    );
+    const fingers = [...(host?.querySelectorAll("text.lune-finger") || [])].filter(
+      (t) => t.getAttribute("visibility") !== "hidden"
+    );
+    const collisions = Object.values(audit.counts).reduce((a, n) => a + n, 0);
     return {
-      ok: letterLetter === 0 && fingerFinger === 0,
-      collisions: letterLetter + fingerFinger,
-      letterLetter,
-      fingerFinger,
+      ok: audit.ok,
+      collisions,
+      letterLetter: audit.counts.labelVsLabel,
+      fingerFinger: audit.counts.labelVsLabel,
       letterFinger: 0,
-      minDistance: letterMin,
-      fingerMinDistance: fingerMin,
+      minDistance: null,
+      fingerMinDistance: null,
       crossMinDistance: null,
       letterCount: letters.length,
       fingerCount: fingers.length,
-      count: letters.length,
+      count: letters.length || fingers.length,
       fontSize: FONT_LETTER,
+      audit,
+      counts: audit.counts,
+      offenders: audit.offenders,
     };
   }
 
@@ -1806,31 +2774,68 @@ window.LuneAnnotate = (function () {
 
     const plans = planJobs(
       jobs,
-      { ...opts, narrow: (metrics.hostW || 900) < 520 },
-      metrics
-    );
-    const placed = placePlans(host, plans);
-
-    if (opts.letters) hideOsmdLetterLyrics(host);
-    // XOR: never leave OSMD digits visible beside letter names
-    hideOsmdFingerings(host);
-    hideSoftCollidingLetters(host);
-    restackChordLetterColumns(host);
-    if (opts.fingers) restackChordFingerColumns(host);
-
-    const check = assertOverlaySeparation(host);
-    const chords = assertChordCompleteness(host, debriefs, completeness);
-    return {
-      placed,
-      via: "read-plan-place",
-      ok: check.ok && chords.ok,
-      check,
-      chords,
-      completeness,
+      { ...opts, allowLane: false, narrow: (metrics.hostW || 900) < 520 },
       metrics,
-      jobCount: jobs.length,
-      planCount: plans.length,
+      host
+    );
+    let placed = placePlans(host, plans);
+
+    const finishPaint = (planList, placedCount) => {
+      if (opts.letters) hideOsmdLetterLyrics(host);
+      hideOsmdFingerings(host);
+      LAST_LEADERS = logFailedLeaders(planList);
+      nudgeOffenderNodes(host);
+      const check = assertOverlaySeparation(host);
+      const chords = assertChordCompleteness(host, debriefs, completeness);
+      return {
+        placed: placedCount,
+        via: "read-plan-place",
+        ok: check.ok && chords.ok,
+        check,
+        chords,
+        completeness,
+        metrics,
+        jobCount: jobs.length,
+        planCount: planList.length,
+        leaders: LAST_LEADERS,
+        fontSize: FONT_LETTER,
+      };
     };
+
+    const shrinkOverlayFont = () => {
+      const floorUu = FONT_FLOOR_PX / Math.max(metrics.scale || 1, 0.25);
+      if (FONT_LETTER <= floorUu + 0.02) return false;
+      FONT_LETTER = Math.max(floorUu, FONT_LETTER - 0.85);
+      FONT_FINGER = FONT_LETTER;
+      LETTER_H = FONT_LETTER * 0.86;
+      FINGER_H = FONT_FINGER * 0.86;
+      LETTER_CHAR_W = FONT_LETTER * 0.46;
+      FINGER_W = FONT_FINGER * 0.52;
+      return true;
+    };
+
+    const paint = (allowLane) => {
+      clearLetterOverlays(host);
+      const next = planJobs(
+        jobs,
+        { ...opts, allowLane, narrow: (metrics.hostW || 900) < 520 },
+        metrics,
+        host
+      );
+      const n = placePlans(host, next);
+      return finishPaint(next, n);
+    };
+
+    let result = finishPaint(plans, placed);
+    if (!result.check.ok && options.allowFontDrop) {
+      while (!result.check.ok && shrinkOverlayFont()) {
+        result = paint(false);
+      }
+    }
+    if (!result.check.ok && options.allowLane) {
+      result = paint(true);
+    }
+    return result;
   }
 
   function readJobsViaNoteheads(host, debriefs) {
@@ -1923,7 +2928,7 @@ window.LuneAnnotate = (function () {
       if (!staffMeasures?.length) continue;
       const sm0 = staffMeasures[0];
       const num =
-        sm0.parentSourceMeasure?.MeasureNumber || sm0.measureNumber || mi + 1;
+        measureNumOf(sm0, mi);
       if (Number(num) !== want) continue;
       for (const sm of staffMeasures) {
         if (!sm) continue;
@@ -2008,7 +3013,7 @@ window.LuneAnnotate = (function () {
       const sm0 = measureList[mi]?.[0];
       if (!sm0) continue;
       const num = Number(
-        sm0.parentSourceMeasure?.MeasureNumber || sm0.measureNumber || mi + 1
+        measureNumOf(sm0, mi)
       );
       let sys = null;
       try {
@@ -2065,7 +3070,7 @@ window.LuneAnnotate = (function () {
       if (!staffMeasures?.[0]) continue;
       const sm0 = staffMeasures[0];
       const num =
-        sm0.parentSourceMeasure?.MeasureNumber || sm0.measureNumber || mi + 1;
+        measureNumOf(sm0, mi);
       let x0 = null;
       let x1 = null;
       let y0 = Infinity;
@@ -2149,6 +3154,8 @@ window.LuneAnnotate = (function () {
   }
 
   return {
+    debriefKeyFor: (n) => MEASURE_TO_DEBRIEF.get(Number(n)) ?? String(n),
+    __debug: { collectObstacles, collectStaffYs, readJobs, placeAllJobs, svgUserBox, clearCache: () => { OBST_CACHE = null; WIDTH_CACHE.clear(); } },
     annotate,
     placeLetterOverlays,
     clearLetterOverlays,
@@ -2169,8 +3176,23 @@ window.LuneAnnotate = (function () {
     systemBarsFor,
     readJobs,
     planJobs,
+    planChordStack,
+    auditOverlays,
+    lastLeaderLines: () => LAST_LEADERS,
+    FONT_FLOOR_PX,
+    MAX_SPACING_PASSES,
     MIN_LETTER_GAP,
     MIN_FINGER_GAP,
     MIN_CROSS_GAP,
   };
 })();
+
+window.__luneAudit = function __luneAudit(host) {
+  const el = host || document.getElementById("osmd");
+  const audit = window.LuneAnnotate?.auditOverlays?.(el);
+  if (audit) {
+    console.table(audit.counts);
+    if (audit.offenders?.length) console.warn("[lune audit] offenders", audit.offenders);
+  }
+  return audit;
+};

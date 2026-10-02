@@ -21,7 +21,7 @@ const COMPOSER_FACE_FILES = {
   rimsky: "rimsky.jpg",
   "rimsky-korsakov": "rimsky.jpg",
 };
-const COMPOSER_FACE_V = "fix65";
+const COMPOSER_FACE_V = "fix67";
 const COMPOSER_SILHOUETTE = `/static/assets/composers/silhouette.svg?v=${COMPOSER_FACE_V}`;
 
 const state = {
@@ -33,6 +33,9 @@ const state = {
   rawMusicxml: "",
   showFingers: false,
   lettersOnly: false,
+  overlaySpacePass: 0,
+  overlaySpaceKey: "",
+  overlaySpacingLock: false,
   scoreLetters: true,
   scoreFingers: false,
   showTips: true,
@@ -60,7 +63,8 @@ function toast(msg) {
   el.textContent = msg;
   el.hidden = false;
   clearTimeout(toast.t);
-  toast.t = setTimeout(() => (el.hidden = true), 2800);
+  // long messages stay long enough to read
+  toast.t = setTimeout(() => (el.hidden = true), Math.max(2800, String(msg).length * 55));
 }
 
 /* ---------- piano loader (shown while scores / samples load) ---------- */
@@ -156,7 +160,7 @@ function closeSearchResults({ blur = false } = {}) {
 const SEARCH_LIMIT = 8;
 // Paint on the next frame only — coalesces burst keystrokes, ~0–16ms feel (no 100ms lag).
 const SEARCH_DEBOUNCE_MS = 0;
-const SEARCH_INDEX_URL = "/static/search-index.json?v=fix65";
+const SEARCH_INDEX_URL = "/static/search-index.json?v=fix67";
 /** Composers whose piano works are typically still under copyright — honest empty state. */
 const COPYRIGHT_ERA_COMPOSERS = [
   "ginastera", "prokofiev", "shostakovich", "khachaturian", "kabalevsky",
@@ -1045,6 +1049,32 @@ function setStudioPanel(panel, { skipScore = false } = {}) {
   }
 }
 
+/**
+ * Start the full analysis (letters + fingering) the moment a piece opens, so
+ * the Score tab is ready by the time the pianist clicks it. One request per
+ * piece; ensureScoreReady awaits the same promise.
+ */
+const analysisPrefetch = new Map();
+function prefetchAnalysis(piece) {
+  if (!piece || piece.kind !== "score" || !piece.musicxml) return null;
+  if (!piece.needsAnalysis && piece.debriefs && Object.keys(piece.debriefs).length) return null;
+  const key = `${piece.title || ""}|${piece.composer || ""}|${piece.filename || ""}`;
+  if (analysisPrefetch.has(key)) return analysisPrefetch.get(key);
+  const p = tryOpen({
+    title: piece.title || "",
+    composer: piece.composer || "",
+    epoch: piece.epoch || piece.era || "",
+    query: piece.openQuery || piece.query || ($("q").value || "").trim(),
+    portrait: piece.overview?.composerInfo?.image || localComposerFaceUrl(piece.composer || "") || "",
+    analyze: true,
+  }).then((full) => {
+    if (!full) analysisPrefetch.delete(key);
+    return full;
+  });
+  analysisPrefetch.set(key, p);
+  return p;
+}
+
 async function ensureScoreReady() {
   if (!state.piece?.musicxml) {
     $("file")?.click();
@@ -1056,7 +1086,7 @@ async function ensureScoreReady() {
     !Object.keys(state.piece.debriefs).length;
   return withLoader(needs ? "Reading the score" : "Engraving the page", async () => {
     if (needs) {
-      const full = await tryOpen({
+      const full = await (prefetchAnalysis(state.piece) || tryOpen({
         title: state.piece.title || "",
         composer: state.piece.composer || "",
         epoch: state.piece.epoch || state.piece.era || "",
@@ -1066,7 +1096,7 @@ async function ensureScoreReady() {
           localComposerFaceUrl(state.piece.composer || "") ||
           "",
         analyze: true,
-      });
+      }));
       if (full && full.kind === "score" && full.musicxml) {
         state.piece = full;
         state.rawMusicxml = full.musicxml || "";
@@ -1084,11 +1114,11 @@ async function ensureScoreReady() {
         return false;
       }
     }
-    try {
-      await LunePiano.ensure();
-    } catch {
-      toast("Piano samples need internet the first time");
-    }
+    // Samples stream in the background; engraving never waits on them.
+    // (Silent: the Play button reports sample problems if the user asks.)
+    Promise.resolve()
+      .then(() => LunePiano.ensure())
+      .catch(() => {});
     await renderScore();
     state.scoreReady = true;
     const s = activeSession();
@@ -1111,6 +1141,15 @@ async function openPieceSession(piece, { panel = "explain" } = {}) {
   showView("studio");
   setStudioPanel(panel, { skipScore: true });
   renderExplainPanel(piece);
+  syncOpenButtons(piece);
+  // Warm everything the Score tab needs while the pianist reads the overview.
+  prefetchAnalysis(piece);
+  try {
+    // Audio may only start after a user gesture; searching counts as one.
+    if (navigator.userActivation?.hasBeenActive !== false) LunePiano.ensure()?.catch?.(() => {});
+  } catch {
+    /* samples load lazily on first play */
+  }
   if (panel === "score") {
     await ensureScoreReady();
   }
@@ -1130,6 +1169,7 @@ async function activateSession(id) {
   applySessionToState(s);
   fillPieceChrome(s.piece);
   renderPieceTabs();
+  syncOpenButtons(s.piece);
   showView("studio");
   setStudioPanel(s.panel || "explain", { skipScore: true });
   if ((s.panel || "explain") === "score" && s.piece?.musicxml) {
@@ -1172,9 +1212,30 @@ async function closeSession(id) {
 /* ---------- discover (legacy fallthrough) ---------- */
 
 function showDiscoverPage(piece, { canOpen }) {
+  // Nothing recognisable (no composer, no score): stay home and say so,
+  // instead of a placeholder piece page whose buttons cannot work.
+  if (!canOpen && !String(piece?.composer || "").trim()) {
+    const typed = ($("q").value || piece?.title || "").trim();
+    toast(
+      `No match for “${typed}”. Try a composer or title — Chopin Mazurka, Für Elise, Clair de Lune — or upload your own score.`
+    );
+    // stay wherever the pianist is (home or their open piece)
+    $("q")?.focus();
+    $("q")?.select?.();
+    return;
+  }
   // Prefer studio Explain so piece tabs + faces stay consistent.
   openPieceSession(piece, { panel: "explain" });
-  if (!canOpen) toast(piece?.message || "Try another free title or upload a file");
+  if (!canOpen) toast(piece?.message || "No free score for this one yet — upload your own copy to practise it.");
+}
+
+/** Primary buttons say what they will actually do for this piece. */
+function syncOpenButtons(piece) {
+  const label = piece?.musicxml ? "Open score" : "Upload your copy";
+  for (const id of ["btn-open-piece", "btn-open-piece-bottom", "btn-explain-score"]) {
+    const el = $(id);
+    if (el) el.textContent = label;
+  }
 }
 
 async function openPieceFromDiscover() {
@@ -1231,7 +1292,7 @@ function collectNotes(fromBar, toBar) {
   const debriefs = state.piece?.debriefs || {};
   let barCursor = 0;
   for (let b = fromBar; b <= toBar; b++) {
-    const d = debriefs[String(b)];
+    const d = debriefFor(b) || debriefs[String(b)];
     const pack = d?.playback || [...(d?.rh || []), ...(d?.lh || [])];
     const localMax = Math.max(0, ...pack.map((n) => Number(n.offset) || 0));
     for (const n of pack) {
@@ -1902,11 +1963,47 @@ async function playSelectedLine() {
 
 /* ---------- score render with annotations ---------- */
 
+/** Analysis entry for a printed bar (numbering can differ from the page). */
+function debriefFor(num) {
+  const deb = state.piece?.debriefs || {};
+  const key = LuneAnnotate?.debriefKeyFor?.(num) ?? String(num);
+  return deb[key] || deb[String(num)] || null;
+}
+
 function scoreNeedsRoom() {
-  return !!(state.scoreLetters || state.scoreFingers);
+  // Always engrave with label room: Notes / Fingers / Off then only repaint
+  // the overlay layer — instant, and the music never jumps under the eyes.
+  return true;
 }
 
 /** Draw / clear custom SVG letter+finger layers on the current OSMD SVG. */
+function overlaySpaceKey() {
+  const host = $("osmd");
+  const w = Math.round(host?.clientWidth || 0);
+  const mode = state.scoreFingers ? "f" : state.scoreLetters ? "l" : "o";
+  const piece = state.piece?.id || state.piece?.title || "";
+  return `${piece}|${w}|${mode}`;
+}
+
+function applyVoiceSpacing(osmd, pass) {
+  if (!osmd?.EngravingRules) return;
+  const rules = osmd.EngravingRules;
+  const mul = [1.05, 1.25, 1.45, 1.6][Math.max(0, Math.min(pass, 3))];
+  const add = [4, 6, 8, 10][Math.max(0, Math.min(pass, 3))];
+  const minD = [3, 5, 7, 9][Math.max(0, Math.min(pass, 3))];
+  try {
+    rules.VoiceSpacingMultiplierVexflow = mul;
+    rules.VoiceSpacingMultiplierVexFlow = mul;
+    rules.VoiceSpacingAddendVexflow = add;
+    rules.VoiceSpacingAddendVexFlow = add;
+    rules.MinNoteDistance = minD;
+  } catch {
+    /* older OSMD */
+  }
+}
+
+const ALLOW_SPACING_RERENDER = false;
+
 function applyScoreOverlays() {
   const host = $("osmd");
   if (!host || !state.osmd) return;
@@ -1915,16 +2012,64 @@ function applyScoreOverlays() {
   if (!wantLetters && !wantFingers) {
     LuneAnnotate.clearLetterOverlays(host);
     state.lastLetterCheck = null;
+    window.__luneLastCheck = null;
+    window.__luneLeaders = [];
     return;
   }
+  const key = overlaySpaceKey();
+  // Skip duplicate passes (rAF + settle timer + resize all fire after one
+  // render): same SVG, same mode, labels already drawn → nothing to do.
+  const svgNow = host.querySelector("svg");
+  const drawnKey = `${key}|${svgNow?.getAttribute("width")}|${svgNow?.getAttribute("height")}`;
+  if (
+    svgNow &&
+    state.overlayDrawnSvg === svgNow &&
+    state.overlayDrawnKey === drawnKey &&
+    svgNow.querySelector(".lune-letter-layer text, .lune-finger-layer text")
+  ) {
+    return;
+  }
+  if (state.overlaySpaceKey !== key) {
+    state.overlaySpaceKey = key;
+    state.overlaySpacePass = 0;
+  }
+  const pass = Number(state.overlaySpacePass) || 0;
+  const escalate = pass >= 3;
   const debriefs = state.piece?.debriefs || {};
-  LuneAnnotate.placeLetterOverlays(host, state.osmd, debriefs, {
+  window.__luneExpected = LuneAnnotate.collectLetters?.(debriefs)?.length || 0;
+  const result = LuneAnnotate.placeLetterOverlays(host, state.osmd, debriefs, {
     letters: wantLetters,
     fingers: wantFingers,
+    allowFontDrop: escalate,
+    allowLane: escalate,
   });
   state.lastLetterCheck =
+    result?.check ||
     LuneAnnotate.assertOverlaySeparation?.(host) ||
     LuneAnnotate.assertLetterSeparation?.(host);
+  if (result?.leaders) state.lastOverlayLeaders = result.leaders;
+  window.__luneLastCheck = state.lastLetterCheck;
+  window.__luneLeaders = state.lastOverlayLeaders || [];
+  window.__luneOverlayPass = state.overlaySpacePass;
+  state.overlayDrawnSvg = svgNow;
+  state.overlayDrawnKey = drawnKey;
+  if (state.overlaySpacingLock) return;
+  // Re-engraving with wider spacing reflowed the page (and cost a full
+  // render). Placement now searches for clear spots itself, so stay put.
+  if (ALLOW_SPACING_RERENDER && state.lastLetterCheck && !state.lastLetterCheck.ok && pass < 3) {
+    state.overlaySpacePass = pass + 1;
+    applyVoiceSpacing(state.osmd, state.overlaySpacePass);
+    state.overlaySpacingLock = true;
+    try {
+      state.osmd.render();
+    } catch {
+      state.overlaySpacingLock = false;
+    }
+    window.setTimeout(() => {
+      state.overlaySpacingLock = false;
+      if (state.osmd) applyScoreOverlays();
+    }, 140);
+  }
 }
 
 /**
@@ -1964,6 +2109,29 @@ function bindOsmdRenderOverlays(osmd) {
   }
 }
 
+/** Re-engrave only when the score column really changes width (rotate, resize). */
+function watchScoreWidth() {
+  const host = $("osmd");
+  if (!host || state.__scoreWidthObserver || typeof ResizeObserver === "undefined") return;
+  let timer = 0;
+  state.__scoreWidthObserver = new ResizeObserver(() => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      const w = Math.round(host.clientWidth || 0);
+      if (!state.osmd || !w || host.hidden) return;
+      if (Math.abs(w - (state.osmdRenderedWidth || 0)) < 8) return;
+      state.osmdRenderedWidth = w;
+      try {
+        state.osmd.zoom = w >= 720 ? 1.18 : 1.08;
+        state.osmd.render();
+      } catch {
+        /* keep the last good engraving */
+      }
+    }, 160);
+  });
+  state.__scoreWidthObserver.observe(host);
+}
+
 async function renderScore() {
   const base = state.rawMusicxml || state.piece?.musicxml || "";
   if (!base) return;
@@ -1978,7 +2146,10 @@ async function renderScore() {
   $("osmd").hidden = false;
   $("osmd").innerHTML = "";
   const osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay($("osmd"), {
-    autoResize: true,
+    // OSMD's autoResize re-engraves right after the first render even when
+    // nothing changed (+1.8s). watchScoreWidth() re-renders only on real
+    // width changes instead.
+    autoResize: false,
     backend: "svg",
     drawTitle: false,
     drawComposer: false,
@@ -1989,11 +2160,15 @@ async function renderScore() {
     drawFingerings: false, // custom SVG fingers — OSMD piles chord digits
   });
   try {
-    const roomy = wantLetters || wantFingers;
+    const roomy = scoreNeedsRoom();
     osmd.EngravingRules.BetweenStaffDistance = roomy ? 9.5 : 3.5;
     osmd.EngravingRules.StaffDistance = roomy ? 18 : 7.5;
     const wide = ($("osmd")?.clientWidth || 900) >= 720;
     osmd.zoom = wide ? 1.18 : 1.08;
+    state.overlaySpacePass = 0;
+    state.overlaySpaceKey = overlaySpaceKey();
+    state.overlaySpacingLock = false;
+    if (roomy) applyVoiceSpacing(osmd, 0);
     if (wantFingers) {
       osmd.EngravingRules.FingeringPaddingY = 0.85;
       osmd.EngravingRules.FingeringOffsetY = 0.35;
@@ -2003,10 +2178,12 @@ async function renderScore() {
     /* older OSMD */
   }
   state.osmd = osmd;
-  state.scoreWasRoomy = wantLetters || wantFingers;
+  state.scoreWasRoomy = scoreNeedsRoom();
   bindOsmdRenderOverlays(osmd);
   await osmd.load(xml);
   osmd.render();
+  state.osmdRenderedWidth = Math.round($("osmd")?.clientWidth || 0);
+  watchScoreWidth();
   wireScoreMeasureClicks();
   // Immediate apply (patched render also schedules one after autoResize).
   requestAnimationFrame(() => {
@@ -2039,7 +2216,7 @@ function wireScoreMeasureClicks() {
   const barAt = (clientX, clientY) => {
     if (!state.piece?.debriefs) return null;
     const num = LuneAnnotate.measureAtPoint?.(state.osmd, host, clientX, clientY);
-    if (!num || !state.piece.debriefs[String(num)]) return null;
+    if (!num || !debriefFor(num)) return null;
     return Number(num);
   };
 
@@ -2094,7 +2271,7 @@ function rangeBars(a, b) {
   const hi = Math.max(Number(a), Number(b));
   const out = [];
   for (let i = lo; i <= hi; i++) {
-    if (state.piece?.debriefs?.[String(i)]) out.push(i);
+    if (debriefFor(i)) out.push(i);
   }
   return out;
 }
@@ -2369,7 +2546,7 @@ function lineSummaryHtml(bar) {
   let hardest = null;
   const tagCounts = new Map();
   for (const n of line) {
-    const d = debriefs[String(n)];
+    const d = debriefFor(n) || debriefs[String(n)];
     if (!d?.found) continue;
     const score = Number(d.difficulty?.score) || 0;
     if (!hardest || score > hardest.score) hardest = { num: n, score, d };
@@ -2433,7 +2610,7 @@ function openBarCoach() {
     )}. \u201cPlay bars\u201d below plays just this span.</p>`;
   }
   for (const num of bars) {
-    const d = state.piece?.debriefs?.[String(num)];
+    const d = debriefFor(num);
     html += barSectionHtml(num, d);
   }
   if (bars.length === 1) {
@@ -2474,7 +2651,7 @@ async function askPlan() {
   refreshCoachChrome();
   let html = `<h3>Practice · ${escapeHtml(selectionTitle(bars))}</h3>`;
   for (const num of bars) {
-    html += lettersBlock(state.piece.debriefs?.[String(num)] || { rh: [], lh: [] });
+    html += lettersBlock(debriefFor(num) || { rh: [], lh: [] });
   }
   html += `<h4>Session</h4><ul>${(plan.steps || [])
     .map((s) => `<li><strong>${escapeHtml(s.title)}</strong> (${s.minutes}m) — ${escapeHtml(s.detail)}</li>`)

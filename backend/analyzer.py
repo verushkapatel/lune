@@ -148,12 +148,27 @@ def _safe_beat(note_el: music21.note.Note) -> Optional[float]:
         return None
 
 
+def _beat_from_offset(offset: float, beat_ql: Optional[float], padding_left: float) -> Optional[float]:
+    """Beat number from the bar's own time signature.
+
+    music21's note.beat walks the whole context tree for every note (over half
+    of total analysis time on long pieces); the bar already knows its meter.
+    """
+    if not beat_ql:
+        return None
+    try:
+        return round((float(offset) + float(padding_left or 0.0)) / float(beat_ql) + 1.0, 3)
+    except Exception:
+        return None
+
+
 def _build_note(
     note_el: music21.note.Note,
     offset: float,
     measure_number: int,
     staff_label: str,
     hand: str,
+    beat: Optional[float] = None,
 ) -> NoteInfo:
     pitch = note_el.pitch
     tie_type = ""
@@ -171,7 +186,7 @@ def _build_note(
         staff=staff_label,
         hand=hand,
         offset=offset,
-        beat=_safe_beat(note_el),
+        beat=beat if beat is not None else _safe_beat(note_el),
         measure=measure_number,
         is_black_key=int(pitch.midi) % 12 in BLACK_PITCH_CLASSES,
         is_grace=bool(note_el.duration.isGrace),
@@ -186,8 +201,19 @@ def _extract_notes(
     measure_number: int,
     part_name: str,
     hand: str,
+    time_sig: Optional[music21.meter.TimeSignature] = None,
 ) -> List[NoteInfo]:
     groups: Dict[float, List[NoteInfo]] = {}
+    beat_ql: Optional[float] = None
+    if time_sig is not None:
+        try:
+            beat_ql = float(time_sig.beatDuration.quarterLength)
+        except Exception:
+            beat_ql = None
+    try:
+        padding_left = float(measure.paddingLeft or 0.0)
+    except Exception:
+        padding_left = 0.0
 
     for element in measure.recurse().notes:
         if isinstance(element, music21.chord.Chord):
@@ -203,7 +229,8 @@ def _extract_notes(
             continue
 
         for member in members:
-            info = _build_note(member, round(base_offset, 4), measure_number, part_name, hand)
+            beat = _beat_from_offset(base_offset, beat_ql, padding_left)
+            info = _build_note(member, round(base_offset, 4), measure_number, part_name, hand, beat)
             groups.setdefault(info.offset, []).append(info)
 
     notes: List[NoteInfo] = []
@@ -391,9 +418,13 @@ def analyze_score(path: str) -> ScoreAnalysis:
             clefs.append(f"{part_name}: {current_clef.__class__.__name__.replace('Clef', '')}")
 
         part_measures = list(part.getElementsByClass(music21.stream.Measure))
+        current_ts = first_ts
 
         for measure_index, measure in enumerate(part_measures):
             number = int(measure.number)
+            local_ts = measure.getElementsByClass(music21.meter.TimeSignature).first()
+            if local_ts is not None:
+                current_ts = local_ts
 
             local_clef = measure.getElementsByClass(music21.clef.Clef).first()
             if local_clef is not None:
@@ -408,7 +439,7 @@ def analyze_score(path: str) -> ScoreAnalysis:
                     pass
 
             info = measure_map.setdefault(number, MeasureInfo(number=number))
-            info.notes.extend(_extract_notes(measure, number, part_name, hand))
+            info.notes.extend(_extract_notes(measure, number, part_name, hand, current_ts))
             info.dynamics.extend(_extract_dynamics(measure, number))
             info.expressions.extend(_extract_expressions(measure))
 

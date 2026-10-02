@@ -102,13 +102,32 @@ ERA_STORIES: Dict[str, str] = {
 }
 
 
-def _get_json(url: str, timeout: float = 10.0) -> Optional[Dict[str, Any]]:
+# Every overview makes several lookups (Wikipedia, OpenOpus). Remember answers
+# for an hour and misses for a minute, so a slow or offline network costs one
+# short wait instead of ~10s per lookup on every open.
+_JSON_CACHE: Dict[str, Tuple[float, Optional[Dict[str, Any]]]] = {}
+_JSON_OK_TTL = 3600.0
+_JSON_MISS_TTL = 60.0
+
+
+def _get_json(url: str, timeout: float = 4.0) -> Optional[Dict[str, Any]]:
+    now = time.monotonic()
+    cached = _JSON_CACHE.get(url)
+    if cached is not None:
+        stamp, value = cached
+        if now - stamp < (_JSON_OK_TTL if value is not None else _JSON_MISS_TTL):
+            return value
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    value: Optional[Dict[str, Any]]
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
-            return json.loads(response.read().decode("utf-8"))
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, ValueError):
-        return None
+            value = json.loads(response.read().decode("utf-8"))
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, ValueError, OSError):
+        value = None
+    _JSON_CACHE[url] = (now, value)
+    if len(_JSON_CACHE) > 512:
+        _JSON_CACHE.pop(next(iter(_JSON_CACHE)))
+    return value
 
 
 # Short-lived cache so repeat /api/search calls do not re-hit OpenOpus.
