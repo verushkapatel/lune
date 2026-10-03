@@ -2910,6 +2910,100 @@ window.LuneAnnotate = (function () {
   }
 
   /**
+   * Onset anchors for the playhead inside a measure — engraved X vs quarter
+   * offset in the bar. Skips clef/key padding by using real note positions.
+   * Returns [{ q, x }] in score-scroll host coordinates, or null.
+   */
+  function playheadAnchorsInHost(osmd, host, measureNum) {
+    const svg = host?.querySelector("svg");
+    if (!svg || !osmd?.graphic?.measureList) return null;
+    const want = Number(measureNum);
+    if (!Number.isFinite(want)) return null;
+    const measureList = osmd.graphic.measureList;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return null;
+    const scroll = host.closest?.(".score-scroll") || host.parentElement;
+    const scrollRect = scroll?.getBoundingClientRect?.() || host.getBoundingClientRect();
+    const u = unitPx(osmd);
+    const byQ = new Map();
+
+    const fractionToQuarters = (ts) => {
+      if (ts == null) return null;
+      try {
+        if (typeof ts.RealValue === "number") return ts.RealValue * 4;
+        if (typeof ts.realValue === "number") return ts.realValue * 4;
+        const num = ts.Numerator ?? ts.numerator;
+        const den = ts.Denominator ?? ts.denominator;
+        if (num != null && den) return (Number(num) / Number(den)) * 4;
+      } catch {
+        /* ignore */
+      }
+      return null;
+    };
+
+    const svgXToHost = (sx) => {
+      const pt = svg.createSVGPoint();
+      pt.x = sx;
+      pt.y = 0;
+      const s = pt.matrixTransform(ctm);
+      return s.x - scrollRect.left + (scroll?.scrollLeft || 0);
+    };
+
+    for (let mi = 0; mi < measureList.length; mi++) {
+      const staffMeasures = measureList[mi];
+      if (!staffMeasures?.length) continue;
+      if (Number(measureNumOf(staffMeasures[0], mi)) !== want) continue;
+      for (const sm of staffMeasures) {
+        if (!sm?.staffEntries) continue;
+        for (const entry of sm.staffEntries) {
+          let q = fractionToQuarters(
+            entry.relInMeasureTimestamp || entry.RelInMeasureTimestamp
+          );
+          if (q == null) q = 0;
+
+          let svgX = null;
+          for (const voice of entry.graphicalVoiceEntries || []) {
+            for (const gn of voice.notes || []) {
+              if (!isPitchedGraphicNote(gn)) continue;
+              try {
+                const abs = gn.PositionAndShape?.AbsolutePosition;
+                if (abs && abs.x != null) {
+                  svgX = abs.x * u;
+                  break;
+                }
+              } catch {
+                /* try box */
+              }
+              const box = gnBox(gn, svg, osmd);
+              if (box && Number.isFinite(box.cx)) {
+                svgX = box.cx;
+                break;
+              }
+            }
+            if (svgX != null) break;
+          }
+          if (svgX == null) {
+            try {
+              const abs = entry.PositionAndShape?.AbsolutePosition;
+              if (abs && abs.x != null) svgX = abs.x * u;
+            } catch {
+              /* skip */
+            }
+          }
+          if (svgX == null || !Number.isFinite(svgX)) continue;
+          const key = Math.round(q * 1000);
+          if (!byQ.has(key)) byQ.set(key, svgXToHost(svgX));
+        }
+      }
+    }
+
+    if (!byQ.size) return null;
+    return [...byQ.entries()]
+      .map(([k, x]) => ({ q: k / 1000, x }))
+      .sort((a, b) => a.q - b.q);
+  }
+
+  /**
    * Bounding box of a measure in SVG user units (union across staves).
    * Returns { num, x0, x1, y0, y1 } or null.
    */
@@ -3173,6 +3267,7 @@ window.LuneAnnotate = (function () {
     measureAtPoint,
     measureBoundsSvg,
     measureBoundsInHost,
+    playheadAnchorsInHost,
     systemBarsFor,
     readJobs,
     planJobs,
