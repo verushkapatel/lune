@@ -189,9 +189,59 @@ def section_install(browser):
     ctx.close()
 
 
+# ---------------------------------------------------------------- tabs
+
+
+def section_tabs(browser):
+    pg = new_page(browser)
+    scores = []
+    pg.on("request", lambda r: scores.append(r.url) if "/static/scores/" in r.url else None)
+    pg.goto(BASE + "#/beethoven-fur-elise/explain", wait_until="networkidle")
+    pg.wait_for_function("() => /Elise/.test(state.piece?.overview?.title || '')", timeout=60000)
+    pg.goto(BASE + "#/debussy-clair-de-lune/explain", wait_until="networkidle")
+    pg.wait_for_function("() => state.sessions.length === 2 && /Clair/.test(state.piece?.overview?.title || '')", timeout=60000)
+    pg.wait_for_timeout(500)
+    saved = pg.evaluate("() => JSON.parse(localStorage.getItem('lune.tabs'))")
+    ids = pg.evaluate("() => state.sessions.map(s => pieceRouteId(s.piece))")
+    check("tabs: open tabs are stored as ids", [t["id"] for t in saved["tabs"]] == ids and "fur-elise" in ids[0], saved)
+    check("tabs: the current tab is stored", saved["active"] == ids[1], saved.get("active"))
+
+    # reload on the home page: both tabs come back, no score is fetched
+    scores.clear()
+    pg.goto(BASE, wait_until="networkidle")
+    pg.reload(wait_until="networkidle")
+    pg.wait_for_timeout(800)
+    labels = pg.eval_on_selector_all("#piece-tabs .piece-tab-label", "els => els.map(e => e.textContent)")
+    check("tabs: both tabs are back after a reload", len(labels) == 2 and "Für Elise" in labels[0], labels)
+    check("tabs: no score is downloaded until a tab is opened", not scores, scores[:2])
+    check("tabs: the + button is still there", pg.locator("#piece-tabs .piece-tab-new").is_visible())
+
+    # opening a restored tab loads its score and marks it as current
+    pg.click("#piece-tabs .piece-tab-label >> nth=1")
+    pg.wait_for_function("() => /Clair/.test(state.piece?.overview?.title || '') && document.body.classList.contains('is-studio')", timeout=60000)
+    pg.wait_for_timeout(600)
+    check("tabs: opening a restored tab fetches only its score", len(scores) == 1 and "clair" in scores[0].lower(), scores)
+    cur = pg.evaluate("() => [...document.querySelectorAll('#piece-tabs [role=tab]')].map(b => [b.textContent, b.getAttribute('aria-selected'), b.getAttribute('aria-current'), b.closest('.piece-tab').classList.contains('on')])")
+    check("tabs: the current tab is marked (aria-selected, aria-current and the underline)", cur[1][1:] == ["true", "page", True] and cur[0][1:] == ["false", None, False], cur)
+
+    # a reload on a piece's own link reopens that piece with the other tab kept
+    pg.goto(BASE + "#/beethoven-fur-elise/explain")
+    pg.reload(wait_until="networkidle")
+    pg.wait_for_function("() => /Elise/.test(state.piece?.overview?.title || '')", timeout=60000)
+    n = pg.evaluate("() => [state.sessions.length, state.sessions.filter(s => s.lazy).length]")
+    check("tabs: a piece link reload opens that tab and keeps the other one waiting", n == [2, 1], n)
+
+    # closing a tab forgets it
+    pg.click("#piece-tabs .piece-tab-close >> nth=1")
+    pg.wait_for_timeout(400)
+    saved = pg.evaluate("() => JSON.parse(localStorage.getItem('lune.tabs'))")
+    check("tabs: a closed tab is not restored", [t["id"] for t in saved["tabs"]] == ids[:1], saved)
+    check("tabs: no page errors", not pg.errors, pg.errors[:3])
+
+
 # ---------------------------------------------------------------- main
 
-SECTIONS = {"ai": section_ai, "install": section_install}
+SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs}
 
 if __name__ == "__main__":
     want = sys.argv[1:] or list(SECTIONS)
