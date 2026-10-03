@@ -386,6 +386,23 @@ window.LuneOnboard = (function () {
     }
   }
 
+  /** Reading help chosen during setup: nothing is switched on for people who don't ask. */
+  function needOn(kind) {
+    const p = store()?.prefs?.() || {};
+    return kind === "dyslexia" ? !!p.readableFont : !!(p.largePrint && p.autoRead);
+  }
+  function setNeed(kind, on) {
+    const s = store();
+    if (!s?.setPref) return;
+    if (kind === "dyslexia") s.setPref("readableFont", on);
+    else for (const k of ["largePrint", "highContrast", "autoRead"]) s.setPref(k, on);
+    const p = s.prefs();
+    document.body.classList.toggle("lp-readable", !!p.readableFont);
+    document.body.classList.toggle("lp-large", !!p.largePrint);
+    document.body.classList.toggle("lp-contrast", !!p.highContrast);
+    s.syncPrefs?.();
+  }
+
   function persistPrefsPartial() {
     const s = store();
     if (!s?.setPref) return;
@@ -457,6 +474,12 @@ window.LuneOnboard = (function () {
         pendingSignedWelcome = false;
         pendingWelcomeBack = false;
         enterApp();
+        // Start at the top of the home page, not wherever it was last left.
+        requestAnimationFrame(() => {
+          const home = $("home");
+          if (home) home.scrollTop = 0;
+          window.scrollTo(0, 0);
+        });
       });
     }
 
@@ -958,6 +981,18 @@ window.LuneOnboard = (function () {
           </div>
           <p class="onboard-practice-sum">${practiceDays} days · ${practiceMins} min · about <strong>${practiceDays * practiceMins} minutes</strong> a week</p>
         </div>
+        <div class="onboard-needs" role="group" aria-label="Reading help">
+          <p class="onboard-practice-label">Would either of these help you read? Skip if not.</p>
+          ${[
+            ["dyslexia", "I have dyslexia", "Letter names in a typeface where every letter shape is distinct."],
+            ["vision", "I’m blind or have low vision", "Large print, high contrast, and every bar described aloud. Lune also works with your device’s own screen reader."],
+          ]
+            .map(([k, label, hint]) => {
+              const on = needOn(k);
+              return `<button type="button" class="onboard-need${on ? " on" : ""}" data-need="${k}" aria-pressed="${on}"><strong>${label}</strong><span>${hint}</span></button>`;
+            })
+            .join("")}
+        </div>
         ${navHtml()}`;
     } else if (step === 4) {
       const suggestions = filteredDreams(dreamQuery);
@@ -1086,6 +1121,14 @@ window.LuneOnboard = (function () {
   }
 
   function bindOnboardEvents(stage) {
+    stage.querySelectorAll("[data-need]").forEach((b) =>
+      b.addEventListener("click", () => {
+        const on = b.getAttribute("aria-pressed") !== "true";
+        setNeed(b.dataset.need, on);
+        b.setAttribute("aria-pressed", String(on));
+        b.classList.toggle("on", on);
+      })
+    );
     stage.querySelector("[data-next]")?.addEventListener("click", () => {
       if (step === 0 && !selectedComposers.size) return;
       if (step === 4 && !dreamPiece) return;

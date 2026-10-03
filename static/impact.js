@@ -265,7 +265,7 @@ window.LuneImpact = (function () {
       tonight.hidden = false;
       if (tonightH) tonightH.textContent = "When practice feels lost";
       tonightBody.textContent =
-        "Use Play along on a score — Lune marks the bars that trip you, then builds a short plan.";
+        "Rate a bar after you practise it, or ask Lune to add it to your plan. The bars that need you come back here.";
       if (tonightBtn) {
         tonightBtn.hidden = false;
         tonightBtn.textContent = "Open a recommended piece";
@@ -298,7 +298,7 @@ window.LuneImpact = (function () {
       ? `<ul class="impact-list">${stumbles.flat
           .map((x) => `<li><span>${esc(x.title)}</span><em>bar ${x.bar}</em></li>`)
           .join("")}</ul>`
-      : `<p class="impact-empty">No stumble map yet this fortnight. Play along on a score to gather one.</p>`;
+      : `<p class="impact-empty">No hard bars logged this fortnight. Rate bars after you practise and they appear here.</p>`;
 
     const minsLine =
       snap.mins > 0

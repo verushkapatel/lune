@@ -170,8 +170,27 @@ window.LuneLane = (function () {
    * Existing lyrics are removed (piano scores rarely carry any; a lane must
    * never mix with sung text).
    */
+  /**
+   * mode "both" engraves the letter names and remembers each label's finger
+   * number beside it, so switching Notes / Fingers / Off afterwards is a text
+   * swap on the page instead of a second engraving. Each label carries an
+   * invisible tag (zero-width characters) that identifies it after the
+   * engraver has drawn it; `labels` maps that tag back to letter and finger.
+   */
+  let labels = [];
+  const ZW = ["\u200B", "\u200C"];
+  const tag = (i) => "\u2060" + i.toString(2).split("").map((b) => ZW[Number(b)]).join("");
+  function untag(text) {
+    const at = String(text || "").indexOf("\u2060");
+    if (at < 0) return null;
+    const bits = [...text.slice(at + 1)].map((c) => ZW.indexOf(c)).filter((b) => b >= 0);
+    return labels[parseInt(bits.join("") || "0", 2)] || null;
+  }
+
   function build(xml, { mode = "letters", debriefs = {} } = {}) {
     if (!xml || mode === "off") return xml;
+    const both = mode === "both";
+    if (both) labels = [];
     const doc = new DOMParser().parseFromString(xml, "application/xml");
     if (doc.getElementsByTagName("parsererror").length) return xml;
     for (const l of [...doc.getElementsByTagName("lyric")]) l.remove();
@@ -189,7 +208,7 @@ window.LuneLane = (function () {
         byNum.get(key).push(...notes);
       }
     });
-    const fingers = mode === "fingers" ? fingerMap(byNum, debriefs || {}) : null;
+    const fingers = mode === "fingers" || both ? fingerMap(byNum, debriefs || {}) : null;
 
     // Most label lines any chord needs, per staff — plus one spare line that
     // stays empty: labels in impossibly dense spots drop onto it (zig-zag),
@@ -241,6 +260,11 @@ window.LuneLane = (function () {
         // a unison doubled across voices is one key → one label
         const uniq = g.filter((n, i) => i === 0 || n.midi !== g[i - 1].midi);
         uniq.forEach((n, i) => {
+          if (both) {
+            labels.push({ letter: n.letter, finger: fingers.get(n.el) || "" });
+            addLyric(n.el, i + 1, n.letter + tag(labels.length - 1));
+            return;
+          }
           const text = fingers ? fingers.get(n.el) || "" : n.letter;
           if (!text) return;
           addLyric(n.el, i + 1, text);
@@ -250,5 +274,5 @@ window.LuneLane = (function () {
     return new XMLSerializer().serializeToString(doc);
   }
 
-  return { build, printed, SPARE };
+  return { build, printed, untag, SPARE };
 })();

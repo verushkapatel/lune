@@ -240,7 +240,8 @@ window.LunePractice = (function () {
       }
       const rec = new Recognition();
       activeRec = rec;
-      rec.lang = navigator.language || "en-GB";
+      // English recognition even on a device set to another language
+      rec.lang = /^en\b/i.test(navigator.language || "") ? navigator.language : "en-GB";
       rec.interimResults = true;
       rec.maxAlternatives = 1;
       rec.continuous = false;
@@ -275,7 +276,7 @@ window.LunePractice = (function () {
       };
       rec.onend = () => {
         activeRec = null;
-        resolve(finalText.trim());
+        resolve(tidySpoken(finalText));
       };
       try {
         rec.start();
@@ -284,6 +285,21 @@ window.LunePractice = (function () {
         reject(new Error("Voice notes aren’t available right now — type the note instead."));
       }
     });
+  }
+  /** Browsers return bare lower-case words: add the punctuation a person would. */
+  function tidySpoken(text) {
+    let t = String(text || "").replace(/\s+/g, " ").trim();
+    if (!t) return "";
+    t = t
+      .replace(/\s*\b(comma)\b\s*/gi, ", ")
+      .replace(/\s*\b(full stop|period)\b\s*/gi, ". ")
+      .replace(/\s*\b(question mark)\b\s*/gi, "? ")
+      .replace(/\s+([,.?!])/g, "$1")
+      .trim();
+    const question = /^(what|why|how|when|where|which|who|is|are|can|could|should|do|does|did|will|would)\b/i.test(t);
+    if (!/[.?!]$/.test(t)) t += question ? "?" : ".";
+    t = t.replace(/(^|[.?!]\s+)([a-z])/g, (m, a, b) => a + b.toUpperCase()).replace(/\bi\b/g, "I");
+    return t;
   }
   function stopHearing() {
     try {
@@ -396,9 +412,43 @@ window.LunePractice = (function () {
     }
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
-    u.rate = Number(store.prefs().speechRate) || 0.95;
-    u.lang = navigator.language || "en-GB";
+    const voice = bestVoice();
+    if (voice) {
+      u.voice = voice;
+      u.lang = voice.lang;
+    } else {
+      u.lang = "en-GB"; // never the device's own language: the text is English
+    }
+    u.rate = Number(store.prefs().speechRate) || 1;
+    u.pitch = 1;
     speechSynthesis.speak(u);
+  }
+  /**
+   * The most natural English voice this device has. The default voice is
+   * often the oldest, most robotic one, and a non-English default reads
+   * English text as gibberish.
+   */
+  function bestVoice() {
+    const voices = (speechSynthesis.getVoices?.() || []).filter((v) => /^en[-_]/i.test(v.lang));
+    if (!voices.length) return null;
+    const score = (v) => {
+      const n = v.name;
+      let s = 0;
+      if (/natural|neural|premium|enhanced|siri/i.test(n)) s += 50;
+      if (/Google UK English Female|Google US English|Samantha|Karen|Serena|Daniel|Moira|Ava|Allison|Sonia|Libby|Aria|Jenny/i.test(n)) s += 25;
+      if (/compact|eloquence|albert|bad news|bahh|bells|boing|bubbles|cellos|jester|organ|trinoids|whisper|zarvox|wobble|fred|junior|ralph|kathy|good news|superstar/i.test(n)) s -= 80;
+      if (/en[-_]GB/i.test(v.lang)) s += 6;
+      if (v.localService) s += 2;
+      return s;
+    };
+    return voices.slice().sort((a, b) => score(b) - score(a))[0];
+  }
+  // voices load late in Chrome; asking early means they are ready by the first Listen
+  try {
+    speechSynthesis.getVoices?.();
+    speechSynthesis.addEventListener?.("voiceschanged", () => speechSynthesis.getVoices());
+  } catch {
+    /* no speech on this browser */
   }
   function readSelectedAloud() {
     const bars = selectedBarsSorted();
@@ -434,7 +484,11 @@ window.LunePractice = (function () {
         </div>
         <button type="submit" class="lp-save primary">Save</button>
       </form>
-      <button type="button" class="quiet lp-to-plan" data-lp="plan">Add bars to my plan</button>
+      <div class="lp-asked" hidden></div>
+      <div class="lp-ask-row">
+        <button type="button" class="quiet" data-lp="ask">Ask Lune about bar ${primary}</button>
+        <button type="button" class="quiet" data-lp="plan">Add to my plan</button>
+      </div>
       <h4 class="lp-h">How did it go?</h4>
       <div class="lp-grades" role="group" aria-label="Rate this practice">
         ${GRADES.map(([g, label, hint]) => `<button type="button" class="lp-grade lp-${g}" data-grade="${g}" title="${esc(hint)}">${label}</button>`).join("")}
@@ -475,6 +529,15 @@ window.LunePractice = (function () {
     };
     renderNotes();
     renderDue();
+    // what was asked about this bar before, so the answers are not lost
+    const asked = (window.LuneAsk?.historyFor?.(primary) || []).slice(-2);
+    const askedEl = wrap.querySelector(".lp-asked");
+    if (asked.length && askedEl) {
+      askedEl.hidden = false;
+      askedEl.innerHTML = `<h4 class="lp-h">You asked</h4>${asked
+        .map((h) => `<p class="lp-asked-q">${esc(h.q)}</p><p class="lp-asked-a">${esc(h.a)}</p>`)
+        .join("")}`;
+    }
 
     // teacher assignment notes for this bar (link opened but not saved yet)
     if (assignment && assignment.key === key) {
@@ -490,7 +553,12 @@ window.LunePractice = (function () {
       const btn = e.target.closest("button");
       if (!btn) return;
       if (btn.dataset.lp === "aloud") readSelectedAloud();
-      else if (btn.dataset.lp === "assign" || btn.dataset.lp === "plan") {
+      else if (btn.dataset.lp === "ask") window.LuneAsk?.open?.({ bar: primary });
+      else if (btn.dataset.lp === "plan" && window.LuneAsk) {
+        // the plan is written from this bar's analysis and your remarks on it
+        window.LuneAsk.open({ bar: primary });
+        window.LuneAsk.ask("Make a plan");
+      } else if (btn.dataset.lp === "assign" || btn.dataset.lp === "plan") {
         openTaskDialog({
           pieceKey: keyFor(state.piece),
           title: titleFor(state.piece),
@@ -1041,9 +1109,7 @@ window.LunePractice = (function () {
                   ${STATUS.map(([v, l]) => `<option value="${v}" ${p.status === v ? "selected" : ""}>${l}</option>`).join("")}
                 </select>
                 <button type="button" class="primary" data-open="${esc(p.piece_key)}">Open</button>
-                <button type="button" class="icon-btn" data-card-more="${esc(p.piece_key)}" aria-label="More for ${esc(p.title)}" title="More">
-                  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="6" cy="12" r="1.4" fill="currentColor"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/><circle cx="18" cy="12" r="1.4" fill="currentColor"/></svg>
-                </button>
+                <button type="button" class="quiet" data-work="${esc(p.piece_key)}" title="See what to work on in this piece and add it to your plan">What to work on</button>
                 <button type="button" class="quiet rep-remove" hidden data-remove="${esc(p.piece_key)}" aria-label="Remove ${esc(p.title)}">Remove</button>
               </div>
             </article>`;
@@ -1070,6 +1136,9 @@ window.LunePractice = (function () {
       }
     }
     if (!listChanged) return;
+    listEl.querySelectorAll("[data-work]").forEach((btn) => {
+      btn.addEventListener("click", () => openWorkOn(btn.dataset.work).catch((err) => toast(err.message)));
+    });
     listEl.querySelectorAll("[data-card-more]").forEach((btn) => {
       const key = btn.dataset.cardMore;
       const piece = pieces.find((p) => p.piece_key === key);
@@ -1399,9 +1468,12 @@ window.LunePractice = (function () {
       a.href = href;
       a.download = br.file;
       a.title = br.note || "Braille music (.brf)";
-      a.textContent = id.includes("explain") ? "Braille" : "⠃";
-      a.setAttribute("aria-label", "Download braille music");
+      a.textContent = id.includes("explain") ? "Download braille music" : "Braille";
+      a.setAttribute("aria-label", "Download braille music file (.brf)");
     });
+    // On the Overview, say so plainly when there is no file, so the option is never a mystery.
+    const none = $("braille-none-explain");
+    if (none) none.hidden = !!br || !piece || !!piece.local;
   }
 
   /* ---------------- explain page + toolbar buttons ---------------- */
@@ -1444,31 +1516,15 @@ window.LunePractice = (function () {
     const bar = document.createElement("div");
     bar.className = "lp-tools-bar";
     bar.innerHTML = `
-      <button type="button" class="quiet lp-tool" id="btn-follow" aria-pressed="false" title="Lune listens as you play, follows the score and marks the bars that trip you up">
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 12h2l2-5 3 10 3-7 2 4h4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <span class="lp-tool-label">Play along</span></button>
-      <button type="button" class="icon-btn lp-tool" id="btn-tell" aria-label="Tell Lune a note" aria-pressed="false" title="${canListenForWords() ? "Say a note for any bar — “bar 12, play faster here”" : "Add a typed note for the selected bar"}">
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
-      <button type="button" class="icon-btn" id="btn-score-more" aria-label="More" title="More">
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="6" cy="12" r="1.4" fill="currentColor"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/><circle cx="18" cy="12" r="1.4" fill="currentColor"/></svg>
-      </button>`;
+      <button type="button" class="quiet lp-tool" id="btn-listen" title="Hear the selected bar described: its notes, fingers and a tip (R)">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 10v4h3l4 3.5v-11L8 10H5zM15.5 9a4 4 0 0 1 0 6M17.8 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="lp-tool-label">Listen</span></button>
+      <button type="button" class="quiet lp-tool" id="btn-tell" title="Ask about a bar, leave a remark, or add to your plan — type or speak">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <span class="lp-tool-label">Ask Lune</span></button>`;
     head.appendChild(bar);
-    bar.querySelector("#btn-tell")?.addEventListener("click", (e) => tellLune(e.currentTarget));
-    bar.querySelector("#btn-follow")?.addEventListener("click", () => window.LuneFollow?.toggle());
-    window.LuneMenu?.attach($("btn-score-more"), () => [
-      {
-        id: "btn-toggle-kbd-item",
-        label: "Show keyboard",
-        checked: !!state.keyboardVisible && state.panel === "score",
-        action: () => $("btn-toggle-kbd")?.click(),
-      },
-      { label: "Read selected bar aloud", hint: "R", action: () => readSelectedAloud() },
-      { label: "Note on selected bar", hint: "N", action: () => {
-        if (!selectedBarsSorted().length) return toast("Select a bar first");
-        if (!state.coachOpen) openBarCoach();
-        setTimeout(() => $("lp-note-input")?.focus(), 30);
-      } },
-    ]);
+    bar.querySelector("#btn-tell")?.addEventListener("click", () => window.LuneAsk?.open?.());
+    bar.querySelector("#btn-listen")?.addEventListener("click", () => readSelectedAloud());
   }
 
   function ensureHeaderButton() {
@@ -1483,21 +1539,283 @@ window.LunePractice = (function () {
   function bindOverflowMenus() {
     if (bindOverflowMenus.done) return;
     bindOverflowMenus.done = true;
-    window.LuneMenu?.attach($("btn-more"), () => headerMenuItems());
-    window.LuneMenu?.attach($("btn-coach-more"), () => [
-      { label: "Read aloud", hint: "R", action: () => readSelectedAloud() },
-      {
-        label: "Add to my plan",
-        action: () =>
-          openTaskDialog({
-            pieceKey: keyFor(state.piece),
-            title: titleFor(state.piece),
-            composer: composerFor(state.piece),
-            bars: selectedBarsSorted(),
-          }),
-      },
-      { id: "btn-plan", label: "Practice plan" },
+    $("btn-settings")?.addEventListener("click", () => openSettings());
+    $("btn-share")?.addEventListener("click", () => openShare());
+    // The bar panel's third button says what it does instead of hiding it behind dots.
+    const listen = $("btn-coach-more");
+    if (listen) {
+      listen.className = "quiet coach-listen";
+      listen.textContent = "Listen";
+      listen.title = "Hear this bar described: notes, fingers and a tip";
+      listen.setAttribute("aria-label", "Hear this bar described");
+      listen.addEventListener("click", () => readSelectedAloud());
+    }
+  }
+
+  /* ---------------- repertoire: what to work on ---------------- */
+
+  /** A summary for one Repertoire piece, from its analysis, your remarks and your reviews. */
+  async function openWorkOn(key) {
+    const row = await store.getPiece(key);
+    if (!row) return;
+    const d = dialog("work-dialog");
+    d.classList.add("settings-dialog");
+    d.innerHTML = `${closeRow}<p class="auth-kicker">What to work on</p><h2>${esc(row.title)}</h2><p class="dim">Reading the score…</p>`;
+    if (!d.open) d.showModal();
+    const [notes, cards] = await Promise.all([store.listNotes(key).catch(() => []), store.listCards(key).catch(() => [])]);
+    // the score's own hard bars, when this piece is in the library
+    let hard = [];
+    try {
+      const open = state.sessions.find((s) => s.piece && keyFor(s.piece) === key)?.piece;
+      const piece =
+        open?.debriefs && Object.keys(open.debriefs).length
+          ? open
+          : await tryOpen({ query: row.source === "upload" ? row.title : key, title: row.title, composer: row.composer || "", analyze: true });
+      hard = Object.values(piece?.debriefs || {})
+        .filter((x) => x?.difficulty?.score != null)
+        .sort((a, b) => b.difficulty.score - a.difficulty.score)
+        .slice(0, 4)
+        .map((x) => ({ bar: x.measure, why: (x.difficulty.reasons || []).slice(0, 2).join(", "), tip: Array.isArray(x.advice) ? x.advice[0] : x.advice }));
+    } catch {
+      /* not a library piece: work from remarks and reviews */
+    }
+    const due = cards.filter((c) => c.due_at <= new Date().toISOString()).map((c) => c.bar);
+    const remarkBars = [...new Set(notes.map((n) => n.bar))];
+    const bars = [...new Set([...due, ...remarkBars, ...hard.map((h) => h.bar)])].filter((b) => b > 0).slice(0, 6).sort((a, b) => a - b);
+    const mins = Number(store.prefs().practiceMins) || 20;
+    const steps = [{ kind: "hear", title: "Hear it once", detail: "Listen through before you play." }];
+    for (const b of bars) {
+      const h = hard.find((x) => x.bar === b);
+      const mine = notes.filter((n) => n.bar === b).map((n) => n.body);
+      steps.push({
+        kind: "hard",
+        bars: [b],
+        title: `Bar ${b}`,
+        detail: [due.includes(b) ? "Due for review." : "", h?.tip ? String(h.tip).split(/(?<=[.!?])\s/)[0] : "", mine.length ? `Your remark: “${mine[mine.length - 1]}”.` : ""].filter(Boolean).join(" ") || "Slowly, hands separately, then together.",
+      });
+    }
+    const label = Object.fromEntries(STATUS);
+    d.innerHTML = `${closeRow}<p class="auth-kicker">What to work on</p><h2>${esc(row.title)}</h2>
+      <p class="settings-note">${esc(label[row.status] || "Learning")} · last practised ${esc(ago(row.last_practised_at))} · ${notes.length} remark${notes.length === 1 ? "" : "s"}</p>
+      ${
+        bars.length
+          ? `<ol class="work-steps">${steps.map((st) => `<li><strong>${esc(st.title)}</strong> ${esc(st.detail)}</li>`).join("")}</ol>`
+          : `<p class="settings-note">Nothing to plan yet. Open the piece, tap the bars that give you trouble and leave a remark or rate them; they will show up here.</p>`
+      }
+      <label for="work-extra">Add something of your own <span class="dim">(optional)</span></label>
+      <textarea id="work-extra" rows="2" maxlength="300" placeholder="e.g. memorise the first page"></textarea>
+      <div class="onboard-nav auth-keep-nav">
+        <button type="button" class="quiet rep-remove-link" data-work-remove>Remove from Repertoire</button>
+        <button type="button" class="quiet" data-work-open>Open piece</button>
+        <button type="button" class="primary" data-work-add>Add to my plan</button>
+      </div>`;
+    d.querySelector("[data-work-open]").addEventListener("click", () => {
+      d.close();
+      openFromRepertoire(key, { bars }).catch((err) => toast(err.message));
+    });
+    d.querySelector("[data-work-remove]").addEventListener("click", (e) => {
+      // removing takes two presses, so it can't happen by accident
+      if (!e.currentTarget.dataset.sure) {
+        e.currentTarget.dataset.sure = "1";
+        e.currentTarget.textContent = "Remove? Press again";
+        return;
+      }
+      d.close();
+      document.querySelector(`#rep-list [data-remove="${CSS.escape(key)}"]`)?.click();
+      document.querySelector(`#rep-list [data-remove="${CSS.escape(key)}"]`)?.click();
+    });
+    d.querySelector("[data-work-add]").addEventListener("click", () => {
+      const extra = d.querySelector("#work-extra").value.trim();
+      const all = extra ? [...steps, { kind: "own", title: "Your own", detail: extra }] : steps;
+      if (!bars.length && !extra) return toast("Write something to add, or mark some bars in the piece first");
+      store.addTask({
+        piece_key: key,
+        title: row.title,
+        composer: row.composer || "",
+        bars,
+        notes: extra || `${mins} minutes${bars.length ? ` on bars ${bars.join(", ")}` : ""}.`,
+        plan: { source: "repertoire", mins, summary: `${mins} minutes${bars.length ? ` on bars ${bars.join(", ")}` : ""}.`, steps: all, created_at: new Date().toISOString() },
+      });
+      d.close();
+      toast("Added to your plan");
+      renderRepertoire();
+    });
+  }
+
+  /* ---------------- settings ---------------- */
+
+  function openSettings() {
+    const d = dialog("settings-dialog");
+    d.classList.add("settings-dialog");
+    const signedIn = store.status().signedIn;
+    const p = store.prefs();
+    const days = Number(p.practiceDays) || 4;
+    const mins = Number(p.practiceMins) || 30;
+    const row = (act, title, text) =>
+      `<button type="button" class="settings-row" data-set="${act}"><strong>${title}</strong><span>${text}</span></button>`;
+    const sw = (k, label, hint) => `<label class="lp-switch"><input type="checkbox" data-pref="${k}" ${p[k] ? "checked" : ""}>
+      <span><strong>${label}</strong><small>${hint}</small></span></label>`;
+    const install = window.LuneInstall?.available?.()
+      ? row("install", "Install Lune", "Put Lune on this device as an app. It opens in its own window and works offline for pieces you have opened.")
+      : `<p class="settings-note"><strong>Install Lune</strong> On iPhone or iPad: Share, then Add to Home Screen. On a laptop in Chrome or Edge: the install icon at the end of the address bar. If you already installed it, you are set.</p>`;
+    const privacy = document.querySelector("#credits-privacy + ul")?.outerHTML || "";
+    d.innerHTML = `${closeRow}
+      <p class="auth-kicker">Settings</p>
+      <h2>Settings</h2>
+      <h3>Account</h3>
+      ${signedIn ? row("account", "Your account", `${esc(store.status().email || "Signed in")} — export or delete your data, sign out.`) : row("signin", "Sign in or create an account", "Keeps your Repertoire, remarks and plans on every device. Free.")}
+      <h3>Reading and access</h3>
+      ${sw("readableFont", "Easy read letters", "A typeface where every letter shape is distinct.")}
+      ${sw("largePrint", "Large print", "Bigger notes, letters and buttons.")}
+      ${sw("highContrast", "High contrast", "Pure black on white for the score.")}
+      ${sw("autoRead", "Read bars aloud", "Each bar you select is described out loud.")}
+      <p class="settings-note">Lune works with the screen reader built into your device (VoiceOver on iPhone and Mac, TalkBack on Android, Narrator on Windows). Braille music files are on each piece’s Overview when available.</p>
+      <h3>Your week</h3>
+      <p class="settings-note">A day counts when you rate a bar, finish a plan task or open a piece to practise. “This week” compares those days with your goal.</p>
+      <div class="settings-goal">
+        <label for="set-days">Days a week</label>
+        <select id="set-days">${[1, 2, 3, 4, 5, 6, 7].map((n) => `<option ${n === days ? "selected" : ""}>${n}</option>`).join("")}</select>
+        <label for="set-mins">Minutes a day</label>
+        <select id="set-mins">${[10, 15, 20, 30, 45, 60, 90].map((n) => `<option ${n === mins ? "selected" : ""}>${n}</option>`).join("")}</select>
+      </div>
+      ${signedIn ? row("week", "See this week", "Days practised against your goal, bars that improved, bars that still trip you.") : ""}
+      <h3>App</h3>
+      ${install}
+      ${row("upload", "Upload a score", "MusicXML, PDF or a photo. It stays on this device unless you add it to your Repertoire while signed in.")}
+      ${row("feedback", "Send feedback", "Tell Verushka what changed or what is missing. It goes straight to her.")}
+      <h3>Privacy</h3>
+      <div class="settings-privacy">${privacy}</div>
+      ${row("credits", "Credits and licences", "The scores, sounds and software Lune is built on.")}
+      ${
+        store.isOwner?.()
+          ? `<h3>Owner</h3>${row("owner-stats", "Owner stats", "Signed-up users.")}${row("owner-impact", "Impact", "Anonymous totals and the public snapshot.")}${row("owner-feedback", "Feedback received", "What pianists and teachers have written.")}`
+          : ""
+      }`;
+    d.onchange = (e) => {
+      const k = e.target.dataset?.pref;
+      if (k) {
+        store.setPref(k, e.target.checked);
+        applyAccessPrefs();
+        syncAccessChips();
+        if (k !== "autoRead" && state.piece && state.panel === "score") {
+          try {
+            window.fitZoomCache?.clear?.();
+          } catch {
+            /* ignore */
+          }
+          renderScore().then(() => paintScoreMarks()).catch(() => {});
+        }
+        return;
+      }
+      if (e.target.id === "set-days" || e.target.id === "set-mins") {
+        store.setPref("practiceDays", Number(d.querySelector("#set-days").value));
+        store.setPref("practiceMins", Number(d.querySelector("#set-mins").value));
+        store.syncPrefs?.();
+        window.LuneOnboard?.paintSignedHome?.();
+        toast("Goal saved");
+      }
+    };
+    d.onclick = (e) => {
+      const b = e.target.closest("[data-set]");
+      if (!b) return;
+      const act = b.dataset.set;
+      d.close();
+      if (act === "account") openAccountDialog();
+      else if (act === "signin") window.LuneOnboard?.openCreateAccount?.();
+      else if (act === "week") window.LuneImpact?.openWeeklyReview?.();
+      else if (act === "install") window.LuneInstall?.install?.();
+      else if (act === "upload") $("file")?.click();
+      else if (act === "feedback") window.LuneFeedback?.open?.();
+      else if (act === "credits") document.querySelector("[data-open-credits]")?.click();
+      else if (act === "owner-stats") openOwnerStats();
+      else if (act === "owner-impact") window.LuneImpact?.openOwnerImpact?.();
+      else if (act === "owner-feedback") window.LuneFeedback?.openOwner?.();
+    };
+    if (!d.open) d.showModal();
+  }
+
+  /* ---------------- share ---------------- */
+
+  async function shareText(title, text) {
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text });
+        return;
+      }
+    } catch (err) {
+      if (err?.name === "AbortError") return; // closed the share sheet
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      toast("Copied — paste it into a message or email");
+    } catch {
+      toast("Couldn’t copy on this browser");
+    }
+  }
+
+  async function repertoireSummary() {
+    const pieces = await store.listPieces();
+    if (!pieces.length) return "";
+    const label = Object.fromEntries(STATUS);
+    return `My repertoire on Lune (lune.page)\n\n${pieces
+      .map((p) => `• ${p.title}${p.composer ? ` — ${p.composer}` : ""} · ${label[p.status] || "Learning"}${p.last_practised_at ? ` · last practised ${ago(p.last_practised_at)}` : ""}`)
+      .join("\n")}`;
+  }
+
+  async function pieceSummary() {
+    const piece = state.piece;
+    const key = keyFor(piece);
+    if (!key) return "";
+    const [row, notes, cards] = await Promise.all([
+      store.getPiece(key).catch(() => null),
+      store.listNotes(key).catch(() => []),
+      store.listCards(key).catch(() => []),
     ]);
+    const label = Object.fromEntries(STATUS);
+    const lines = [`${titleFor(piece)}${composerFor(piece) ? ` — ${composerFor(piece)}` : ""}`, `Where it stands: ${label[row?.status] || "Learning"}`];
+    if (cards.length) lines.push(`Bars I’m reviewing: ${[...new Set(cards.map((c) => c.bar))].sort((a, b) => a - b).join(", ")}`);
+    if (notes.length) {
+      lines.push("", "My remarks:");
+      for (const n of notes.slice(-12)) lines.push(`• Bar ${n.bar}: ${n.body}`);
+    }
+    lines.push("", "From Lune — lune.page");
+    return lines.join("\n");
+  }
+
+  function openShare() {
+    const d = dialog("share-dialog");
+    d.classList.add("settings-dialog");
+    const inStudio = !!state.piece && document.body.classList.contains("is-studio");
+    const signedIn = store.status().signedIn;
+    const bars = inStudio ? selectedBarsSorted() : [];
+    const row = (act, title, text, off) =>
+      `<button type="button" class="settings-row" data-share="${act}" ${off ? "disabled" : ""}><strong>${title}</strong><span>${text}</span></button>`;
+    d.innerHTML = `${closeRow}
+      <p class="auth-kicker">Share</p>
+      <h2>What would you like to share?</h2>
+      ${row("repertoire", "My repertoire", "The list of pieces you’re learning and where each one stands. Sent as text you can paste anywhere.")}
+      ${row("piece", inStudio ? `Progress on ${esc(titleFor(state.piece))}` : "Progress on a piece", inStudio ? "Its status, the bars you’re reviewing and your remarks, as text." : "Open a piece first, then come back here.", !inStudio)}
+      ${row("bars", "Annotated bars, as a link", inStudio ? (bars.length ? `A link that opens this piece at bar ${bars.join(", ")} with your instructions. For a teacher or a student.` : "Select the bars on the score first, then come back here.") : "Open a piece and select bars first.", !bars.length)}
+      ${row("week", "This week", signedIn ? "A read-only page of your practice week for a teacher or parent. No email, no remark text. You can switch it off at any time." : "Sign in first: the week page needs an account so you can switch it off later.", !signedIn)}
+      ${row("invite", "Invite someone to Lune", signedIn ? "A link to your week that also invites them to try Lune." : "Sends a link to lune.page.")}`;
+    d.onclick = async (e) => {
+      const b = e.target.closest("[data-share]");
+      if (!b || b.disabled) return;
+      const act = b.dataset.share;
+      d.close();
+      if (act === "repertoire") {
+        const text = await repertoireSummary();
+        if (!text) return toast("Your Repertoire is empty — add a piece first");
+        shareText("My repertoire", text);
+      } else if (act === "piece") shareText(titleFor(state.piece), await pieceSummary());
+      else if (act === "bars") openAssignDialog(bars);
+      else if (act === "week") window.LuneImpact?.openShareWeek?.();
+      else if (act === "invite") {
+        if (signedIn) window.LuneImpact?.openInvite?.();
+        else shareText("Lune", "Lune — a free piano practice studio: https://lune.page");
+      }
+    };
+    if (!d.open) d.showModal();
   }
 
   function headerMenuItems() {
@@ -1932,6 +2250,10 @@ window.LunePractice = (function () {
   return {
     init,
     stopHearing,
+    hearPhrase,
+    canListenForWords,
+    speak,
+    readSelectedAloud,
     keyFor,
     parseSpoken,
     tagsFor,

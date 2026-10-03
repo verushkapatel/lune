@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- final01 -->
-  <!-- deploy-final01 -->
-  <!-- deploy-final01 -->
+  <!-- lune02 -->
+  <!-- deploy-lune02 -->
+  <!-- deploy-lune02 -->
 
 <meta charset="UTF-8">
   <script>
@@ -32,12 +32,12 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Lune">
-  <link rel="icon" href="static/assets/favicon.svg?v=final01" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=final01">
+  <link rel="icon" href="static/assets/favicon.svg?v=lune02" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=lune02">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2?v=final01" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="static/styles.css?v=final01">
-  <link rel="preload" href="static/search-index.json?v=final01" as="fetch" crossorigin>
+  <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2?v=lune02" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="static/styles.css?v=lune02">
+  <link rel="preload" href="static/search-index.json?v=lune02" as="fetch" crossorigin>
 </head>
 <body>
   <div id="app">
@@ -74,7 +74,7 @@
         <svg class="bookmark-filled" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
           <path d="M7 4.5h10a1 1 0 0 1 1 1v14L12 16.2 6 19.5v-14a1 1 0 0 1 1-1z" fill="currentColor"/>
         </svg>
-        <span class="visually-hidden lp-add-label">Add to Repertoire</span>
+        <span class="lp-add-label">Add to Repertoire</span>
       </button>
       <nav class="studio-seg" id="studio-seg" hidden role="tablist" aria-label="Piece views">
         <button type="button" class="studio-tab on" id="tab-score" data-panel="score" role="tab" aria-selected="true">Score</button>
@@ -101,12 +101,13 @@
       <button type="button" class="bar-auth" id="btn-bar-auth" data-lp-personalise>
         Sign in<span class="bar-auth-rest"> or Create account</span>
       </button>
-      <button type="button" class="icon-btn" id="btn-more" aria-label="More" title="More">
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
-          <circle cx="6" cy="12" r="1.4" fill="currentColor"/>
-          <circle cx="12" cy="12" r="1.4" fill="currentColor"/>
-          <circle cx="18" cy="12" r="1.4" fill="currentColor"/>
-        </svg>
+      <button type="button" class="quiet bar-tool" id="btn-share" title="Share your repertoire, a piece, your week, or annotated bars">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M12 15V4m0 0L8 8m4-4l4 4M5 13v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="bar-tool-label">Share</span>
+      </button>
+      <button type="button" class="quiet bar-tool" id="btn-settings" title="Settings: account, reading and access, your week, install, privacy">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M4 7h10M18 7h2M4 12h4M12 12h8M4 17h12M20 17h0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16" cy="7" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="10" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="18" cy="17" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        <span class="bar-tool-label">Settings</span>
       </button>
       <button type="button" class="visually-hidden" id="btn-open" tabindex="-1" aria-hidden="true">Upload</button>
       <input type="file" id="file" accept=".musicxml,.xml,.mxl,application/vnd.recordare.musicxml+xml,application/vnd.recordare.musicxml,.pdf,image/*" hidden>
@@ -137,7 +138,7 @@
         <section class="member-tonight" id="member-tonight" aria-labelledby="member-tonight-h">
           <p class="about-kicker">Tonight</p>
           <h2 id="member-tonight-h">When practice feels lost</h2>
-          <p class="member-section-lead" id="member-tonight-body">Use Play along on a score — Lune marks the bars that trip you, then builds a short plan.</p>
+          <p class="member-section-lead" id="member-tonight-body">Rate a bar after you practise it, or ask Lune to add it to your plan. The bars that need you come back here.</p>
           <button type="button" class="primary" id="btn-member-tonight">Make tonight’s plan</button>
         </section>
 
@@ -194,21 +195,9 @@
                 <div class="mf-keys"><i class="on"></i><i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i></div>
               </figure>
             </article>
-            <article class="member-feat-chapter member-feat-flip">
-              <div class="member-feat-copy">
-                <p class="about-kicker">04 · Play along</p>
-                <h3>Lune listens while you play.</h3>
-                <p>Use the microphone on a real piano or keyboard. Lune follows the score, marks the bars that trip you, then builds tonight’s short plan from that map.</p>
-              </div>
-              <figure class="member-feat-frame mf-follow" aria-hidden="true">
-                <div class="mf-mic-wave"><span></span><span></span><span></span><span></span><span></span></div>
-                <div class="mf-stumble"><em>Bar 12</em><em>Bar 24</em></div>
-                <p class="mf-tempo">Listening · nothing recorded</p>
-              </figure>
-            </article>
             <article class="member-feat-chapter">
               <div class="member-feat-copy">
-                <p class="about-kicker">05 · Ask</p>
+                <p class="about-kicker">04 · Ask Lune</p>
                 <h3>Tap the bar that won’t sit.</h3>
                 <p>Help opens beside the page you tapped — what’s in the bar, suggested fingers, and a quiet way to work it. Speak or type a note for later.</p>
               </div>
@@ -219,7 +208,7 @@
             </article>
             <article class="member-feat-chapter member-feat-flip">
               <div class="member-feat-copy">
-                <p class="about-kicker">06 · Notes &amp; Repertoire</p>
+                <p class="about-kicker">05 · Notes &amp; Repertoire</p>
                 <h3>What you’d forget, kept.</h3>
                 <p>Speak or jot thoughts on a bar. Plans and Today’s bars sync when you’re signed in — no ads, no payments.</p>
               </div>
@@ -230,7 +219,7 @@
             </article>
             <article class="member-feat-chapter">
               <div class="member-feat-copy">
-                <p class="about-kicker">07 · Easy read &amp; Braille</p>
+                <p class="about-kicker">05 · Easy read &amp; Braille</p>
                 <h3>Letters that refuse to blur.</h3>
                 <p>Atkinson Hyperlegible under the staff when names mix up. When a library piece has a braille file, download is one quiet chip away.</p>
               </div>
@@ -424,34 +413,12 @@
         </figure>
       </section>
 
-      <section class="home-feat home-feat-flip" id="feat-follow" data-reveal>
+      <section class="home-feat home-feat-flip" id="feat-ask" data-reveal>
         <div class="home-feat-copy">
-          <p class="about-kicker">04 · Play along</p>
-          <h2>Lune listens while you play.</h2>
-          <p class="home-feat-why"><strong>Why:</strong> Wrong notes and hesitations should become a map you can practise from — not a vague feeling that something went wrong.</p>
-          <p>Tap <strong>Play along</strong> under the score. Lune uses the microphone in the browser only, marks the bars that trip you, then offers tonight’s short plan. Nothing is recorded or uploaded.</p>
-        </div>
-        <figure class="home-feat-device" aria-hidden="true">
-          <div class="fx-chrome" aria-hidden="true">
-            <span class="fx-brand">Lune</span>
-            <span class="fx-piece">Clair de lune</span>
-            <div class="fx-tabs"><span class="on">Score</span><span>Explain</span><span>Piano</span></div>
-          </div>
-          <div class="fx-paper"><div class="fx-score" data-live-score data-lane="off" data-hilite="2" data-stumble="3"></div></div>
-          <div class="fx-follow-side">
-            <p class="fx-follow-listen">Listening</p>
-            <div class="fx-follow-wave"><span></span><span></span><span></span><span></span><span></span></div>
-            <p class="fx-follow-map">Stumble map · bar 3</p>
-          </div>
-        </figure>
-      </section>
-
-      <section class="home-feat" id="feat-ask" data-reveal>
-        <div class="home-feat-copy">
-          <p class="about-kicker">05 · Ask</p>
-          <h2>Tap the bar that won’t sit.</h2>
-          <p class="home-feat-why"><strong>Why:</strong> Help should open beside the page you tapped — notes, suggested fingers, and a quiet way to practise — not a wall of chrome.</p>
-          <p>Click a stubborn bar. The coach panel lists what’s in it and how to work it.</p>
+          <p class="about-kicker">04 · Ask Lune</p>
+          <h2>Tap the bar that won’t sit. Then ask.</h2>
+          <p class="home-feat-why"><strong>Why:</strong> Help should answer the bar in front of you. Ask Lune reads the score’s own analysis: the notes, the fingering, why the bar is hard and how to work it.</p>
+          <p>Type or speak. Leave a remark and it is flagged on the bar. Say how it went, or ask for a plan built from your remarks.</p>
         </div>
         <figure class="home-feat-device">
           <div class="fx-chrome" aria-hidden="true">
@@ -470,7 +437,7 @@
         </figure>
       </section>
 
-      <section class="home-feat home-feat-flip" id="easy-read" data-reveal>
+      <section class="home-feat" id="easy-read" data-reveal>
         <div class="home-feat-copy">
           <p class="about-kicker">06 · Easy read</p>
           <h2>Letters that refuse to blur.</h2>
@@ -493,10 +460,10 @@
 
       <section class="home-feat home-feat-flip" id="braille" data-reveal>
         <div class="home-feat-copy">
-          <p class="about-kicker">07 · Braille</p>
+          <p class="about-kicker">06 · Braille</p>
           <h2>Music you can feel.</h2>
           <p class="home-feat-why"><strong>Why:</strong> When a library piece has a braille file, download should be one quiet chip away — for an embosser or refreshable display.</p>
-          <p>Not every score has one yet. Clair de lune and several others do.</p>
+          <p>About three in four library pieces have one, made automatically and labelled as such. Clair de lune is not among them yet: the translator can’t handle that score.</p>
         </div>
         <figure class="home-feat-device" aria-hidden="true">
           <div class="fx-chrome">
@@ -518,7 +485,7 @@
 
       <section class="home-feat" id="feat-notes" data-reveal>
         <div class="home-feat-copy">
-          <p class="about-kicker">08 · Notes</p>
+          <p class="about-kicker">07 · Notes</p>
           <h2>Speak or jot what you’d forget.</h2>
           <p class="home-feat-why"><strong>Why:</strong> Practice thoughts vanish between sessions. Put them on the bar — typed or spoken — and rate it after you work it.</p>
           <p>Markers sit on the score. Hard bars come back as Today’s work.</p>
@@ -540,7 +507,7 @@
 
       <section class="home-feat home-feat-flip" id="feat-repertoire" data-reveal>
         <div class="home-feat-copy">
-          <p class="about-kicker">09 · Repertoire</p>
+          <p class="about-kicker">08 · Repertoire</p>
           <h2>Plans that stay with you.</h2>
           <p class="home-feat-why"><strong>Why:</strong> Select bars, speak or jot a note, save a plan into Repertoire. Sign in and it syncs — no ads, no payments.</p>
           <p>Today’s bars bring back what you’d forget. Sign in when you want them on every device.</p>
@@ -739,7 +706,7 @@
               <label class="tog pill"><input type="checkbox" id="tog-fingers"> Fingers</label>
             </span>
           </div>
-          <button type="button" class="quiet score-kbd-toggle" id="btn-toggle-kbd" hidden aria-pressed="false" title="Show or hide the keyboard under the score">Keys</button>
+          <button type="button" class="quiet score-kbd-toggle" id="btn-toggle-kbd" aria-pressed="false" title="Show or hide the piano under the score">Show piano</button>
           <span id="stage-label" class="visually-hidden">Score</span>
         </div>
 
@@ -772,10 +739,12 @@
                 <button type="button" class="primary" id="btn-explain-score">Open score</button>
                 <button type="button" class="quiet" id="btn-download" hidden>Download</button>
               </div>
-              <div class="access-strip explain-access" id="explain-access" aria-label="Reading options">
-                <button type="button" class="access-chip" id="btn-dyslexia-explain" aria-pressed="false" title="Easy read letters" aria-label="Easy read letters">Aa Easy read</button>
-                <a class="access-chip access-braille" id="btn-braille-explain" hidden href="#" download>Braille</a>
-                <button type="button" class="access-chip quiet-chip" id="btn-access-more" title="More reading options">Access</button>
+              <div class="access-strip explain-access" id="explain-access" role="group" aria-label="Reading and access">
+                <span class="access-strip-label">Reading &amp; access</span>
+                <button type="button" class="access-chip" id="btn-dyslexia-explain" aria-pressed="false" title="Letter names in a typeface where every letter shape is distinct">Easy read letters</button>
+                <a class="access-chip access-braille" id="btn-braille-explain" hidden href="#" download>Download braille music</a>
+                <span class="access-chip access-none" id="braille-none-explain" hidden>No braille file for this piece yet</span>
+                <button type="button" class="access-chip" id="btn-access-more" title="Large print, high contrast, bars read aloud, keyboard shortcuts">Large print, contrast, read aloud</button>
               </div>
             </div>
           </header>
@@ -940,7 +909,7 @@
       <li>No cookies, no analytics, no ads. Lune never sells or shares anything about you.</li>
       <li>Your Repertoire, bar notes and review dates are saved in your own browser. If you choose to make an account, they’re stored in Lune’s database (Supabase) under your email address, locked so only you can read them. You can download or delete everything from the Account panel at any time.</li>
       <li>Scores you upload are read inside your browser. They leave your device only if you add them to your Repertoire while signed in, and then only into your private storage.</li>
-      <li>The microphone (voice notes, Play along) is used only while you ask Lune to listen. Audio is analysed in the browser and never recorded or uploaded; voice notes may use your browser’s built-in speech recognition, which can be provided by its maker (for example Google in Chrome, Apple in Safari).</li>
+      <li>The microphone (Ask Lune, voice remarks) is used only while you ask Lune to listen. Audio is analysed in the browser and never recorded or uploaded; voice notes may use your browser’s built-in speech recognition, which can be provided by its maker (for example Google in Chrome, Apple in Safari).</li>
       <li>Under 13? Ask a parent or guardian before making an account.</li>
       <li>The reading study records only a participant code, answers and timings — never names.</li>
       <li>Feedback you send from the Feedback form is emailed to Lune’s maker through FormSubmit (formsubmit.co) and may be kept in Lune’s database. It holds only what you type and the choices you tick; the form never asks for your email address.</li>
@@ -954,22 +923,23 @@
   <script src="static/vendor/opensheetmusicdisplay.min.js"></script>
   <script src="static/vendor/pdf.min.js"></script>
   <script src="static/vendor/Tone.js"></script>
-  <script src="static/piano.js?v=final01"></script>
-  <script src="static/annotate.js?v=final01"></script>
-  <script src="static/lite-analyze.js?v=final01"></script>
-  <script src="static/fetch-score.js?v=final01"></script>
-  <script src="static/lyric-lane.js?v=final01"></script>
-  <script src="static/menu.js?v=final01"></script>
-  <script src="static/lune-config.js?v=final01"></script>
-  <script src="static/store.js?v=final01"></script>
-  <script src="static/onboard.js?v=final01"></script>
-  <script src="static/impact.js?v=final01"></script>
-  <script src="static/feedback.js?v=final01"></script>
-  <script src="static/app.js?v=final01"></script>
-  <script src="static/landing-score.js?v=final01"></script>
-  <script src="static/practice.js?v=final01"></script>
-  <script src="static/follow.js?v=final01"></script>
-  <script src="static/study.js?v=final01"></script>
-  <script src="static/install.js?v=final01"></script>
+  <script src="static/piano.js?v=lune02"></script>
+  <script src="static/annotate.js?v=lune02"></script>
+  <script src="static/lite-analyze.js?v=lune02"></script>
+  <script src="static/fetch-score.js?v=lune02"></script>
+  <script src="static/lyric-lane.js?v=lune02"></script>
+  <script src="static/menu.js?v=lune02"></script>
+  <script src="static/lune-config.js?v=lune02"></script>
+  <script src="static/store.js?v=lune02"></script>
+  <script src="static/onboard.js?v=lune02"></script>
+  <script src="static/impact.js?v=lune02"></script>
+  <script src="static/feedback.js?v=lune02"></script>
+  <script src="static/ask.js?v=lune02"></script>
+  <script src="static/app.js?v=lune02"></script>
+  <script src="static/landing-score.js?v=lune02"></script>
+  <script src="static/practice.js?v=lune02"></script>
+  <script src="static/follow.js?v=lune02"></script>
+  <script src="static/study.js?v=lune02"></script>
+  <script src="static/install.js?v=lune02"></script>
 </body>
 </html>

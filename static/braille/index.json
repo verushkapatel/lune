@@ -1,140 +1,1961 @@
 {
- "bach-chorale-1": {
-  "file": "bach-chorale-1.brf",
-  "text": "bach-chorale-1.txt",
-  "lines": 20,
+ "alexander-scriabin-op-1": {
+  "file": "alexander-scriabin-op-1.brf",
+  "text": "alexander-scriabin-op-1.txt",
+  "lines": 107,
   "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
  },
- "bach-chorale-40": {
-  "file": "bach-chorale-40.brf",
-  "text": "bach-chorale-40.txt",
-  "lines": 15,
+ "alexander-scriabin-op-10": {
+  "file": "alexander-scriabin-op-10.brf",
+  "text": "alexander-scriabin-op-10.txt",
+  "lines": 82,
   "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
  },
- "bach-invention-1": {
-  "file": "bach-invention-1.brf",
-  "text": "bach-invention-1.txt",
-  "lines": 25,
+ "alexander-scriabin-op-13": {
+  "file": "alexander-scriabin-op-13.brf",
+  "text": "alexander-scriabin-op-13.txt",
+  "lines": 82,
   "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
  },
- "bach-wtc1-prelude-c": {
-  "file": "bach-wtc1-prelude-c.brf",
-  "text": "bach-wtc1-prelude-c.txt",
-  "lines": 66,
+ "alexander-scriabin-op-14": {
+  "file": "alexander-scriabin-op-14.brf",
+  "text": "alexander-scriabin-op-14.txt",
+  "lines": 82,
   "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
  },
- "bach-wtc1-fugue-c-minor": {
-  "file": "bach-wtc1-fugue-c-minor.brf",
-  "text": "bach-wtc1-fugue-c-minor.txt",
-  "lines": 43,
+ "alexander-scriabin-op-15": {
+  "file": "alexander-scriabin-op-15.brf",
+  "text": "alexander-scriabin-op-15.txt",
+  "lines": 35,
   "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
  },
- "beethoven-fur-elise": {
-  "file": "beethoven-fur-elise.brf",
-  "text": "beethoven-fur-elise.txt",
-  "lines": 69,
+ "alexander-scriabin-op-16": {
+  "file": "alexander-scriabin-op-16.brf",
+  "text": "alexander-scriabin-op-16.txt",
+  "lines": 49,
   "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
  },
- "beethoven-moonlight-2": {
-  "file": "beethoven-moonlight-2.brf",
-  "text": "beethoven-moonlight-2.txt",
+ "alexander-scriabin-op-17": {
+  "file": "alexander-scriabin-op-17.brf",
+  "text": "alexander-scriabin-op-17.txt",
   "lines": 39,
   "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
  },
- "chopin-mazurka-6-2": {
-  "file": "chopin-mazurka-6-2.brf",
-  "text": "chopin-mazurka-6-2.txt",
-  "lines": 52,
+ "alexander-scriabin-op-2": {
+  "file": "alexander-scriabin-op-2.brf",
+  "text": "alexander-scriabin-op-2.txt",
+  "lines": 49,
   "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
  },
- "chopin-prelude-28-1": {
-  "file": "chopin-prelude-28-1.brf",
-  "text": "chopin-prelude-28-1.txt",
-  "lines": 32,
+ "alexander-scriabin-op-22": {
+  "file": "alexander-scriabin-op-22.brf",
+  "text": "alexander-scriabin-op-22.txt",
+  "lines": 25,
   "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
  },
- "chopin-prelude-28-2": {
-  "file": "chopin-prelude-28-2.brf",
-  "text": "chopin-prelude-28-2.txt",
-  "lines": 24,
+ "alexander-scriabin-op-25": {
+  "file": "alexander-scriabin-op-25.brf",
+  "text": "alexander-scriabin-op-25.txt",
+  "lines": 50,
   "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
  },
- "chopin-prelude-28-15": {
-  "file": "chopin-prelude-28-15.brf",
-  "text": "chopin-prelude-28-15.txt",
-  "lines": 73,
+ "alexander-scriabin-op-3": {
+  "file": "alexander-scriabin-op-3.brf",
+  "text": "alexander-scriabin-op-3.txt",
+  "lines": 126,
   "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
  },
- "clementi-sonatinas-op36": {
-  "file": "clementi-sonatinas-op36.brf",
-  "text": "clementi-sonatinas-op36.txt",
-  "lines": 1145,
+ "alexander-scriabin-op-31": {
+  "file": "alexander-scriabin-op-31.brf",
+  "text": "alexander-scriabin-op-31.txt",
+  "lines": 57,
   "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
  },
- "joplin-maple-leaf": {
-  "file": "joplin-maple-leaf.brf",
-  "text": "joplin-maple-leaf.txt",
+ "alexander-scriabin-op-33": {
+  "file": "alexander-scriabin-op-33.brf",
+  "text": "alexander-scriabin-op-33.txt",
+  "lines": 35,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "alexander-scriabin-op-35": {
+  "file": "alexander-scriabin-op-35.brf",
+  "text": "alexander-scriabin-op-35.txt",
+  "lines": 67,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "alexander-scriabin-op-39": {
+  "file": "alexander-scriabin-op-39.brf",
+  "text": "alexander-scriabin-op-39.txt",
+  "lines": 34,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "alexander-scriabin-op-40": {
+  "file": "alexander-scriabin-op-40.brf",
+  "text": "alexander-scriabin-op-40.txt",
+  "lines": 59,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "alexander-scriabin-op-41": {
+  "file": "alexander-scriabin-op-41.brf",
+  "text": "alexander-scriabin-op-41.txt",
+  "lines": 13,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "alexander-scriabin-op-42": {
+  "file": "alexander-scriabin-op-42.brf",
+  "text": "alexander-scriabin-op-42.txt",
+  "lines": 126,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "alexander-scriabin-op-45": {
+  "file": "alexander-scriabin-op-45.brf",
+  "text": "alexander-scriabin-op-45.txt",
+  "lines": 30,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "alexander-scriabin-op-46": {
+  "file": "alexander-scriabin-op-46.brf",
+  "text": "alexander-scriabin-op-46.txt",
+  "lines": 72,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "alexander-scriabin-op-47": {
+  "file": "alexander-scriabin-op-47.brf",
+  "text": "alexander-scriabin-op-47.txt",
+  "lines": 43,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "alexander-scriabin-op-48": {
+  "file": "alexander-scriabin-op-48.brf",
+  "text": "alexander-scriabin-op-48.txt",
+  "lines": 30,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "alexander-scriabin-op-49": {
+  "file": "alexander-scriabin-op-49.brf",
+  "text": "alexander-scriabin-op-49.txt",
+  "lines": 33,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "alexander-scriabin-op-51": {
+  "file": "alexander-scriabin-op-51.brf",
+  "text": "alexander-scriabin-op-51.txt",
+  "lines": 80,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "alexander-scriabin-op-52": {
+  "file": "alexander-scriabin-op-52.brf",
+  "text": "alexander-scriabin-op-52.txt",
   "lines": 84,
   "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
  },
- "mozart-k545-1": {
-  "file": "mozart-k545-1.brf",
-  "text": "mozart-k545-1.txt",
-  "lines": 124,
+ "alexander-scriabin-op-56": {
+  "file": "alexander-scriabin-op-56.brf",
+  "text": "alexander-scriabin-op-56.txt",
+  "lines": 84,
   "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
  },
- "mozart-k545-2": {
-  "file": "mozart-k545-2.brf",
-  "text": "mozart-k545-2.txt",
-  "lines": 137,
+ "alexander-scriabin-op-57": {
+  "file": "alexander-scriabin-op-57.brf",
+  "text": "alexander-scriabin-op-57.txt",
+  "lines": 43,
   "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
  },
- "mozart-k545-3": {
-  "file": "mozart-k545-3.brf",
-  "text": "mozart-k545-3.txt",
-  "lines": 14,
+ "alexander-scriabin-op-59": {
+  "file": "alexander-scriabin-op-59.brf",
+  "text": "alexander-scriabin-op-59.txt",
+  "lines": 74,
   "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
  },
- "satie-gymnopedie-1": {
-  "file": "satie-gymnopedie-1.brf",
-  "text": "satie-gymnopedie-1.txt",
+ "alexander-scriabin-op-67": {
+  "file": "alexander-scriabin-op-67.brf",
+  "text": "alexander-scriabin-op-67.txt",
+  "lines": 53,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "alexander-scriabin-op-69": {
+  "file": "alexander-scriabin-op-69.brf",
+  "text": "alexander-scriabin-op-69.txt",
+  "lines": 42,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "alexander-scriabin-op-7": {
+  "file": "alexander-scriabin-op-7.brf",
+  "text": "alexander-scriabin-op-7.txt",
+  "lines": 138,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "alexander-scriabin-op-70": {
+  "file": "alexander-scriabin-op-70.brf",
+  "text": "alexander-scriabin-op-70.txt",
+  "lines": 66,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "alexander-scriabin-op-73": {
+  "file": "alexander-scriabin-op-73.brf",
+  "text": "alexander-scriabin-op-73.txt",
+  "lines": 82,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "domenico-scarlatti-keyboard-sonata-k-1-l-366": {
+  "file": "domenico-scarlatti-keyboard-sonata-k-1-l-366.brf",
+  "text": "domenico-scarlatti-keyboard-sonata-k-1-l-366.txt",
+  "lines": 46,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "erik-satie-erik-satie-gymnopedie-no-1": {
+  "file": "erik-satie-erik-satie-gymnopedie-no-1.brf",
+  "text": "erik-satie-erik-satie-gymnopedie-no-1.txt",
   "lines": 41,
   "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
  },
- "bach-minuet-g": {
-  "file": "bach-minuet-g.brf",
-  "text": "bach-minuet-g.txt",
+ "erik-satie-gymnopedie-no-1": {
+  "file": "erik-satie-gymnopedie-no-1.brf",
+  "text": "erik-satie-gymnopedie-no-1.txt",
+  "lines": 63,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "franz-schubert-song": {
+  "file": "franz-schubert-song.brf",
+  "text": "franz-schubert-song.txt",
+  "lines": 119,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-chopin-spring-waltz": {
+  "file": "frederic-chopin-chopin-spring-waltz.brf",
+  "text": "frederic-chopin-chopin-spring-waltz.txt",
+  "lines": 113,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-17-no-3": {
+  "file": "frederic-chopin-mazurka-op-17-no-3.brf",
+  "text": "frederic-chopin-mazurka-op-17-no-3.txt",
+  "lines": 64,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-30-no-2": {
+  "file": "frederic-chopin-mazurka-op-30-no-2.brf",
+  "text": "frederic-chopin-mazurka-op-30-no-2.txt",
+  "lines": 48,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-33-no-1": {
+  "file": "frederic-chopin-mazurka-op-33-no-1.brf",
+  "text": "frederic-chopin-mazurka-op-33-no-1.txt",
+  "lines": 36,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-33-no-2": {
+  "file": "frederic-chopin-mazurka-op-33-no-2.brf",
+  "text": "frederic-chopin-mazurka-op-33-no-2.txt",
+  "lines": 110,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-33-no-3": {
+  "file": "frederic-chopin-mazurka-op-33-no-3.brf",
+  "text": "frederic-chopin-mazurka-op-33-no-3.txt",
+  "lines": 42,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-33-no-4": {
+  "file": "frederic-chopin-mazurka-op-33-no-4.brf",
+  "text": "frederic-chopin-mazurka-op-33-no-4.txt",
+  "lines": 122,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-41-no-1": {
+  "file": "frederic-chopin-mazurka-op-41-no-1.brf",
+  "text": "frederic-chopin-mazurka-op-41-no-1.txt",
+  "lines": 113,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-41-no-3": {
+  "file": "frederic-chopin-mazurka-op-41-no-3.brf",
+  "text": "frederic-chopin-mazurka-op-41-no-3.txt",
+  "lines": 59,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-41-no-4": {
+  "file": "frederic-chopin-mazurka-op-41-no-4.brf",
+  "text": "frederic-chopin-mazurka-op-41-no-4.txt",
+  "lines": 57,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-50-no-1": {
+  "file": "frederic-chopin-mazurka-op-50-no-1.brf",
+  "text": "frederic-chopin-mazurka-op-50-no-1.txt",
+  "lines": 87,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-50-no-2": {
+  "file": "frederic-chopin-mazurka-op-50-no-2.brf",
+  "text": "frederic-chopin-mazurka-op-50-no-2.txt",
+  "lines": 66,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-50-no-3": {
+  "file": "frederic-chopin-mazurka-op-50-no-3.brf",
+  "text": "frederic-chopin-mazurka-op-50-no-3.txt",
+  "lines": 124,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-56-no-1": {
+  "file": "frederic-chopin-mazurka-op-56-no-1.brf",
+  "text": "frederic-chopin-mazurka-op-56-no-1.txt",
+  "lines": 141,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-56-no-2": {
+  "file": "frederic-chopin-mazurka-op-56-no-2.brf",
+  "text": "frederic-chopin-mazurka-op-56-no-2.txt",
+  "lines": 58,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-56-no-3": {
+  "file": "frederic-chopin-mazurka-op-56-no-3.brf",
+  "text": "frederic-chopin-mazurka-op-56-no-3.txt",
+  "lines": 158,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-59-no-2": {
+  "file": "frederic-chopin-mazurka-op-59-no-2.brf",
+  "text": "frederic-chopin-mazurka-op-59-no-2.txt",
+  "lines": 74,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-59-no-3": {
+  "file": "frederic-chopin-mazurka-op-59-no-3.brf",
+  "text": "frederic-chopin-mazurka-op-59-no-3.txt",
+  "lines": 115,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-6-no-2": {
+  "file": "frederic-chopin-mazurka-op-6-no-2.brf",
+  "text": "frederic-chopin-mazurka-op-6-no-2.txt",
+  "lines": 53,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-6-no-3": {
+  "file": "frederic-chopin-mazurka-op-6-no-3.brf",
+  "text": "frederic-chopin-mazurka-op-6-no-3.txt",
+  "lines": 63,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-6-no-4": {
+  "file": "frederic-chopin-mazurka-op-6-no-4.brf",
+  "text": "frederic-chopin-mazurka-op-6-no-4.txt",
+  "lines": 25,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-63-no-1": {
+  "file": "frederic-chopin-mazurka-op-63-no-1.brf",
+  "text": "frederic-chopin-mazurka-op-63-no-1.txt",
+  "lines": 76,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-63-no-2": {
+  "file": "frederic-chopin-mazurka-op-63-no-2.brf",
+  "text": "frederic-chopin-mazurka-op-63-no-2.txt",
+  "lines": 46,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-68-no-3": {
+  "file": "frederic-chopin-mazurka-op-68-no-3.brf",
+  "text": "frederic-chopin-mazurka-op-68-no-3.txt",
+  "lines": 49,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-7-no-4": {
+  "file": "frederic-chopin-mazurka-op-7-no-4.brf",
+  "text": "frederic-chopin-mazurka-op-7-no-4.txt",
+  "lines": 41,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-7-no-5": {
+  "file": "frederic-chopin-mazurka-op-7-no-5.brf",
+  "text": "frederic-chopin-mazurka-op-7-no-5.txt",
+  "lines": 15,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-nocturne-easy": {
+  "file": "frederic-chopin-nocturne-easy.brf",
+  "text": "frederic-chopin-nocturne-easy.txt",
+  "lines": 11,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-prelude-op-28-no-1": {
+  "file": "frederic-chopin-prelude-op-28-no-1.brf",
+  "text": "frederic-chopin-prelude-op-28-no-1.txt",
+  "lines": 31,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-prelude-op-28-no-10": {
+  "file": "frederic-chopin-prelude-op-28-no-10.brf",
+  "text": "frederic-chopin-prelude-op-28-no-10.txt",
+  "lines": 22,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-prelude-op-28-no-11": {
+  "file": "frederic-chopin-prelude-op-28-no-11.brf",
+  "text": "frederic-chopin-prelude-op-28-no-11.txt",
+  "lines": 21,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-prelude-op-28-no-13": {
+  "file": "frederic-chopin-prelude-op-28-no-13.brf",
+  "text": "frederic-chopin-prelude-op-28-no-13.txt",
+  "lines": 54,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-prelude-op-28-no-14": {
+  "file": "frederic-chopin-prelude-op-28-no-14.brf",
+  "text": "frederic-chopin-prelude-op-28-no-14.txt",
+  "lines": 36,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-prelude-op-28-no-15-raindrop": {
+  "file": "frederic-chopin-prelude-op-28-no-15-raindrop.brf",
+  "text": "frederic-chopin-prelude-op-28-no-15-raindrop.txt",
+  "lines": 73,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-prelude-op-28-no-16": {
+  "file": "frederic-chopin-prelude-op-28-no-16.brf",
+  "text": "frederic-chopin-prelude-op-28-no-16.txt",
+  "lines": 61,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-prelude-op-28-no-19": {
+  "file": "frederic-chopin-prelude-op-28-no-19.brf",
+  "text": "frederic-chopin-prelude-op-28-no-19.txt",
+  "lines": 96,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-prelude-op-28-no-2": {
+  "file": "frederic-chopin-prelude-op-28-no-2.brf",
+  "text": "frederic-chopin-prelude-op-28-no-2.txt",
+  "lines": 23,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-prelude-op-28-no-20": {
+  "file": "frederic-chopin-prelude-op-28-no-20.brf",
+  "text": "frederic-chopin-prelude-op-28-no-20.txt",
+  "lines": 22,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-prelude-op-28-no-21": {
+  "file": "frederic-chopin-prelude-op-28-no-21.brf",
+  "text": "frederic-chopin-prelude-op-28-no-21.txt",
+  "lines": 56,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-prelude-op-28-no-22": {
+  "file": "frederic-chopin-prelude-op-28-no-22.brf",
+  "text": "frederic-chopin-prelude-op-28-no-22.txt",
+  "lines": 44,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-prelude-op-28-no-23": {
+  "file": "frederic-chopin-prelude-op-28-no-23.brf",
+  "text": "frederic-chopin-prelude-op-28-no-23.txt",
+  "lines": 28,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-prelude-op-28-no-24": {
+  "file": "frederic-chopin-prelude-op-28-no-24.brf",
+  "text": "frederic-chopin-prelude-op-28-no-24.txt",
+  "lines": 59,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-prelude-op-28-no-3": {
+  "file": "frederic-chopin-prelude-op-28-no-3.brf",
+  "text": "frederic-chopin-prelude-op-28-no-3.txt",
+  "lines": 24,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-prelude-op-28-no-4-in-e-minor": {
+  "file": "frederic-chopin-prelude-op-28-no-4-in-e-minor.brf",
+  "text": "frederic-chopin-prelude-op-28-no-4-in-e-minor.txt",
+  "lines": 31,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-prelude-op-28-no-6": {
+  "file": "frederic-chopin-prelude-op-28-no-6.brf",
+  "text": "frederic-chopin-prelude-op-28-no-6.txt",
+  "lines": 23,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-prelude-op-28-no-7": {
+  "file": "frederic-chopin-prelude-op-28-no-7.brf",
+  "text": "frederic-chopin-prelude-op-28-no-7.txt",
   "lines": 14,
   "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
  },
- "scarlatti-k1": {
-  "file": "scarlatti-k1.brf",
-  "text": "scarlatti-k1.txt",
+ "frederic-chopin-prelude-op-28-no-9": {
+  "file": "frederic-chopin-prelude-op-28-no-9.brf",
+  "text": "frederic-chopin-prelude-op-28-no-9.txt",
+  "lines": 30,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-prelude-in-e-minor": {
+  "file": "frederic-chopin-prelude-in-e-minor.brf",
+  "text": "frederic-chopin-prelude-in-e-minor.txt",
+  "lines": 51,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-spring-waltz": {
+  "file": "frederic-chopin-spring-waltz.brf",
+  "text": "frederic-chopin-spring-waltz.txt",
+  "lines": 84,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-waltz-in-a-minorchopin": {
+  "file": "frederic-chopin-waltz-in-a-minorchopin.brf",
+  "text": "frederic-chopin-waltz-in-a-minorchopin.txt",
+  "lines": 53,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-chopin-mazurka": {
+  "file": "frederic-chopin-chopin-mazurka.brf",
+  "text": "frederic-chopin-chopin-mazurka.txt",
+  "lines": 51,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "johann-pachelbel-canon-in-d": {
+  "file": "johann-pachelbel-canon-in-d.brf",
+  "text": "johann-pachelbel-canon-in-d.txt",
+  "lines": 123,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "johann-pachelbel-canon-in-d-easy": {
+  "file": "johann-pachelbel-canon-in-d-easy.brf",
+  "text": "johann-pachelbel-canon-in-d-easy.txt",
+  "lines": 43,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "johann-pachelbel-canon-in-d-version-3": {
+  "file": "johann-pachelbel-canon-in-d-version-3.brf",
+  "text": "johann-pachelbel-canon-in-d-version-3.txt",
+  "lines": 65,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "johann-sebastian-bach-ach-gott-und-herr": {
+  "file": "johann-sebastian-bach-ach-gott-und-herr.brf",
+  "text": "johann-sebastian-bach-ach-gott-und-herr.txt",
+  "lines": 15,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "johann-sebastian-bach-air": {
+  "file": "johann-sebastian-bach-air.brf",
+  "text": "johann-sebastian-bach-air.txt",
+  "lines": 21,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "johann-sebastian-bach-aus-meines-herzens-grunde": {
+  "file": "johann-sebastian-bach-aus-meines-herzens-grunde.brf",
+  "text": "johann-sebastian-bach-aus-meines-herzens-grunde.txt",
+  "lines": 20,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "johann-sebastian-bach-bach-minuet-in-g-major-bwv-anh-114": {
+  "file": "johann-sebastian-bach-bach-minuet-in-g-major-bwv-anh-114.brf",
+  "text": "johann-sebastian-bach-bach-minuet-in-g-major-bwv-anh-114.txt",
+  "lines": 16,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "johann-sebastian-bach-fuga-2-vol-1": {
+  "file": "johann-sebastian-bach-fuga-2-vol-1.brf",
+  "text": "johann-sebastian-bach-fuga-2-vol-1.txt",
+  "lines": 42,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "johann-sebastian-bach-inventio-1": {
+  "file": "johann-sebastian-bach-inventio-1.brf",
+  "text": "johann-sebastian-bach-inventio-1.txt",
+  "lines": 24,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "johann-sebastian-bach-minuet-in-g-major-bach": {
+  "file": "johann-sebastian-bach-minuet-in-g-major-bach.brf",
+  "text": "johann-sebastian-bach-minuet-in-g-major-bach.txt",
+  "lines": 13,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "johann-sebastian-bach-prelude-in-c-major-bwv-846": {
+  "file": "johann-sebastian-bach-prelude-in-c-major-bwv-846.brf",
+  "text": "johann-sebastian-bach-prelude-in-c-major-bwv-846.txt",
+  "lines": 66,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "joseph-haydn-piano-sonata-hob-xvi-12-movement-2": {
+  "file": "joseph-haydn-piano-sonata-hob-xvi-12-movement-2.brf",
+  "text": "joseph-haydn-piano-sonata-hob-xvi-12-movement-2.txt",
+  "lines": 35,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "joseph-haydn-piano-sonata-hob-xvi-15-movement-1": {
+  "file": "joseph-haydn-piano-sonata-hob-xvi-15-movement-1.brf",
+  "text": "joseph-haydn-piano-sonata-hob-xvi-15-movement-1.txt",
+  "lines": 66,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "joseph-haydn-piano-sonata-hob-xvi-16-movement-2": {
+  "file": "joseph-haydn-piano-sonata-hob-xvi-16-movement-2.brf",
+  "text": "joseph-haydn-piano-sonata-hob-xvi-16-movement-2.txt",
   "lines": 47,
   "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
  },
- "scriabin-impromptu-10-1": {
-  "file": "scriabin-impromptu-10-1.brf",
-  "text": "scriabin-impromptu-10-1.txt",
+ "joseph-haydn-piano-sonata-hob-xvi-16-movement-3": {
+  "file": "joseph-haydn-piano-sonata-hob-xvi-16-movement-3.brf",
+  "text": "joseph-haydn-piano-sonata-hob-xvi-16-movement-3.txt",
+  "lines": 75,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "joseph-haydn-piano-sonata-hob-xvi-29-movement-3": {
+  "file": "joseph-haydn-piano-sonata-hob-xvi-29-movement-3.brf",
+  "text": "joseph-haydn-piano-sonata-hob-xvi-29-movement-3.txt",
+  "lines": 108,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "joseph-haydn-piano-sonata-hob-xvi-34-movement-1": {
+  "file": "joseph-haydn-piano-sonata-hob-xvi-34-movement-1.brf",
+  "text": "joseph-haydn-piano-sonata-hob-xvi-34-movement-1.txt",
+  "lines": 117,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "joseph-haydn-piano-sonata-hob-xvi-42-movement-3": {
+  "file": "joseph-haydn-piano-sonata-hob-xvi-42-movement-3.brf",
+  "text": "joseph-haydn-piano-sonata-hob-xvi-42-movement-3.txt",
+  "lines": 92,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "joseph-haydn-piano-sonata-hob-xvi-49-movement-1": {
+  "file": "joseph-haydn-piano-sonata-hob-xvi-49-movement-1.brf",
+  "text": "joseph-haydn-piano-sonata-hob-xvi-49-movement-1.txt",
+  "lines": 106,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "joseph-haydn-piano-sonata-hob-xvi-51-movement-3": {
+  "file": "joseph-haydn-piano-sonata-hob-xvi-51-movement-3.brf",
+  "text": "joseph-haydn-piano-sonata-hob-xvi-51-movement-3.txt",
+  "lines": 50,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "joseph-haydn-piano-sonata-hob-xvi-52-movement-3": {
+  "file": "joseph-haydn-piano-sonata-hob-xvi-52-movement-3.brf",
+  "text": "joseph-haydn-piano-sonata-hob-xvi-52-movement-3.txt",
+  "lines": 109,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "joseph-haydn-piano-sonata-hob-xvi-53-movement-3": {
+  "file": "joseph-haydn-piano-sonata-hob-xvi-53-movement-3.brf",
+  "text": "joseph-haydn-piano-sonata-hob-xvi-53-movement-3.txt",
+  "lines": 120,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "joseph-haydn-piano-sonata-hob-xvi-61-movement-2": {
+  "file": "joseph-haydn-piano-sonata-hob-xvi-61-movement-2.brf",
+  "text": "joseph-haydn-piano-sonata-hob-xvi-61-movement-2.txt",
+  "lines": 107,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-beethoven-symphony-no-5-1st-movement-piano-solo": {
+  "file": "ludwig-van-beethoven-beethoven-symphony-no-5-1st-movement-piano-solo.brf",
+  "text": "ludwig-van-beethoven-beethoven-symphony-no-5-1st-movement-piano-solo.txt",
+  "lines": 378,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-danse-villageoise-beethoven": {
+  "file": "ludwig-van-beethoven-danse-villageoise-beethoven.brf",
+  "text": "ludwig-van-beethoven-danse-villageoise-beethoven.txt",
+  "lines": 18,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-fur-elise-beethoven-for-beginner-piano": {
+  "file": "ludwig-van-beethoven-fur-elise-beethoven-for-beginner-piano.brf",
+  "text": "ludwig-van-beethoven-fur-elise-beethoven-for-beginner-piano.txt",
+  "lines": 18,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-fur-elise": {
+  "file": "ludwig-van-beethoven-fur-elise.brf",
+  "text": "ludwig-van-beethoven-fur-elise.txt",
+  "lines": 68,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-fur-elise-in-a-minor": {
+  "file": "ludwig-van-beethoven-fur-elise-in-a-minor.brf",
+  "text": "ludwig-van-beethoven-fur-elise-in-a-minor.txt",
+  "lines": 71,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-10-movement-3": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-10-movement-3.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-10-movement-3.txt",
+  "lines": 138,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-11-movement-3": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-11-movement-3.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-11-movement-3.txt",
+  "lines": 54,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-12-movement-2": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-12-movement-2.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-12-movement-2.txt",
+  "lines": 61,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-12-movement-4": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-12-movement-4.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-12-movement-4.txt",
+  "lines": 138,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-13-movement-1": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-13-movement-1.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-13-movement-1.txt",
+  "lines": 109,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-13-movement-2": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-13-movement-2.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-13-movement-2.txt",
+  "lines": 69,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-14-moonlight-movement-2": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-14-moonlight-movement-2.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-14-moonlight-movement-2.txt",
+  "lines": 39,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-15-movement-1": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-15-movement-1.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-15-movement-1.txt",
+  "lines": 317,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-15-movement-4": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-15-movement-4.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-15-movement-4.txt",
+  "lines": 216,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-16-movement-1": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-16-movement-1.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-16-movement-1.txt",
+  "lines": 227,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-18-movement-3": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-18-movement-3.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-18-movement-3.txt",
+  "lines": 63,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-18-movement-4": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-18-movement-4.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-18-movement-4.txt",
+  "lines": 175,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-19-movement-2": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-19-movement-2.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-19-movement-2.txt",
+  "lines": 150,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-2-movement-3": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-2-movement-3.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-2-movement-3.txt",
+  "lines": 54,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-20-movement-1": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-20-movement-1.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-20-movement-1.txt",
+  "lines": 89,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-21-waldstein-movement-3": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-21-waldstein-movement-3.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-21-waldstein-movement-3.txt",
+  "lines": 465,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-21-waldstein-movement-4": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-21-waldstein-movement-4.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-21-waldstein-movement-4.txt",
+  "lines": 96,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-22-movement-2": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-22-movement-2.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-22-movement-2.txt",
+  "lines": 179,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-24-movement-2": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-24-movement-2.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-24-movement-2.txt",
+  "lines": 117,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-25-movement-1": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-25-movement-1.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-25-movement-1.txt",
+  "lines": 108,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-25-movement-3": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-25-movement-3.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-25-movement-3.txt",
+  "lines": 71,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-27-movement-2": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-27-movement-2.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-27-movement-2.txt",
+  "lines": 262,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-28-movement-1": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-28-movement-1.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-28-movement-1.txt",
+  "lines": 105,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-28-movement-2": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-28-movement-2.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-28-movement-2.txt",
+  "lines": 109,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-28-movement-4": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-28-movement-4.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-28-movement-4.txt",
+  "lines": 248,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-3-movement-3": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-3-movement-3.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-3-movement-3.txt",
+  "lines": 91,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-3-movement-4": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-3-movement-4.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-3-movement-4.txt",
+  "lines": 241,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-31-movement-2": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-31-movement-2.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-31-movement-2.txt",
+  "lines": 73,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-4-movement-3": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-4-movement-3.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-4-movement-3.txt",
+  "lines": 127,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-5-movement-1": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-5-movement-1.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-5-movement-1.txt",
+  "lines": 155,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-6-movement-2": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-6-movement-2.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-6-movement-2.txt",
+  "lines": 98,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-6-movement-3": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-6-movement-3.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-6-movement-3.txt",
+  "lines": 121,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-7-movement-3": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-7-movement-3.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-7-movement-3.txt",
+  "lines": 65,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-8-pathetique-movement-3": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-8-pathetique-movement-3.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-8-pathetique-movement-3.txt",
+  "lines": 151,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-9-movement-2": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-9-movement-2.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-9-movement-2.txt",
+  "lines": 130,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-9-movement-3": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-9-movement-3.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-9-movement-3.txt",
+  "lines": 132,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-string-quartet-op-18-no-1-movement-1": {
+  "file": "ludwig-van-beethoven-string-quartet-op-18-no-1-movement-1.brf",
+  "text": "ludwig-van-beethoven-string-quartet-op-18-no-1-movement-1.txt",
+  "lines": 343,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "muzio-clementi-sonatina": {
+  "file": "muzio-clementi-sonatina.brf",
+  "text": "muzio-clementi-sonatina.txt",
+  "lines": 1163,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "mykola-leontovych-carol-of-the-bells": {
+  "file": "mykola-leontovych-carol-of-the-bells.brf",
+  "text": "mykola-leontovych-carol-of-the-bells.txt",
+  "lines": 37,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "mykola-leontovych-carol-of-the-bells-easy-piano": {
+  "file": "mykola-leontovych-carol-of-the-bells-easy-piano.brf",
+  "text": "mykola-leontovych-carol-of-the-bells-easy-piano.txt",
+  "lines": 11,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "nikolai-rimsky-korsakov-flight-of-the-bumblebee-piano": {
+  "file": "nikolai-rimsky-korsakov-flight-of-the-bumblebee-piano.brf",
+  "text": "nikolai-rimsky-korsakov-flight-of-the-bumblebee-piano.txt",
+  "lines": 97,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "pyotr-ilyich-tchaikovsky-dance-of-the-sugar-plum-fairy": {
+  "file": "pyotr-ilyich-tchaikovsky-dance-of-the-sugar-plum-fairy.brf",
+  "text": "pyotr-ilyich-tchaikovsky-dance-of-the-sugar-plum-fairy.txt",
+  "lines": 80,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "pyotr-ilyich-tchaikovsky-swan-lake-piano": {
+  "file": "pyotr-ilyich-tchaikovsky-swan-lake-piano.brf",
+  "text": "pyotr-ilyich-tchaikovsky-swan-lake-piano.txt",
+  "lines": 21,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "pyotr-ilyich-tchaikovsky-waltz-of-the-flowers-piano": {
+  "file": "pyotr-ilyich-tchaikovsky-waltz-of-the-flowers-piano.brf",
+  "text": "pyotr-ilyich-tchaikovsky-waltz-of-the-flowers-piano.txt",
+  "lines": 73,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "robert-schumann-dichterliebe-no-2": {
+  "file": "robert-schumann-dichterliebe-no-2.brf",
+  "text": "robert-schumann-dichterliebe-no-2.txt",
+  "lines": 28,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-bethena": {
+  "file": "scott-joplin-bethena.brf",
+  "text": "scott-joplin-bethena.txt",
+  "lines": 131,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-cleopha": {
+  "file": "scott-joplin-cleopha.brf",
+  "text": "scott-joplin-cleopha.txt",
+  "lines": 80,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-combination-march": {
+  "file": "scott-joplin-combination-march.brf",
+  "text": "scott-joplin-combination-march.txt",
+  "lines": 67,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-country-club": {
+  "file": "scott-joplin-country-club.brf",
+  "text": "scott-joplin-country-club.txt",
+  "lines": 92,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-elite-syncopations": {
+  "file": "scott-joplin-elite-syncopations.brf",
+  "text": "scott-joplin-elite-syncopations.txt",
+  "lines": 78,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-eugenia": {
+  "file": "scott-joplin-eugenia.brf",
+  "text": "scott-joplin-eugenia.txt",
+  "lines": 105,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-felicity-rag": {
+  "file": "scott-joplin-felicity-rag.brf",
+  "text": "scott-joplin-felicity-rag.txt",
+  "lines": 78,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-gladiolus-rag": {
+  "file": "scott-joplin-gladiolus-rag.brf",
+  "text": "scott-joplin-gladiolus-rag.txt",
   "lines": 103,
   "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
  },
- "scriabin-prelude-11-1": {
-  "file": "scriabin-prelude-11-1.brf",
-  "text": "scriabin-prelude-11-1.txt",
+ "scott-joplin-harmony-club-waltz": {
+  "file": "scott-joplin-harmony-club-waltz.brf",
+  "text": "scott-joplin-harmony-club-waltz.txt",
+  "lines": 93,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-heliotrope-bouquet": {
+  "file": "scott-joplin-heliotrope-bouquet.brf",
+  "text": "scott-joplin-heliotrope-bouquet.txt",
+  "lines": 115,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-leola": {
+  "file": "scott-joplin-leola.brf",
+  "text": "scott-joplin-leola.txt",
+  "lines": 85,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-lily-queen": {
+  "file": "scott-joplin-lily-queen.brf",
+  "text": "scott-joplin-lily-queen.txt",
+  "lines": 86,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-magnetic-rag": {
+  "file": "scott-joplin-magnetic-rag.brf",
+  "text": "scott-joplin-magnetic-rag.txt",
+  "lines": 121,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-maple-leaf-rag": {
+  "file": "scott-joplin-maple-leaf-rag.brf",
+  "text": "scott-joplin-maple-leaf-rag.txt",
+  "lines": 84,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-maple-leaf-rag-scott-joplin": {
+  "file": "scott-joplin-maple-leaf-rag-scott-joplin.brf",
+  "text": "scott-joplin-maple-leaf-rag-scott-joplin.txt",
+  "lines": 103,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-original-rags": {
+  "file": "scott-joplin-original-rags.brf",
+  "text": "scott-joplin-original-rags.txt",
+  "lines": 109,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-palm-leaf-rag": {
+  "file": "scott-joplin-palm-leaf-rag.brf",
+  "text": "scott-joplin-palm-leaf-rag.txt",
+  "lines": 67,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-paragon-rag": {
+  "file": "scott-joplin-paragon-rag.brf",
+  "text": "scott-joplin-paragon-rag.txt",
+  "lines": 91,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-peacherine-rag": {
+  "file": "scott-joplin-peacherine-rag.brf",
+  "text": "scott-joplin-peacherine-rag.txt",
+  "lines": 73,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-pine-apple-rag": {
+  "file": "scott-joplin-pine-apple-rag.brf",
+  "text": "scott-joplin-pine-apple-rag.txt",
+  "lines": 97,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-pleasant-moments": {
+  "file": "scott-joplin-pleasant-moments.brf",
+  "text": "scott-joplin-pleasant-moments.txt",
+  "lines": 97,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-reflection-rag": {
+  "file": "scott-joplin-reflection-rag.brf",
+  "text": "scott-joplin-reflection-rag.txt",
+  "lines": 77,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-rose-leaf-rag": {
+  "file": "scott-joplin-rose-leaf-rag.brf",
+  "text": "scott-joplin-rose-leaf-rag.txt",
+  "lines": 117,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-rosebud-march": {
+  "file": "scott-joplin-rosebud-march.brf",
+  "text": "scott-joplin-rosebud-march.txt",
+  "lines": 72,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-school-of-ragtime": {
+  "file": "scott-joplin-school-of-ragtime.brf",
+  "text": "scott-joplin-school-of-ragtime.txt",
+  "lines": 55,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-something-doing": {
+  "file": "scott-joplin-something-doing.brf",
+  "text": "scott-joplin-something-doing.txt",
+  "lines": 75,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-stoptime-rag": {
+  "file": "scott-joplin-stoptime-rag.brf",
+  "text": "scott-joplin-stoptime-rag.txt",
+  "lines": 70,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-sugar-cane": {
+  "file": "scott-joplin-sugar-cane.brf",
+  "text": "scott-joplin-sugar-cane.txt",
+  "lines": 84,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-sunflower-slow-drag": {
+  "file": "scott-joplin-sunflower-slow-drag.brf",
+  "text": "scott-joplin-sunflower-slow-drag.txt",
+  "lines": 93,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-swipesy-cakewalk": {
+  "file": "scott-joplin-swipesy-cakewalk.brf",
+  "text": "scott-joplin-swipesy-cakewalk.txt",
+  "lines": 75,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-the-crush-collision-march": {
+  "file": "scott-joplin-the-crush-collision-march.brf",
+  "text": "scott-joplin-the-crush-collision-march.txt",
+  "lines": 88,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-the-easy-winners": {
+  "file": "scott-joplin-the-easy-winners.brf",
+  "text": "scott-joplin-the-easy-winners.txt",
+  "lines": 89,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-the-entertainer-scott-joplin": {
+  "file": "scott-joplin-the-entertainer-scott-joplin.brf",
+  "text": "scott-joplin-the-entertainer-scott-joplin.txt",
+  "lines": 120,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-the-entertainer-scott-joplin-1902": {
+  "file": "scott-joplin-the-entertainer-scott-joplin-1902.brf",
+  "text": "scott-joplin-the-entertainer-scott-joplin-1902.txt",
+  "lines": 126,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-the-favorite": {
+  "file": "scott-joplin-the-favorite.brf",
+  "text": "scott-joplin-the-favorite.txt",
+  "lines": 74,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scott-joplin-the-majestic": {
+  "file": "scott-joplin-the-majestic.brf",
+  "text": "scott-joplin-the-majestic.txt",
+  "lines": 79,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "traditional-bella-ciao": {
+  "file": "traditional-bella-ciao.brf",
+  "text": "traditional-bella-ciao.txt",
+  "lines": 75,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "traditional-greensleeves-piano-easy": {
+  "file": "traditional-greensleeves-piano-easy.brf",
+  "text": "traditional-greensleeves-piano-easy.txt",
+  "lines": 13,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "traditional-twinkle-twinkle-little-star": {
+  "file": "traditional-twinkle-twinkle-little-star.brf",
+  "text": "traditional-twinkle-twinkle-little-star.txt",
+  "lines": 7,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-1-movement-1": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-1-movement-1.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-1-movement-1.txt",
+  "lines": 115,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-1-movement-2": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-1-movement-2.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-1-movement-2.txt",
+  "lines": 88,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-1-movement-3": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-1-movement-3.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-1-movement-3.txt",
+  "lines": 91,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-10-movement-1": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-10-movement-1.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-10-movement-1.txt",
+  "lines": 123,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-10-movement-3": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-10-movement-3.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-10-movement-3.txt",
+  "lines": 112,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-11-movement-1a": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-11-movement-1a.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-11-movement-1a.txt",
+  "lines": 21,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-11-movement-2": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-11-movement-2.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-11-movement-2.txt",
+  "lines": 79,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-11-movement-3": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-11-movement-3.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-11-movement-3.txt",
+  "lines": 92,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-12-movement-1": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-12-movement-1.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-12-movement-1.txt",
+  "lines": 141,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-12-movement-3": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-12-movement-3.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-12-movement-3.txt",
+  "lines": 183,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-13-movement-1": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-13-movement-1.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-13-movement-1.txt",
+  "lines": 146,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-13-movement-2": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-13-movement-2.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-13-movement-2.txt",
+  "lines": 81,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-14-movement-1": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-14-movement-1.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-14-movement-1.txt",
+  "lines": 135,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-14-movement-3": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-14-movement-3.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-14-movement-3.txt",
+  "lines": 153,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-15-movement-1": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-15-movement-1.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-15-movement-1.txt",
+  "lines": 64,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-15-movement-3": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-15-movement-3.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-15-movement-3.txt",
+  "lines": 53,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-16-movement-1": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-16-movement-1.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-16-movement-1.txt",
+  "lines": 128,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-16-movement-3": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-16-movement-3.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-16-movement-3.txt",
+  "lines": 79,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-17-movement-1": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-17-movement-1.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-17-movement-1.txt",
+  "lines": 120,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-17-movement-3": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-17-movement-3.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-17-movement-3.txt",
+  "lines": 139,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-2-movement-1": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-2-movement-1.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-2-movement-1.txt",
+  "lines": 102,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-2-movement-2": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-2-movement-2.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-2-movement-2.txt",
+  "lines": 67,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-3-movement-1": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-3-movement-1.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-3-movement-1.txt",
+  "lines": 104,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-3-movement-2": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-3-movement-2.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-3-movement-2.txt",
+  "lines": 77,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-4-movement-2": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-4-movement-2.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-4-movement-2.txt",
+  "lines": 59,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-4-movement-3": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-4-movement-3.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-4-movement-3.txt",
+  "lines": 62,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-5-movement-1": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-5-movement-1.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-5-movement-1.txt",
+  "lines": 93,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-5-movement-3": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-5-movement-3.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-5-movement-3.txt",
+  "lines": 134,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-6-movement-2": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-6-movement-2.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-6-movement-2.txt",
+  "lines": 96,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-6-movement-3a": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-6-movement-3a.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-6-movement-3a.txt",
+  "lines": 20,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-7-movement-1": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-7-movement-1.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-7-movement-1.txt",
+  "lines": 136,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-8-movement-3": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-8-movement-3.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-8-movement-3.txt",
+  "lines": 132,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-9-movement-1": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-9-movement-1.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-9-movement-1.txt",
+  "lines": 113,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-9-movement-2": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-9-movement-2.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-9-movement-2.txt",
+  "lines": 73,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-sonata-no-16-mvt-1": {
+  "file": "wolfgang-amadeus-mozart-sonata-no-16-mvt-1.brf",
+  "text": "wolfgang-amadeus-mozart-sonata-no-16-mvt-1.txt",
+  "lines": 123,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-sonata-no-16-mvt-2": {
+  "file": "wolfgang-amadeus-mozart-sonata-no-16-mvt-2.brf",
+  "text": "wolfgang-amadeus-mozart-sonata-no-16-mvt-2.txt",
+  "lines": 136,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-sonata-no-16-mvt-3": {
+  "file": "wolfgang-amadeus-mozart-sonata-no-16-mvt-3.brf",
+  "text": "wolfgang-amadeus-mozart-sonata-no-16-mvt-3.txt",
+  "lines": 13,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-string-quartet-k-155-movement-1": {
+  "file": "wolfgang-amadeus-mozart-string-quartet-k-155-movement-1.brf",
+  "text": "wolfgang-amadeus-mozart-string-quartet-k-155-movement-1.txt",
+  "lines": 131,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-twinkle-twinkle-little-star": {
+  "file": "wolfgang-amadeus-mozart-twinkle-twinkle-little-star.brf",
+  "text": "wolfgang-amadeus-mozart-twinkle-twinkle-little-star.txt",
+  "lines": 68,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-wa-mozart-marche-turque-turkish-march-fingered": {
+  "file": "wolfgang-amadeus-mozart-wa-mozart-marche-turque-turkish-march-fingered.brf",
+  "text": "wolfgang-amadeus-mozart-wa-mozart-marche-turque-turkish-march-fingered.txt",
+  "lines": 35,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-17-no-1": {
+  "file": "frederic-chopin-mazurka-op-17-no-1.brf",
+  "text": "frederic-chopin-mazurka-op-17-no-1.txt",
+  "lines": 48,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-17-no-2": {
+  "file": "frederic-chopin-mazurka-op-17-no-2.brf",
+  "text": "frederic-chopin-mazurka-op-17-no-2.txt",
+  "lines": 50,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-17-no-4": {
+  "file": "frederic-chopin-mazurka-op-17-no-4.brf",
+  "text": "frederic-chopin-mazurka-op-17-no-4.txt",
+  "lines": 91,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-24-no-1": {
+  "file": "frederic-chopin-mazurka-op-24-no-1.brf",
+  "text": "frederic-chopin-mazurka-op-24-no-1.txt",
+  "lines": 43,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-24-no-2": {
+  "file": "frederic-chopin-mazurka-op-24-no-2.brf",
+  "text": "frederic-chopin-mazurka-op-24-no-2.txt",
+  "lines": 67,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-24-no-3": {
+  "file": "frederic-chopin-mazurka-op-24-no-3.brf",
+  "text": "frederic-chopin-mazurka-op-24-no-3.txt",
+  "lines": 29,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-24-no-4": {
+  "file": "frederic-chopin-mazurka-op-24-no-4.brf",
+  "text": "frederic-chopin-mazurka-op-24-no-4.txt",
+  "lines": 100,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-30-no-1": {
+  "file": "frederic-chopin-mazurka-op-30-no-1.brf",
+  "text": "frederic-chopin-mazurka-op-30-no-1.txt",
+  "lines": 41,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-30-no-3": {
+  "file": "frederic-chopin-mazurka-op-30-no-3.brf",
+  "text": "frederic-chopin-mazurka-op-30-no-3.txt",
+  "lines": 66,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-30-no-4": {
+  "file": "frederic-chopin-mazurka-op-30-no-4.brf",
+  "text": "frederic-chopin-mazurka-op-30-no-4.txt",
+  "lines": 111,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-6-no-1": {
+  "file": "frederic-chopin-mazurka-op-6-no-1.brf",
+  "text": "frederic-chopin-mazurka-op-6-no-1.txt",
+  "lines": 62,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-63-no-3": {
+  "file": "frederic-chopin-mazurka-op-63-no-3.brf",
+  "text": "frederic-chopin-mazurka-op-63-no-3.txt",
+  "lines": 52,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-67-no-1": {
+  "file": "frederic-chopin-mazurka-op-67-no-1.brf",
+  "text": "frederic-chopin-mazurka-op-67-no-1.txt",
+  "lines": 49,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-67-no-2": {
+  "file": "frederic-chopin-mazurka-op-67-no-2.brf",
+  "text": "frederic-chopin-mazurka-op-67-no-2.txt",
+  "lines": 36,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-67-no-3": {
+  "file": "frederic-chopin-mazurka-op-67-no-3.brf",
+  "text": "frederic-chopin-mazurka-op-67-no-3.txt",
+  "lines": 45,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-67-no-4": {
+  "file": "frederic-chopin-mazurka-op-67-no-4.brf",
+  "text": "frederic-chopin-mazurka-op-67-no-4.txt",
+  "lines": 47,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-68-no-1": {
+  "file": "frederic-chopin-mazurka-op-68-no-1.brf",
+  "text": "frederic-chopin-mazurka-op-68-no-1.txt",
+  "lines": 57,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-68-no-2": {
+  "file": "frederic-chopin-mazurka-op-68-no-2.brf",
+  "text": "frederic-chopin-mazurka-op-68-no-2.txt",
+  "lines": 42,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-68-no-4": {
+  "file": "frederic-chopin-mazurka-op-68-no-4.brf",
+  "text": "frederic-chopin-mazurka-op-68-no-4.txt",
   "lines": 32,
-  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
  },
- "scriabin-prelude-11-10": {
-  "file": "scriabin-prelude-11-10.brf",
-  "text": "scriabin-prelude-11-10.txt",
-  "lines": 27,
-  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ "frederic-chopin-mazurka-op-7-no-1": {
+  "file": "frederic-chopin-mazurka-op-7-no-1.brf",
+  "text": "frederic-chopin-mazurka-op-7-no-1.txt",
+  "lines": 35,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
  },
- "twinkle": {
-  "file": "twinkle.brf",
-  "text": "twinkle.txt",
-  "lines": 8,
-  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ "frederic-chopin-mazurka-op-7-no-2": {
+  "file": "frederic-chopin-mazurka-op-7-no-2.brf",
+  "text": "frederic-chopin-mazurka-op-7-no-2.txt",
+  "lines": 41,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-mazurka-op-7-no-3": {
+  "file": "frederic-chopin-mazurka-op-7-no-3.brf",
+  "text": "frederic-chopin-mazurka-op-7-no-3.txt",
+  "lines": 64,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "frederic-chopin-prelude-op-28-no-5": {
+  "file": "frederic-chopin-prelude-op-28-no-5.brf",
+  "text": "frederic-chopin-prelude-op-28-no-5.txt",
+  "lines": 29,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "joseph-haydn-piano-sonata-hob-xvi-12-movement-1": {
+  "file": "joseph-haydn-piano-sonata-hob-xvi-12-movement-1.brf",
+  "text": "joseph-haydn-piano-sonata-hob-xvi-12-movement-1.txt",
+  "lines": 44,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "joseph-haydn-piano-sonata-hob-xvi-12-movement-3": {
+  "file": "joseph-haydn-piano-sonata-hob-xvi-12-movement-3.brf",
+  "text": "joseph-haydn-piano-sonata-hob-xvi-12-movement-3.txt",
+  "lines": 32,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "joseph-haydn-piano-sonata-hob-xvi-16-movement-1": {
+  "file": "joseph-haydn-piano-sonata-hob-xvi-16-movement-1.brf",
+  "text": "joseph-haydn-piano-sonata-hob-xvi-16-movement-1.txt",
+  "lines": 69,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "joseph-haydn-piano-sonata-hob-xvi-33-movement-3": {
+  "file": "joseph-haydn-piano-sonata-hob-xvi-33-movement-3.brf",
+  "text": "joseph-haydn-piano-sonata-hob-xvi-33-movement-3.txt",
+  "lines": 98,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "joseph-haydn-piano-sonata-hob-xvi-37-movement-1": {
+  "file": "joseph-haydn-piano-sonata-hob-xvi-37-movement-1.brf",
+  "text": "joseph-haydn-piano-sonata-hob-xvi-37-movement-1.txt",
+  "lines": 81,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "joseph-haydn-piano-sonata-hob-xvi-50-movement-1": {
+  "file": "joseph-haydn-piano-sonata-hob-xvi-50-movement-1.brf",
+  "text": "joseph-haydn-piano-sonata-hob-xvi-50-movement-1.txt",
+  "lines": 104,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "joseph-haydn-piano-sonata-hob-xvi-61-movement-1": {
+  "file": "joseph-haydn-piano-sonata-hob-xvi-61-movement-1.brf",
+  "text": "joseph-haydn-piano-sonata-hob-xvi-61-movement-1.txt",
+  "lines": 106,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-1-movement-1": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-1-movement-1.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-1-movement-1.txt",
+  "lines": 99,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-1-movement-2": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-1-movement-2.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-1-movement-2.txt",
+  "lines": 69,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-1-movement-3": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-1-movement-3.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-1-movement-3.txt",
+  "lines": 42,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-1-movement-4": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-1-movement-4.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-1-movement-4.txt",
+  "lines": 165,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-10-movement-1": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-10-movement-1.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-10-movement-1.txt",
+  "lines": 156,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-12-movement-1": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-12-movement-1.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-12-movement-1.txt",
+  "lines": 203,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-14-moonlight-movement-1": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-14-moonlight-movement-1.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-14-moonlight-movement-1.txt",
+  "lines": 80,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-14-in-c-sharp-minor-op-27-no-2-moon": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-14-in-c-sharp-minor-op-27-no-2-moon.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-14-in-c-sharp-minor-op-27-no-2-moon.txt",
+  "lines": 81,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-15-movement-2": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-15-movement-2.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-15-movement-2.txt",
+  "lines": 110,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-15-movement-3": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-15-movement-3.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-15-movement-3.txt",
+  "lines": 45,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-16-movement-3": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-16-movement-3.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-16-movement-3.txt",
+  "lines": 245,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-18-movement-2": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-18-movement-2.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-18-movement-2.txt",
+  "lines": 118,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-19-movement-1": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-19-movement-1.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-19-movement-1.txt",
+  "lines": 73,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-2-movement-2": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-2-movement-2.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-2-movement-2.txt",
+  "lines": 84,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-2-movement-4": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-2-movement-4.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-2-movement-4.txt",
+  "lines": 198,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-20-movement-2": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-20-movement-2.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-20-movement-2.txt",
+  "lines": 75,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-21-waldstein-movement-2": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-21-waldstein-movement-2.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-21-waldstein-movement-2.txt",
+  "lines": 36,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-23-appassionata-movement-2": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-23-appassionata-movement-2.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-23-appassionata-movement-2.txt",
+  "lines": 81,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-23-appassionata-movement-3": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-23-appassionata-movement-3.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-23-appassionata-movement-3.txt",
+  "lines": 239,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-24-movement-1": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-24-movement-1.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-24-movement-1.txt",
+  "lines": 112,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-25-movement-2": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-25-movement-2.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-25-movement-2.txt",
+  "lines": 46,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-26-les-adieux-movement-1": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-26-les-adieux-movement-1.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-26-les-adieux-movement-1.txt",
+  "lines": 154,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-26-les-adieux-movement-3": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-26-les-adieux-movement-3.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-26-les-adieux-movement-3.txt",
+  "lines": 184,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-29-hammerklavier-movement-2": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-29-hammerklavier-movement-2.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-29-hammerklavier-movement-2.txt",
+  "lines": 150,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-3-movement-2": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-3-movement-2.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-3-movement-2.txt",
+  "lines": 98,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-30-movement-2": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-30-movement-2.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-30-movement-2.txt",
+  "lines": 109,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-4-movement-2": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-4-movement-2.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-4-movement-2.txt",
+  "lines": 98,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "ludwig-van-beethoven-piano-sonata-no-4-movement-4": {
+  "file": "ludwig-van-beethoven-piano-sonata-no-4-movement-4.brf",
+  "text": "ludwig-van-beethoven-piano-sonata-no-4-movement-4.txt",
+  "lines": 174,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "scott-joplin-augustan-club-waltz": {
+  "file": "scott-joplin-augustan-club-waltz.brf",
+  "text": "scott-joplin-augustan-club-waltz.txt",
+  "lines": 88,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "scott-joplin-binks-waltz": {
+  "file": "scott-joplin-binks-waltz.brf",
+  "text": "scott-joplin-binks-waltz.txt",
+  "lines": 85,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "scott-joplin-fig-leaf-rag": {
+  "file": "scott-joplin-fig-leaf-rag.brf",
+  "text": "scott-joplin-fig-leaf-rag.txt",
+  "lines": 95,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "scott-joplin-nonpareil": {
+  "file": "scott-joplin-nonpareil.brf",
+  "text": "scott-joplin-nonpareil.txt",
+  "lines": 76,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "scott-joplin-solace": {
+  "file": "scott-joplin-solace.brf",
+  "text": "scott-joplin-solace.txt",
+  "lines": 91,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "scott-joplin-the-cascades": {
+  "file": "scott-joplin-the-cascades.brf",
+  "text": "scott-joplin-the-cascades.txt",
+  "lines": 72,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "scott-joplin-the-chrysanthemum": {
+  "file": "scott-joplin-the-chrysanthemum.brf",
+  "text": "scott-joplin-the-chrysanthemum.txt",
+  "lines": 87,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "scott-joplin-the-entertainer": {
+  "file": "scott-joplin-the-entertainer.brf",
+  "text": "scott-joplin-the-entertainer.txt",
+  "lines": 85,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "scott-joplin-wall-street-rag": {
+  "file": "scott-joplin-wall-street-rag.brf",
+  "text": "scott-joplin-wall-street-rag.txt",
+  "lines": 87,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-10-movement-2": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-10-movement-2.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-10-movement-2.txt",
+  "lines": 60,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-15-movement-2": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-15-movement-2.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-15-movement-2.txt",
+  "lines": 75,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-16-movement-2": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-16-movement-2.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-16-movement-2.txt",
+  "lines": 72,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-2-movement-3": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-2-movement-3.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-2-movement-3.txt",
+  "lines": 75,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-3-movement-3": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-3-movement-3.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-3-movement-3.txt",
+  "lines": 116,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-5-movement-2": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-5-movement-2.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-5-movement-2.txt",
+  "lines": 60,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-6-movement-1": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-6-movement-1.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-6-movement-1.txt",
+  "lines": 132,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
+ },
+ "wolfgang-amadeus-mozart-piano-sonata-no-7-movement-2": {
+  "file": "wolfgang-amadeus-mozart-piano-sonata-no-7-movement-2.brf",
+  "text": "wolfgang-amadeus-mozart-piano-sonata-no-7-movement-2.txt",
+  "lines": 86,
+  "plain": true,
+  "note": "Braille music made automatically with music21: notes and rhythm only, without dynamics, slurs or text. Check with a braille music reader before relying on it."
  }
 }

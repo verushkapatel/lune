@@ -113,7 +113,16 @@ window.LunePiano = (function () {
       frequency: 14000,
       Q: 0.5,
     }).connect(comp);
-    const vol = new Tone.Volume(-6.5).connect(filter);
+    // A small room around the instrument: dry samples sound like a keyboard, not a piano.
+    let into = filter;
+    try {
+      const room = new Tone.Reverb({ decay: 2.4, preDelay: 0.018, wet: 0.17 });
+      room.connect(filter);
+      into = room;
+    } catch {
+      /* no reverb on this browser: play dry */
+    }
+    const vol = new Tone.Volume(-6.5).connect(into);
     output = vol;
     return vol;
   }
@@ -125,7 +134,7 @@ window.LunePiano = (function () {
       baseUrl,
       // Gentle attack — zero attack reads as a digital click on Salamander
       attack: 0.022,
-      release: 4.2,
+      release: 1.2,
       curve: "exponential",
     }).connect(dest);
     await Tone.loaded();
@@ -254,6 +263,9 @@ window.LunePiano = (function () {
         // Keep sounding length close to the written value — stretch made
         // long notes feel like they were re-attacking into the next bar.
         const dur = Math.max(0.1, (Number(n.duration) || 0.5) * spqAtQuarter(absQ) * 1.02);
+        // How long it rings: the written length, or until the pedal lifts.
+        const sound =
+          n.sustainTo != null && n.sustainTo > absQ ? Math.max(dur, secondsAtQuarter(n.sustainTo) - t - 0.04) : dur;
         const finger =
           n.fingering != null && n.fingering !== ""
             ? String(n.fingering)
@@ -263,6 +275,8 @@ window.LunePiano = (function () {
         return {
           t,
           dur,
+          sound,
+          dyn: Number(n.dyn) || 1,
           q: absQ,
           barOff,
           barStartQ,
@@ -287,7 +301,9 @@ window.LunePiano = (function () {
     }
     for (const e of raw) {
       const key = Math.round(e.t * 40);
-      e.vel = velocityFor(e.midi, density.get(key) || 1);
+      // The score's dynamics and voicing, with the small unevenness of real fingers.
+      const wobble = 1 + (((e.midi * 7919 + Math.round(e.t * 1000) * 31) % 100) / 100 - 0.5) * 0.07;
+      e.vel = Math.min(0.94, Math.max(0.2, velocityFor(e.midi, density.get(key) || 1) * e.dyn * wobble));
     }
     return raw;
   }
@@ -422,14 +438,14 @@ window.LunePiano = (function () {
       const e = events[i];
       if (e.t > horizon) break;
       pumpCursor += 1;
-      if (e.t + e.dur <= at) continue;
+      if (e.t + e.sound <= at) continue;
       if (!passesHand(e)) continue;
       if (scheduled.has(i)) continue;
       scheduled.add(i);
       // Wall-clock delay scaled by playback rate (slow-mo stretches attacks)
       const when = now + Math.max(0, (e.t - at) / r);
       // Keep a short release tail in wall time so notes don't chop at any rate
-      const remain = Math.max(0.14, (e.dur - Math.max(0, at - e.t)) / r);
+      const remain = Math.max(0.14, (e.sound - Math.max(0, at - e.t)) / r);
       const vel = e.vel ?? 0.58;
       try {
         sampler.triggerAttackRelease(e.name, remain, when, vel);
@@ -471,7 +487,7 @@ window.LunePiano = (function () {
     scheduled.clear();
     // Start from the first event still sounding at this point.
     pumpCursor = 0;
-    while (pumpCursor < events.length && events[pumpCursor].t + events[pumpCursor].dur <= at) pumpCursor += 1;
+    while (pumpCursor < events.length && events[pumpCursor].t + events[pumpCursor].sound <= at) pumpCursor += 1;
     // Long notes that began earlier sit behind the cursor: rewind to cover them.
     let back = pumpCursor;
     while (back > 0 && events[back - 1].t > at - 30) back -= 1;

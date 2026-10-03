@@ -1109,9 +1109,9 @@ function renderPieceTabs() {
   }
   const mark = $("btn-bookmark");
   if (mark) mark.hidden = false;
-  host.hidden = !studio || n < 2;
-  if (!studio) return;
-  if (n < 2) {
+  // On the home page every open piece keeps its tab, so one tap returns to it.
+  host.hidden = studio ? n < 2 : false;
+  if (studio && n < 2) {
     host.textContent = "";
     return;
   }
@@ -1119,7 +1119,7 @@ function renderPieceTabs() {
   const frag = document.createDocumentFragment();
   for (const s of state.sessions) {
     const tab = document.createElement("div");
-    tab.className = "piece-tab" + (s.id === state.activeSessionId ? " on" : "");
+    tab.className = "piece-tab" + (studio && s.id === state.activeSessionId ? " on" : "");
     tab.setAttribute("role", "tab");
     tab.setAttribute("aria-selected", s.id === state.activeSessionId ? "true" : "false");
     const composerName = s.piece?.overview?.composer || s.piece?.composer || "";
@@ -1144,11 +1144,13 @@ function renderPieceTabs() {
     btn.title = s.piece?.title || s.shortTitle;
     btn.textContent = s.id === state.activeSessionId ? s.shortTitle : s.shortTitle;
     btn.addEventListener("click", () => {
-      activateSession(s.id).catch((e) => toast(e.message));
+      // from the home page the "active" piece still has to be brought back on stage
+      if (!document.body.classList.contains("is-studio") && s.id === state.activeSessionId) showView("studio");
+      else activateSession(s.id).catch((e) => toast(e.message));
     });
     tab.appendChild(face);
     tab.appendChild(btn);
-    if (n >= 2) {
+    if (n >= 2 || !studio) {
       const close = document.createElement("button");
       close.type = "button";
       close.className = "piece-tab-close";
@@ -1466,8 +1468,7 @@ function setStudioPanel(panel, { skipScore = false } = {}) {
 
   // Piano tab = keyboard focus mode (always show). Score = optional dock.
   if (next === "piano") {
-    state.keyboardVisible = true;
-    applyKeyboardVisibility(true);
+    applyKeyboardVisibility(false);
     if (state.piece?.musicxml && !state.scoreReady) {
       ensureScoreReady()
         .then(() => {
@@ -1735,6 +1736,10 @@ async function openPieceSession(piece, { panel = "explain" } = {}) {
   fillPieceChrome(piece);
   seedTempoFromPiece({ force: true });
   renderPieceTabs();
+  // The piece has its own tab now; the search box is free for the next one.
+  const q = $("q");
+  if (q) q.value = "";
+  closeSearchResults();
   showView("studio");
   setStudioPanel(panel, { skipScore: true });
   renderExplainPanel(piece);
@@ -1925,10 +1930,11 @@ function normalizeNoteHand(h, fallback = null) {
  */
 const _tieCache = new WeakMap();
 function tieIndex(piece) {
-  const empty = { stops: new Set(), extra: new Map(), staff: new Map() };
+  const empty = { stops: new Set(), extra: new Map(), staff: new Map(), pedal: [], dyn: [] };
   if (!piece?.musicxml) return empty;
   if (_tieCache.has(piece)) return _tieCache.get(piece);
-  const out = { stops: new Set(), extra: new Map(), staff: new Map() };
+  // pedal: [{bar, q, down}] as marked; dyn: [{bar, q, v}] loudness marks (90 = forte)
+  const out = { stops: new Set(), extra: new Map(), staff: new Map(), pedal: [], dyn: [] };
   _tieCache.set(piece, out);
   const STEP = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
   const text = (el, tag) => {
@@ -1959,7 +1965,17 @@ function tieIndex(piece) {
             if (d > 0) div = d;
           } else if (tag === "backup") pos -= parseInt(text(el, "duration"), 10) || 0;
           else if (tag === "forward") pos += parseInt(text(el, "duration"), 10) || 0;
-          else if (tag === "note") {
+          else if (tag === "direction" || tag === "sound") {
+            const q = pos / div;
+            for (const pd of el.getElementsByTagName("pedal")) {
+              const type = pd.getAttribute("type");
+              if (type === "start" || type === "change") out.pedal.push({ bar, q, down: true });
+              else if (type === "stop") out.pedal.push({ bar, q, down: false });
+            }
+            const snd = tag === "sound" ? el : el.getElementsByTagName("sound")[0];
+            const v = Number(snd?.getAttribute("dynamics"));
+            if (v > 0) out.dyn.push({ bar, q, v });
+          } else if (tag === "note") {
             const chord = [...el.children].some((c) => c.nodeName === "chord");
             const grace = [...el.children].some((c) => c.nodeName === "grace");
             const dur = parseInt(text(el, "duration"), 10) || 0;
@@ -1997,6 +2013,7 @@ function tieIndex(piece) {
 
 function collectNotes(fromBar, toBar) {
   const ties = tieIndex(state.piece);
+  const barStart = new Map();
   const notes = [];
   const debriefs = state.piece?.debriefs || {};
   let barCursor = 0;
@@ -2027,9 +2044,81 @@ function collectNotes(fromBar, toBar) {
         bar: b,
       });
     }
+    barStart.set(b, barCursor);
     barCursor += barLengthQuarters(b, pack);
   }
+  shapePerformance(notes, ties, barStart, barCursor);
   return notes;
+}
+
+/**
+ * Turn written notes into something closer to a performance: the sustain
+ * pedal (as marked, or changed with the harmony in music that expects it),
+ * the score's own dynamics, and the top line sung over the accompaniment.
+ * Only the sound changes; what is drawn stays the written length.
+ */
+function shapePerformance(notes, index, barStart, endQ) {
+  if (!notes.length) return;
+  const abs = (m) => (barStart.has(m.bar) ? barStart.get(m.bar) + m.q : null);
+
+  // --- loudness: step to each marking, easing in over the bar before it
+  const marks = index.dyn.map((d) => ({ q: abs(d), v: d.v })).filter((d) => d.q != null).sort((a, b) => a.q - b.q);
+  const level = (q) => {
+    if (!marks.length) return 1;
+    let i = 0;
+    while (i + 1 < marks.length && marks[i + 1].q <= q) i += 1;
+    let v = marks[i].v;
+    const next = marks[i + 1];
+    if (next && next.q - q < 4) v += (next.v - v) * (1 - (next.q - q) / 4);
+    return Math.max(0.74, Math.min(1.4, Math.pow(v / 60, 0.6)));
+  };
+
+  // --- pedal changes (crotchets from the start of this stretch)
+  let changes = index.pedal.map((p) => ({ q: abs(p), down: p.down })).filter((p) => p.q != null).sort((a, b) => a.q - b.q);
+  if (!changes.length) {
+    const era = String(state.piece?.epoch || state.piece?.era || state.piece?.overview?.era || "").toLowerCase();
+    if (/romantic|impression|modern|20th|contemporary/.test(era)) {
+      // No marks in this edition: change the pedal at each bar and whenever the bass moves on.
+      let lastBass = null;
+      let lastQ = -9;
+      const seenBar = new Set();
+      for (const n of notes) {
+        const q = n.absOffset;
+        const barLine = !seenBar.has(n.bar);
+        seenBar.add(n.bar);
+        const isBass = n.hand === "lh" && (lastBass == null || n.midi <= lastBass + 2);
+        if (barLine || (isBass && n.midi !== lastBass && q - lastQ >= 1)) {
+          changes.push({ q: barLine ? barStart.get(n.bar) : q, down: true });
+          lastQ = q;
+        }
+        if (isBass) lastBass = n.midi;
+      }
+      changes.sort((a, b) => a.q - b.q);
+    }
+  }
+
+  let ci = 0;
+  let k = 0;
+  while (k < notes.length) {
+    // notes struck together
+    let j = k;
+    while (j < notes.length && Math.abs(notes[j].absOffset - notes[k].absOffset) < 0.02) j += 1;
+    const group = notes.slice(k, j);
+    const q = notes[k].absOffset;
+    while (ci + 1 < changes.length && changes[ci + 1].q <= q + 0.02) ci += 1;
+    const cur = changes[ci];
+    const pedalDown = cur && cur.q <= q + 0.02 && cur.down;
+    const release = pedalDown ? (changes[ci + 1]?.q ?? endQ) : null;
+    const top = Math.max(...group.map((n) => n.midi));
+    const lvl = level(q);
+    for (const n of group) {
+      // held by the pedal until it changes (never more than two bars' worth)
+      if (release != null) n.sustainTo = Math.min(release, q + 9);
+      const melody = n.midi === top && n.hand !== "lh";
+      n.dyn = lvl * (melody ? 1.12 : n.hand === "lh" ? 0.88 : 0.92);
+    }
+    k = j;
+  }
 }
 
 function pieceNotes() {
@@ -2672,7 +2761,7 @@ function syncKbdToggleUi() {
   if (!btn) return;
   const on = !!state.keyboardVisible && state.panel === "score";
   btn.setAttribute("aria-pressed", on ? "true" : "false");
-  btn.textContent = on ? "Hide" : "Keys";
+  btn.textContent = on ? "Hide piano" : "Show piano";
   btn.classList.toggle("on", on);
 }
 
@@ -2683,7 +2772,6 @@ function applyKeyboardVisibility(on) {
   // key for key; the dock is the slim keyboard under the score.
   const show = state.panel === "score" && !!on;
   if (state.panel === "score") state.keyboardVisible = !!on;
-  if (state.panel === "piano") state.keyboardVisible = true;
 
   dock.classList.toggle("collapsed", !show);
   dock.hidden = !show;
@@ -3004,8 +3092,51 @@ const LUNE_LYRIC_LANE = true;
 function styleLaneText(host) {
   const mode = state.renderedLaneMode || "off";
   if (mode === "off") return;
-  const cls = mode === "letters" ? "lane-letter" : "lane-finger";
-  for (const t of host.querySelectorAll("svg g.lyrics text")) t.classList.add(cls);
+  if (mode !== "both") {
+    const cls = mode === "letters" ? "lane-letter" : "lane-finger";
+    for (const t of host.querySelectorAll("svg g.lyrics text")) t.classList.add(cls);
+    return;
+  }
+  // Both labels were engraved together: read each one's tag once, then show
+  // whichever the pianist asked for.
+  for (const t of host.querySelectorAll("svg g.lyrics text")) {
+    if (t.dataset.letter != null) continue;
+    const info = LuneLane.untag(t.textContent);
+    if (!info) continue;
+    t.dataset.letter = info.letter;
+    t.dataset.finger = info.finger;
+    t.textContent = info.letter;
+    t.classList.add("lane-letter");
+  }
+}
+
+/** Notes / Fingers / Off without engraving again: swap the text in place. */
+function showLaneMode(host) {
+  const mode = state.scoreFingers ? "fingers" : state.scoreLetters ? "letters" : "off";
+  host.classList.toggle("lane-hidden", mode === "off");
+  if (mode === "off") return;
+  for (const t of host.querySelectorAll("svg g.lyrics text[data-letter]")) {
+    const text = mode === "fingers" ? t.dataset.finger : t.dataset.letter;
+    if (t.textContent !== text) t.textContent = text;
+    t.classList.toggle("lane-finger", mode === "fingers");
+    t.classList.toggle("lane-letter", mode !== "fingers");
+  }
+}
+
+/** Centre every label on its own spot so a short digit sits where the letter was. */
+function centreLaneLabels(host) {
+  for (const t of host.querySelectorAll("svg g.lyrics text[data-letter]")) {
+    if (t.getAttribute("text-anchor") === "middle") continue;
+    let b;
+    try {
+      b = t.getBBox();
+    } catch {
+      continue;
+    }
+    if (!b.width) continue;
+    t.setAttribute("x", String(b.x + b.width / 2));
+    t.setAttribute("text-anchor", "middle");
+  }
 }
 
 function applyScoreOverlays() {
@@ -3016,6 +3147,10 @@ function applyScoreOverlays() {
     LuneAnnotate.clearLetterOverlays(host);
     styleLaneText(host);
     state.laneStaggered = staggerLaneLabels(host);
+    if (state.renderedLaneMode === "both") {
+      centreLaneLabels(host);
+      showLaneMode(host);
+    }
     window.LunePractice?.afterScoreRender();
     return;
   }
@@ -3452,7 +3587,8 @@ async function renderScore() {
   const wantFingers = !!state.scoreFingers;
   // Letters / finger numbers are engraved as a lyric lane under each staff:
   // the engraver reserves the space and spaces bars so labels never collide.
-  const laneMode = wantFingers ? "fingers" : wantLetters ? "letters" : "off";
+  // Letters and fingers are engraved together once; the toggle then swaps text.
+  const laneMode = "both";
   state.renderedLaneMode = laneMode;
   const xml = LuneLane.build(LuneLane.printed(base), { mode: laneMode, debriefs: state.piece.debriefs || {} });
   $("osmd").hidden = false;
@@ -3656,6 +3792,7 @@ function clearBarSelection({ close = true } = {}) {
 }
 
 function paintSelectionHilites() {
+  window.LuneAsk?.onSelection?.();
   const layer = $("selection-hilites");
   if (!layer) return;
   layer.innerHTML = "";
@@ -3680,6 +3817,11 @@ async function refreshScoreAnnotations() {
   if (!state.piece?.musicxml) return;
   if (LUNE_LYRIC_LANE) {
     const want = state.scoreFingers ? "fingers" : state.scoreLetters ? "letters" : "off";
+    const host = $("osmd");
+    if (state.renderedLaneMode === "both" && state.osmd && host?.querySelector("svg")) {
+      showLaneMode(host); // already engraved: nothing to redraw
+      return;
+    }
     if (want !== state.renderedLaneMode) {
       const keepScroll = $("score-scroll")?.scrollTop || 0;
       await renderScore();
@@ -4323,7 +4465,9 @@ function bind() {
     stopAll();
   });
   on("btn-toggle-kbd", "click", () => {
-    setKeyboardVisible(!state.keyboardVisible);
+    // go by what is on screen, not a remembered flag that may be stale
+    const dock = $("piano-dock");
+    setKeyboardVisible(!dock || dock.hidden);
   });
   on("btn-hide-kbd", "click", () => {
     if (state.panel === "piano") setStudioPanel("score");
