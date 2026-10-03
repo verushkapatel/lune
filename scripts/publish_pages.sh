@@ -11,7 +11,7 @@ git worktree add -q "$WORK" origin/gh-pages --detach
 rsync -a --delete --exclude .git "$SITE"/ "$WORK"/
 cd "$WORK"
 git add -A
-git commit -q -m "Publish Lune: curated catalogue, in-browser upload, letter lane, credits" || echo "nothing to publish"
+git commit -q -m "Publish Lune site from $(git -C "$OLDPWD" rev-parse --short HEAD 2>/dev/null || echo local)" || echo "nothing to publish"
 git push origin HEAD:gh-pages
 cd - >/dev/null
 git worktree remove --force "$WORK"

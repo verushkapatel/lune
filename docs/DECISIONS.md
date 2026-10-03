@@ -1,10 +1,14 @@
 # Decisions
 
-- Hero search is a second field that mirrors `#q` rather than moving the header input, so header tests and phone search keep working.
+- Default playback beat slowed from 0.42s/quarter (~143 bpm) to practice BPM from the score marking (seeded ≤96, slider 40–120). Original tempo is a marker on the BPM bar; discrete × speed menu retired from the dock.
+- Metronome uses the piece time signature (accent on beat 1) at the current practice BPM; independent of Play so users can click without leaving.
+- Piano tab is a falling-note tutorial above the shared keyboard, synced to the same timeline/BPM as Score.
+- Dyslexia (Atkinson Hyperlegible) and Braille chips sit on Overview and Score — not buried only in More. Full Reading & access dialog remains for large print / contrast / read-aloud.
+- Home keeps a single search field in the header (compact); the duplicate hero search was removed so results stay wired to `#q`.
+- Coach note chips use 12px radius and no lift shadow so chords read as lists, not bubbles.
 - Download on Explain opens a menu only when a `.brf` exists; a hidden `.lp-braille` link is created for the download test after opening `#btn-download`.
 - Piece-card Remove stays a hidden confirm control; the overflow item clicks it so the two-step “Remove? (press again)” behaviour is unchanged.
 - Coach advice “More on this bar” is stored on `window._luneAdviceOpen` for the session only (no storage change).
-- Speed menu items are rebuilt on each open so the check mark follows `state.playRate` without extra `setPlayRate` plumbing.
 
 ## Visible buttons (before → after)
 

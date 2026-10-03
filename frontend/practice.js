@@ -991,9 +991,9 @@ window.LunePractice = (function () {
         <li>Under 13? Ask a parent or guardian before making an account. You can download or delete everything at any time.</li>
       </ul>`;
     if (!st.cloud) {
-      d.innerHTML = `${closeRow}<h2>Your Repertoire</h2>
+      d.innerHTML = `${closeRow}<h2>Account</h2>
         <p>Everything you add — pieces, bar notes, review dates — is saved in this browser. It stays on this device and never leaves it.</p>
-        <p class="dim">Cloud accounts (to sync between phone and laptop) aren’t switched on for this copy of Lune yet.</p>
+        <p class="dim">No sign-up is needed. If you want the same Repertoire on a phone and a laptop, download your data here and keep the file, or ask the site owner to switch on email sign-in.</p>
         <div class="lp-row"><button type="button" class="quiet" data-x="export">Download my data</button></div>${privacy}`;
     } else if (!st.signedIn) {
       d.innerHTML = `${closeRow}<h2>Sign in to sync</h2>
@@ -1089,18 +1089,19 @@ window.LunePractice = (function () {
       <span><strong>${label}</strong><small>${hint}</small></span></label>`;
     d.innerHTML = `${closeRow}<h2>Reading &amp; access</h2>
       ${row("largePrint", "Large print", "Bigger notes, letters and buttons — fewer bars on each line.")}
-      ${row("readableFont", "Easier-to-read letters", "Atkinson Hyperlegible for labels and text: every letter shape distinct (made for low vision; many dyslexic readers like it too).")}
+      ${row("readableFont", "Dyslexia-friendly letters", "Atkinson Hyperlegible — every letter shape distinct. Made for low vision; many dyslexic readers prefer it.")}
       ${row("highContrast", "High contrast", "Pure black on white for the score panel and letter names.")}
       ${row("autoRead", "Read bars aloud", "Every bar you select is described out loud: notes, chords, fingers and a tip.")}
       <h3>Keyboard shortcuts</h3>
       <p class="dim">Select a bar, then ← → move bar to bar · R read it aloud · N write a note on it · Space play · Esc close.</p>
       <h3>Braille</h3>
-      <p class="dim">Pieces from Lune’s library can be downloaded as braille music (.brf, ready for an embosser or a refreshable display) from the piece’s Explain page.</p>`;
+      <p class="dim">When a library piece has a braille file, use the Braille chip on Overview or Score — .brf for an embosser or refreshable display.</p>`;
     d.onchange = (e) => {
       const k = e.target.dataset.pref;
       if (!k) return;
       store.setPref(k, e.target.checked);
       applyAccessPrefs();
+      syncAccessChips();
       if ((k === "largePrint" || k === "readableFont" || k === "highContrast") && state.piece && state.panel === "score") {
         try {
           window.fitZoomCache?.clear?.();
@@ -1111,6 +1112,78 @@ window.LunePractice = (function () {
       }
     };
     if (!d.open) d.showModal();
+  }
+
+  function syncAccessChips() {
+    const on = !!store.prefs().readableFont;
+    ["btn-dyslexia-score", "btn-dyslexia-explain"].forEach((id) => {
+      const el = $(id);
+      if (!el) return;
+      el.setAttribute("aria-pressed", on ? "true" : "false");
+      el.classList.toggle("on", on);
+    });
+  }
+
+  function toggleDyslexia() {
+    const next = !store.prefs().readableFont;
+    store.setPref("readableFont", next);
+    applyAccessPrefs();
+    syncAccessChips();
+    if (state.piece && state.panel === "score") {
+      try {
+        window.fitZoomCache?.clear?.();
+      } catch {
+        /* ignore */
+      }
+      renderScore().then(() => paintScoreMarks()).catch(() => {});
+    }
+    toast(next ? "Dyslexia-friendly letters on" : "Standard letters");
+  }
+
+  async function bindAccessChips() {
+    const dysIds = ["btn-dyslexia-score", "btn-dyslexia-explain"];
+    dysIds.forEach((id) => {
+      const el = $(id);
+      if (!el || el.dataset.bound) return;
+      el.dataset.bound = "1";
+      el.addEventListener("click", () => toggleDyslexia());
+    });
+    const more = $("btn-access-more");
+    if (more && !more.dataset.bound) {
+      more.dataset.bound = "1";
+      more.addEventListener("click", () => openAccessDialog());
+    }
+    document.querySelectorAll("[data-lp-access]").forEach((el) => {
+      if (el.dataset.accessBound) return;
+      el.dataset.accessBound = "1";
+      el.addEventListener("click", (e) => {
+        e.preventDefault();
+        openAccessDialog();
+      });
+    });
+    syncAccessChips();
+  }
+
+  async function paintBrailleChips(piece) {
+    const idx = await loadBrailleIndex();
+    const key = keyFor(piece);
+    const br = piece && !piece.local && idx[key] ? idx[key] : null;
+    const href = br ? luneUrl(`/static/braille/${br.file}`) : "";
+    ["btn-braille-score", "btn-braille-explain"].forEach((id) => {
+      const a = $(id);
+      if (!a) return;
+      if (!br) {
+        a.hidden = true;
+        a.removeAttribute("href");
+        return;
+      }
+      a.hidden = false;
+      a.href = href;
+      a.download = br.file;
+      a.title = br.note || "Braille music (.brf)";
+      a.textContent = id.includes("explain") ? "Braille" : "⠃";
+      a.setAttribute("aria-label", "Download braille music");
+    });
   }
 
   /* ---------------- explain page + toolbar buttons ---------------- */
@@ -1142,6 +1215,8 @@ window.LunePractice = (function () {
         dl.onclick = () => window.downloadScore?.();
       }
     }
+    await paintBrailleChips(piece);
+    syncAccessChips();
     syncAddButtons();
   }
 
@@ -1238,8 +1313,10 @@ window.LunePractice = (function () {
     try {
       const n = (await store.dueCards(99)).length;
       badge.hidden = !n;
-      badge.textContent = String(n);
-      badge.setAttribute("aria-label", `${n} bars due today`);
+      badge.textContent = n ? String(n) : "";
+      badge.setAttribute("aria-hidden", n ? "false" : "true");
+      if (n) badge.setAttribute("aria-label", `${n} bars due today`);
+      else badge.removeAttribute("aria-label");
     } catch {
       badge.hidden = true;
     }
@@ -1442,6 +1519,8 @@ window.LunePractice = (function () {
     paintScoreMarks();
     ensureToolbar();
     syncAddButtons();
+    syncAccessChips();
+    paintBrailleChips(state.piece).catch(() => {});
     if (assignment && state.piece && keyFor(state.piece) === assignment.key) showAssignmentBanner();
     else {
       const el = $("lp-assign-banner");
@@ -1486,6 +1565,7 @@ window.LunePractice = (function () {
 
   async function init() {
     applyAccessPrefs();
+    await bindAccessChips();
     ensureHeaderButton();
     ensureRepertoireView();
     bindKeys();
