@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- otp04 -->
+  <!-- welcome01 -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Lune — so practice feels right again</title>
@@ -25,12 +25,12 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Lune">
-  <link rel="icon" href="static/assets/favicon.svg?v=otp04" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=otp04">
-  <link rel="manifest" href="static/manifest.otp04.json">
+  <link rel="icon" href="static/assets/favicon.svg?v=welcome01" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=welcome01">
+  <link rel="manifest" href="static/manifest.welcome01.json">
   <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="static/styles.otp04.css">
-  <link rel="preload" href="static/search-index.json?v=otp04" as="fetch" crossorigin>
+  <link rel="stylesheet" href="static/styles.welcome01.css">
+  <link rel="preload" href="static/search-index.json?v=welcome01" as="fetch" crossorigin>
 </head>
 <body>
   <div id="app">
@@ -105,6 +105,79 @@
     <div class="results" id="results" hidden></div>
 
     <main class="home" id="home">
+      <!-- Signed-in studio home (shown when body.is-signed-in) -->
+      <div class="home-member" id="home-member" hidden>
+        <section class="member-hero" aria-label="Your studio">
+          <div class="member-lockup" aria-label="Lune">
+            <svg class="lune-mark member-mark" viewBox="0 0 40 40" width="56" height="56" aria-hidden="true" focusable="false">
+              <path fill="currentColor" d="M26.2 7.2c-5.9.9-10.4 6-10.4 12.1 0 6.1 4.5 11.2 10.4 12.1A12.2 12.2 0 0 1 14 19.3c0-6.6 5.2-12 11.8-12.2.1 0 .3 0 .4 0z"/>
+            </svg>
+            <p class="member-brand">Lune</p>
+          </div>
+          <p class="member-kicker">Your studio</p>
+          <h1 class="member-title">So practice feels right again.</h1>
+          <p class="member-lead" id="member-lead">Named for Clair de lune — a night studio shaped around the pieces you chose.</p>
+          <div class="home-continue member-continue" id="member-continue" hidden></div>
+          <div class="member-cta-row">
+            <button type="button" class="primary" id="btn-member-search">Search the catalogue</button>
+            <button type="button" class="quiet" data-open-piece="debussy-clair-de-lune">Open Clair de lune</button>
+          </div>
+        </section>
+
+        <section class="member-recs" id="member-recs" aria-labelledby="member-recs-h">
+          <p class="about-kicker">For you</p>
+          <h2 id="member-recs-h">Recommended pieces</h2>
+          <p class="member-section-lead" id="member-recs-lead">From the composers, level, and dream piece you shared.</p>
+          <div class="member-rec-grid" id="member-rec-grid"></div>
+        </section>
+
+        <section class="member-features" aria-labelledby="member-feat-h">
+          <p class="about-kicker">Inside Lune</p>
+          <h2 id="member-feat-h">What you have</h2>
+          <p class="member-section-lead">A concise tour of the studio — the same tools, ready when you are.</p>
+          <ul class="member-feat-list">
+            <li>
+              <strong>Annotate</strong>
+              <span>Letter names and fingerings under the staff — never painted on the heads.</span>
+            </li>
+            <li>
+              <strong>Hear</strong>
+              <span>Play at your tempo; the original bpm stays marked beside the slider.</span>
+            </li>
+            <li>
+              <strong>Piano</strong>
+              <span>Falling notes onto real keys — filter right, left, or both.</span>
+            </li>
+            <li>
+              <strong>Ask</strong>
+              <span>Tap a stubborn bar for notes, suggested fingers, and a quiet way to work it.</span>
+            </li>
+            <li>
+              <strong>Notes &amp; Repertoire</strong>
+              <span>Speak or jot what you’d forget; plans sync when you’re signed in.</span>
+            </li>
+            <li>
+              <strong>Easy read &amp; Braille</strong>
+              <span>Atkinson Hyperlegible letters, and .brf when a score has one.</span>
+            </li>
+          </ul>
+        </section>
+
+        <footer class="home-footer member-footer">
+          <svg class="lune-mark home-footer-mark" viewBox="0 0 40 40" width="18" height="18" aria-hidden="true" focusable="false">
+            <path fill="currentColor" d="M26.2 7.2c-5.9.9-10.4 6-10.4 12.1 0 6.1 4.5 11.2 10.4 12.1A12.2 12.2 0 0 1 14 19.3c0-6.6 5.2-12 11.8-12.2.1 0 .3 0 .4 0z"/>
+          </svg>
+          <p class="home-footer-line">Lune · so practice feels right again</p>
+          <p class="fine-print home-footer-legal">
+            <button type="button" class="link-btn" data-open-credits>Credits &amp; licenses</button> ·
+            <button type="button" class="link-btn" data-open-credits="privacy">Privacy</button> ·
+            free and non-commercial
+          </p>
+        </footer>
+      </div>
+
+      <!-- Guest marketing landing -->
+      <div class="home-guest" id="home-guest">
       <section class="home-hero home-hero-cinema" id="hero">
         <div class="home-hero-motif" aria-hidden="true">
           <svg class="home-motif-mark" viewBox="0 0 40 40" focusable="false">
@@ -131,7 +204,7 @@
           <div class="home-continue" id="home-continue" hidden></div>
           <h1>When practice feels lost.<br>Find the light again.</h1>
           <p class="lead">
-            Named for Clair de lune — a night studio that helps you settle back into the music.
+            Named for Clair de lune — a night studio that helps practice feel right again.
           </p>
           <div class="home-cta-row home-cta-hero">
             <button type="button" class="primary big" data-lp-sim>See how it works</button>
@@ -477,6 +550,7 @@
           free and non-commercial
         </p>
       </footer>
+      </div><!-- /.home-guest -->
     </main>
 
     <main class="discover" id="discover" hidden>
@@ -753,17 +827,17 @@
   <script src="static/vendor/opensheetmusicdisplay.min.js"></script>
   <script src="static/vendor/pdf.min.js"></script>
   <script src="static/vendor/Tone.js"></script>
-  <script src="static/piano.otp04.js"></script>
-  <script src="static/annotate.otp04.js"></script>
-  <script src="static/lite-analyze.otp04.js"></script>
-  <script src="static/lyric-lane.otp04.js"></script>
-  <script src="static/menu.otp04.js"></script>
-  <script src="static/lune-config.otp04.js"></script>
-  <script src="static/store.otp04.js"></script>
-  <script src="static/onboard.otp04.js"></script>
-  <script src="static/app.otp04.js"></script>
-  <script src="static/practice.otp04.js"></script>
-  <script src="static/follow.otp04.js"></script>
-  <script src="static/study.otp04.js"></script>
+  <script src="static/piano.welcome01.js"></script>
+  <script src="static/annotate.welcome01.js"></script>
+  <script src="static/lite-analyze.welcome01.js"></script>
+  <script src="static/lyric-lane.welcome01.js"></script>
+  <script src="static/menu.welcome01.js"></script>
+  <script src="static/lune-config.welcome01.js"></script>
+  <script src="static/store.welcome01.js"></script>
+  <script src="static/onboard.welcome01.js"></script>
+  <script src="static/app.welcome01.js"></script>
+  <script src="static/practice.welcome01.js"></script>
+  <script src="static/follow.welcome01.js"></script>
+  <script src="static/study.welcome01.js"></script>
 </body>
 </html>
