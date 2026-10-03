@@ -354,25 +354,21 @@ window.LunePractice = (function () {
     const wrap = document.createElement("section");
     wrap.className = "lp-coach";
     wrap.innerHTML = `
-      <div class="lp-row lp-tools">
-        <button type="button" class="lp-chip" data-lp="aloud" title="Read this bar aloud (R)">Read aloud</button>
-        <button type="button" class="lp-chip" data-lp="assign" title="Make a link a student can open">Assign to a student</button>
-      </div>
       <div class="lp-teacher" hidden></div>
-      <h4 class="lp-h">Your notes · ${esc(barsText([primary]))}</h4>
-      <ul class="lp-notes" aria-live="polite"><li class="lp-empty">Loading…</li></ul>
+      <h4 class="lp-h">Your notes</h4>
+      <ul class="lp-notes" aria-live="polite"><li class="lp-empty">Nothing yet.</li></ul>
       <form class="lp-note-form" autocomplete="off">
         <label class="visually-hidden" for="lp-note-input">Note for bar ${primary}</label>
-        <textarea id="lp-note-input" rows="2" maxlength="500" placeholder="e.g. play faster here · keep the left hand quiet"></textarea>
-        <div class="lp-row">
-          <button type="button" class="lp-mic" data-lp="mic" aria-pressed="false" ${canListenForWords() ? "" : "disabled title=\"Voice notes need Chrome, Edge or Safari\""}>
-            <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-            <span>Speak</span>
+        <div class="lp-note-grow">
+          <textarea id="lp-note-input" rows="1" maxlength="500" placeholder="Note for bar ${primary}, or say it"></textarea>
+          <button type="button" class="icon-btn lp-mic" data-lp="mic" aria-label="Tell Lune" aria-pressed="false" ${canListenForWords() ? "" : "hidden"}>
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            <span class="visually-hidden">Speak</span>
           </button>
-          <button type="submit" class="lp-save">Save note</button>
         </div>
+        <button type="submit" class="lp-save primary">Save</button>
       </form>
-      <h4 class="lp-h">How did ${bars.length > 1 ? "these bars" : "it"} go?</h4>
+      <h4 class="lp-h">How did it go?</h4>
       <div class="lp-grades" role="group" aria-label="Rate this practice">
         ${GRADES.map(([g, label, hint]) => `<button type="button" class="lp-grade lp-${g}" data-grade="${g}" title="${esc(hint)}">${label}</button>`).join("")}
       </div>
@@ -394,14 +390,14 @@ window.LunePractice = (function () {
               </li>`
             )
             .join("")
-        : `<li class="lp-empty">Nothing yet. Type or say what to remember — “play faster here”, “thumb under on the F”.</li>`;
+        : `<li class="lp-empty">Nothing yet.</li>`;
     };
     const renderDue = async () => {
       try {
         const cards = (await store.listCards(key)).filter((c) => bars.includes(c.bar));
         if (token !== coachToken) return;
         if (!cards.length) {
-          dueEl.textContent = "Rate it after you practise and Lune will bring it back at the right time.";
+          dueEl.textContent = "Rate it after you practise. Lune brings it back at the right time.";
           return;
         }
         const c = cards.sort((a, b) => a.due_at.localeCompare(b.due_at))[0];
@@ -484,9 +480,15 @@ window.LunePractice = (function () {
         toast(err.message);
       }
     });
-    wrap.querySelector("textarea").addEventListener("keydown", (e) => {
+    const ta = wrap.querySelector("textarea");
+    const growNote = () => {
+      ta.style.height = "auto";
+      ta.style.height = `${Math.min(72, Math.max(44, ta.scrollHeight))}px`;
+    };
+    ta.addEventListener("input", growNote);
+    ta.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) wrap.querySelector("form").requestSubmit();
-      e.stopPropagation(); // typing never triggers score shortcuts
+      e.stopPropagation();
     });
     if (store.prefs().autoRead) readSelectedAloud();
   }
@@ -569,8 +571,11 @@ window.LunePractice = (function () {
       const inRep = key && repertoireKeys.has(key);
       b.classList.toggle("in", !!inRep);
       b.setAttribute("aria-pressed", inRep ? "true" : "false");
-      const label = b.querySelector(".lp-add-label") || b;
-      label.textContent = inRep ? "In Repertoire" : "Add to Repertoire";
+      const label = inRep ? "In Repertoire" : "Add to Repertoire";
+      b.setAttribute("aria-label", label);
+      b.title = label;
+      const el = b.querySelector(".lp-add-label");
+      if (el) el.textContent = label;
     }
   }
 
@@ -662,26 +667,31 @@ window.LunePractice = (function () {
           <p class="rep-lead">The pieces you’re learning — with your notes on every bar, and the bars that need you today.</p>
           <div class="rep-account" id="rep-account"></div>
         </header>
-        <section class="rep-section" aria-labelledby="rep-today-h">
-          <h2 id="rep-today-h">Today’s bars</h2>
-          <div id="rep-today" class="rep-today"></div>
-        </section>
-        <section class="rep-section" aria-labelledby="rep-add-h">
-          <h2 id="rep-add-h">Add a piece you’re learning</h2>
+        <section class="rep-section" id="rep-add-section" aria-labelledby="rep-add-h">
+          <h2 id="rep-add-h">Add a piece</h2>
           <form class="rep-add" id="rep-add" autocomplete="off">
             <input id="rep-add-q" type="search" placeholder="Type a piece — e.g. Für Elise, Gymnopédie, Chopin nocturne" aria-label="Piece you’re learning">
-            <button type="submit" class="primary">Add</button>
+            <button type="submit" class="quiet">Add</button>
           </form>
           <ul class="rep-suggest" id="rep-suggest" role="listbox" aria-label="Pieces Lune has"></ul>
+        </section>
+        <section class="rep-section" aria-labelledby="rep-today-h">
+          <div class="rep-today-head">
+            <h2 id="rep-today-h">Today’s bars</h2>
+            <button type="button" class="primary" id="rep-start" hidden>Start practice</button>
+          </div>
+          <div id="rep-today" class="rep-today"></div>
         </section>
         <section class="rep-section" aria-labelledby="rep-list-h">
           <h2 id="rep-list-h">Pieces</h2>
           <div id="rep-list" class="rep-list"></div>
         </section>
         <footer class="rep-foot">
-          <button type="button" class="quiet" data-lp-access>Reading &amp; access</button>
-          <button type="button" class="quiet" id="rep-export">Download my data</button>
-          <a class="quiet rep-study-link" href="#/study">Reading study</a>
+          <button type="button" class="link-btn" data-lp-access>Reading &amp; access</button>
+          <span aria-hidden="true">·</span>
+          <button type="button" class="link-btn" id="rep-export">Download my data</button>
+          <span aria-hidden="true">·</span>
+          <a class="link-btn" href="#/study">Reading study</a>
         </footer>
       </div>`;
     $("studio")?.after(main);
@@ -760,14 +770,14 @@ window.LunePractice = (function () {
     if (!box) return;
     const st = store.status();
     if (st.signedIn) {
-      box.innerHTML = `<span class="rep-acct-text"><span class="rep-acct-dot on"></span>Synced to <strong>${esc(st.email)}</strong></span>
-        <button type="button" class="quiet" data-lp-account>Account</button>`;
+      box.innerHTML = `<span class="rep-acct-text"><span class="rep-acct-dot on"></span>Synced to ${esc(st.email)}</span>
+        <button type="button" class="link-btn" data-lp-account>Account</button>`;
     } else if (st.cloud) {
-      box.innerHTML = `<span class="rep-acct-text"><span class="rep-acct-dot"></span>Saved on this device.</span>
-        <button type="button" class="primary" data-lp-account>Sign in to sync</button>`;
+      box.innerHTML = `<span class="rep-acct-text"><span class="rep-acct-dot"></span>Saved in this browser</span>
+        <button type="button" class="quiet" data-lp-account>Sign in to sync</button>`;
     } else {
-      box.innerHTML = `<span class="rep-acct-text"><span class="rep-acct-dot"></span>Saved in this browser — nothing leaves your device.</span>
-        <button type="button" class="quiet" data-lp-account>About accounts</button>`;
+      box.innerHTML = `<span class="rep-acct-text"><span class="rep-acct-dot"></span>Saved in this browser</span>
+        <button type="button" class="link-btn" data-lp-account>Account</button>`;
     }
   }
 
@@ -799,6 +809,16 @@ window.LunePractice = (function () {
     const groups = {};
     for (const c of due) (groups[c.piece_key] = groups[c.piece_key] || []).push(c.bar);
     const gKeys = Object.keys(groups);
+    const start = $("rep-start");
+    if (start) {
+      start.hidden = !gKeys.length;
+      if (gKeys.length) {
+        const firstKey = gKeys[0];
+        const firstBar = groups[firstKey].slice().sort((a, b) => a - b)[0];
+        start.dataset.open = firstKey;
+        start.dataset.bar = String(firstBar);
+      }
+    }
     todayEl.innerHTML = gKeys.length
       ? gKeys
           .map(
@@ -835,12 +855,52 @@ window.LunePractice = (function () {
                   ${STATUS.map(([v, l]) => `<option value="${v}" ${p.status === v ? "selected" : ""}>${l}</option>`).join("")}
                 </select>
                 <button type="button" class="primary" data-open="${esc(p.piece_key)}">Open</button>
-                <button type="button" class="quiet rep-remove" data-remove="${esc(p.piece_key)}" aria-label="Remove ${esc(p.title)}">Remove</button>
+                <button type="button" class="icon-btn" data-card-more="${esc(p.piece_key)}" aria-label="More for ${esc(p.title)}" title="More">
+                  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="6" cy="12" r="1.4" fill="currentColor"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/><circle cx="18" cy="12" r="1.4" fill="currentColor"/></svg>
+                </button>
+                <button type="button" class="quiet rep-remove" hidden data-remove="${esc(p.piece_key)}" aria-label="Remove ${esc(p.title)}">Remove</button>
               </div>
             </article>`;
           })
           .join("")
       : `<p class="rep-empty">Your Repertoire is empty. Type a piece above, or press <em>Add to Repertoire</em> on any score.</p>`;
+    const addSec = $("rep-add-section");
+    const todaySec = $("rep-today")?.closest(".rep-section");
+    const listWrap = $("rep-list")?.closest(".rep-section");
+    if (addSec) {
+      if (!pieces.length) {
+        const hero = document.querySelector(".rep-hero");
+        if (hero) hero.after(addSec);
+        $("rep-add-q")?.focus();
+      } else if (listWrap) {
+        listWrap.after(addSec);
+      }
+    }
+    listEl.querySelectorAll("[data-card-more]").forEach((btn) => {
+      const key = btn.dataset.cardMore;
+      const piece = pieces.find((p) => p.piece_key === key);
+      window.LuneMenu?.attach(btn, () => {
+        const items = [
+          {
+            label: "Remove",
+            action: () => {
+              const hidden = listEl.querySelector(`[data-remove="${CSS.escape(key)}"]`);
+              hidden?.click();
+            },
+          },
+        ];
+        if (piece?.source === "upload") {
+          items.push({
+            label: "Attach score",
+            action: () => {
+              pendingAttach = { key, title: piece.title || "your piece" };
+              $("file")?.click();
+            },
+          });
+        }
+        return items;
+      });
+    });
   }
 
   async function onRepertoireClick(e) {
@@ -854,13 +914,15 @@ window.LunePractice = (function () {
     } else if (b.dataset.remove) {
       if (b.dataset.confirm !== "1") {
         b.dataset.confirm = "1";
-        b.textContent = "Remove?";
+        b.textContent = "Remove? (press again)";
         b.classList.add("danger");
+        b.hidden = false;
         setTimeout(() => {
           if (b.isConnected) {
             b.dataset.confirm = "";
             b.textContent = "Remove";
             b.classList.remove("danger");
+            b.hidden = true;
           }
         }, 3500);
         return;
@@ -916,7 +978,7 @@ window.LunePractice = (function () {
     }
     return d;
   }
-  const closeRow = `<form method="dialog" class="credits-close-row"><button class="quiet" aria-label="Close">Close</button></form>`;
+  const closeRow = `<form method="dialog" class="credits-close-row"><button type="submit" class="icon-btn" aria-label="Close" title="Close"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button></form>`;
 
   function openAccountDialog() {
     const d = dialog("account-dialog");
@@ -1030,7 +1092,7 @@ window.LunePractice = (function () {
       ${row("readableFont", "Easier-to-read letters", "Atkinson Hyperlegible for labels and text: every letter shape distinct (made for low vision; many dyslexic readers like it too).")}
       ${row("highContrast", "High contrast", "Pure black on white for the score panel and letter names.")}
       ${row("autoRead", "Read bars aloud", "Every bar you select is described out loud: notes, chords, fingers and a tip.")}
-      <h3>Keyboard</h3>
+      <h3>Keyboard shortcuts</h3>
       <p class="dim">Select a bar, then ← → move bar to bar · R read it aloud · N write a note on it · Space play · Esc close.</p>
       <h3>Braille</h3>
       <p class="dim">Pieces from Lune’s library can be downloaded as braille music (.brf, ready for an embosser or a refreshable display) from the piece’s Explain page.</p>`;
@@ -1054,27 +1116,30 @@ window.LunePractice = (function () {
   /* ---------------- explain page + toolbar buttons ---------------- */
 
   async function decorateExplain(piece) {
-    const actions = document.querySelector("#explain-hero .explain-actions, #explain-hero .discover-cta, #btn-explain-score")?.parentElement;
-    if (actions && !actions.querySelector("[data-lp-add]")) {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "quiet lp-add";
-      b.setAttribute("data-lp-add", "");
-      b.innerHTML = `<span class="lp-add-label">Add to Repertoire</span>`;
-      actions.appendChild(b);
-    }
-    if (actions) {
-      actions.querySelector(".lp-braille")?.remove();
+    const dl = $("btn-download");
+    if (dl) {
+      dl.hidden = !piece?.musicxml;
       const idx = await loadBrailleIndex();
       const key = keyFor(piece);
-      if (!piece.local && idx[key]) {
-        const a = document.createElement("a");
-        a.className = "quiet lp-braille";
-        a.href = luneUrl(`/static/braille/${idx[key].file}`);
-        a.download = idx[key].file;
+      const br = !piece.local && idx[key] ? idx[key] : null;
+      dl.querySelector(".lp-braille")?.remove();
+      if (br) {
+        let a = document.querySelector("a.lp-braille");
+        if (!a) {
+          a = document.createElement("a");
+          a.className = "lp-braille visually-hidden";
+          dl.after(a);
+        }
+        a.href = luneUrl(`/static/braille/${br.file}`);
+        a.download = br.file;
         a.textContent = "Braille (.brf)";
-        a.title = idx[key].note || "Braille music, generated with music21";
-        actions.appendChild(a);
+        a.title = br.note || "Braille music, generated with music21";
+        window.LuneMenu?.attach(dl, () => [
+          { label: "MusicXML", action: () => window.downloadScore?.() },
+          { label: "Braille (.brf)", href: a.href, download: br.file, className: "lp-braille" },
+        ]);
+      } else {
+        dl.onclick = () => window.downloadScore?.();
       }
     }
     syncAddButtons();
@@ -1087,28 +1152,85 @@ window.LunePractice = (function () {
     bar.className = "lp-tools-bar";
     bar.innerHTML = `
       <button type="button" class="quiet lp-tool" id="btn-follow" aria-pressed="false" title="Lune listens as you play, follows the score and marks the bars that trip you up">
-        <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M4 12h2l2-5 3 10 3-7 2 4h4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 12h2l2-5 3 10 3-7 2 4h4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span class="lp-tool-label">Play along</span></button>
-      <button type="button" class="quiet lp-tool" id="btn-tell" aria-pressed="false" title="Say a note for any bar — “bar 12, play faster here”" ${canListenForWords() ? "" : "hidden"}>
-        <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-        <span class="lp-tool-label">Tell Lune</span></button>
-      <button type="button" class="quiet lp-tool lp-add" data-lp-add aria-pressed="false"><span class="lp-add-label">Add to Repertoire</span></button>`;
-    head.insertBefore(bar, head.querySelector("#btn-toggle-kbd"));
+      <button type="button" class="icon-btn lp-tool" id="btn-tell" aria-label="Tell Lune" aria-pressed="false" title="Say a note for any bar — “bar 12, play faster here”" ${canListenForWords() ? "" : "hidden"}>
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+      <button type="button" class="icon-btn" id="btn-score-more" aria-label="More" title="More">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="6" cy="12" r="1.4" fill="currentColor"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/><circle cx="18" cy="12" r="1.4" fill="currentColor"/></svg>
+      </button>`;
+    head.appendChild(bar);
     bar.querySelector("#btn-tell")?.addEventListener("click", (e) => tellLune(e.currentTarget));
     bar.querySelector("#btn-follow")?.addEventListener("click", () => window.LuneFollow?.toggle());
+    window.LuneMenu?.attach($("btn-score-more"), () => [
+      {
+        id: "btn-toggle-kbd-item",
+        label: "Show keyboard",
+        checked: !!state.keyboardVisible && state.panel === "score",
+        action: () => $("btn-toggle-kbd")?.click(),
+      },
+      { label: "Read selected bar aloud", hint: "R", action: () => readSelectedAloud() },
+      { label: "Note on selected bar", hint: "N", action: () => {
+        if (!selectedBarsSorted().length) return toast("Select a bar first");
+        if (!state.coachOpen) openBarCoach();
+        setTimeout(() => $("lp-note-input")?.focus(), 30);
+      } },
+    ]);
   }
 
   function ensureHeaderButton() {
-    if ($("btn-repertoire")) return;
-    const b = document.createElement("button");
-    b.type = "button";
-    b.id = "btn-repertoire";
-    b.className = "quiet rep-btn";
-    b.title = "Your Repertoire";
-    b.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="M5 4.5h3v15H5zM10 4.5h3v15h-3zM15.2 5.2l2.8-.8 3 14.4-2.8.8z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
-      <span class="rep-btn-label">Repertoire</span><span class="rep-badge" id="rep-badge" hidden></span>`;
-    $("btn-open")?.before(b);
-    b.addEventListener("click", () => showRepertoire());
+    const b = $("btn-repertoire");
+    if (b && !b.dataset.bound) {
+      b.dataset.bound = "1";
+      b.addEventListener("click", () => showRepertoire());
+    }
+    bindOverflowMenus();
+  }
+
+  function bindOverflowMenus() {
+    if (bindOverflowMenus.done) return;
+    bindOverflowMenus.done = true;
+    window.LuneMenu?.attach($("btn-more"), () => headerMenuItems());
+    window.LuneMenu?.attach($("btn-coach-more"), () => [
+      { label: "Read aloud", hint: "R", action: () => readSelectedAloud() },
+      { label: "Assign to a student", action: () => openAssignDialog(selectedBarsSorted()) },
+      { id: "btn-plan", label: "Practice plan" },
+    ]);
+  }
+
+  function headerMenuItems() {
+    const studio = document.body.classList.contains("is-studio");
+    const bars = selectedBarsSorted();
+    const library = !!(state.piece && !state.piece.local);
+    const items = [
+      { label: "Upload a score", action: () => $("file")?.click() },
+    ];
+    if (studio) {
+      items.push({
+        label: "Assign to a student",
+        disabled: !(bars.length && library),
+        title: bars.length && library ? "" : "Select bars first",
+        hint: bars.length && library ? "" : "Select bars first",
+        action: () => openAssignDialog(bars),
+      });
+      items.push({ label: "Download MusicXML", action: () => window.downloadScore?.() });
+      const a = document.querySelector("a.lp-braille");
+      if (a?.href) items.push({ label: "Download Braille (.brf)", href: a.href, download: a.getAttribute("download") || "" });
+    }
+    items.push({ label: "Reading & access", action: () => openAccessDialog() });
+    items.push({ label: "Credits & licenses", action: () => document.querySelector("[data-open-credits]")?.click() });
+    if (!studio) items.push({ label: "Privacy", action: () => openCreditsPrivacy() });
+    return items;
+  }
+
+  function openCreditsPrivacy() {
+    const b = document.querySelector('[data-open-credits="privacy"]');
+    if (b) b.click();
+    else {
+      const dlg = $("credits-dialog");
+      dlg?.showModal();
+      $("credits-privacy")?.scrollIntoView();
+    }
   }
   async function refreshBadge() {
     const badge = $("rep-badge");
@@ -1162,11 +1284,11 @@ window.LunePractice = (function () {
         <label for="as-msg">Instructions</label>
         <textarea id="as-msg" rows="3" maxlength="400" placeholder="e.g. Hands separately at 60, then together. Watch the thumb in bar 13."></textarea>
         ${mine.length ? `<label class="lp-switch"><input type="checkbox" id="as-notes" checked><span><strong>Include my ${mine.length} bar note${mine.length === 1 ? "" : "s"}</strong><small>${mine.map((n) => esc(n.body)).slice(0, 3).join(" · ")}</small></span></label>` : ""}
-        <button type="submit" class="primary">Create link</button>
+        <button type="submit" class="primary" id="as-create">Create link</button>
       </form>
       <div class="lp-assign-out" hidden>
         <input id="as-url" readonly aria-label="Assignment link">
-        <div class="lp-row"><button type="button" class="primary" id="as-copy">Copy link</button><button type="button" class="quiet" id="as-share" hidden>Share…</button></div>
+        <div class="lp-row"><button type="button" class="quiet" id="as-copy">Copy link</button><button type="button" class="quiet" id="as-share" hidden>Share…</button></div>
         <p class="dim">The link holds the assignment itself — nothing is uploaded. Anyone with it sees these bars and notes.</p>
       </div>`;
     d.querySelector("form.lp-assign").addEventListener("submit", (e) => {
@@ -1180,6 +1302,10 @@ window.LunePractice = (function () {
       const out = d.querySelector(".lp-assign-out");
       out.hidden = false;
       d.querySelector("#as-url").value = url;
+      const create = d.querySelector("#as-create");
+      if (create) create.className = "quiet";
+      const copy = d.querySelector("#as-copy");
+      if (copy) copy.className = "primary";
       const share = d.querySelector("#as-share");
       if (navigator.share) {
         share.hidden = false;
@@ -1247,11 +1373,14 @@ window.LunePractice = (function () {
     el.innerHTML = `<div class="lp-banner-text">
         <p class="lp-banner-k">Assignment${assignment.by ? ` from ${esc(assignment.by)}` : ""}</p>
         <p>${assignment.message ? esc(assignment.message) : `Practise ${esc(barsText(assignment.bars))}.`}</p>
+        ${(assignment.message || "").length > 90 ? `<button type="button" class="lp-banner-more" data-x="more">More</button>` : ""}
         <div class="lp-banner-bars">${assignment.bars.map((b) => `<button type="button" class="rep-bar" data-bar="${b}">Bar ${b}</button>`).join("")}</div>
       </div>
       <div class="lp-banner-actions">
         <button type="button" class="primary" data-x="save">Save to my Repertoire</button>
-        <button type="button" class="quiet ink" data-x="dismiss" aria-label="Hide assignment">Hide</button>
+        <button type="button" class="icon-btn lp-banner-hide" data-x="dismiss" aria-label="Hide assignment" title="Hide">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </button>
       </div>`;
     el.onclick = async (e) => {
       const b = e.target.closest("button");
@@ -1259,6 +1388,9 @@ window.LunePractice = (function () {
       if (b.dataset.bar) {
         setBarSelection([Number(b.dataset.bar)], { open: true });
         scrollToBar(Number(b.dataset.bar));
+      } else if (b.dataset.x === "more") {
+        el.classList.toggle("is-open");
+        b.textContent = el.classList.contains("is-open") ? "Less" : "More";
       } else if (b.dataset.x === "dismiss") el.hidden = true;
       else if (b.dataset.x === "save") {
         b.disabled = true;
@@ -1369,13 +1501,48 @@ window.LunePractice = (function () {
       await refreshRepertoireKeys();
       refreshBadge();
       if (state.mode === "repertoire") renderRepertoire();
+      renderContinueCard();
       if (st.signedIn && store.hasLocalData()) {
         toast("Signed in. Open Account to move this browser’s pieces into it.");
       }
     });
     await refreshRepertoireKeys();
     refreshBadge();
+    renderContinueCard();
     setInterval(refreshBadge, 5 * 60000);
+  }
+
+  async function renderContinueCard() {
+    const host = $("home-continue");
+    if (!host) return;
+    let pieces = [];
+    let due = [];
+    try {
+      [pieces, due] = await Promise.all([store.listPieces(), store.dueCards(99)]);
+    } catch {
+      host.hidden = true;
+      return;
+    }
+    if (!pieces.length) {
+      host.hidden = true;
+      host.innerHTML = "";
+      return;
+    }
+    const last = pieces[0];
+    const n = due.length;
+    host.hidden = false;
+    host.innerHTML = `<p class="home-continue-k">Continue</p>
+      <p class="home-continue-t">${esc(last.title)}</p>
+      <div class="home-continue-actions">
+        <button type="button" class="primary" data-open="${esc(last.piece_key)}">Open</button>
+        ${n ? `<button type="button" class="quiet" data-go-rep>${n} bar${n === 1 ? "" : "s"} due today</button>` : ""}
+      </div>`;
+    host.onclick = (e) => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      if (b.hasAttribute("data-go-rep")) showRepertoire();
+      else if (b.dataset.open) openFromRepertoire(b.dataset.open).catch((err) => toast(err.message));
+    };
   }
 
   return {
