@@ -1,7 +1,7 @@
-<!-- apple02 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- apple03 -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Lune — quiet piano practice</title>
@@ -25,12 +25,12 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Lune">
-  <link rel="icon" href="static/assets/favicon.svg?v=apple02" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=apple02">
-  <link rel="manifest" href="static/manifest.json?v=apple02">
+  <link rel="icon" href="static/assets/favicon.svg?v=apple03" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=apple03">
+  <link rel="manifest" href="static/manifest.json?v=apple03">
   <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="static/styles.apple02.css">
-  <link rel="preload" href="static/search-index.json?v=apple02" as="fetch" crossorigin>
+  <link rel="stylesheet" href="static/styles.css?v=apple03">
+  <link rel="preload" href="static/search-index.json?v=apple03" as="fetch" crossorigin>
 </head>
 <body>
   <div id="app">
@@ -152,210 +152,258 @@
         <h2 class="home-billboard-line">Practice that settles.</h2>
       </section>
 
-      <section class="home-billboard home-billboard-soft" data-reveal>
-        <h2 class="home-billboard-line">Like moonlight<br>on the keys.</h2>
+      <section class="home-feat-intro" id="tour" data-reveal>
+        <p class="about-kicker">Inside the studio</p>
+        <h2 id="sim-h">Each tool, as you’ll use it.</h2>
+        <p>No slideshow. Scroll through the real studio — one feature at a time, with the why beside it.</p>
       </section>
 
-      <section class="home-sim home-sim-cinema" id="tour" aria-labelledby="sim-h" data-reveal>
-        <div class="home-sim-inner">
-          <header class="home-sim-head">
-            <p class="about-kicker">The studio</p>
-            <h2 id="sim-h">Sit with Clair de lune.</h2>
-            <p class="home-sim-lead">A living product film — page, keys, plan. Watch. Then make it yours.</p>
-          </header>
-          <div class="sim-stage">
-            <div class="sim-viewport sim-viewport-cinema">
-              <div class="sim-frame" id="sim-frame" aria-hidden="true"></div>
-            </div>
-            <div class="sim-caption">
-              <p class="sim-kicker" id="sim-kicker">01 / 06</p>
-              <h3 id="sim-title">Letter names under the staff</h3>
-              <p id="sim-body">Names sit in their own lane — never painted on the note heads.</p>
-              <div class="sim-controls">
-                <button type="button" class="quiet" id="sim-prev">Back</button>
-                <div class="sim-dots" id="sim-dots" role="tablist" aria-label="Simulation steps"></div>
-                <button type="button" class="primary" id="sim-next">Next</button>
-              </div>
-            </div>
+      <div id="features" class="home-feat-stack" aria-label="Lune features">
+
+      <section class="home-feat" id="feat-letters" data-reveal>
+        <div class="home-feat-copy">
+          <p class="about-kicker">01 · Annotate</p>
+          <h2>Every note, named.</h2>
+          <p class="home-feat-why"><strong>Why:</strong> Labels sit under the staff in their own lane — never painted on the note heads — so the page stays readable while you learn.</p>
+          <p>Toggle <strong>Notes</strong>, <strong>Fingers</strong>, or <strong>Off</strong> in the score tools. One mode at a time.</p>
+        </div>
+        <figure class="home-feat-device" aria-hidden="true">
+          <div class="fx-chrome">
+            <span class="fx-brand">Lune</span>
+            <span class="fx-piece">Clair de lune</span>
+            <div class="fx-tabs"><span class="on">Score</span><span>Explain</span><span>Piano</span></div>
           </div>
-          <div class="sim-try" id="sim-try" hidden>
-            <h3>Make Lune yours</h3>
-            <p>Sign in free with email — then open Clair de lune and keep plans and notes with you. No payments, ever.</p>
-            <div class="home-cta-row">
-              <button type="button" class="primary big" data-lp-create-account>Make Lune yours</button>
-            </div>
+          <div class="fx-tools">
+            <span class="fx-seg"><em class="on">Notes</em><em>Fingers</em><em>Off</em></span>
+            <span class="fx-chip">Aa</span>
           </div>
-        </div>
-      </section>
-
-      <section class="home-billboard" data-reveal>
-        <p class="home-billboard-kicker">Four quiet tools</p>
-        <h2 class="home-billboard-line">One place<br>to practise.</h2>
-      </section>
-
-      <section class="home-pin home-pin-cinema" id="features" aria-label="What Lune does">
-        <div class="home-pin-sticky" aria-hidden="true">
-          <div class="home-pin-stage" id="home-pin-stage">
-            <div class="home-pin-frame is-on" data-pin-frame="read">
-              <svg class="home-viz home-viz-read" viewBox="0 0 360 220" focusable="false">
-                <rect x="0.5" y="0.5" width="359" height="219" rx="2" fill="#0c0c0c" stroke="#2a2a2a"/>
-                <g>
-                  <rect x="24" y="22" width="64" height="22" rx="11" fill="#f5f5f5"/>
-                  <text x="40" y="37" fill="#0a0a0a" font-size="11" font-family="Fraunces, Georgia, serif">Letters</text>
-                  <rect x="96" y="22" width="64" height="22" rx="11" fill="none" stroke="#3a3a3a"/>
-                  <text x="110" y="37" fill="#757575" font-size="11" font-family="Fraunces, Georgia, serif">Fingers</text>
-                </g>
-                <g stroke="#3a3a3a" stroke-width="1" fill="none">
-                  <line x1="28" y1="72" x2="332" y2="72"/><line x1="28" y1="84" x2="332" y2="84"/>
-                  <line x1="28" y1="96" x2="332" y2="96"/><line x1="28" y1="108" x2="332" y2="108"/>
-                  <line x1="28" y1="120" x2="332" y2="120"/><line x1="28" y1="148" x2="332" y2="148"/>
-                  <line x1="28" y1="160" x2="332" y2="160"/><line x1="28" y1="172" x2="332" y2="172"/>
-                  <line x1="28" y1="184" x2="332" y2="184"/><line x1="28" y1="196" x2="332" y2="196"/>
-                </g>
-                <g fill="#f0f0f0">
-                  <ellipse cx="90" cy="102" rx="5.5" ry="4"/><rect x="94.5" y="78" width="1.5" height="24"/>
-                  <ellipse cx="150" cy="90" rx="5.5" ry="4"/><rect x="154.5" y="66" width="1.5" height="24"/>
-                  <ellipse cx="210" cy="96" rx="5.5" ry="4"/><rect x="214.5" y="72" width="1.5" height="24"/>
-                </g>
-                <g fill="#f5f5f5" font-size="11" font-family="Fraunces, Georgia, serif" text-anchor="middle">
-                  <text x="90" y="136">G♯</text><text x="150" y="124">C♯</text><text x="210" y="130">E</text>
-                </g>
-              </svg>
-            </div>
-            <div class="home-pin-frame" data-pin-frame="piano">
-              <svg class="home-viz home-viz-keys" viewBox="0 0 360 220" focusable="false">
-                <rect x="0.5" y="0.5" width="359" height="219" rx="2" fill="#0c0c0c" stroke="#2a2a2a"/>
-                <text x="24" y="36" fill="#757575" font-size="10" letter-spacing="2" font-family="Fraunces, Georgia, serif">KEYBOARD · 0.75×</text>
-                <g class="home-viz-kbd">
-                  <rect x="24" y="56" width="28" height="120" fill="#f5f5f5" stroke="#0a0a0a"/>
-                  <rect x="52" y="56" width="28" height="120" fill="#f5f5f5" stroke="#0a0a0a"/>
-                  <rect class="home-viz-key-lit" x="80" y="56" width="28" height="120" fill="#d8d8d8" stroke="#0a0a0a"/>
-                  <rect x="108" y="56" width="28" height="120" fill="#f5f5f5" stroke="#0a0a0a"/>
-                  <rect x="136" y="56" width="28" height="120" fill="#f5f5f5" stroke="#0a0a0a"/>
-                  <rect class="home-viz-key-lit" x="164" y="56" width="28" height="120" fill="#d0d0d0" stroke="#0a0a0a"/>
-                  <rect x="192" y="56" width="28" height="120" fill="#f5f5f5" stroke="#0a0a0a"/>
-                  <rect x="220" y="56" width="28" height="120" fill="#f5f5f5" stroke="#0a0a0a"/>
-                  <rect x="248" y="56" width="28" height="120" fill="#f5f5f5" stroke="#0a0a0a"/>
-                  <rect x="276" y="56" width="28" height="120" fill="#f5f5f5" stroke="#0a0a0a"/>
-                  <rect x="304" y="56" width="28" height="120" fill="#f5f5f5" stroke="#0a0a0a"/>
-                  <rect x="42" y="56" width="18" height="72" fill="#111"/>
-                  <rect x="70" y="56" width="18" height="72" fill="#111"/>
-                  <rect x="126" y="56" width="18" height="72" fill="#111"/>
-                  <rect x="154" y="56" width="18" height="72" fill="#111"/>
-                  <rect x="182" y="56" width="18" height="72" fill="#111"/>
-                  <text class="home-viz-finger" x="94" y="158" text-anchor="middle" fill="#0a0a0a" font-size="14" font-family="Fraunces, Georgia, serif">2</text>
-                  <text class="home-viz-finger" x="178" y="158" text-anchor="middle" fill="#0a0a0a" font-size="14" font-family="Fraunces, Georgia, serif">5</text>
-                </g>
-              </svg>
-            </div>
-            <div class="home-pin-frame" data-pin-frame="ask">
-              <svg class="home-viz home-viz-ask" viewBox="0 0 360 220" focusable="false">
-                <rect x="0.5" y="0.5" width="359" height="219" rx="2" fill="#0c0c0c" stroke="#2a2a2a"/>
-                <g stroke="#3a3a3a" stroke-width="1" fill="none">
-                  <line x1="20" y1="40" x2="200" y2="40"/><line x1="20" y1="52" x2="200" y2="52"/>
-                  <line x1="20" y1="64" x2="200" y2="64"/><line x1="20" y1="76" x2="200" y2="76"/>
-                  <line x1="20" y1="88" x2="200" y2="88"/>
-                </g>
-                <rect class="home-viz-bar-hilite" x="88" y="28" width="56" height="72" fill="#f5f5f5" opacity="0.08"/>
-                <rect x="88" y="28" width="56" height="72" fill="none" stroke="#f5f5f5" stroke-width="1" opacity="0.55"/>
-                <text x="108" y="24" fill="#a8a8a8" font-size="9" font-family="Fraunces, Georgia, serif">Bar 7</text>
-                <rect x="216" y="24" width="124" height="172" rx="2" fill="#121212" stroke="#2a2a2a"/>
-                <text x="232" y="48" fill="#f5f5f5" font-size="12" font-family="Fraunces, Georgia, serif">Ask · Bar 7</text>
-                <text x="232" y="84" fill="#a8a8a8" font-size="10" font-family="Fraunces, Georgia, serif">RH · G♯ C♯ E</text>
-                <text x="232" y="104" fill="#a8a8a8" font-size="10" font-family="Fraunces, Georgia, serif">Fingers · 2 1 3</text>
-                <text x="232" y="136" fill="#757575" font-size="10" font-family="Fraunces, Georgia, serif">Keep the triad</text>
-                <text x="232" y="152" fill="#757575" font-size="10" font-family="Fraunces, Georgia, serif">quiet under the</text>
-                <text x="232" y="168" fill="#757575" font-size="10" font-family="Fraunces, Georgia, serif">melody tone.</text>
-              </svg>
-            </div>
-            <div class="home-pin-frame" data-pin-frame="plan">
-              <div class="home-today-mock">
-                <p class="home-today-k">Today’s bars</p>
-                <div class="home-today-card">
-                  <p class="home-today-title">Für Elise</p>
-                  <div class="home-today-bars"><span>Bar 12</span><span>Bar 13</span><span>Bar 24</span></div>
-                </div>
-                <div class="home-today-card">
-                  <p class="home-today-title">Clair de lune</p>
-                  <div class="home-today-bars"><span>Bar 7</span></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="home-pin-rail">
-          <article class="home-pin-step is-in" data-pin="read" id="read">
-            <p class="about-kicker">01 · Score</p>
-            <h2>Every note,<br>named.</h2>
-            <p>
-              Letter names or finger numbers sit in their own lane under the staff — never painted on the heads.
-              Toggle one or the other so the page stays readable while you work.
-            </p>
-          </article>
-          <article class="home-pin-step" data-pin="piano" id="listen">
-            <p class="about-kicker">02 · Piano</p>
-            <h2>Hear it.<br>See the keys.</h2>
-            <p>
-              Play at any tempo with a metronome in the piece’s meter. Open Piano and notes fall onto a real keyboard —
-              right hand, left hand, or both — so hard bars land under the hands.
-            </p>
-          </article>
-          <article class="home-pin-step" data-pin="ask" id="ask">
-            <p class="about-kicker">03 · Practice</p>
-            <h2>Tap the bar<br>that won’t sit.</h2>
-            <p>
-              Click a stubborn bar. The coach lists its notes, suggested fingers, and a quiet way to practise it —
-              one panel beside the page, never a wall of chrome.
-            </p>
-          </article>
-          <article class="home-pin-step" data-pin="plan" id="remember">
-            <p class="about-kicker">04 · Repertoire</p>
-            <h2>Plans that<br>stay with you.</h2>
-            <p>
-              Select bars, speak or jot a note, save a plan into Repertoire. Rate what you practised —
-              Lune brings hard bars back as Today’s work. Sign in and it syncs across your devices.
-            </p>
-          </article>
-        </div>
-      </section>
-
-      <section class="home-screen" id="easy-read" aria-labelledby="easy-read-h" data-reveal>
-        <div class="home-screen-copy">
-          <p class="about-kicker">Easy read</p>
-          <h2 id="easy-read-h">Letters that<br>refuse to blur.</h2>
-          <p>
-            Tap <strong>Aa</strong> on Overview or Score. Letter names switch to Atkinson Hyperlegible —
-            clearer shapes, less mix-up between similar letters. Large print and high contrast live
-            in Reading &amp; access when you need them.
-          </p>
-        </div>
-        <figure class="home-screen-frame" aria-hidden="true">
-          <div class="access-demo access-demo-dyslexia access-demo-cinema">
-            <p class="access-demo-k">Aa · Easy read · Atkinson Hyperlegible</p>
-            <p class="access-demo-sample">G♯ · C♯ · E · B♭ · F</p>
-            <p class="access-demo-note">Every letter shape stays distinct under the staff.</p>
+          <div class="fx-stage">
+            <div class="fx-staff"></div>
+            <div class="fx-staff"></div>
+            <div class="fx-staff"></div>
+            <div class="fx-staff"></div>
+            <div class="fx-staff"></div>
+            <div class="fx-labels"><span>G♯</span><span>C♯</span><span>E</span><span>B♭</span></div>
           </div>
         </figure>
       </section>
 
-      <section class="home-screen home-screen-flip" id="braille" aria-labelledby="braille-h" data-reveal>
-        <div class="home-screen-copy">
-          <p class="about-kicker">Braille</p>
-          <h2 id="braille-h">Music you<br>can feel.</h2>
-          <p>
-            When a library piece has a braille file, a Braille chip appears on Overview or Score.
-            Download the <code>.brf</code> for a refreshable display or embosser.
-            Not every score has one yet — Clair de lune and several others do.
-          </p>
+      <section class="home-feat home-feat-flip" id="feat-play" data-reveal>
+        <div class="home-feat-copy">
+          <p class="about-kicker">02 · Hear</p>
+          <h2>Your tempo. The original marked.</h2>
+          <p class="home-feat-why"><strong>Why:</strong> Slowing down shouldn’t lose the piece’s pulse. The slider keeps the original bpm visible so you always know where “real” sits.</p>
+          <p>Play with a metronome in the piece’s meter. The playhead stays with you on the page.</p>
         </div>
-        <figure class="home-screen-frame" aria-hidden="true">
-          <div class="access-demo access-demo-braille access-demo-cinema">
-            <p class="access-demo-k">Download</p>
-            <p class="access-demo-chip">Braille · .brf</p>
-            <p class="access-demo-note">For an embosser or refreshable braille display.</p>
+        <figure class="home-feat-device" aria-hidden="true">
+          <div class="fx-chrome">
+            <span class="fx-brand">Lune</span>
+            <span class="fx-piece">Clair de lune</span>
+            <div class="fx-tabs"><span class="on">Score</span><span>Explain</span><span>Piano</span></div>
+          </div>
+          <div class="fx-transport">
+            <span class="fx-play on">Play</span>
+            <span class="fx-bpm">72 bpm</span>
+            <span class="fx-orig">♩ = orig</span>
+            <span class="fx-metro on">Metronome</span>
+          </div>
+          <div class="fx-stage">
+            <div class="fx-staff"></div>
+            <div class="fx-staff"></div>
+            <div class="fx-staff"></div>
+            <div class="fx-staff"></div>
+            <div class="fx-staff"></div>
+            <div class="fx-playhead"><em></em></div>
           </div>
         </figure>
       </section>
+
+      <section class="home-feat" id="feat-piano" data-reveal>
+        <div class="home-feat-copy">
+          <p class="about-kicker">03 · Piano</p>
+          <h2>Falling notes onto real keys.</h2>
+          <p class="home-feat-why"><strong>Why:</strong> Hard bars make more sense under the hands. Same tempo control as the score — filter right, left, or both.</p>
+          <p>Open the Piano tab. Notes drop onto the keyboard; pressed keys can show the finger digit.</p>
+        </div>
+        <figure class="home-feat-device fx-device-piano" aria-hidden="true">
+          <div class="fx-chrome">
+            <span class="fx-brand">Lune</span>
+            <span class="fx-piece">Clair de lune</span>
+            <div class="fx-tabs"><span>Score</span><span>Explain</span><span class="on">Piano</span></div>
+          </div>
+          <div class="sim-piano">
+            <div class="sim-piano-chrome">
+              <span class="sim-pill on">Both</span>
+              <span class="sim-pill">RH</span>
+              <span class="sim-pill">LH</span>
+              <span class="sim-piano-meta">KEYBOARD · 0.75×</span>
+            </div>
+            <div class="sim-fall" aria-hidden="true">
+              <b class="rh" style="--col:2;--h:48%;--d:0s"></b>
+              <b class="lh" style="--col:4;--h:32%;--d:0.35s"></b>
+              <b class="rh" style="--col:6;--h:62%;--d:0.7s"></b>
+              <b class="rh black-note" style="--col:3;--h:38%;--d:1.05s"></b>
+              <b class="lh" style="--col:9;--h:44%;--d:1.4s"></b>
+              <b class="rh" style="--col:11;--h:52%;--d:1.75s"></b>
+              <div class="sim-fall-hit"></div>
+            </div>
+            <div class="sim-piano-board" role="img" aria-label="Two-octave piano keyboard">
+              <div class="sim-piano-rail"></div>
+              <div class="sim-piano-felt"></div>
+              <div class="sim-piano-whites">
+                <i class="w" data-pc="C"></i><i class="w" data-pc="D"></i><i class="w on" data-pc="E"></i><i class="w" data-pc="F"></i>
+                <i class="w" data-pc="G"></i><i class="w on" data-pc="A"></i><i class="w" data-pc="B"></i>
+                <i class="w" data-pc="C"></i><i class="w" data-pc="D"></i><i class="w on" data-pc="E"></i><i class="w" data-pc="F"></i>
+                <i class="w" data-pc="G"></i><i class="w" data-pc="A"></i><i class="w" data-pc="B"></i>
+              </div>
+              <div class="sim-piano-blacks" aria-hidden="true">
+                <i class="bk" style="--n:0"></i><i class="bk" style="--n:1"></i>
+                <i class="bk on" style="--n:3"></i><i class="bk" style="--n:4"></i><i class="bk" style="--n:5"></i>
+                <i class="bk" style="--n:7"></i><i class="bk" style="--n:8"></i>
+                <i class="bk" style="--n:10"></i><i class="bk" style="--n:11"></i><i class="bk" style="--n:12"></i>
+              </div>
+            </div>
+          </div>
+        </figure>
+      </section>
+
+      <section class="home-feat home-feat-flip" id="feat-ask" data-reveal>
+        <div class="home-feat-copy">
+          <p class="about-kicker">04 · Ask</p>
+          <h2>Tap the bar that won’t sit.</h2>
+          <p class="home-feat-why"><strong>Why:</strong> Help should open beside the page you tapped — notes, suggested fingers, and a quiet way to practise — not a wall of chrome.</p>
+          <p>Click a stubborn bar. The coach panel lists what’s in it and how to work it.</p>
+        </div>
+        <figure class="home-feat-device" aria-hidden="true">
+          <div class="fx-chrome">
+            <span class="fx-brand">Lune</span>
+            <span class="fx-piece">Clair de lune</span>
+            <div class="fx-tabs"><span class="on">Score</span><span>Explain</span><span>Piano</span></div>
+          </div>
+          <div class="fx-ask">
+            <div class="fx-ask-score">
+              <div class="fx-staff"></div><div class="fx-staff"></div><div class="fx-staff"></div>
+              <div class="fx-staff"></div><div class="fx-staff"></div>
+              <div class="fx-ask-hilite"><span>Bar 7</span></div>
+            </div>
+            <aside class="fx-ask-panel">
+              <strong>Ask · Bar 7</strong>
+              <span>RH · G♯ C♯ E</span>
+              <span>Fingers · 2 1 3</span>
+              <span class="dim">Keep the triad quiet under the melody.</span>
+              <em>Play this bar</em>
+            </aside>
+          </div>
+        </figure>
+      </section>
+
+      <section class="home-feat" id="easy-read" data-reveal>
+        <div class="home-feat-copy">
+          <p class="about-kicker">05 · Easy read</p>
+          <h2>Letters that refuse to blur.</h2>
+          <p class="home-feat-why"><strong>Why:</strong> Similar note names mix up under fatigue. Atkinson Hyperlegible keeps every letter shape distinct under the staff.</p>
+          <p>Tap <strong>Aa</strong> on Score or Overview. Large print and high contrast live in Reading &amp; access.</p>
+        </div>
+        <figure class="home-feat-device" aria-hidden="true">
+          <div class="fx-chrome">
+            <span class="fx-brand">Lune</span>
+            <span class="fx-piece">Clair de lune</span>
+            <div class="fx-tabs"><span class="on">Score</span><span>Explain</span><span>Piano</span></div>
+          </div>
+          <div class="fx-tools">
+            <span class="fx-seg"><em class="on">Notes</em><em>Fingers</em><em>Off</em></span>
+            <span class="fx-chip on">Aa</span>
+            <span class="fx-chip">Braille</span>
+          </div>
+          <div class="fx-stage fx-easy">
+            <p class="fx-easy-k">Aa · Easy read · Atkinson Hyperlegible</p>
+            <p class="fx-easy-sample">G♯ · C♯ · E · B♭ · F</p>
+            <p class="fx-easy-note">Every letter shape stays distinct.</p>
+          </div>
+        </figure>
+      </section>
+
+      <section class="home-feat home-feat-flip" id="braille" data-reveal>
+        <div class="home-feat-copy">
+          <p class="about-kicker">06 · Braille</p>
+          <h2>Music you can feel.</h2>
+          <p class="home-feat-why"><strong>Why:</strong> When a library piece has a braille file, download should be one quiet chip away — for an embosser or refreshable display.</p>
+          <p>Not every score has one yet. Clair de lune and several others do.</p>
+        </div>
+        <figure class="home-feat-device" aria-hidden="true">
+          <div class="fx-chrome">
+            <span class="fx-brand">Lune</span>
+            <span class="fx-piece">Clair de lune</span>
+            <div class="fx-tabs"><span>Score</span><span class="on">Explain</span><span>Piano</span></div>
+          </div>
+          <div class="fx-tools">
+            <span class="fx-chip">Aa</span>
+            <span class="fx-chip on">Braille · .brf</span>
+          </div>
+          <div class="fx-stage fx-braille">
+            <p class="fx-easy-k">Download</p>
+            <p class="fx-braille-chip">Braille · .brf</p>
+            <p class="fx-easy-note">For an embosser or refreshable braille display.</p>
+          </div>
+        </figure>
+      </section>
+
+      <section class="home-feat" id="feat-notes" data-reveal>
+        <div class="home-feat-copy">
+          <p class="about-kicker">07 · Notes</p>
+          <h2>Speak or jot what you’d forget.</h2>
+          <p class="home-feat-why"><strong>Why:</strong> Practice thoughts vanish between sessions. Put them on the bar — typed or spoken — and rate it after you work it.</p>
+          <p>Markers sit on the score. Hard bars come back as Today’s work.</p>
+        </div>
+        <figure class="home-feat-device" aria-hidden="true">
+          <div class="fx-chrome">
+            <span class="fx-brand">Lune</span>
+            <span class="fx-piece">Für Elise</span>
+            <div class="fx-tabs"><span class="on">Score</span><span>Explain</span><span>Piano</span></div>
+          </div>
+          <div class="fx-note-ui">
+            <div class="fx-note-score">
+              <div class="fx-staff"></div><div class="fx-staff"></div><div class="fx-staff"></div>
+              <div class="fx-marker">12</div>
+            </div>
+            <div class="fx-note-panel">
+              <strong>Bar 12</strong>
+              <p>LH quiet — keep the thumb light</p>
+              <div class="fx-rate"><span>Again</span><span>Hard</span><span class="on">Good</span><span>Easy</span></div>
+            </div>
+          </div>
+        </figure>
+      </section>
+
+      <section class="home-feat home-feat-flip" id="feat-repertoire" data-reveal>
+        <div class="home-feat-copy">
+          <p class="about-kicker">08 · Repertoire</p>
+          <h2>Plans that stay with you.</h2>
+          <p class="home-feat-why"><strong>Why:</strong> Select bars, speak or jot a note, save a plan into Repertoire. Sign in and it syncs — no ads, no payments.</p>
+          <p>Today’s bars bring back what you’d forget. Clair de lune opens after you make Lune yours.</p>
+        </div>
+        <figure class="home-feat-device" aria-hidden="true">
+          <div class="fx-chrome">
+            <span class="fx-brand">Lune</span>
+            <span class="fx-piece">Repertoire</span>
+            <div class="fx-tabs"><span class="on">Today</span><span>Pieces</span><span>Plans</span></div>
+          </div>
+          <div class="home-today-mock fx-rep">
+            <p class="home-today-k">Today’s bars</p>
+            <div class="home-today-card">
+              <p class="home-today-title">Für Elise</p>
+              <div class="home-today-bars"><span>Bar 12</span><span>Bar 13</span><span>Bar 24</span></div>
+            </div>
+            <div class="home-today-card">
+              <p class="home-today-title">Clair de lune</p>
+              <div class="home-today-bars"><span>Bar 7</span></div>
+            </div>
+            <p class="fx-sync">Synced when you’re signed in</p>
+          </div>
+        </figure>
+      </section>
+
+      </div>
 
       <section class="home-billboard" data-reveal>
         <p class="home-billboard-kicker">Why Lune exists</p>
@@ -412,7 +460,7 @@
         <p>Email and an 8-digit code. Then open Clair de lune, keep your repertoire, and practise without ads or payments.</p>
         <div class="home-cta-row">
           <button type="button" class="primary big" data-lp-create-account>Make Lune yours</button>
-          <button type="button" class="quiet" data-lp-sim>See the studio again</button>
+          <button type="button" class="quiet" data-lp-sim>See the features again</button>
         </div>
       </section>
 
@@ -705,17 +753,17 @@
   <script src="static/vendor/opensheetmusicdisplay.min.js"></script>
   <script src="static/vendor/pdf.min.js"></script>
   <script src="static/vendor/Tone.js"></script>
-  <script src="static/piano.apple02.js"></script>
-  <script src="static/annotate.js?v=apple02"></script>
-  <script src="static/lite-analyze.js?v=apple02"></script>
-  <script src="static/lyric-lane.js?v=apple02"></script>
-  <script src="static/menu.js?v=apple02"></script>
-  <script src="static/lune-config.apple02.js"></script>
-  <script src="static/store.apple02.js"></script>
-  <script src="static/onboard.apple02.js"></script>
-  <script src="static/app.apple02.js"></script>
-  <script src="static/practice.apple02.js"></script>
-  <script src="static/follow.js?v=apple02"></script>
-  <script src="static/study.js?v=apple02"></script>
+  <script src="static/piano.js?v=apple03"></script>
+  <script src="static/annotate.js?v=apple03"></script>
+  <script src="static/lite-analyze.js?v=apple03"></script>
+  <script src="static/lyric-lane.js?v=apple03"></script>
+  <script src="static/menu.js?v=apple03"></script>
+  <script src="static/lune-config.js?v=apple03"></script>
+  <script src="static/store.js?v=apple03"></script>
+  <script src="static/onboard.js?v=apple03"></script>
+  <script src="static/app.js?v=apple03"></script>
+  <script src="static/practice.js?v=apple03"></script>
+  <script src="static/follow.js?v=apple03"></script>
+  <script src="static/study.js?v=apple03"></script>
 </body>
 </html>
