@@ -11,25 +11,25 @@
   <meta property="og:site_name" content="Lune">
   <meta property="og:title" content="Lune — quiet piano practice">
   <meta property="og:description" content="Free public-domain piano scores you can hear, with letter names or finger numbers under every note and help for the bars that feel hard.">
-  <meta property="og:url" content="https://verushkapatel.github.io/lune/">
-  <meta property="og:image" content="https://verushkapatel.github.io/lune/static/assets/og.png">
+  <meta property="og:url" content="https://lune.page/">
+  <meta property="og:image" content="https://lune.page/static/assets/og.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="Lune — quiet practice, clear notes">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Lune — quiet piano practice">
   <meta name="twitter:description" content="Free piano scores with letter names or finger numbers under every note.">
-  <meta name="twitter:image" content="https://verushkapatel.github.io/lune/static/assets/og.png">
+  <meta name="twitter:image" content="https://lune.page/static/assets/og.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Lune">
-  <link rel="icon" href="static/assets/favicon.svg?v=fix96" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=fix96">
-  <link rel="manifest" href="static/manifest.json?v=fix96">
+  <link rel="icon" href="static/assets/favicon.svg?v=fix98" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=fix98">
+  <link rel="manifest" href="static/manifest.json?v=fix98">
   <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="static/styles.css?v=fix96">
-  <link rel="preload" href="static/search-index.json?v=fix96" as="fetch" crossorigin>
+  <link rel="stylesheet" href="static/styles.css?v=fix98">
+  <link rel="preload" href="static/search-index.json?v=fix98" as="fetch" crossorigin>
 </head>
 <body>
   <div id="app">
@@ -144,7 +144,7 @@
           </p>
           <div class="home-cta-row">
             <button type="button" class="quiet" id="btn-home-upload">Upload your MusicXML</button>
-            <span class="home-cta-note">Files stay in your browser.</span>
+            <span class="home-cta-note">Your plan. Your bars. Your tempo.</span>
           </div>
         </div>
       </section>
@@ -167,8 +167,8 @@
               <span>Falling-note piano tutorial, or a slim keyboard under the score — same tempo control either way.</span>
             </li>
             <li>
-              <strong>Work the hard bars</strong>
-              <span>Tap a bar for coach notes, rate it, and Lune brings the sticky ones back.</span>
+              <strong>Your practice plan</strong>
+              <span>Select bars, speak or jot a note — Lune summarises a plan into your Repertoire.</span>
             </li>
           </ul>
         </div>
@@ -496,11 +496,17 @@
           <div class="piano-tut-head">
             <p class="piano-tut-kicker">Piano tutorial</p>
             <p class="piano-tut-meta" id="piano-tut-meta">Notes fall to the keys — same tempo as the score.</p>
+            <div class="piano-tut-hands" role="group" aria-label="Hands">
+              <button type="button" class="access-chip on" id="tut-hand-both" aria-pressed="true">Both</button>
+              <button type="button" class="access-chip" id="tut-hand-rh" aria-pressed="false">RH</button>
+              <button type="button" class="access-chip" id="tut-hand-lh" aria-pressed="false">LH</button>
+            </div>
           </div>
           <div class="piano-roll" id="piano-roll" aria-label="Falling-note piano tutorial">
             <canvas id="piano-roll-canvas" aria-hidden="true"></canvas>
             <div class="piano-roll-hit" aria-hidden="true"></div>
           </div>
+          <p class="piano-tut-legend" aria-hidden="true"><span class="tut-rh">Right</span><span class="tut-lh">Left</span></p>
         </div>
       </section>
 
@@ -644,7 +650,7 @@
       <li>The microphone (voice notes, Play along) is used only while you ask Lune to listen. Audio is analysed in the browser and never recorded or uploaded; voice notes may use your browser’s built-in speech recognition, which can be provided by its maker (for example Google in Chrome, Apple in Safari).</li>
       <li>Under 13? Ask a parent or guardian before making an account.</li>
       <li>The reading study records only a participant code, answers and timings — never names.</li>
-      <li>When you press play, piano sounds load from tonejs.github.io; GitHub Pages hosts the site.</li>
+      <li>When you press play, piano sounds load from tonejs.github.io; the site is hosted at lune.page.</li>
     </ul>
     <h3>Contact</h3>
     <p>Questions, corrections or takedown requests: <a href="https://github.com/verushkapatel/lune/issues" target="_blank" rel="noopener">github.com/verushkapatel/lune/issues</a>.</p>
@@ -653,16 +659,17 @@
   <script src="static/vendor/opensheetmusicdisplay.min.js"></script>
   <script src="static/vendor/pdf.min.js"></script>
   <script src="static/vendor/Tone.js"></script>
-  <script src="static/piano.js?v=fix96"></script>
-  <script src="static/annotate.js?v=fix96"></script>
-  <script src="static/lite-analyze.js?v=fix96"></script>
-  <script src="static/lyric-lane.js?v=fix96"></script>
-  <script src="static/menu.js?v=fix96"></script>
-  <script src="static/app.js?v=fix96"></script>
-  <script src="static/lune-config.js?v=fix96"></script>
-  <script src="static/store.js?v=fix96"></script>
-  <script src="static/practice.js?v=fix96"></script>
-  <script src="static/follow.js?v=fix96"></script>
-  <script src="static/study.js?v=fix96"></script>
+  <script src="static/piano.js?v=fix98"></script>
+  <script src="static/annotate.js?v=fix98"></script>
+  <script src="static/lite-analyze.js?v=fix98"></script>
+  <script src="static/lyric-lane.js?v=fix98"></script>
+  <script src="static/menu.js?v=fix98"></script>
+  <script src="static/lune-config.js?v=fix98"></script>
+  <script src="static/store.js?v=fix98"></script>
+  <script src="static/onboard.js?v=fix98"></script>
+  <script src="static/app.js?v=fix98"></script>
+  <script src="static/practice.js?v=fix98"></script>
+  <script src="static/follow.js?v=fix98"></script>
+  <script src="static/study.js?v=fix98"></script>
 </body>
 </html>

@@ -718,7 +718,8 @@ window.LuneTutorial = (function () {
   let ctx = null;
   let host = null;
   let raf = 0;
-  let lookAhead = 3.2;
+  let lookAhead = 3.6;
+  let handFilter = "both"; // both | rh | lh
 
   function isBlack(midi) {
     return !WHITE_PC.has(((midi % 12) + 12) % 12);
@@ -776,9 +777,13 @@ window.LuneTutorial = (function () {
     const whites = totalWhites();
     const hitY = h - 10;
     const pps = (hitY - 24) / lookAhead;
-    const events = (window.LunePiano?.getEvents?.() || []).filter(
-      (e) => e.t + e.dur >= at - 0.05 && e.t <= at + lookAhead
-    );
+    const events = (window.LunePiano?.getEvents?.() || []).filter((e) => {
+      if (e.t + e.dur < at - 0.05 || e.t > at + lookAhead) return false;
+      const rh = e.hand !== "lh" && e.hand !== "L";
+      if (handFilter === "rh") return rh;
+      if (handFilter === "lh") return !rh;
+      return true;
+    });
 
     ctx.clearRect(0, 0, w, h);
     // subtle lane grid on C keys
@@ -789,8 +794,8 @@ window.LuneTutorial = (function () {
       ctx.fillRect(x, 0, midiW(m, w, whites), h);
     }
     // hit line
-    ctx.strokeStyle = "rgba(245,245,245,0.35)";
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(245,245,245,0.45)";
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(0, hitY);
     ctx.lineTo(w, hitY);
@@ -798,21 +803,21 @@ window.LuneTutorial = (function () {
 
     for (const e of events) {
       const x = midiX(e.midi, w, whites);
-      const bw = midiW(e.midi, w, whites);
+      const bw = Math.max(4, midiW(e.midi, w, whites));
       const top = hitY - (e.t - at) * pps - e.dur * pps;
-      const bh = Math.max(4, e.dur * pps);
+      const bh = Math.max(6, e.dur * pps);
       const active = e.t <= at && e.t + e.dur > at;
       const rh = e.hand !== "lh" && e.hand !== "L";
       if (active) {
-        ctx.fillStyle = rh ? "rgba(245,245,245,0.92)" : "rgba(180,190,210,0.9)";
+        ctx.fillStyle = rh ? "rgba(245,245,245,0.95)" : "rgba(160,175,205,0.95)";
       } else {
-        ctx.fillStyle = rh ? "rgba(220,220,220,0.55)" : "rgba(140,155,185,0.5)";
+        ctx.fillStyle = rh ? "rgba(230,230,230,0.62)" : "rgba(120,140,175,0.55)";
       }
-      const r = Math.min(4, bw / 2);
+      const r = Math.min(5, bw / 2);
       roundRect(ctx, x, top, bw, bh, r);
       ctx.fill();
       if (e.finger && bh > 14 && bw > 10) {
-        ctx.fillStyle = active ? "#0a0a0a" : "rgba(10,10,10,0.7)";
+        ctx.fillStyle = active ? "#0a0a0a" : "rgba(10,10,10,0.75)";
         ctx.font = "600 11px Fraunces, Georgia, serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
@@ -852,7 +857,12 @@ window.LuneTutorial = (function () {
     paint(window.LunePiano?.progress?.() || 0);
   }
 
-  return { mount, start, stop, drawOnce, resize };
+  function setHandFilter(mode) {
+    handFilter = ["both", "rh", "lh"].includes(mode) ? mode : "both";
+    drawOnce();
+  }
+
+  return { mount, start, stop, drawOnce, resize, setHandFilter };
 })();
 
 /* On-screen digital piano — acoustic B&W geometry, follows active notes. */

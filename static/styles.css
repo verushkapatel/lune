@@ -4999,3 +4999,256 @@ body.is-study #btn-search { display: none; }
 @media (max-width: 360px) {
   .bar { padding: 4px 8px; gap: 4px; }
 }
+
+/* ===================================================================
+   Welcome gate · onboarding · practice plans
+   =================================================================== */
+.welcome, .onboard {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: #070707;
+  color: var(--text);
+}
+.welcome-stage, .onboard-stage {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 24px 80px;
+}
+.welcome-hero { margin-bottom: 56px; }
+.welcome-mark { color: #f0f0f0; margin-bottom: 18px; }
+.welcome-brand {
+  margin: 0 0 18px;
+  font-family: var(--serif);
+  font-size: clamp(56px, 12vw, 96px);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+}
+.welcome h1, .onboard-stage h1 {
+  margin: 0 0 16px;
+  font-family: var(--serif);
+  font-size: clamp(26px, 4vw, 36px);
+  font-weight: 500;
+  line-height: 1.2;
+  max-width: 18ch;
+}
+.welcome-lead, .onboard-help {
+  margin: 0 0 28px;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.55;
+  max-width: 42ch;
+}
+.welcome-cta { display: grid; gap: 10px; justify-items: start; }
+.welcome-fine { margin: 0; font-size: 13px; color: var(--dim); }
+.welcome-diff { margin-top: 48px; padding-top: 36px; border-top: 1px solid #1c1c1c; }
+.welcome-diff-list {
+  list-style: none;
+  margin: 28px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 22px;
+}
+.welcome-diff-list li { display: grid; gap: 6px; max-width: 48ch; }
+.welcome-diff-list strong {
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 500;
+}
+.welcome-diff-list span { color: var(--muted); font-size: 15px; line-height: 1.5; }
+.welcome-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 48px;
+}
+.welcome-strip-card {
+  border: 1px solid #222;
+  padding: 18px 16px;
+  min-height: 110px;
+}
+.welcome-strip-card span {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #7a7a7a;
+  margin-bottom: 10px;
+}
+.welcome-strip-card p { margin: 0; font-family: var(--serif); font-size: 18px; }
+
+.onboard-stage .eyebrow { margin-bottom: 12px; }
+.onboard-intro {
+  display: grid;
+  gap: 18px;
+  margin: 28px 0;
+}
+.onboard-intro article {
+  border-top: 1px solid #222;
+  padding-top: 14px;
+}
+.onboard-intro h2 {
+  margin: 0 0 6px;
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 500;
+}
+.onboard-intro p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.5; }
+.onboard-diff { color: var(--dim); font-size: 14px; margin: 0 0 28px; max-width: 46ch; }
+.onboard-chips, .onboard-grades {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 20px 0 28px;
+}
+.onboard-chip, .onboard-grade {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid #333;
+  border-radius: 999px;
+  background: transparent;
+  color: #c8c8c8;
+  font-family: var(--serif);
+  font-size: 15px;
+  cursor: pointer;
+}
+.onboard-grade { min-width: 48px; justify-content: center; }
+.onboard-chip.on, .onboard-grade.on {
+  background: #f2f2f2;
+  color: #0a0a0a;
+  border-color: #f2f2f2;
+}
+.onboard-nav {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 8px;
+}
+.onboard-recs {
+  list-style: none;
+  margin: 20px 0 28px;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.onboard-rec {
+  width: 100%;
+  text-align: left;
+  border: 1px solid #2a2a2a;
+  background: #101010;
+  color: #f0f0f0;
+  padding: 14px 16px;
+  border-radius: 2px;
+  cursor: pointer;
+  display: grid;
+  gap: 4px;
+}
+.onboard-rec:hover { border-color: #555; }
+.onboard-rec strong { font-family: var(--serif); font-size: 18px; font-weight: 500; }
+.onboard-rec span { color: #8a8a8a; font-size: 13px; }
+.home-rec-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+
+.rep-plan-card {
+  border: 1px solid #222;
+  padding: 16px 18px;
+  margin-bottom: 12px;
+  background: #0e0e0e;
+}
+.rep-plan-top h3 {
+  margin: 0 0 4px;
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 500;
+}
+.rep-plan-summary {
+  margin: 10px 0;
+  color: #a8a8a8;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.rep-plan-steps {
+  margin: 0 0 14px;
+  padding-left: 18px;
+  color: #c8c8c8;
+  font-size: 14px;
+  display: grid;
+  gap: 8px;
+}
+.rep-plan-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.lp-to-plan { margin: 8px 0 16px; }
+
+.piano-tut-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px 16px;
+}
+.piano-tut-hands { display: inline-flex; gap: 6px; margin-left: auto; }
+.piano-tut-legend {
+  display: flex;
+  gap: 16px;
+  margin: 0;
+  padding: 0 4px 6px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6a6a6a;
+}
+.piano-tut-legend .tut-rh::before,
+.piano-tut-legend .tut-lh::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 1px;
+  vertical-align: middle;
+}
+.piano-tut-legend .tut-rh::before { background: #e8e8e8; }
+.piano-tut-legend .tut-lh::before { background: #8a9bb8; }
+
+body.needs-onboard .top-search { opacity: 0.45; pointer-events: none; }
+
+.keep-account-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  padding: 10px 18px;
+  background: #121212;
+  border-bottom: 1px solid #222;
+  color: #c8c8c8;
+  font-size: 14px;
+}
+.keep-account-banner p { margin: 0; max-width: 52ch; line-height: 1.4; }
+.keep-account-banner strong { color: #f0f0f0; font-weight: 500; }
+.welcome-hero .welcome-brand {
+  animation: welcome-rise 0.9s ease both;
+}
+.welcome-hero h1 {
+  animation: welcome-rise 0.9s ease 0.08s both;
+}
+.welcome-hero .welcome-lead {
+  animation: welcome-rise 0.9s ease 0.16s both;
+}
+.welcome-hero .welcome-cta {
+  animation: welcome-rise 0.9s ease 0.24s both;
+}
+.welcome-strip-card {
+  animation: welcome-rise 0.8s ease both;
+}
+.welcome-strip-card:nth-child(2) { animation-delay: 0.08s; }
+.welcome-strip-card:nth-child(3) { animation-delay: 0.16s; }
+@keyframes welcome-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 720px) {
+  .welcome-strip { grid-template-columns: 1fr; }
+  .welcome-stage, .onboard-stage { padding: 36px 18px 64px; }
+  .piano-tut-hands { margin-left: 0; width: 100%; }
+  .keep-account-banner { padding: 12px 14px; }
+}

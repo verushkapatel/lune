@@ -7,6 +7,8 @@ const $ = (id) => document.getElementById(id);
 // <meta name="lune-static">): no Python server, everything runs in the browser.
 const LUNE_ON_PAGES =
   location.hostname.endsWith(".github.io") ||
+  location.hostname === "lune.page" ||
+  location.hostname.endsWith(".lune.page") ||
   !!document.querySelector('meta[name="lune-static"][content="1"]');
 const LUNE_ROOT = LUNE_ON_PAGES
   ? location.pathname.replace(/\/static(?:\/.*)?$/, "").replace(/\/index\.html$/, "").replace(/\/$/, "")
@@ -135,6 +137,14 @@ function fmtTime(sec) {
 }
 
 function showView(name) {
+  if (
+    (name === "studio" || name === "discover" || name === "repertoire") &&
+    window.LuneOnboard &&
+    !LuneOnboard.unlocked()
+  ) {
+    LuneOnboard.requireUnlock();
+    return;
+  }
   const home = $("home");
   const discover = $("discover");
   const studio = $("studio");
@@ -145,12 +155,16 @@ function showView(name) {
   if (rep) rep.hidden = name !== "repertoire";
   const study = $("study");
   if (study) study.hidden = name !== "study";
+  const welcome = $("welcome");
+  const onboard = $("onboard");
+  if (welcome) welcome.hidden = true;
+  if (onboard) onboard.hidden = true;
   document.body.classList.toggle("is-repertoire", name === "repertoire");
   document.body.classList.toggle("is-study", name === "study");
   document.body.classList.toggle("is-home", name === "home");
   document.body.classList.toggle("is-discover", name === "discover");
   document.body.classList.toggle("is-studio", name === "studio");
-  document.body.classList.remove("phone-search-open");
+  document.body.classList.remove("is-welcome", "is-onboard", "phone-search-open");
   $("btn-search")?.setAttribute("aria-expanded", "false");
   const studioNav = $("studio-nav");
   if (studioNav) studioNav.hidden = name !== "studio";
@@ -189,7 +203,7 @@ function closeSearchResults({ blur = false } = {}) {
 const SEARCH_LIMIT = 8;
 // Paint on the next frame only — coalesces burst keystrokes, ~0–16ms feel (no 100ms lag).
 const SEARCH_DEBOUNCE_MS = 0;
-const SEARCH_INDEX_URL = luneUrl("/static/search-index.json?v=fix96");
+const SEARCH_INDEX_URL = luneUrl("/static/search-index.json?v=fix97");
 /** Composers whose piano works are typically still under copyright — honest empty state. */
 const COPYRIGHT_ERA_COMPOSERS = [
   "ginastera", "prokofiev", "shostakovich", "khachaturian", "kabalevsky",
@@ -1292,7 +1306,17 @@ function setStudioPanel(panel, { skipScore = false } = {}) {
   if (next === "piano") {
     state.keyboardVisible = true;
     applyKeyboardVisibility(true);
-    mountPianoTutorial();
+    if (state.piece?.musicxml && !state.scoreReady) {
+      ensureScoreReady()
+        .then(() => {
+          primeTimeline();
+          mountPianoTutorial();
+        })
+        .catch(() => {});
+    } else {
+      primeTimeline();
+      mountPianoTutorial();
+    }
   } else if (next === "score") {
     applyKeyboardVisibility(!!state.keyboardVisible);
     window.LuneTutorial?.stop?.();
@@ -1496,6 +1520,7 @@ function enrichPieceMeta(piece) {
 }
 
 async function openPieceSession(piece, { panel = "explain" } = {}) {
+  if (window.LuneOnboard && !LuneOnboard.requireUnlock()) return;
   snapshotActiveSession();
   stopAll();
   closeCoach();
@@ -3632,6 +3657,10 @@ async function applyRoute() {
 }
 
 function goHome({ keepTabs = false } = {}) {
+  if (window.LuneOnboard && !LuneOnboard.unlocked()) {
+    LuneOnboard.route();
+    return;
+  }
   stopAll();
   closeCoach();
   snapshotActiveSession();
@@ -4048,20 +4077,54 @@ function bind() {
   on("coach-close", "click", closeCoach);
   on("coach-clear", "click", () => clearBarSelection({ close: true }));
   on("file", "change", () => {
+    if (window.LuneOnboard && !LuneOnboard.requireUnlock()) {
+      $("file").value = "";
+      return;
+    }
     const f = $("file").files?.[0];
     $("file").value = "";
     if (f) openFile(f).catch((e) => toast(e.message));
   });
+
+  // Piano tutorial hand filter
+  const setTutHand = (mode) => {
+    window.LuneTutorial?.setHandFilter?.(mode);
+    ["both", "rh", "lh"].forEach((m) => {
+      const el = $(`tut-hand-${m}`);
+      if (!el) return;
+      const on = m === mode;
+      el.classList.toggle("on", on);
+      el.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  };
+  on("tut-hand-both", "click", () => setTutHand("both"));
+  on("tut-hand-rh", "click", () => setTutHand("rh"));
+  on("tut-hand-lh", "click", () => setTutHand("lh"));
 }
+
+window.goHome = goHome;
+window.openPieceSession = openPieceSession;
+window.toast = toast;
+window.showView = showView;
 
 try {
   bind();
-  showView("home");
   window.addEventListener("popstate", () => applyRoute().catch(() => {}));
-  // Repertoire / study / assignment modules load after this file.
-  const boot = () => {
+  // Repertoire / study / onboard modules load after this file.
+  const boot = async () => {
+    try {
+      await window.LuneStore?.init?.();
+    } catch (e) {
+      console.warn("[lune] store init", e);
+    }
+    window.LuneOnboard?.init?.();
+    const gate = window.LuneOnboard?.route?.() || "app";
     window.LunePractice?.init().catch((e) => console.warn("[lune] practice init", e));
-    if (parseRoute()) applyRoute().catch(() => {});
+    if (gate === "app") {
+      showView("home");
+      window.LuneOnboard?.paintHomeRecs?.();
+      if (parseRoute()) applyRoute().catch(() => {});
+    }
   };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, { once: true });
   else boot();

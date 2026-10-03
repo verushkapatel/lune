@@ -368,6 +368,7 @@ window.LunePractice = (function () {
         </div>
         <button type="submit" class="lp-save primary">Save</button>
       </form>
+      <button type="button" class="quiet lp-to-plan" data-lp="plan">Add bars to my plan</button>
       <h4 class="lp-h">How did it go?</h4>
       <div class="lp-grades" role="group" aria-label="Rate this practice">
         ${GRADES.map(([g, label, hint]) => `<button type="button" class="lp-grade lp-${g}" data-grade="${g}" title="${esc(hint)}">${label}</button>`).join("")}
@@ -423,7 +424,14 @@ window.LunePractice = (function () {
       const btn = e.target.closest("button");
       if (!btn) return;
       if (btn.dataset.lp === "aloud") readSelectedAloud();
-      else if (btn.dataset.lp === "assign") openAssignDialog(bars);
+      else if (btn.dataset.lp === "assign" || btn.dataset.lp === "plan") {
+        openTaskDialog({
+          pieceKey: keyFor(state.piece),
+          title: titleFor(state.piece),
+          composer: composerFor(state.piece),
+          bars,
+        });
+      }
       else if (btn.dataset.lp === "mic") {
         if (activeRec) return stopHearing();
         const ta = wrap.querySelector("textarea");
@@ -664,7 +672,7 @@ window.LunePractice = (function () {
         <header class="rep-hero">
           <p class="eyebrow">Your practice</p>
           <h1>Repertoire</h1>
-          <p class="rep-lead">The pieces you’re learning — with your notes on every bar, and the bars that need you today.</p>
+          <p class="rep-lead">Your pieces, your notes, and practice plans you set yourself — bars you chose, summarised by Lune.</p>
           <div class="rep-account" id="rep-account"></div>
         </header>
         <section class="rep-section" id="rep-add-section" aria-labelledby="rep-add-h">
@@ -675,12 +683,12 @@ window.LunePractice = (function () {
           </form>
           <ul class="rep-suggest" id="rep-suggest" role="listbox" aria-label="Pieces Lune has"></ul>
         </section>
-        <section class="rep-section" aria-labelledby="rep-today-h">
+        <section class="rep-section" aria-labelledby="rep-plan-h">
           <div class="rep-today-head">
-            <h2 id="rep-today-h">Today’s bars</h2>
-            <button type="button" class="primary" id="rep-start" hidden>Start practice</button>
+            <h2 id="rep-plan-h">Your plan</h2>
+            <button type="button" class="quiet" id="rep-new-task">New task</button>
           </div>
-          <div id="rep-today" class="rep-today"></div>
+          <div id="rep-today" class="rep-today rep-plan"></div>
         </section>
         <section class="rep-section" aria-labelledby="rep-list-h">
           <h2 id="rep-list-h">Pieces</h2>
@@ -716,6 +724,14 @@ window.LunePractice = (function () {
       await renderRepertoire();
     });
     main.querySelector("#rep-export").addEventListener("click", exportData);
+    main.querySelector("#rep-new-task")?.addEventListener("click", () => {
+      openTaskDialog({
+        pieceKey: keyFor(state.piece),
+        title: titleFor(state.piece) || "",
+        composer: composerFor(state.piece) || "",
+        bars: selectedBarsSorted(),
+      });
+    });
     main.addEventListener("click", onRepertoireClick);
     main.addEventListener("change", async (e) => {
       const sel = e.target.closest("select[data-status]");
@@ -781,73 +797,135 @@ window.LunePractice = (function () {
     }
   }
 
+  /** Turn spoken/typed notes + selected bars into a short practice plan. */
+  function summarisePlan({ title, bars, notes }) {
+    const barLabel = barsText(bars || []) || "the bars you marked";
+    const body = String(notes || "").trim();
+    const tags = tagsFor(body);
+    const steps = [];
+    steps.push({
+      title: `Name the notes in ${barLabel}`,
+      detail: "Say letter names out loud, one hand at a time, before you play.",
+    });
+    if (tags.includes("fingering") || /\bfinger/i.test(body)) {
+      steps.push({ title: "Lock the fingering", detail: "Loop only the awkward finger change until it feels boring." });
+    }
+    if (tags.includes("tempo") || /\b(slow|fast|tempo|metronome)\b/i.test(body)) {
+      steps.push({ title: "Tempo ladder", detail: "Start well under performance speed, then nudge the BPM slider up in small steps." });
+    }
+    if (tags.includes("left hand") || tags.includes("right hand") || /\b(hands?|separat)/i.test(body)) {
+      steps.push({ title: "Hands separately", detail: "Own each hand alone, then join for two clean bars." });
+    }
+    if (tags.includes("dynamics") || tags.includes("touch")) {
+      steps.push({ title: "Shape & touch", detail: "One slow pass only for soft/loud and how the notes connect." });
+    }
+    if (steps.length < 3) {
+      steps.push({
+        title: "Join the neighbours",
+        detail: `Play the bar before + ${barLabel} + the bar after at half speed.`,
+      });
+    }
+    steps.push({ title: "Two clean run-throughs", detail: body ? `Keep your note in mind: “${body.slice(0, 120)}${body.length > 120 ? "…" : ""}”.` : "Two calm passes without stopping to fix." });
+    const summary = body
+      ? `For ${title || "this piece"} · ${barLabel}. You wrote: “${body.slice(0, 160)}${body.length > 160 ? "…" : ""}”.`
+      : `For ${title || "this piece"} · ${barLabel}. A quiet plan from the bars you selected.`;
+    return { summary, steps: steps.slice(0, 5), tags };
+  }
+
+  function openTaskDialog({ pieceKey = "", title = "", composer = "", bars = [], notes = "" } = {}) {
+    const d = dialog("task-dialog");
+    const barStr = (bars || []).join(", ");
+    d.innerHTML = `${closeRow}<h2>Add to your plan</h2>
+      <p class="dim">${esc(title || "Current piece")}${bars.length ? ` · ${esc(barsText(bars))}` : ""}</p>
+      <form class="lp-assign" id="task-form" autocomplete="off">
+        <label for="task-bars">Bars to practise</label>
+        <input id="task-bars" value="${esc(barStr)}" placeholder="e.g. 12, 13, 24" inputmode="numeric">
+        <label for="task-notes">Your note (type or paste what you said)</label>
+        <textarea id="task-notes" rows="3" maxlength="800" placeholder="e.g. Bar 12 keeps rushing — LH arpeggio messy, keep soft">${esc(notes)}</textarea>
+        <button type="submit" class="primary">Summarise into a plan</button>
+      </form>`;
+    d.querySelector("#task-form")?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const rawBars = ($("task-bars")?.value || "")
+        .split(/[,;\s]+/)
+        .map((x) => Number(x))
+        .filter((n) => n > 0);
+      const noteBody = ($("task-notes")?.value || "").trim();
+      if (!rawBars.length && !noteBody) {
+        toast("Select bars or write a note first");
+        return;
+      }
+      const plan = summarisePlan({ title: title || titleFor(state.piece), bars: rawBars, notes: noteBody });
+      const row = store.addTask({
+        piece_key: pieceKey || keyFor(state.piece),
+        title: title || titleFor(state.piece),
+        composer: composer || composerFor(state.piece),
+        bars: rawBars,
+        notes: noteBody,
+        plan,
+      });
+      d.close();
+      toast("Plan saved to Repertoire");
+      if (state.mode === "repertoire") renderRepertoire();
+      else showPlanToast(row);
+    });
+    if (!d.open) d.showModal();
+    setTimeout(() => $("task-notes")?.focus(), 30);
+  }
+
+  function showPlanToast(row) {
+    const steps = row?.plan?.steps?.length || 0;
+    toast(steps ? `Plan ready · ${steps} steps` : "Saved to your plan");
+  }
+
   async function renderRepertoire() {
+    if (window.LuneOnboard && !LuneOnboard.requireUnlock()) return;
     ensureRepertoireView();
     renderAccountChip();
     const listEl = $("rep-list");
     const todayEl = $("rep-today");
     let pieces = [];
-    let due = [];
     let counts = {};
-    let cards = [];
     try {
-      [pieces, due, counts, cards] = await Promise.all([
-        store.listPieces(),
-        store.dueCards(40),
-        store.countNotesByPiece(),
-        store.listCards(),
-      ]);
+      [pieces, counts] = await Promise.all([store.listPieces(), store.countNotesByPiece()]);
     } catch (err) {
       listEl.innerHTML = `<p class="rep-empty">Couldn’t load your Repertoire: ${esc(err.message)}</p>`;
       return;
     }
     repertoireKeys = new Set(pieces.map((p) => p.piece_key));
     refreshBadge();
-    const byKey = Object.fromEntries(pieces.map((p) => [p.piece_key, p]));
 
-    // today's bars, grouped by piece
-    const groups = {};
-    for (const c of due) (groups[c.piece_key] = groups[c.piece_key] || []).push(c.bar);
-    const gKeys = Object.keys(groups);
-    const start = $("rep-start");
-    if (start) {
-      start.hidden = !gKeys.length;
-      if (gKeys.length) {
-        const firstKey = gKeys[0];
-        const firstBar = groups[firstKey].slice().sort((a, b) => a - b)[0];
-        start.dataset.open = firstKey;
-        start.dataset.bar = String(firstBar);
-      }
-    }
-    todayEl.innerHTML = gKeys.length
-      ? gKeys
-          .map(
-            (k) => `<div class="rep-today-row">
-              <div class="rep-today-t">${esc(byKey[k]?.title || k)}</div>
-              <div class="rep-today-bars">${groups[k]
-                .sort((a, b) => a - b)
-                .map((b) => `<button type="button" class="rep-bar" data-open="${esc(k)}" data-bar="${b}">Bar ${b}</button>`)
-                .join("")}</div></div>`
-          )
+    const tasks = store.listTasks().filter((t) => !t.done);
+    todayEl.innerHTML = tasks.length
+      ? tasks
+          .map((t) => {
+            const steps = (t.plan?.steps || []).map((s) => `<li><strong>${esc(s.title)}</strong> ${esc(s.detail || "")}</li>`).join("");
+            return `<article class="rep-plan-card" data-task="${esc(t.id)}">
+              <div class="rep-plan-top">
+                <h3>${esc(t.title)}</h3>
+                <p class="rep-card-meta">${t.bars?.length ? esc(barsText(t.bars)) : "Notes only"}${t.composer ? ` · ${esc(t.composer)}` : ""}</p>
+              </div>
+              <p class="rep-plan-summary">${esc(t.plan?.summary || t.notes || "")}</p>
+              ${steps ? `<ol class="rep-plan-steps">${steps}</ol>` : ""}
+              <div class="rep-plan-actions">
+                <button type="button" class="primary" data-open="${esc(t.piece_key)}" ${t.bars?.[0] ? `data-bar="${t.bars[0]}"` : ""}>Open</button>
+                <button type="button" class="quiet" data-task-done="${esc(t.id)}">Done</button>
+                <button type="button" class="quiet" data-task-remove="${esc(t.id)}">Remove</button>
+              </div>
+            </article>`;
+          })
           .join("")
-      : `<p class="rep-empty">${
-          cards.length
-            ? "Nothing due — every bar you rated is resting. Come back tomorrow."
-            : "When you finish practising a bar, tap <em>Again · Hard · Good · Easy</em> in its panel. Lune brings it back here just before you’d forget it."
-        }</p>`;
+      : `<p class="rep-empty">No tasks yet. On a score, select bars and tap <em>Add to plan</em> — or speak a note and let Lune summarise it.</p>`;
 
-    const dueByPiece = {};
-    for (const c of due) dueByPiece[c.piece_key] = (dueByPiece[c.piece_key] || 0) + 1;
     listEl.innerHTML = pieces.length
       ? pieces
           .map((p) => {
             const n = counts[p.piece_key] || 0;
-            const d = dueByPiece[p.piece_key] || 0;
             return `<article class="rep-card" data-key="${esc(p.piece_key)}">
               <div class="rep-card-main">
                 <h3>${esc(p.title)}</h3>
                 <p class="rep-card-by">${esc(p.composer || (p.source === "upload" ? "Your score" : ""))}</p>
-                <p class="rep-card-meta">Last practised ${esc(ago(p.last_practised_at))}${n ? ` · ${n} note${n === 1 ? "" : "s"}` : ""}${d ? ` · <strong>${d} bar${d === 1 ? "" : "s"} due</strong>` : ""}</p>
+                <p class="rep-card-meta">Last practised ${esc(ago(p.last_practised_at))}${n ? ` · ${n} note${n === 1 ? "" : "s"}` : ""}</p>
               </div>
               <div class="rep-card-actions">
                 <label class="visually-hidden" for="st-${esc(p.piece_key)}">Status</label>
@@ -908,6 +986,16 @@ window.LunePractice = (function () {
     if (!b) return;
     if (b.hasAttribute("data-lp-account")) return openAccountDialog();
     if (b.hasAttribute("data-lp-access")) return openAccessDialog();
+    if (b.dataset.taskDone) {
+      store.updateTask(b.dataset.taskDone, { done: true });
+      toast("Marked done");
+      return renderRepertoire();
+    }
+    if (b.dataset.taskRemove) {
+      store.removeTask(b.dataset.taskRemove);
+      toast("Removed from plan");
+      return renderRepertoire();
+    }
     if (b.dataset.open) {
       e.preventDefault();
       await openFromRepertoire(b.dataset.open, { bar: b.dataset.bar ? Number(b.dataset.bar) : null });
@@ -935,6 +1023,7 @@ window.LunePractice = (function () {
   }
 
   function showRepertoire({ push = true } = {}) {
+    if (window.LuneOnboard && !LuneOnboard.requireUnlock()) return;
     ensureRepertoireView();
     stopAll();
     snapshotActiveSession();
@@ -985,29 +1074,19 @@ window.LunePractice = (function () {
     const st = store.status();
     const privacy = `<h3>Privacy</h3>
       <ul>
-        <li>An account stores your email address, the pieces in your Repertoire, your bar notes, review dates and listening stumbles — nothing else.</li>
-        <li>Your rows are locked to your account: no other user, and no one browsing the site, can read them. Nothing is sold, shared or used for ads.</li>
-        <li>Microphone audio for voice notes and listening is processed in your browser (voice notes may use your browser’s own speech service). Lune never records or uploads audio.</li>
+        <li>An account stores your email address, the pieces in your Repertoire, your bar notes, practice plans and listening stumbles — nothing else.</li>
+        <li>When cloud sync is on, your rows are locked to your account. Nothing is sold, shared or used for ads.</li>
+        <li>Microphone audio for voice notes and listening is processed in your browser. Lune never records or uploads audio.</li>
         <li>Under 13? Ask a parent or guardian before making an account. You can download or delete everything at any time.</li>
       </ul>`;
-    if (!st.cloud) {
-      d.innerHTML = `${closeRow}<h2>Account</h2>
-        <p>Everything you add — pieces, bar notes, review dates — is saved in this browser. It stays on this device and never leaves it.</p>
-        <p class="dim">No sign-up is needed. If you want the same Repertoire on a phone and a laptop, download your data here and keep the file, or ask the site owner to switch on email sign-in.</p>
-        <div class="lp-row"><button type="button" class="quiet" data-x="export">Download my data</button></div>${privacy}`;
-    } else if (!st.signedIn) {
-      d.innerHTML = `${closeRow}<h2>Sign in to sync</h2>
-        <p>Keep your Repertoire on every device. Lune emails you a sign-in link — no password to remember.</p>
-        <form class="lp-signin" data-x="signin">
-          <label for="lp-email">Email</label>
-          <input id="lp-email" type="email" autocomplete="email" required placeholder="you@example.com">
-          <button type="submit" class="primary">Email me a link</button>
-        </form>
-        <p class="lp-signin-msg dim" aria-live="polite"></p>${privacy}`;
+    if (!st.signedIn) {
+      d.innerHTML = `${closeRow}<h2>Sign in to keep Lune</h2>
+        <p>Explore first — then sign in with email (no password) so repertoire, notes and plans stay with you.</p>
+        <button type="button" class="primary" data-x="create">Sign in with email</button>${privacy}`;
     } else {
-      const local = store.hasLocalData();
+      const local = store.hasLocalData() && st.mode === "cloud";
       d.innerHTML = `${closeRow}<h2>Account</h2>
-        <p>Signed in as <strong>${esc(st.email)}</strong>.</p>
+        <p>Signed in as <strong>${esc(st.email)}</strong>${st.mode === "local" ? " <span class=\"dim\">(this device — add Supabase keys to sync by email)</span>" : ""}.</p>
         ${local ? `<p class="lp-callout">This browser also has pieces saved from before you signed in. <button type="button" class="primary" data-x="import">Move them into my account</button></p>` : ""}
         <div class="lp-row">
           <button type="button" class="quiet" data-x="export">Download my data</button>
@@ -1020,11 +1099,17 @@ window.LunePractice = (function () {
       const b = e.target.closest("[data-x]");
       if (!b || b.tagName === "FORM") return;
       try {
+        if (b.dataset.x === "create") {
+          d.close();
+          window.LuneOnboard?.openCreateAccount?.();
+          return;
+        }
         if (b.dataset.x === "export") await exportData();
         if (b.dataset.x === "signout") {
           await store.signOut();
           d.close();
           toast("Signed out");
+          window.LuneOnboard?.route?.();
         }
         if (b.dataset.x === "import") {
           const n = await store.importLocalIntoAccount();
@@ -1046,18 +1131,6 @@ window.LunePractice = (function () {
         toast(err.message);
       }
     };
-    d.querySelector("form[data-x=signin]")?.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const msg = d.querySelector(".lp-signin-msg");
-      const email = d.querySelector("#lp-email").value;
-      msg.textContent = "Sending…";
-      try {
-        await store.signIn(email);
-        msg.textContent = `Check ${email} — the link signs you in on this device.`;
-      } catch (err) {
-        msg.textContent = err.message;
-      }
-    });
     if (!d.open) d.showModal();
   }
 
@@ -1268,7 +1341,16 @@ window.LunePractice = (function () {
     window.LuneMenu?.attach($("btn-more"), () => headerMenuItems());
     window.LuneMenu?.attach($("btn-coach-more"), () => [
       { label: "Read aloud", hint: "R", action: () => readSelectedAloud() },
-      { label: "Assign to a student", action: () => openAssignDialog(selectedBarsSorted()) },
+      {
+        label: "Add to my plan",
+        action: () =>
+          openTaskDialog({
+            pieceKey: keyFor(state.piece),
+            title: titleFor(state.piece),
+            composer: composerFor(state.piece),
+            bars: selectedBarsSorted(),
+          }),
+      },
       { id: "btn-plan", label: "Practice plan" },
     ]);
   }
@@ -1276,21 +1358,31 @@ window.LunePractice = (function () {
   function headerMenuItems() {
     const studio = document.body.classList.contains("is-studio");
     const bars = selectedBarsSorted();
-    const library = !!(state.piece && !state.piece.local);
     const items = [
       { label: "Upload a score", action: () => $("file")?.click() },
     ];
     if (studio) {
       items.push({
-        label: "Assign to a student",
-        disabled: !(bars.length && library),
-        title: bars.length && library ? "" : "Select bars first",
-        hint: bars.length && library ? "" : "Select bars first",
-        action: () => openAssignDialog(bars),
+        label: "Add selection to plan",
+        disabled: !bars.length,
+        title: bars.length ? "" : "Select bars first",
+        hint: bars.length ? "" : "Select bars first",
+        action: () =>
+          openTaskDialog({
+            pieceKey: keyFor(state.piece),
+            title: titleFor(state.piece),
+            composer: composerFor(state.piece),
+            bars,
+          }),
       });
       items.push({ label: "Download MusicXML", action: () => window.downloadScore?.() });
       const a = document.querySelector("a.lp-braille");
       if (a?.href) items.push({ label: "Download Braille (.brf)", href: a.href, download: a.getAttribute("download") || "" });
+    }
+    if (store.status().signedIn) {
+      items.push({ label: "Account", action: () => openAccountDialog() });
+    } else {
+      items.push({ label: "Sign in", action: () => window.LuneOnboard?.openCreateAccount?.() });
     }
     items.push({ label: "Reading & access", action: () => openAccessDialog() });
     items.push({ label: "Credits & licenses", action: () => document.querySelector("[data-open-credits]")?.click() });
@@ -1311,11 +1403,11 @@ window.LunePractice = (function () {
     const badge = $("rep-badge");
     if (!badge) return;
     try {
-      const n = (await store.dueCards(99)).length;
+      const n = store.listTasks().filter((t) => !t.done).length;
       badge.hidden = !n;
       badge.textContent = n ? String(n) : "";
       badge.setAttribute("aria-hidden", n ? "false" : "true");
-      if (n) badge.setAttribute("aria-label", `${n} bars due today`);
+      if (n) badge.setAttribute("aria-label", `${n} practice task${n === 1 ? "" : "s"}`);
       else badge.removeAttribute("aria-label");
     } catch {
       badge.hidden = true;
@@ -1337,7 +1429,9 @@ window.LunePractice = (function () {
     return JSON.parse(new TextDecoder().decode(bytes));
   }
   function assignmentUrl(payload) {
-    const base = LUNE_ON_PAGES ? "https://verushkapatel.github.io/lune/" : `${location.origin}${location.pathname}`;
+    const base = LUNE_ON_PAGES
+      ? (location.hostname.includes("lune.page") ? `${location.origin}/` : "https://verushkapatel.github.io/lune/")
+      : `${location.origin}${location.pathname}`;
     return `${base}#/assign/${b64urlEncode(payload)}`;
   }
   async function openAssignDialog(bars) {
@@ -1485,7 +1579,7 @@ window.LunePractice = (function () {
           paintScoreMarks();
           el.hidden = true;
           refreshBadge();
-          toast("Saved — the bars are in Today’s bars in your Repertoire");
+          toast("Saved — open Repertoire to turn notes into a plan");
         } catch (err) {
           b.disabled = false;
           toast(err.message);
@@ -1596,9 +1690,8 @@ window.LunePractice = (function () {
     const host = $("home-continue");
     if (!host) return;
     let pieces = [];
-    let due = [];
     try {
-      [pieces, due] = await Promise.all([store.listPieces(), store.dueCards(99)]);
+      pieces = await store.listPieces();
     } catch {
       host.hidden = true;
       return;
@@ -1609,13 +1702,13 @@ window.LunePractice = (function () {
       return;
     }
     const last = pieces[0];
-    const n = due.length;
+    const n = store.listTasks().filter((t) => !t.done).length;
     host.hidden = false;
     host.innerHTML = `<p class="home-continue-k">Continue</p>
       <p class="home-continue-t">${esc(last.title)}</p>
       <div class="home-continue-actions">
         <button type="button" class="primary" data-open="${esc(last.piece_key)}">Open</button>
-        ${n ? `<button type="button" class="quiet" data-go-rep>${n} bar${n === 1 ? "" : "s"} due today</button>` : ""}
+        ${n ? `<button type="button" class="quiet" data-go-rep>${n} task${n === 1 ? "" : "s"} in your plan</button>` : ""}
       </div>`;
     host.onclick = (e) => {
       const b = e.target.closest("button");

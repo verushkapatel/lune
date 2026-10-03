@@ -33,7 +33,7 @@ window.LuneStore = (function () {
     } catch {
       /* private mode or blocked storage */
     }
-    return { v: 1, repertoire: [], notes: [], cards: [], stumbles: [], scores: {}, prefs: {} };
+    return { v: 1, repertoire: [], notes: [], cards: [], stumbles: [], scores: {}, prefs: {}, tasks: [], localAccount: null };
   }
   function writeLocal(data) {
     try {
@@ -97,12 +97,35 @@ window.LuneStore = (function () {
       }
     }
   }
+  function localAccount() {
+    return readLocal().localAccount || null;
+  }
   function status() {
+    const local = localAccount();
+    if (remote()) {
+      return {
+        cloud: configured(),
+        signedIn: true,
+        email: session?.user?.email || "",
+        userId: session?.user?.id || "",
+        mode: "cloud",
+      };
+    }
+    if (local?.email) {
+      return {
+        cloud: configured(),
+        signedIn: true,
+        email: local.email,
+        userId: local.id || "local",
+        mode: configured() ? "pending-cloud" : "local",
+      };
+    }
     return {
       cloud: configured(),
-      signedIn: remote(),
-      email: session?.user?.email || "",
-      userId: session?.user?.id || "",
+      signedIn: false,
+      email: "",
+      userId: "",
+      mode: configured() ? "cloud-ready" : "local-ready",
     };
   }
   function check(res) {
@@ -113,23 +136,105 @@ window.LuneStore = (function () {
   /* ---------------- accounts ---------------- */
 
   async function signIn(email) {
-    if (!configured()) throw new Error("Accounts aren’t switched on for this site yet.");
-    const clean = String(email || "").trim();
+    const clean = String(email || "").trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) throw new Error("That doesn’t look like an email address.");
-    const redirect = `${location.origin}${location.pathname}`;
-    check(await client.auth.signInWithOtp({ email: clean, options: { emailRedirectTo: redirect } }));
+    // Cloud OTP when Supabase is wired; otherwise create a local account so the
+    // gate + onboarding work before mail is set up.
+    if (configured() && client) {
+      const redirect = `${location.origin}${location.pathname}`;
+      check(await client.auth.signInWithOtp({ email: clean, options: { emailRedirectTo: redirect } }));
+      // Keep a local stub so the UI can proceed after they click the email link,
+      // and so a second visit before the link still remembers the address.
+      mutateLocal((d) => {
+        d.localAccount = { email: clean, id: d.localAccount?.id || uuid(), created_at: nowIso(), awaitingLink: true };
+      });
+      return { mode: "otp", email: clean };
+    }
+    mutateLocal((d) => {
+      d.localAccount = { email: clean, id: uuid(), created_at: nowIso(), awaitingLink: false };
+    });
+    emit();
+    return { mode: "local", email: clean };
+  }
+  /** Confirm local signup (used when cloud OTP isn’t available yet). */
+  function completeLocalSignIn(email) {
+    const clean = String(email || "").trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) throw new Error("That doesn’t look like an email address.");
+    mutateLocal((d) => {
+      d.localAccount = { email: clean, id: d.localAccount?.id || uuid(), created_at: nowIso(), awaitingLink: false };
+    });
+    emit();
     return true;
   }
   async function signOut() {
     if (client) await client.auth.signOut();
     session = null;
+    mutateLocal((d) => {
+      d.localAccount = null;
+    });
     emit();
   }
   async function deleteAccount() {
-    if (!remote()) throw new Error("Sign in first.");
-    check(await client.rpc("delete_my_account"));
-    await client.auth.signOut();
-    session = null;
+    if (remote()) {
+      check(await client.rpc("delete_my_account"));
+      await client.auth.signOut();
+      session = null;
+    }
+    mutateLocal((d) => {
+      d.localAccount = null;
+      d.repertoire = [];
+      d.notes = [];
+      d.cards = [];
+      d.stumbles = [];
+      d.scores = {};
+      d.tasks = [];
+      d.prefs = {};
+    });
+    emit();
+  }
+
+  /* ---------------- practice tasks (self-set plans) ---------------- */
+
+  function listTasks() {
+    const d = readLocal();
+    return [...(d.tasks || [])].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+  }
+  function addTask(task) {
+    const row = {
+      id: uuid(),
+      piece_key: task.piece_key || "",
+      title: String(task.title || "Practice").slice(0, 200),
+      composer: String(task.composer || "").slice(0, 120),
+      bars: [...new Set((task.bars || []).map(Number).filter((n) => n > 0))].sort((a, b) => a - b).slice(0, 64),
+      notes: String(task.notes || "").slice(0, 800),
+      plan: task.plan || null,
+      done: false,
+      created_at: nowIso(),
+    };
+    mutateLocal((d) => {
+      d.tasks = d.tasks || [];
+      d.tasks.unshift(row);
+    });
+    emit();
+    return row;
+  }
+  function updateTask(id, patch) {
+    mutateLocal((d) => {
+      const row = (d.tasks || []).find((t) => t.id === id);
+      if (!row) return;
+      if ("done" in patch) row.done = !!patch.done;
+      if ("plan" in patch) row.plan = patch.plan;
+      if ("notes" in patch) row.notes = String(patch.notes || "").slice(0, 800);
+      if ("bars" in patch) {
+        row.bars = [...new Set((patch.bars || []).map(Number).filter((n) => n > 0))].sort((a, b) => a - b).slice(0, 64);
+      }
+    });
+    emit();
+  }
+  function removeTask(id) {
+    mutateLocal((d) => {
+      d.tasks = (d.tasks || []).filter((t) => t.id !== id);
+    });
     emit();
   }
 
@@ -416,6 +521,8 @@ window.LuneStore = (function () {
       repertoire: pieces,
       bar_notes: notes,
       bar_cards: await listCards(),
+      tasks: listTasks(),
+      prefs: prefs(),
     };
   }
 
@@ -438,6 +545,7 @@ window.LuneStore = (function () {
     configured,
     onChange,
     signIn,
+    completeLocalSignIn,
     signOut,
     deleteAccount,
     importLocalIntoAccount,
@@ -462,6 +570,10 @@ window.LuneStore = (function () {
     stumbleMap,
     addStudyRows,
     localStudyRows,
+    listTasks,
+    addTask,
+    updateTask,
+    removeTask,
     prefs,
     setPref,
     exportAll,
