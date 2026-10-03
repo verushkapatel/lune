@@ -531,6 +531,14 @@ window.LunePractice = (function () {
         <button type="submit" class="lp-save primary">Save</button>
       </form>
       <div class="lp-asked" hidden></div>
+      ${
+        window.LuneAsk?.modelConnected?.()
+          ? `<div class="lp-ai-row" role="group" aria-label="Lune AI on bar ${primary}">${Object.entries(window.LuneAsk.MODEL_ACTIONS)
+              .filter(([, a]) => a.bar)
+              .map(([task, a]) => `<button type="button" class="quiet ink" data-lp-task="${task}">${esc(a.label)}</button>`)
+              .join("")}</div>`
+          : ""
+      }
       <div class="lp-ask-row">
         <button type="button" class="quiet ink" data-lp="ask">Ask Lune about bar ${primary}</button>
         <button type="button" class="quiet ink" data-lp="plan">Add to my plan</button>
@@ -603,7 +611,8 @@ window.LunePractice = (function () {
     wrap.addEventListener("click", async (e) => {
       const btn = e.target.closest("button");
       if (!btn) return;
-      if (btn.dataset.lp === "aloud") readSelectedAloud();
+      if (btn.dataset.lpTask) window.LuneAsk?.runTask?.(btn.dataset.lpTask, primary);
+      else if (btn.dataset.lp === "aloud") readSelectedAloud();
       else if (btn.dataset.lp === "ask") window.LuneAsk?.open?.({ bar: primary });
       else if (btn.dataset.lp === "share") openAssignDialog(bars);
       else if (btn.dataset.lp === "plan" && window.LuneAsk) {
@@ -1757,7 +1766,10 @@ window.LunePractice = (function () {
       ${row("upload", "Upload a score", "MusicXML, PDF or a photo. It stays on this device unless you add it to your Repertoire while signed in.")}
       ${row("feedback", "Send feedback", "Tell Verushka what changed or what is missing. It goes straight to her.")}
       <h3>Ask Lune</h3>
-      <p class="settings-note">Lune AI can run locally on your computer using an open-weight model. No paid API is required, there is no key, and what you ask stays on your machine.</p>
+      <h4 class="settings-sub">Lune AI on this device</h4>
+      <div class="settings-device-ai" id="set-device-ai"></div>
+      <h4 class="settings-sub">Or your own model with Ollama</h4>
+      <p class="settings-note">If Ollama runs on your computer, Ask Lune can use a model there instead. No paid API is required, there is no key, and what you ask stays on your machine.</p>
       <p class="settings-note" id="set-ai-status" role="status"><strong>${window.LuneAIProvider?.connected?.() ? "Local model set" : "Local model not connected"}</strong>${window.LuneAIProvider?.connected?.() ? `Ask Lune sends questions to ${esc(window.LuneAsk.aiSettings().model)} at the address below. Press Test to check it is running.` : "Ask Lune is using its built-in answers, worked out from the score and your remarks. They are not from a language model."}</p>
       <ol class="settings-steps">
         <li>Install Ollama from ollama.com (free) and open it.</li>
@@ -1788,6 +1800,7 @@ window.LunePractice = (function () {
           ? `<h3>Owner</h3>${row("owner-stats", "Owner stats", "Signed-up users.")}${row("owner-impact", "Impact", "Anonymous totals and the public snapshot.")}${row("owner-feedback", "Feedback received", "What pianists and teachers have written.")}`
           : ""
       }`;
+    paintDeviceAISettings(d.querySelector("#set-device-ai"));
     d.onchange = (e) => {
       const k = e.target.dataset?.pref;
       if (k) {
@@ -1825,6 +1838,13 @@ window.LunePractice = (function () {
         }
         document.querySelector('meta[name="theme-color"]')?.setAttribute("content", light ? "#f5f5f5" : "#0a0a0a");
         d.querySelectorAll("[data-theme-set]").forEach((x) => x.setAttribute("aria-pressed", String(x === th)));
+        return;
+      }
+      const dev = e.target.closest("[data-device-ai]");
+      if (dev) {
+        const box = d.querySelector("#set-device-ai");
+        if (dev.dataset.deviceAi === "on") window.LuneAsk.turnOnDeviceAI(box, { onDone: () => setTimeout(() => paintDeviceAISettings(box), 1500) });
+        else window.LuneDeviceAI.turnOff().then(() => paintDeviceAISettings(box, "Lune AI is off and its download was deleted from this browser."));
         return;
       }
       const ai = e.target.closest("[data-ai]");
@@ -1893,6 +1913,28 @@ window.LunePractice = (function () {
       else if (act === "owner-feedback") window.LuneFeedback?.openOwner?.();
     };
     if (!d.open) d.showModal();
+  }
+
+  /** Lune AI in Settings: what it is, its size before anything downloads, and how to turn it off. */
+  async function paintDeviceAISettings(box, message = "") {
+    const D = window.LuneDeviceAI;
+    if (!box || !D) return;
+    const plan = await D.plan();
+    if (!plan.supported) {
+      box.innerHTML = `<p class="settings-note">This browser cannot run Lune AI. Ask Lune uses its built-in answers.</p>`;
+      return;
+    }
+    if (D.enabled() || D.status() === "ready") {
+      box.innerHTML = `<p class="settings-note" role="status"><strong>Lune AI is on</strong>${esc(plan.name)} (${esc(plan.licence)}) runs in this browser on ${
+        plan.device === "webgpu" ? "the graphics card (WebGPU)" : "the processor (WebAssembly)"
+      }. It answers Ask Lune from the score and your remarks. Nothing you ask leaves this device.</p>
+        <button type="button" class="quiet" data-device-ai="off">Turn off and delete the download</button>
+        ${message ? `<p class="settings-note">${esc(message)}</p>` : ""}`;
+      return;
+    }
+    box.innerHTML = `${window.LuneAsk.deviceOfferHtml(plan).replace("data-ai-on", 'data-device-ai="on"')}
+      <p class="settings-note">Lune AI is a general open-weight model given Lune’s reading of your score. It was not trained for Lune, and it can still be wrong; the facts it is given are shown on each bar.</p>
+      ${message ? `<p class="settings-note" role="status">${esc(message)}</p>` : ""}`;
   }
 
   /** A walk through This week → Share → Invite with invented numbers, labelled as an example throughout. */

@@ -8892,7 +8892,26 @@ body.is-home .piece-tabs:not([hidden]) { display: flex; }
 .ask-mic.on { background: #f0f0f0; color: #0a0a0a; }
 .ask-send { min-height: 42px; padding: 0 16px; }
 .ask-fine { margin: 0; padding: 2px 18px 12px; font-size: 11px; color: var(--dim); }
+.ask-ai-offer {
+  margin: 6px 14px 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.ask-ai-offer p { margin: 0 0 8px; }
+.ask-ai-offer strong { color: var(--text); font-weight: 600; }
+.ask-ai-offer progress,
+.settings-device-ai progress { width: 100%; height: 6px; accent-color: var(--text); }
+.settings-sub { margin: 14px 0 4px; font-size: 14px; font-weight: 600; color: var(--text); }
+.settings-device-ai { margin-bottom: 8px; }
+.settings-device-ai p { margin: 10px 0; font-size: 14px; line-height: 1.55; color: var(--muted); }
 .lp-ask-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
+.lp-ai-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--line); }
+.lp-ai-row::before { content: "Lune AI"; flex-basis: 100%; font-size: 12px; color: var(--muted); }
+.ask-chips .ask-chip-ai { color: var(--text); border-color: var(--muted); }
 .lp-asked-q { margin: 6px 0 2px; font-size: 13px; color: var(--ink-muted); }
 .lp-asked-a { margin: 0 0 8px; font-size: 14px; line-height: 1.5; white-space: pre-line; }
 @media (max-width: 640px) {
