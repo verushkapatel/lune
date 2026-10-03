@@ -1,7 +1,8 @@
-<!-- otp02 -->
+<!-- ivy01 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- ivy01 -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Lune — quiet piano practice</title>
@@ -25,12 +26,12 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Lune">
-  <link rel="icon" href="static/assets/favicon.svg?v=otp02" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=otp02">
-  <link rel="manifest" href="static/manifest.json?v=otp02">
+  <link rel="icon" href="static/assets/favicon.svg?v=ivy01" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=ivy01">
+  <link rel="manifest" href="static/manifest.json?v=ivy01">
   <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="static/styles.otp02.css">
-  <link rel="preload" href="static/search-index.json?v=otp02" as="fetch" crossorigin>
+  <link rel="stylesheet" href="static/styles.ivy01.css">
+  <link rel="preload" href="static/search-index.json?v=ivy01" as="fetch" crossorigin>
 </head>
 <body>
   <div id="app">
@@ -139,10 +140,10 @@
           </div>
           <div class="hero-chips" id="hero-chips">
             <button type="button" class="hero-chip" data-open-piece="beethoven-fur-elise">Für Elise</button>
-            <button type="button" class="hero-chip" data-open-piece="debussy-clair-de-lune">Clair de lune</button>
             <button type="button" class="hero-chip" data-open-piece="satie-gymnopedie-1">Gymnopédie No. 1</button>
+            <button type="button" class="hero-chip" data-lp-create-account title="Sign in to open Clair de lune">Clair de lune</button>
           </div>
-          <p class="home-fine-line">Free · no ads · no payments · sign in later if you want</p>
+          <p class="home-fine-line">Free · no ads · no payments · Clair de lune after sign-in</p>
         </div>
       </section>
 
@@ -170,19 +171,19 @@
           </div>
           <div class="sim-try" id="sim-try" hidden>
             <h3>Make Lune yours</h3>
-            <p>Open the studio on Clair de lune — or get started so your plans and notes stay with you. Free forever.</p>
+            <p>Sign in free — then open Clair de lune and keep your plans and notes with you. No payments, ever.</p>
             <div class="home-cta-row">
               <button type="button" class="primary big" data-lp-create-account>Make Lune yours</button>
-              <button type="button" class="quiet" data-open-piece="debussy-clair-de-lune">Open Clair de lune</button>
+              <button type="button" class="quiet" data-lp-create-account>Sign in to open Clair de lune</button>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="home-chapter home-access-chapter" id="dyslexia" aria-labelledby="dyslexia-h">
+      <section class="home-chapter home-access-chapter" id="easy-read" aria-labelledby="easy-read-h">
         <div class="home-chapter-copy">
           <p class="about-kicker">Reading</p>
-          <h2 id="dyslexia-h">Dyslexia-friendly letters</h2>
+          <h2 id="easy-read-h">Easy read letters</h2>
           <p>
             On Overview or Score, tap <strong>Aa</strong>. Letter names switch to Atkinson Hyperlegible —
             clearer shapes, less mix-up between similar letters. Tap again to turn it off.
@@ -192,7 +193,7 @@
         </div>
         <figure class="home-chapter-visual" aria-hidden="true">
           <div class="access-demo access-demo-dyslexia">
-            <p class="access-demo-k">Aa · Atkinson Hyperlegible</p>
+            <p class="access-demo-k">Aa · Easy read · Atkinson Hyperlegible</p>
             <p class="access-demo-sample">G♯ · C♯ · E · B♭ · F</p>
             <p class="access-demo-note">Every letter shape stays distinct under the staff.</p>
           </div>
@@ -208,7 +209,7 @@
             Download the <code>.brf</code> for a refreshable display or embosser.
             Not every score has one yet — Clair de lune and several others do.
           </p>
-          <button type="button" class="quiet" data-open-piece="debussy-clair-de-lune">Open Clair de lune</button>
+          <button type="button" class="quiet" data-lp-create-account>Sign in to open Clair de lune</button>
         </div>
         <figure class="home-chapter-visual" aria-hidden="true">
           <div class="access-demo access-demo-braille">
@@ -226,7 +227,7 @@
           <ul class="home-feature-list home-feature-list-slim">
             <li>
               <strong>Read</strong>
-              <span>Letter names or fingers under the staff. Dyslexia-friendly type and braille when you need them.</span>
+              <span>Letter names or fingers under the staff. Easy read type and braille when you need them.</span>
             </li>
             <li>
               <strong>Hear</strong>
@@ -415,6 +416,12 @@
                 so those hours alone at the piano could feel calmer: find a score, hear it,
                 see letter names or finger numbers, and work the bars that will not sit yet.
               </p>
+              <p class="about-name-story">
+                The name comes from Debussy’s <em>Clair de lune</em> — the piece I put on
+                whenever I feel lost. Somehow everything settles again. I hoped this app
+                could do a little of the same for practice: a quiet place that helps you
+                find your way back to the music.
+              </p>
             </div>
           </div>
           <figure class="home-chapter-visual about-maker-visual" aria-hidden="true">
@@ -445,12 +452,12 @@
         <svg class="lune-mark home-footer-mark" viewBox="0 0 40 40" width="18" height="18" aria-hidden="true" focusable="false">
           <path fill="currentColor" d="M26.2 7.2c-5.9.9-10.4 6-10.4 12.1 0 6.1 4.5 11.2 10.4 12.1A12.2 12.2 0 0 1 14 19.3c0-6.6 5.2-12 11.8-12.2.1 0 .3 0 .4 0z"/>
         </svg>
-        <p class="home-footer-line">Lune · quiet practice, clear notes</p>
+        <p class="home-footer-line">Lune · named for Clair de lune</p>
         <p class="home-footer-keys">Space play · <span aria-hidden="true">&#8592; &#8594;</span> seek a bar · Esc close</p>
         <p class="fine-print home-footer-legal">
           <button type="button" class="link-btn" data-open-credits>Credits &amp; licenses</button> ·
           <button type="button" class="link-btn" data-open-credits="privacy">Privacy</button> ·
-          <a href="https://github.com/verushkapatel/lune/issues" target="_blank" rel="noopener">Contact</a> ·
+          <a href="mailto:verushkapatel@icloud.com?subject=Lune%20feedback" id="footer-feedback">Feedback</a> ·
           free and non-commercial
         </p>
       </footer>
@@ -507,7 +514,7 @@
               </div>
             </div>
             <div class="access-strip" id="score-access" aria-label="Reading options">
-              <button type="button" class="access-chip" id="btn-dyslexia-score" aria-pressed="false" title="Dyslexia-friendly letters (Atkinson Hyperlegible)">Aa</button>
+              <button type="button" class="access-chip" id="btn-dyslexia-score" aria-pressed="false" title="Easy read letters (Atkinson Hyperlegible)" aria-label="Easy read letters">Aa</button>
               <a class="access-chip access-braille" id="btn-braille-score" hidden href="#" download>Braille</a>
             </div>
             <!-- Legacy XOR hooks kept for session restore / tests -->
@@ -550,7 +557,7 @@
                 <button type="button" class="quiet" id="btn-download" hidden>Download</button>
               </div>
               <div class="access-strip explain-access" id="explain-access" aria-label="Reading options">
-                <button type="button" class="access-chip" id="btn-dyslexia-explain" aria-pressed="false" title="Dyslexia-friendly letters">Aa Dyslexia</button>
+                <button type="button" class="access-chip" id="btn-dyslexia-explain" aria-pressed="false" title="Easy read letters" aria-label="Easy read letters">Aa Easy read</button>
                 <a class="access-chip access-braille" id="btn-braille-explain" hidden href="#" download>Braille</a>
                 <button type="button" class="access-chip quiet-chip" id="btn-access-more" title="More reading options">Access</button>
               </div>
@@ -723,23 +730,24 @@
       <li>When you press play, piano sounds load from tonejs.github.io; the site is hosted at lune.page.</li>
     </ul>
     <h3>Contact</h3>
-    <p>Questions, corrections or takedown requests: <a href="https://github.com/verushkapatel/lune/issues" target="_blank" rel="noopener">github.com/verushkapatel/lune/issues</a>.</p>
+    <p>Questions, corrections, feedback or takedown requests: <a href="mailto:verushkapatel@icloud.com?subject=Lune%20feedback">verushkapatel@icloud.com</a>
+      · <a href="https://github.com/verushkapatel/lune/issues" target="_blank" rel="noopener">GitHub issues</a>.</p>
   </dialog>
   <div class="toast" id="toast" hidden></div>
   <script src="static/vendor/opensheetmusicdisplay.min.js"></script>
   <script src="static/vendor/pdf.min.js"></script>
   <script src="static/vendor/Tone.js"></script>
-  <script src="static/piano.otp02.js"></script>
-  <script src="static/annotate.js?v=otp02"></script>
-  <script src="static/lite-analyze.js?v=otp02"></script>
-  <script src="static/lyric-lane.js?v=otp02"></script>
-  <script src="static/menu.js?v=otp02"></script>
-  <script src="static/lune-config.js?v=otp02"></script>
-  <script src="static/store.otp02.js"></script>
-  <script src="static/onboard.otp02.js"></script>
-  <script src="static/app.js?v=otp02"></script>
-  <script src="static/practice.js?v=otp02"></script>
-  <script src="static/follow.js?v=otp02"></script>
-  <script src="static/study.js?v=otp02"></script>
+  <script src="static/piano.ivy01.js"></script>
+  <script src="static/annotate.js?v=ivy01"></script>
+  <script src="static/lite-analyze.js?v=ivy01"></script>
+  <script src="static/lyric-lane.js?v=ivy01"></script>
+  <script src="static/menu.js?v=ivy01"></script>
+  <script src="static/lune-config.ivy01.js"></script>
+  <script src="static/store.ivy01.js"></script>
+  <script src="static/onboard.ivy01.js"></script>
+  <script src="static/app.ivy01.js"></script>
+  <script src="static/practice.ivy01.js"></script>
+  <script src="static/follow.js?v=ivy01"></script>
+  <script src="static/study.js?v=ivy01"></script>
 </body>
 </html>
