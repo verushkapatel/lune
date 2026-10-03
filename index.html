@@ -1,8 +1,8 @@
-<!-- apple01 -->
+<!-- apple02 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- apple01 -->
+  <!-- apple02 -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Lune — quiet piano practice</title>
@@ -26,12 +26,12 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Lune">
-  <link rel="icon" href="static/assets/favicon.svg?v=apple01" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=apple01">
-  <link rel="manifest" href="static/manifest.json?v=apple01">
+  <link rel="icon" href="static/assets/favicon.svg?v=apple02" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=apple02">
+  <link rel="manifest" href="static/manifest.json?v=apple02">
   <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="static/styles.apple01.css">
-  <link rel="preload" href="static/search-index.json?v=apple01" as="fetch" crossorigin>
+  <link rel="stylesheet" href="static/styles.apple02.css">
+  <link rel="preload" href="static/search-index.json?v=apple02" as="fetch" crossorigin>
 </head>
 <body>
   <div id="app">
@@ -106,7 +106,7 @@
     <div class="results" id="results" hidden></div>
 
     <main class="home" id="home">
-      <section class="home-hero" id="hero">
+      <section class="home-hero home-hero-cinema" id="hero">
         <div class="home-hero-motif" aria-hidden="true">
           <svg class="home-motif-mark" viewBox="0 0 40 40" focusable="false">
             <g stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.35">
@@ -132,7 +132,7 @@
           <div class="home-continue" id="home-continue" hidden></div>
           <h1>Quiet practice.<br>Clear notes.</h1>
           <p class="lead">
-            A night-studio companion for the hours alone at the piano — free scores you can hear, name, and learn on the keys.
+            The night studio for pianists — hear a score, name every note, learn on the keys, keep a plan.
           </p>
           <div class="home-cta-row home-cta-hero">
             <button type="button" class="primary big" data-lp-sim>See how it works</button>
@@ -148,19 +148,24 @@
         </div>
       </section>
 
-      <section class="home-statement" aria-hidden="false">
-        <p class="home-statement-line">Practice that settles — like moonlight on the keys.</p>
+      <section class="home-billboard" data-reveal>
+        <p class="home-billboard-kicker">Designed for the hours alone</p>
+        <h2 class="home-billboard-line">Practice that settles.</h2>
       </section>
 
-      <section class="home-sim" id="tour" aria-labelledby="sim-h">
+      <section class="home-billboard home-billboard-soft" data-reveal>
+        <h2 class="home-billboard-line">Like moonlight<br>on the keys.</h2>
+      </section>
+
+      <section class="home-sim home-sim-cinema" id="tour" aria-labelledby="sim-h" data-reveal>
         <div class="home-sim-inner">
           <header class="home-sim-head">
             <p class="about-kicker">The studio</p>
             <h2 id="sim-h">Sit with Clair de lune.</h2>
-            <p class="home-sim-lead">A cinematic walkthrough — page, keys, plan. Watch first. Make it yours when you’re ready.</p>
+            <p class="home-sim-lead">A living product film — page, keys, plan. Watch. Then make it yours.</p>
           </header>
           <div class="sim-stage">
-            <div class="sim-viewport">
+            <div class="sim-viewport sim-viewport-cinema">
               <div class="sim-frame" id="sim-frame" aria-hidden="true"></div>
             </div>
             <div class="sim-caption">
@@ -184,7 +189,12 @@
         </div>
       </section>
 
-      <section class="home-pin" id="features" aria-label="What Lune does">
+      <section class="home-billboard" data-reveal>
+        <p class="home-billboard-kicker">Four quiet tools</p>
+        <h2 class="home-billboard-line">One place<br>to practise.</h2>
+      </section>
+
+      <section class="home-pin home-pin-cinema" id="features" aria-label="What Lune does">
         <div class="home-pin-sticky" aria-hidden="true">
           <div class="home-pin-stage" id="home-pin-stage">
             <div class="home-pin-frame is-on" data-pin-frame="read">
@@ -277,7 +287,7 @@
         <div class="home-pin-rail">
           <article class="home-pin-step is-in" data-pin="read" id="read">
             <p class="about-kicker">01 · Score</p>
-            <h2>Every note, named.</h2>
+            <h2>Every note,<br>named.</h2>
             <p>
               Letter names or finger numbers sit in their own lane under the staff — never painted on the heads.
               Toggle one or the other so the page stays readable while you work.
@@ -285,7 +295,7 @@
           </article>
           <article class="home-pin-step" data-pin="piano" id="listen">
             <p class="about-kicker">02 · Piano</p>
-            <h2>Hear it. See the keys.</h2>
+            <h2>Hear it.<br>See the keys.</h2>
             <p>
               Play at any tempo with a metronome in the piece’s meter. Open Piano and notes fall onto a real keyboard —
               right hand, left hand, or both — so hard bars land under the hands.
@@ -293,7 +303,7 @@
           </article>
           <article class="home-pin-step" data-pin="ask" id="ask">
             <p class="about-kicker">03 · Practice</p>
-            <h2>Tap the bar that won’t sit.</h2>
+            <h2>Tap the bar<br>that won’t sit.</h2>
             <p>
               Click a stubborn bar. The coach lists its notes, suggested fingers, and a quiet way to practise it —
               one panel beside the page, never a wall of chrome.
@@ -301,7 +311,7 @@
           </article>
           <article class="home-pin-step" data-pin="plan" id="remember">
             <p class="about-kicker">04 · Repertoire</p>
-            <h2>Plans that stay with you.</h2>
+            <h2>Plans that<br>stay with you.</h2>
             <p>
               Select bars, speak or jot a note, save a plan into Repertoire. Rate what you practised —
               Lune brings hard bars back as Today’s work. Sign in and it syncs across your devices.
@@ -310,18 +320,18 @@
         </div>
       </section>
 
-      <section class="home-chapter home-chapter-cinema home-access-chapter" id="easy-read" aria-labelledby="easy-read-h">
-        <div class="home-chapter-copy">
+      <section class="home-screen" id="easy-read" aria-labelledby="easy-read-h" data-reveal>
+        <div class="home-screen-copy">
           <p class="about-kicker">Easy read</p>
-          <h2 id="easy-read-h">Letters that refuse to blur.</h2>
+          <h2 id="easy-read-h">Letters that<br>refuse to blur.</h2>
           <p>
             Tap <strong>Aa</strong> on Overview or Score. Letter names switch to Atkinson Hyperlegible —
             clearer shapes, less mix-up between similar letters. Large print and high contrast live
             in Reading &amp; access when you need them.
           </p>
         </div>
-        <figure class="home-chapter-visual home-chapter-sticky" aria-hidden="true">
-          <div class="access-demo access-demo-dyslexia">
+        <figure class="home-screen-frame" aria-hidden="true">
+          <div class="access-demo access-demo-dyslexia access-demo-cinema">
             <p class="access-demo-k">Aa · Easy read · Atkinson Hyperlegible</p>
             <p class="access-demo-sample">G♯ · C♯ · E · B♭ · F</p>
             <p class="access-demo-note">Every letter shape stays distinct under the staff.</p>
@@ -329,18 +339,18 @@
         </figure>
       </section>
 
-      <section class="home-chapter home-chapter-cinema home-chapter-flip home-access-chapter" id="braille" aria-labelledby="braille-h">
-        <div class="home-chapter-copy">
+      <section class="home-screen home-screen-flip" id="braille" aria-labelledby="braille-h" data-reveal>
+        <div class="home-screen-copy">
           <p class="about-kicker">Braille</p>
-          <h2 id="braille-h">Music you can feel.</h2>
+          <h2 id="braille-h">Music you<br>can feel.</h2>
           <p>
             When a library piece has a braille file, a Braille chip appears on Overview or Score.
             Download the <code>.brf</code> for a refreshable display or embosser.
             Not every score has one yet — Clair de lune and several others do.
           </p>
         </div>
-        <figure class="home-chapter-visual home-chapter-sticky" aria-hidden="true">
-          <div class="access-demo access-demo-braille">
+        <figure class="home-screen-frame" aria-hidden="true">
+          <div class="access-demo access-demo-braille access-demo-cinema">
             <p class="access-demo-k">Download</p>
             <p class="access-demo-chip">Braille · .brf</p>
             <p class="access-demo-note">For an embosser or refreshable braille display.</p>
@@ -348,11 +358,16 @@
         </figure>
       </section>
 
-      <section class="about-maker" id="about">
+      <section class="home-billboard" data-reveal>
+        <p class="home-billboard-kicker">Why Lune exists</p>
+        <h2 class="home-billboard-line">Named for<br>Clair de lune.</h2>
+      </section>
+
+      <section class="about-maker about-maker-cinema" id="about" data-reveal>
         <div class="about-maker-inner">
           <div class="about-maker-copy">
-            <p class="about-kicker">Why Lune exists</p>
-            <h2>Built by a teenager, for the hours alone at the piano.</h2>
+            <p class="about-kicker">The maker</p>
+            <h2>Built by a teenager,<br>for the hours alone<br>at the piano.</h2>
             <div class="about-columns">
               <p>
                 I’m <strong>Verushka Patel</strong>, fifteen, an ABRSM Grade&nbsp;7 pianist.
@@ -392,10 +407,10 @@
         </div>
       </section>
 
-      <section class="home-close" aria-labelledby="home-close-h">
+      <section class="home-close home-close-cinema" aria-labelledby="home-close-h" data-reveal>
         <p class="about-kicker">Free forever</p>
-        <h2 id="home-close-h">Make Lune yours.</h2>
-        <p>Email and a six-digit code. Then open Clair de lune, keep your repertoire, and practise without ads or payments.</p>
+        <h2 id="home-close-h">Make Lune<br>yours.</h2>
+        <p>Email and an 8-digit code. Then open Clair de lune, keep your repertoire, and practise without ads or payments.</p>
         <div class="home-cta-row">
           <button type="button" class="primary big" data-lp-create-account>Make Lune yours</button>
           <button type="button" class="quiet" data-lp-sim>See the studio again</button>
@@ -691,17 +706,17 @@
   <script src="static/vendor/opensheetmusicdisplay.min.js"></script>
   <script src="static/vendor/pdf.min.js"></script>
   <script src="static/vendor/Tone.js"></script>
-  <script src="static/piano.apple01.js"></script>
-  <script src="static/annotate.js?v=apple01"></script>
-  <script src="static/lite-analyze.js?v=apple01"></script>
-  <script src="static/lyric-lane.js?v=apple01"></script>
-  <script src="static/menu.js?v=apple01"></script>
-  <script src="static/lune-config.apple01.js"></script>
-  <script src="static/store.apple01.js"></script>
-  <script src="static/onboard.apple01.js"></script>
-  <script src="static/app.apple01.js"></script>
-  <script src="static/practice.apple01.js"></script>
-  <script src="static/follow.js?v=apple01"></script>
-  <script src="static/study.js?v=apple01"></script>
+  <script src="static/piano.apple02.js"></script>
+  <script src="static/annotate.js?v=apple02"></script>
+  <script src="static/lite-analyze.js?v=apple02"></script>
+  <script src="static/lyric-lane.js?v=apple02"></script>
+  <script src="static/menu.js?v=apple02"></script>
+  <script src="static/lune-config.apple02.js"></script>
+  <script src="static/store.apple02.js"></script>
+  <script src="static/onboard.apple02.js"></script>
+  <script src="static/app.apple02.js"></script>
+  <script src="static/practice.apple02.js"></script>
+  <script src="static/follow.js?v=apple02"></script>
+  <script src="static/study.js?v=apple02"></script>
 </body>
 </html>
