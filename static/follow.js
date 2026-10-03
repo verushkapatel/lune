@@ -148,6 +148,9 @@ window.LuneFollow = (function () {
     showBar(events[pos].bar);
     const btn = $("btn-follow");
     btn?.classList.add("on");
+    const lab = btn?.querySelector(".lp-tool-label");
+    if (lab) lab.textContent = "Listening";
+    btn?.setAttribute("aria-label", "Listening");
     btn?.setAttribute("aria-pressed", "true");
   }
 
@@ -380,6 +383,9 @@ window.LuneFollow = (function () {
     const btn = $("btn-follow");
     btn?.classList.remove("on");
     btn?.setAttribute("aria-pressed", "false");
+    const lab = btn?.querySelector(".lp-tool-label");
+    if (lab) lab.textContent = "Play along";
+    btn?.setAttribute("aria-label", "Play along");
     $("lf-hilite")?.remove();
     lastShownBar = null;
     window.__luneFollowLast = { log: r.log, stats: r.stats, matched: r.matched, onsets: r.onsets, events: r.events.length, startPos: r.startPos, pos: r.pos };

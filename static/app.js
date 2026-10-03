@@ -184,7 +184,7 @@ function closeSearchResults({ blur = false } = {}) {
 const SEARCH_LIMIT = 8;
 // Paint on the next frame only — coalesces burst keystrokes, ~0–16ms feel (no 100ms lag).
 const SEARCH_DEBOUNCE_MS = 0;
-const SEARCH_INDEX_URL = luneUrl("/static/search-index.json?v=fix80");
+const SEARCH_INDEX_URL = luneUrl("/static/search-index.json?v=fix90");
 /** Composers whose piano works are typically still under copyright — honest empty state. */
 const COPYRIGHT_ERA_COMPOSERS = [
   "ginastera", "prokofiev", "shostakovich", "khachaturian", "kabalevsky",
@@ -922,51 +922,58 @@ function renderPieceTabs() {
     return;
   }
 
-  // Single piece: quiet title, no tab chrome — keep a lone + to open another.
-  const multi = n >= 2;
+  const studio = document.body.classList.contains("is-studio");
+  const active = activeSession();
+  const title =
+    active?.shortTitle ||
+    shortPieceTitle(active?.piece?.title || active?.piece?.overview?.title || "");
   if (quiet) {
-    const active = activeSession();
-    const title =
-      active?.shortTitle ||
-      shortPieceTitle(active?.piece?.title || active?.piece?.overview?.title || "");
     quiet.textContent = title;
-    quiet.hidden = multi || !document.body.classList.contains("is-studio");
+    quiet.hidden = !studio || (n >= 2 && window.innerWidth > 760);
     quiet.title = active?.piece?.title || title;
   }
-  host.hidden = false;
+  const mark = $("btn-bookmark");
+  if (mark) mark.hidden = false;
+  host.hidden = !studio || n < 2;
+  if (!studio) return;
+  if (n < 2) {
+    host.textContent = "";
+    return;
+  }
 
   const frag = document.createDocumentFragment();
-  if (multi) {
-    for (const s of state.sessions) {
-      const tab = document.createElement("div");
-      tab.className = "piece-tab" + (s.id === state.activeSessionId ? " on" : "");
-      tab.setAttribute("role", "tab");
-      tab.setAttribute("aria-selected", s.id === state.activeSessionId ? "true" : "false");
-      const composerName =
-        s.piece?.overview?.composer || s.piece?.composer || "";
-      const faceUrl =
-        localComposerFaceUrl(composerName) ||
-        (s.piece?.overview?.composerInfo?.image || "").trim() ||
-        COMPOSER_SILHOUETTE;
-      const face = document.createElement("img");
-      face.className = "piece-tab-face";
-      face.alt = "";
-      face.width = 18;
-      face.height = 18;
-      face.decoding = "async";
-      face.src = faceUrl;
-      face.onerror = () => {
-        face.onerror = null;
-        face.src = COMPOSER_SILHOUETTE;
-      };
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "piece-tab-label";
-      btn.title = s.piece?.title || s.shortTitle;
-      btn.textContent = s.shortTitle;
-      btn.addEventListener("click", () => {
-        activateSession(s.id).catch((e) => toast(e.message));
-      });
+  for (const s of state.sessions) {
+    const tab = document.createElement("div");
+    tab.className = "piece-tab" + (s.id === state.activeSessionId ? " on" : "");
+    tab.setAttribute("role", "tab");
+    tab.setAttribute("aria-selected", s.id === state.activeSessionId ? "true" : "false");
+    const composerName = s.piece?.overview?.composer || s.piece?.composer || "";
+    const faceUrl =
+      localComposerFaceUrl(composerName) ||
+      (s.piece?.overview?.composerInfo?.image || "").trim() ||
+      COMPOSER_SILHOUETTE;
+    const face = document.createElement("img");
+    face.className = "piece-tab-face";
+    face.alt = "";
+    face.width = 18;
+    face.height = 18;
+    face.decoding = "async";
+    face.src = faceUrl;
+    face.onerror = () => {
+      face.onerror = null;
+      face.src = COMPOSER_SILHOUETTE;
+    };
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "piece-tab-label";
+    btn.title = s.piece?.title || s.shortTitle;
+    btn.textContent = s.id === state.activeSessionId ? s.shortTitle : s.shortTitle;
+    btn.addEventListener("click", () => {
+      activateSession(s.id).catch((e) => toast(e.message));
+    });
+    tab.appendChild(face);
+    tab.appendChild(btn);
+    if (n >= 2) {
       const close = document.createElement("button");
       close.type = "button";
       close.className = "piece-tab-close";
@@ -976,26 +983,12 @@ function renderPieceTabs() {
         e.stopPropagation();
         closeSession(s.id).catch((err) => toast(err.message));
       });
-      tab.appendChild(face);
-      tab.appendChild(btn);
       tab.appendChild(close);
-      frag.appendChild(tab);
     }
+    frag.appendChild(tab);
   }
-  const add = document.createElement("button");
-  add.type = "button";
-  add.className = "piece-tab-add";
-  add.title = "Open another piece";
-  add.setAttribute("aria-label", "Open another piece");
-  add.textContent = "+";
-  add.addEventListener("click", openStudioSearch);
-  frag.appendChild(add);
   host.appendChild(frag);
-  if (!multi) {
-    host.classList.add("piece-tabs-solo");
-  } else {
-    host.classList.remove("piece-tabs-solo");
-  }
+  host.classList.toggle("piece-tabs-solo", n < 2);
 }
 
 function openStudioSearch() {
@@ -2046,6 +2039,8 @@ function setPlayRate(rate) {
   document.querySelectorAll(".speed-btn").forEach((btn) => {
     btn.classList.toggle("on", Number(btn.dataset.rate) === r);
   });
+  const trigger = $("btn-speed");
+  if (trigger) trigger.textContent = `${r}×`.replace(/(\.0)×$/, "×");
 }
 
 function bindHomeChapters() {
@@ -2892,27 +2887,34 @@ function prettyPitch(text) {
 }
 
 function lettersBlock(d) {
+  const fingersFirst = !!state.scoreFingers;
   const fmt = (arr) =>
     groupByOffset(arr)
       .map((g) => {
         const sorted = [...g].sort((a, b) => (b.midi || 0) - (a.midi || 0));
         if (sorted.length === 1) {
           const n = sorted[0];
-          const finger = n.fingering ? `<i>${n.fingering}</i>` : "";
-          return `<span class="chip letter">${escapeHtml(prettyPitch(n.letter))}${finger}</span>`;
+          const letter = escapeHtml(prettyPitch(n.letter || n.pitch || ""));
+          const finger = n.fingering || n.finger;
+          if (fingersFirst) {
+            return `<span class="chip finger-only">${finger ? `<b>${finger}</b>` : ""}${letter}</span>`;
+          }
+          return `<span class="chip letter">${letter}${finger ? `<i class="tone-finger">${finger}</i>` : ""}</span>`;
         }
         const inner = sorted
           .map((n) => {
-            const finger = n.fingering ? `<i>${n.fingering}</i>` : "";
-            return `<span class="chord-tone"><b class="tone-letter">${escapeHtml(
-              prettyPitch(n.letter)
-            )}</b>${finger ? `<i class="tone-finger">${n.fingering}</i>` : ""}</span>`;
+            const letter = escapeHtml(prettyPitch(n.letter || n.pitch || ""));
+            const finger = n.fingering || n.finger;
+            if (fingersFirst) {
+              return `<span class="chord-tone">${finger ? `<b class="tone-finger">${finger}</b>` : ""}<i class="tone-letter">${letter}</i></span>`;
+            }
+            return `<span class="chord-tone"><b class="tone-letter">${letter}</b>${finger ? `<i class="tone-finger">${finger}</i>` : ""}</span>`;
           })
           .join("");
-        return `<span class="chip letter chord" title="Chord">${inner}</span>`;
+        return `<span class="chip ${fingersFirst ? "finger-only" : "letter"} chord" title="Chord">${inner}</span>`;
       })
       .join("");
-  let html = `<h4>Letter names</h4>`;
+  let html = `<h4>Notes</h4>`;
   if (d.rh?.length) html += `<p class="hand-label">Right hand</p><div class="notes">${fmt(d.rh)}</div>`;
   if (d.lh?.length) html += `<p class="hand-label">Left hand</p><div class="notes">${fmt(d.lh)}</div>`;
   if (!d.rh?.length && !d.lh?.length) html += `<p class="dim">No pitched notes in this bar.</p>`;
@@ -2943,89 +2945,41 @@ function deepenBarCopy(d, num) {
 
 function barSectionHtml(num, d) {
   if (!d?.found) {
-    return `<section class="coach-bar-block"><h3>Bar ${num}</h3><p class="dim">No notes here.</p></section>`;
+    return `<section class="coach-bar-block">${lettersBlock({ rh: [], lh: [] })}</section>`;
   }
-  const headline = (d.headline || "").trim();
-  let html = `<section class="coach-bar-block"><h3>Bar ${num}${
-    headline ? `<span class="bar-headline">${escapeHtml(headline)}</span>` : ""
-  }</h3>`;
+  let html = `<section class="coach-bar-block">`;
   html += lettersBlock(d);
 
-  // Always surface finger numbers in the coach (score overlay remains Letters XOR Fingers)
-  if (d.fingerings && (d.fingerings.rh?.length || d.fingerings.lh?.length || d.rh?.some((n) => n.fingering) || d.lh?.some((n) => n.fingering))) {
-    html += `<h4>Fingers</h4>`;
-    for (const [label, pack] of [
-      ["Right hand", d.rh?.filter((n) => n.fingering != null) || []],
-      ["Left hand", d.lh?.filter((n) => n.fingering != null) || []],
-    ]) {
-      const rows = pack.length
-        ? pack
-        : label.startsWith("Right")
-          ? d.fingerings.rh
-          : d.fingerings.lh;
-      if (!rows?.length) continue;
-      const chips = groupByOffset(rows)
-        .map((g) => {
-          const sorted = [...g].sort((a, b) => (b.midi || 0) - (a.midi || 0));
-          if (sorted.length === 1) {
-            const n = sorted[0];
-            const finger = n.finger ?? n.fingering;
-            return `<span class="chip finger-only"><b>${finger}</b>${escapeHtml(prettyPitch(n.letter || ""))}</span>`;
-          }
-          const inner = sorted
-            .map((n) => {
-              const finger = n.finger ?? n.fingering;
-              return `<span class="chord-tone"><b class="tone-finger">${finger}</b><i class="tone-letter">${escapeHtml(
-                prettyPitch(n.letter || "")
-              )}</i></span>`;
-            })
-            .join("");
-          return `<span class="chip finger-only chord" title="Chord">${inner}</span>`;
-        })
-        .join("");
-      html += `<p class="hand-label">${label}</p><div class="notes">${chips}</div>`;
-    }
-  }
-
-  if (d.harmony?.length) {
-    html += `<h4>Harmony</h4><p>${escapeHtml(d.harmony.join(" · "))}</p>`;
-  }
-
   const practice = deepenBarCopy(d, num);
-  if (state.showTips !== false && practice.length) {
-    html += `<h4>Practice</h4><ul class="focus-list">${practice
-      .map((line) => `<li>${escapeHtml(line)}</li>`)
-      .join("")}</ul>`;
-  }
-
+  const first = practice[0] || "";
+  const extra = [];
+  if (practice.length > 1) extra.push(...practice.slice(1));
   if (state.showLines !== false && d.lineAdvice) {
-    let any = false;
-    let block = `<h4>Line advice</h4>`;
     for (const [key, label] of [
       ["rh", "Right-hand line"],
       ["lh", "Left-hand line"],
       ["together", "Hands together"],
     ]) {
       const tips = d.lineAdvice[key] || [];
-      if (!tips.length) continue;
-      any = true;
-      block += `<p class="hand-label">${label}</p><ul>${tips
-        .map((t) => `<li>${escapeHtml(t)}</li>`)
-        .join("")}</ul>`;
+      if (tips.length) extra.push(`${label}: ${tips.join(" ")}`);
     }
-    if (any) html += block;
   }
-
   if (d.split?.needed && d.split.chunks?.length) {
-    html += `<h4>Break it apart</h4>`;
-    for (const [i, chunk] of d.split.chunks.entries()) {
-      html += `<div class="chunk"><div class="label">${escapeHtml(chunk.hand)} · chunk ${i + 1}</div><p>${escapeHtml(chunk.how)}</p></div>`;
-    }
-    if (d.split.practiceNotes?.length) {
-      html += `<h4>How to practise</h4><ul>${d.split.practiceNotes
+    extra.push(
+      ...d.split.chunks.map((chunk, i) => `${chunk.hand} · chunk ${i + 1}: ${chunk.how}`)
+    );
+    if (d.split.practiceNotes?.length) extra.push(...d.split.practiceNotes);
+  }
+  if (first) {
+    const open = !!window._luneAdviceOpen;
+    html += `<h4>How to practise it</h4><div class="coach-advice"><p>${escapeHtml(first)}</p>`;
+    if (extra.length) {
+      html += `<button type="button" class="coach-more-btn" data-coach-more aria-expanded="${open ? "true" : "false"}">${open ? "Less on this bar" : "More on this bar"}</button>`;
+      html += `<div class="coach-advice-more"${open ? "" : " hidden"}><ul class="focus-list">${extra
         .map((line) => `<li>${escapeHtml(line)}</li>`)
-        .join("")}</ul>`;
+        .join("")}</ul></div>`;
     }
+    html += `</div>`;
   }
 
   html += `</section>`;
@@ -3036,14 +2990,18 @@ function refreshCoachChrome() {
   const bars = selectedBarsSorted();
   const title = $("coach-title");
   if (title) title.textContent = selectionTitle(bars);
-  const clear = $("coach-clear");
-  if (clear) clear.hidden = bars.length < 1;
+  const kicker = document.querySelector(".coach-kicker");
+  if (kicker) kicker.textContent = bars.length > 1 ? "Bars" : "Bar";
+  const diff = $("coach-diff");
+  if (diff) {
+    const d = bars.length === 1 ? debriefFor(bars[0]) : null;
+    const tag = (d?.headline || "").trim();
+    diff.hidden = !tag;
+    diff.textContent = tag;
+  }
   const hear = $("btn-hear");
   if (hear) {
-    hear.textContent =
-      bars.length > 1
-        ? `Play bars ${bars[0]}\u2013${bars[bars.length - 1]}`
-        : "Play this bar";
+    hear.textContent = bars.length > 1 ? "Play bars" : "Play bar";
     hear.disabled = !bars.length;
   }
   const lineBtn = $("btn-line");
@@ -3125,10 +3083,15 @@ function openBarCoach() {
     const d = debriefFor(num);
     html += barSectionHtml(num, d);
   }
-  if (bars.length === 1) {
-    html += lineSummaryHtml(bars[0]);
-  }
   body.innerHTML = html;
+  body.querySelector("[data-coach-more]")?.addEventListener("click", (e) => {
+    window._luneAdviceOpen = !window._luneAdviceOpen;
+    const more = body.querySelector(".coach-advice-more");
+    const btn = e.currentTarget;
+    if (more) more.hidden = !window._luneAdviceOpen;
+    btn.setAttribute("aria-expanded", window._luneAdviceOpen ? "true" : "false");
+    btn.textContent = window._luneAdviceOpen ? "Less on this bar" : "More on this bar";
+  });
   keepBarVisible(bars[0]);
   window.LunePractice?.decorateCoach(bars);
 }
@@ -3165,7 +3128,7 @@ function closeCoach() {
   if (coach) coach.hidden = true;
   state.coachOpen = false;
   document.body.classList.remove("coach-open");
-  // Keep selection + listen region; only hide the panel
+  if (state.selectedBars?.length) clearBarSelection({ close: false });
   requestAnimationFrame(() => paintSelectionHilites());
 }
 
@@ -3201,6 +3164,7 @@ function downloadScore() {
   URL.revokeObjectURL(url);
   toast("Downloaded");
 }
+window.downloadScore = downloadScore;
 
 async function openFile(file) {
   if (!file) return;
@@ -3341,9 +3305,32 @@ function bind() {
     e.preventDefault();
     search($("q").value, { openBest: true });
   });
+  on("hero-search", "submit", (e) => {
+    e.preventDefault();
+    const v = $("hero-q")?.value || "";
+    if ($("q")) $("q").value = v;
+    search(v, { openBest: true });
+  });
+  on("hero-q", "input", () => {
+    const v = $("hero-q")?.value || "";
+    if ($("q")) $("q").value = v;
+    paintSearch(v);
+  });
+  document.getElementById("hero-chips")?.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-open-piece]");
+    if (!b) return;
+    try {
+      history.pushState({ lune: b.dataset.openPiece }, "", `${location.pathname}${location.search}#/${b.dataset.openPiece}/explain`);
+    } catch {
+      location.hash = `#/${b.dataset.openPiece}/explain`;
+      return;
+    }
+    applyRoute().catch((err) => toast(err.message));
+  });
   on("q", "input", () => {
     // Sync filter+render (~1–3ms). No debounce, no rAF, no network.
     paintSearch($("q").value || "");
+    if ($("hero-q")) $("hero-q").value = $("q").value;
   });
   on("q", "focus", () => {
     ensureSearchIndex();
@@ -3410,6 +3397,7 @@ function bind() {
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
+      if (document.querySelector(".lune-menu.is-open")) return;
       if (state.coachOpen) {
         closeCoach();
         e.preventDefault();
@@ -3564,9 +3552,18 @@ function bind() {
 
   bindPlayheadScrub();
 
-  document.querySelectorAll(".speed-btn").forEach((btn) => {
-    btn.addEventListener("click", () => setPlayRate(btn.dataset.rate));
-  });
+  const speedBtn = $("btn-speed");
+  if (speedBtn && window.LuneMenu) {
+    const rates = [0.5, 0.75, 1, 1.25, 1.5];
+    window.LuneMenu.attach(speedBtn, () =>
+      rates.map((r) => ({
+        label: `${r}×`,
+        className: "speed-btn",
+        checked: Number(state.playRate) === r,
+        action: () => setPlayRate(r),
+      }))
+    );
+  }
   setPlayRate(1);
   syncPlayButton();
   try {
@@ -3690,8 +3687,9 @@ function bind() {
 
   on("btn-hear", "click", () => playSelectedBars().catch((e) => toast(e.message)));
   on("btn-line", "click", () => playSelectedLine().catch((e) => toast(e.message)));
-  on("btn-plan", "click", () => askPlan().catch((e) => toast(e.message)));
-  on("btn-download", "click", downloadScore);
+  document.addEventListener("click", (e) => {
+    if (e.target.closest?.("#btn-plan")) askPlan().catch((err) => toast(err.message));
+  });
   document.addEventListener("click", (e) => {
     const b = e.target.closest?.("[data-open-credits]");
     if (b) openCredits(b.getAttribute("data-open-credits"));
