@@ -36,3 +36,19 @@ python3 scripts/claude_lane_sweep.py
 ll is 0 for every piece at 390 and 1280
 (label-count / li warnings unchanged from before; engraving pipeline not touched)
 ```
+
+## October 2026 (cloud session after lune04)
+
+- The source behind lune04 had not been pushed. frontend/ was restored byte for byte from the gh-pages build. The lune04 test suites, docs/AI.md, scripts/blocked.py, verify_no_blocked.py, the original build_light_theme.py and contrast_audit.py were not recoverable. Their replacements are new: scripts/lune_cloud_test.py, contrast_audit.py, a11y_audit.py, build_light_theme.py and docs/AI.md.
+- build_light_theme.py keeps the lune04 light theme exactly (scripts/light_theme/base.css), generates light rules only for selectors added since (light_theme/reviewed-selectors.txt lists the lune04 ones), and ends with hand-written KEEP rules.
+- Lune AI on this device (transformers.js, open-weight model in the browser) is built but switched off until scripts/device_ai_eval.py passes with the real model. The marketing line waits for that too.
+- transformers.js loads from jsDelivr at a pinned version. Copying it into the repo was refused by GitHub push protection, which reads a class name in the minified file as a Mistral API key.
+- The model-only actions (Explain this bar, Why is this hard?, Suggest practice, Explain the fingering, Summarise my practice) live in Ask Lune's chips and in a Lune AI row in the bar panel, shown only when a model is connected.
+- Install Lune is always shown (landing, signed-in home, Settings, More) unless Lune already runs as an app. With a browser install prompt it opens that; otherwise it opens the steps for the visitor's browser first.
+- Open tabs are kept as piece ids in localStorage (lune.tabs) and reopened only when clicked. A link to a piece that already has a tab reuses it.
+- Ratings are Again, Hard, Okay, Good, Strong. Okay schedules at x0.8; Strong is the old Easy and is renamed where it is read.
+- This week lists plan tasks and due bar reviews, done or to do, each with the reason it is there. Hard bars come from Again and Hard ratings, because stumbles came only from Play along.
+- --dim is #858585 in dark and #666666 in light, so dim text passes 4.5:1.
+- The score region takes keyboard focus; arrow keys, Home and End move bar by bar and are announced.
+- A language section in Settings is left out: Lune has no translations.
+- Catalogue: Mozart's Piano Sonata no. 18, K. 576 (DCML, CC BY-NC-SA 4.0, MusicXML via When in Rome) was added as fetch-on-open. The rest of that corpus duplicates sonatas Lune has, or has no stated score source.

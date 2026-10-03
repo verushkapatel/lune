@@ -1774,7 +1774,7 @@ window.LunePractice = (function () {
       <h3>Ask Lune</h3>
       <h4 class="settings-sub">Lune AI on this device</h4>
       <div class="settings-device-ai" id="set-device-ai"></div>
-      <h4 class="settings-sub">Or your own model with Ollama</h4>
+      <h4 class="settings-sub">Your own model with Ollama</h4>
       <p class="settings-note">If Ollama runs on your computer, Ask Lune can use a model there instead. No paid API is required, there is no key, and what you ask stays on your machine.</p>
       <p class="settings-note" id="set-ai-status" role="status"><strong>${window.LuneAIProvider?.connected?.() ? "Local model set" : "Local model not connected"}</strong>${window.LuneAIProvider?.connected?.() ? `Ask Lune sends questions to ${esc(window.LuneAsk.aiSettings().model)} at the address below. Press Test to check it is running.` : "Ask Lune is using its built-in answers, worked out from the score and your remarks. They are not from a language model."}</p>
       <ol class="settings-steps">
@@ -1925,6 +1925,12 @@ window.LunePractice = (function () {
     const D = window.LuneDeviceAI;
     if (!box || !D) return;
     const plan = await D.plan();
+    if (!D.offered()) {
+      // not offered until a real model has passed its test (ai-device.js)
+      box.previousElementSibling?.remove();
+      box.remove();
+      return;
+    }
     if (!plan.supported) {
       box.innerHTML = `<p class="settings-note">This browser cannot run Lune AI. Ask Lune uses its built-in answers.</p>`;
       return;

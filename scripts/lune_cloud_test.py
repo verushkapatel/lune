@@ -62,9 +62,19 @@ def section_ai(browser):
     pg.wait_for_timeout(600)
     chips = pg.eval_on_selector_all("#ask-chips button", "els => els.map(e => e.textContent)")
     check("ai: no model-only chips without a model", not pg.locator("#ask-chips [data-task]").count(), chips)
+    check("ai: Lune AI on this device is not offered before a real model has passed its test", not pg.locator("#ask-ai-offer").is_visible())
+    pg.evaluate("() => document.getElementById('btn-settings').click()")
+    pg.wait_for_timeout(500)
+    check("ai: Settings does not offer it either, and still offers Ollama",
+          pg.locator("#set-device-ai").count() == 0 and pg.locator("[data-ai=ollama]").is_visible())
+    pg.keyboard.press("Escape")
+    # the developer switch shows the offer: it states the size and source before anything downloads
+    pg.evaluate("() => { localStorage.setItem('lune.ai.device.test', '1'); LuneAsk.close(); LuneAsk.open({bar: 5}); }")
+    pg.wait_for_timeout(600)
     offer = pg.locator("#ask-ai-offer")
     txt = offer.inner_text() if offer.is_visible() else ""
-    check("ai: Ask Lune offers Lune AI with its download size", ("MB" in txt or "GB" in txt) and "Download" in txt, txt)
+    check("ai: when offered, it states the download and where it comes from", ("MB" in txt or "GB" in txt) and "Download" in txt, txt)
+    pg.evaluate("() => localStorage.removeItem('lune.ai.device.test')")
     check("ai: nothing is downloaded before the pianist turns it on", not hf, hf[:3])
     fine = pg.inner_text("#ask-fine")
     check("ai: built-in answers are not called a model", "not from a language model" in fine, fine)

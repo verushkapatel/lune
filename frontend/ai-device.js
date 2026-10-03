@@ -16,6 +16,13 @@ window.LuneDeviceAI = (function () {
    * each build, measured from the Hugging Face repository; see docs/AI.md.
    */
   const MODEL = {
+    /*
+     * Off until scripts/device_ai_eval.py has passed with this model in a real
+     * browser (grounded answers, acceptable speed) and the byte sizes below are
+     * measured. Until then Lune offers only its built-in answers and Ollama.
+     * For testing, localStorage "lune.ai.device.test" = "1" turns it on.
+     */
+    verified: false,
     id: "onnx-community/Qwen2.5-1.5B-Instruct",
     name: "Qwen2.5 1.5B Instruct",
     maker: "Qwen team, Alibaba Cloud",
@@ -85,8 +92,11 @@ window.LuneDeviceAI = (function () {
     const build = MODEL.builds[use];
     const dtype = use === "webgpu" && !s.f16 ? "q4" : build.dtype;
     const bytes = use === "webgpu" && dtype === "q4" ? MODEL.builds.wasm.bytes : build.bytes;
-    return { ...MODEL, device: use, dtype, bytes, supported: s.wasm, support: s };
+    return { ...MODEL, device: use, dtype, bytes, supported: s.wasm && offered(), support: s };
   }
+
+  /** Shown to visitors only once the model has passed its test. */
+  const offered = () => MODEL.verified || get("lune.ai.device.test") === "1";
 
   const sizeText = (bytes) => (bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${Math.round(bytes / 1e6)} MB`);
 
@@ -196,7 +206,8 @@ window.LuneDeviceAI = (function () {
     chat,
     turnOff,
     /** Turned on earlier on this device (the weights are in the cache). */
-    enabled: () => get(FLAG) === "on",
+    enabled: () => offered() && get(FLAG) === "on",
+    offered,
     status: () => status,
     device: () => device,
     lastError: () => lastError,

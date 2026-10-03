@@ -8,7 +8,7 @@ fingering, voices, harmony, and how to play that spot. History and playing notes
 live under **About**. A practice plan appears only if you ask.
 
 No account needed, no API key for the coach. Free on your machine and at
-<https://verushkapatel.github.io/lune/>.
+<https://lune.page>.
 
 ## Run
 
@@ -46,10 +46,6 @@ the full note breakdown.
   fingering, memory, pedal…).
 - **Today's bars** — rate a bar Again, Hard, Okay, Good or Strong after practising it
   and Lune schedules it again just before you'd forget (spaced repetition).
-- **Play along** — Lune listens through the microphone, follows your place in
-  the score, flags wrong notes and hesitations, and draws a stumble map; the
-  bars that tripped you go straight into Today's bars. Audio never leaves the
-  browser.
 - **Teacher links** — select bars, write instructions, and share a link; the
   student opens the piece at those bars and can save the assignment.
 - **Reading & access** — bar descriptions read aloud (R), arrow keys from bar
@@ -62,11 +58,22 @@ the full note breakdown.
 
 ## Tests
 
+The full export (`scripts/export_pages.py`) takes hours and needs the score
+cache on the build machine. To test or publish a frontend change, put the
+current Pages build in `pages-site/` and copy the frontend over it:
+
 ```bash
-python3 scripts/export_pages.py            # build the static site
-(cd pages-site/.. && python3 -m http.server 8100)   # serve it under /lune/
-python3 scripts/claude_pages_test.py       # search, catalogue, uploads, links
-python3 scripts/claude_practice_test.py    # Repertoire, notes, review, links, access, study
-python3 scripts/claude_follow_test.py      # Play along with a synthetic performance
-python3 scripts/pig_benchmark.py --selftest
+git worktree add pages-site origin/gh-pages --detach
+scripts/sync_pages_dev.sh
+mkdir -p /tmp/serve && ln -sfn "$PWD/pages-site" /tmp/serve/lune
+(cd /tmp/serve && python3 -m http.server 8137) &
+python3 scripts/standin_model_server.py 8139 &
+python3 scripts/lune_cloud_test.py         # Ask Lune, install, tabs, ratings, This week, keyboard, catalogue
+python3 scripts/contrast_audit.py both      # WCAG AA contrast on every screen, dark and light
+python3 scripts/a11y_audit.py               # axe-core on every screen
+scripts/lighthouse_install.sh               # installability (Lighthouse 11)
+python3 scripts/build_light_theme.py        # after any change to frontend/styles.css
+scripts/publish_pages.sh                    # bump the ?v= stamp in frontend/index.html first
 ```
+
+Ask Lune and Lune AI are described in [docs/AI.md](docs/AI.md).
