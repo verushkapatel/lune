@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- launch02 -->
+  <!-- launch03 -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Lune — quiet piano practice</title>
@@ -25,12 +25,12 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Lune">
-  <link rel="icon" href="static/assets/favicon.svg?v=launch02" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=launch02">
-  <link rel="manifest" href="static/manifest.json?v=launch02">
+  <link rel="icon" href="static/assets/favicon.svg?v=launch03" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=launch03">
+  <link rel="manifest" href="static/manifest.json?v=launch03">
   <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="static/styles.css?v=launch02">
-  <link rel="preload" href="static/search-index.json?v=launch02" as="fetch" crossorigin>
+  <link rel="stylesheet" href="static/styles.css?v=launch03">
+  <link rel="preload" href="static/search-index.json?v=launch03" as="fetch" crossorigin>
 </head>
 <body>
   <div id="app">
@@ -134,7 +134,7 @@
             Free piano scores you can hear, name, and learn on the keys — then a plan for the bars that won’t sit.
           </p>
           <div class="home-cta-row home-cta-hero">
-            <button type="button" class="primary big" data-lp-walkthrough="debussy-clair-de-lune">Walk through Clair de lune</button>
+            <button type="button" class="primary big" data-lp-sim>See how it works</button>
             <button type="button" class="quiet" data-lp-create-account>Sign in</button>
           </div>
           <div class="hero-chips" id="hero-chips">
@@ -142,77 +142,79 @@
             <button type="button" class="hero-chip" data-open-piece="debussy-clair-de-lune">Clair de lune</button>
             <button type="button" class="hero-chip" data-open-piece="satie-gymnopedie-1">Gymnopédie No. 1</button>
           </div>
-          <p class="home-access-line">
-            Built for every reader —
-            <a class="link-btn" href="#access">dyslexia-friendly type &amp; braille</a>.
-            Free. No ads. Sign in later to keep your studio.
-          </p>
+          <p class="home-fine-line">Free · no ads · no payments · sign in later if you want</p>
         </div>
       </section>
 
-      <section class="home-walkthrough" id="tour" aria-labelledby="tour-h">
-        <div class="home-walkthrough-inner">
-          <p class="about-kicker">Guided tour</p>
-          <h2 id="tour-h">One piece. Everything Lune can do.</h2>
-          <p class="home-walkthrough-lead">We’ll open Clair de lune and walk the studio step by step — letters, play, falling-key piano, hard bars, dyslexia type, braille, and your plan.</p>
-          <ol class="home-tour-steps">
-            <li><span>01</span><strong>Letters under the staff</strong><em>Names in their own lane — never on the note heads.</em></li>
-            <li><span>02</span><strong>Play &amp; tempo</strong><em>Hear it. Slider marked at the original bpm. Metronome in the piece’s meter.</em></li>
-            <li><span>03</span><strong>Piano mode</strong><em>Falling notes onto a real keyboard — MuseScore-style tutorial, RH / LH filter.</em></li>
-            <li><span>04</span><strong>Ask a bar</strong><em>Tap what won’t sit. Notes, fingers, a quiet way to practise.</em></li>
-            <li><span>05</span><strong>Dyslexia &amp; braille</strong><em>Aa switches type. Braille downloads a .brf when the score has one.</em></li>
-            <li><span>06</span><strong>Your plan</strong><em>Select bars, speak or jot a note — saved into Repertoire.</em></li>
-          </ol>
-          <button type="button" class="primary big" data-lp-walkthrough="debussy-clair-de-lune">Start the walkthrough</button>
+      <section class="home-sim" id="tour" aria-labelledby="sim-h">
+        <div class="home-sim-inner">
+          <header class="home-sim-head">
+            <p class="about-kicker">See Lune</p>
+            <h2 id="sim-h">Clair de lune, walking you through.</h2>
+            <p class="home-sim-lead">A quiet simulation of the studio — letters, sound, falling keys, hard bars, and your plan. When you’re ready, try it yourself.</p>
+          </header>
+          <div class="sim-stage">
+            <div class="sim-frame" id="sim-frame" aria-hidden="true"></div>
+            <div class="sim-caption">
+              <p class="sim-kicker" id="sim-kicker">01 / 06</p>
+              <h3 id="sim-title">Letter names under the staff</h3>
+              <p id="sim-body">Names sit in their own lane — never painted on the note heads.</p>
+              <div class="sim-controls">
+                <button type="button" class="quiet" id="sim-prev">Back</button>
+                <div class="sim-dots" id="sim-dots" role="tablist" aria-label="Simulation steps"></div>
+                <button type="button" class="primary" id="sim-next">Next</button>
+              </div>
+            </div>
+          </div>
+          <div class="sim-try" id="sim-try" hidden>
+            <h3>Try it for yourself</h3>
+            <p>Open the real studio on Clair de lune — or sign in first so your plans and notes stay with you. Signing up is free.</p>
+            <div class="home-cta-row">
+              <button type="button" class="primary big" data-lp-create-account>Sign in — it’s free</button>
+              <button type="button" class="quiet" data-open-piece="debussy-clair-de-lune">Open Clair de lune</button>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section class="home-chapter home-chapter-piano" id="piano-mode" aria-labelledby="piano-mode-h">
+      <section class="home-chapter home-access-chapter" id="dyslexia" aria-labelledby="dyslexia-h">
         <div class="home-chapter-copy">
-          <p class="about-kicker">Piano mode</p>
-          <h2 id="piano-mode-h">Falling notes onto the keys.</h2>
+          <p class="about-kicker">Reading</p>
+          <h2 id="dyslexia-h">Dyslexia-friendly letters</h2>
           <p>
-            Same idea as MuseScore’s piano tutorial: notes drop toward the keyboard, light the key, and show the finger.
-            Filter right hand, left hand, or both — tempo stays locked to the score.
+            On Overview or Score, tap <strong>Aa</strong>. Letter names switch to Atkinson Hyperlegible —
+            clearer shapes, less mix-up between similar letters. Tap again to turn it off.
+            You can also open Reading &amp; access for large print and high contrast.
           </p>
-          <button type="button" class="primary" data-lp-walkthrough="debussy-clair-de-lune">Try it on Clair de lune</button>
+          <button type="button" class="quiet" data-lp-access>Open reading settings</button>
         </div>
-        <figure class="home-chapter-visual home-piano-demo" aria-hidden="true">
-          <div class="home-piano-demo-stage">
-            <div class="home-piano-fall">
-              <span class="fall-note rh" style="--x:18%;--delay:0s;--h:42%"></span>
-              <span class="fall-note lh" style="--x:34%;--delay:0.4s;--h:28%"></span>
-              <span class="fall-note rh" style="--x:48%;--delay:0.8s;--h:56%"></span>
-              <span class="fall-note rh" style="--x:62%;--delay:1.2s;--h:34%"></span>
-              <span class="fall-note lh" style="--x:76%;--delay:1.6s;--h:40%"></span>
-              <div class="home-piano-hit"></div>
-            </div>
-            <div class="home-piano-kbd">
-              <i></i><i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i>
-              <b style="left:9%"></b><b style="left:17%"></b><b style="left:34%"></b><b style="left:42%"></b><b style="left:50%"></b><b style="left:67%"></b><b style="left:75%"></b>
-            </div>
-            <p class="home-piano-demo-cap"><span class="tut-rh">Right</span><span class="tut-lh">Left</span></p>
+        <figure class="home-chapter-visual" aria-hidden="true">
+          <div class="access-demo access-demo-dyslexia">
+            <p class="access-demo-k">Aa · Atkinson Hyperlegible</p>
+            <p class="access-demo-sample">G♯ · C♯ · E · B♭ · F</p>
+            <p class="access-demo-note">Every letter shape stays distinct under the staff.</p>
           </div>
         </figure>
       </section>
 
-      <section class="home-access" id="access" aria-labelledby="access-h">
-        <div class="home-access-inner">
-          <p class="about-kicker">Reading &amp; access</p>
-          <h2 id="access-h">Dyslexia-friendly type. Braille when you need it.</h2>
-          <div class="home-access-grid">
-            <article>
-              <h3>Dyslexia-friendly letters</h3>
-              <p>On Overview or Score, tap <strong>Aa</strong>. Lune switches letter names to Atkinson Hyperlegible — clearer shapes, less confusion between similar letters. Tap again to turn it off.</p>
-              <button type="button" class="quiet" data-lp-access>Open reading settings</button>
-            </article>
-            <article>
-              <h3>Braille music</h3>
-              <p>When a library piece has a braille file, a <strong>Braille</strong> chip appears. Download the <code>.brf</code> for a refreshable display or embosser. Not every score has one yet — Clair de lune and several others do.</p>
-              <button type="button" class="quiet" data-lp-walkthrough="debussy-clair-de-lune">See it on Clair de lune</button>
-            </article>
-          </div>
+      <section class="home-chapter home-chapter-flip home-access-chapter" id="braille" aria-labelledby="braille-h">
+        <div class="home-chapter-copy">
+          <p class="about-kicker">Braille</p>
+          <h2 id="braille-h">Braille music downloads</h2>
+          <p>
+            When a library piece has a braille file, a <strong>Braille</strong> chip appears on Overview or Score.
+            Download the <code>.brf</code> for a refreshable display or embosser.
+            Not every score has one yet — Clair de lune and several others do.
+          </p>
+          <button type="button" class="quiet" data-open-piece="debussy-clair-de-lune">Open Clair de lune</button>
         </div>
+        <figure class="home-chapter-visual" aria-hidden="true">
+          <div class="access-demo access-demo-braille">
+            <p class="access-demo-k">Download</p>
+            <p class="access-demo-chip">Braille · .brf</p>
+            <p class="access-demo-note">For an embosser or refreshable braille display.</p>
+          </div>
+        </figure>
       </section>
 
       <section class="home-features" id="features" aria-labelledby="features-h">
@@ -725,17 +727,17 @@
   <script src="static/vendor/opensheetmusicdisplay.min.js"></script>
   <script src="static/vendor/pdf.min.js"></script>
   <script src="static/vendor/Tone.js"></script>
-  <script src="static/piano.js?v=launch02"></script>
-  <script src="static/annotate.js?v=launch02"></script>
-  <script src="static/lite-analyze.js?v=launch02"></script>
-  <script src="static/lyric-lane.js?v=launch02"></script>
-  <script src="static/menu.js?v=launch02"></script>
-  <script src="static/lune-config.js?v=launch02"></script>
-  <script src="static/store.js?v=launch02"></script>
-  <script src="static/onboard.js?v=launch02"></script>
-  <script src="static/app.js?v=launch02"></script>
-  <script src="static/practice.js?v=launch02"></script>
-  <script src="static/follow.js?v=launch02"></script>
-  <script src="static/study.js?v=launch02"></script>
+  <script src="static/piano.js?v=launch03"></script>
+  <script src="static/annotate.js?v=launch03"></script>
+  <script src="static/lite-analyze.js?v=launch03"></script>
+  <script src="static/lyric-lane.js?v=launch03"></script>
+  <script src="static/menu.js?v=launch03"></script>
+  <script src="static/lune-config.js?v=launch03"></script>
+  <script src="static/store.js?v=launch03"></script>
+  <script src="static/onboard.js?v=launch03"></script>
+  <script src="static/app.js?v=launch03"></script>
+  <script src="static/practice.js?v=launch03"></script>
+  <script src="static/follow.js?v=launch03"></script>
+  <script src="static/study.js?v=launch03"></script>
 </body>
 </html>

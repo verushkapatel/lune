@@ -271,15 +271,16 @@ window.LuneOnboard = (function () {
       <form method="dialog" class="credits-close-row">
         <button type="submit" class="icon-btn" aria-label="Close"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
       </form>
-      <h2>Sign in to keep using Lune</h2>
-      <p>One email. We send a sign-in link — no password. Your repertoire, bar notes and practice plans sync to your account.</p>
+      <h2>Sign in — it’s free</h2>
+      <p class="create-account-story">Signing up is totally free. This app has no payments whatsoever. It’s made by a fifteen-year-old who wanted to make piano practising just a little easier, and there shouldn’t be a cost for that. Enjoy!</p>
+      <p>One email. We send a sign-in link — no password. Your repertoire, bar notes and practice plans stay with you.</p>
       <form class="lp-signin" id="create-account-form">
         <label for="create-email">Email</label>
         <input id="create-email" type="email" autocomplete="email" required placeholder="you@example.com">
         <button type="submit" class="primary">Email me a link</button>
       </form>
       <p class="lp-signin-msg dim" id="create-account-msg" aria-live="polite"></p>
-      <p class="dim">Under 13? Ask a parent or guardian first. No ads. No tracking.</p>`;
+      <p class="dim">Under 13? Ask a parent or guardian first. No ads. No tracking. No payments.</p>`;
     document.body.appendChild(account);
 
     const keep = document.createElement("dialog");
@@ -289,9 +290,9 @@ window.LuneOnboard = (function () {
       <form method="dialog" class="credits-close-row">
         <button type="submit" class="icon-btn" aria-label="Close"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
       </form>
-      <p class="about-kicker">Optional</p>
-      <h2>Keep your studio</h2>
-      <p>You’ve felt how Lune works. Sign in with email so repertoire, bar notes and practice plans stay with you — tonight’s piano, and the next one.</p>
+      <p class="about-kicker">Try it for yourself</p>
+      <h2>Sign in — it’s free</h2>
+      <p class="create-account-story">Signing up is totally free. This app has no payments whatsoever. It’s made by a fifteen-year-old who wanted to make piano practising just a little easier, and there shouldn’t be a cost for that. Enjoy!</p>
       <div class="onboard-nav">
         <button type="button" class="quiet" data-keep-later>Keep exploring</button>
         <button type="button" class="primary" data-keep-signin>Sign in with email</button>
@@ -863,9 +864,140 @@ window.LuneOnboard = (function () {
     open();
   }
 
+  /* —— Landing simulation (Apple-style product walkthrough) —— */
+  const SIM_SCENES = [
+    {
+      title: "Letter names under the staff",
+      body: "Names sit in their own lane — never painted on the note heads. Toggle Letters or Fingers whenever you like.",
+      html: `<div class="sim-ui-bar"><span class="sim-pill on">Letters</span><span class="sim-pill">Fingers</span><span class="sim-pill">Off</span></div>
+        <div class="sim-staff"><div class="sim-staff-line"></div><div class="sim-staff-line"></div><div class="sim-staff-line"></div><div class="sim-staff-line"></div><div class="sim-staff-line"></div></div>
+        <div class="sim-notes"><span><i></i>G♯</span><span><i></i>C♯</span><span><i></i>E</span><span><i></i>B♭</span></div>`,
+    },
+    {
+      title: "Hear it at your tempo",
+      body: "Press Play. The slider is marked at the original bpm. Turn the metronome on if you want the pulse in the piece’s meter.",
+      html: `<div class="sim-ui-bar"><span class="sim-pill on">Play</span><span class="sim-pill">72 bpm</span><span class="sim-pill">♩= orig</span></div>
+        <div class="sim-staff"><div class="sim-staff-line"></div><div class="sim-staff-line"></div><div class="sim-staff-line"></div><div class="sim-staff-line"></div><div class="sim-staff-line"></div></div>
+        <div class="sim-playhead"><em></em></div>`,
+    },
+    {
+      title: "Piano mode — falling keys",
+      body: "Notes drop onto a real keyboard view. Filter right hand, left hand, or both — same tempo as the score.",
+      html: `<div class="sim-ui-bar"><span class="sim-pill on">Both</span><span class="sim-pill">RH</span><span class="sim-pill">LH</span></div>
+        <div class="sim-fall">
+          <b class="rh" style="left:18%;height:42%;animation-delay:0s"></b>
+          <b class="lh" style="left:34%;height:28%;animation-delay:0.35s"></b>
+          <b class="rh" style="left:48%;height:56%;animation-delay:0.7s"></b>
+          <b class="rh" style="left:62%;height:34%;animation-delay:1.05s"></b>
+          <b class="lh" style="left:76%;height:40%;animation-delay:1.4s"></b>
+        </div>
+        <div class="sim-kbd"><i></i><i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i></div>`,
+    },
+    {
+      title: "Tap a hard bar",
+      body: "Click the bar that won’t sit. The coach lists notes, suggested fingers, and a quiet way to practise it.",
+      html: `<div class="sim-ask">
+          <div class="sim-ask-score"><div class="sim-ask-hilite"></div></div>
+          <div class="sim-ask-panel"><strong>Ask · Bar 7</strong><span>RH · G♯ C♯ E</span><span>Fingers · 2 1 3</span><span>Keep the triad quiet under the melody.</span></div>
+        </div>`,
+    },
+    {
+      title: "Dyslexia type & braille",
+      body: "Tap Aa for Atkinson Hyperlegible letters. When a score has braille, download a .brf for an embosser or display.",
+      html: `<div class="sim-ui-bar"><span class="sim-pill on">Aa Dyslexia</span><span class="sim-pill on">Braille</span><span class="sim-pill">Access</span></div>
+        <p style="margin:36px 0 0;font-family:Fraunces,Georgia,serif;font-size:28px;letter-spacing:0.04em">G♯ · C♯ · E · B♭</p>
+        <div class="sim-access-row"><span class="sim-pill on">Aa</span><span class="sim-pill on">Braille · .brf</span></div>`,
+    },
+    {
+      title: "Your practice plan",
+      body: "Select bars, speak or jot a note. Lune summarises a plan into your Repertoire — yours to keep.",
+      html: `<div class="sim-plan"><strong>Bars 17–20 · left hand</strong><span>Hands separate at 60. Then together, soft. Saved to Repertoire.</span></div>`,
+    },
+  ];
+
+  let simIndex = 0;
+  let simTimer = 0;
+  let simReady = false;
+
+  function paintSim(n, { auto = false } = {}) {
+    const frame = $("sim-frame");
+    const title = $("sim-title");
+    const body = $("sim-body");
+    const kicker = $("sim-kicker");
+    const tryBox = $("sim-try");
+    const next = $("sim-next");
+    const prev = $("sim-prev");
+    if (!frame || !SIM_SCENES.length) return;
+    simIndex = Math.max(0, Math.min(SIM_SCENES.length - 1, n));
+    const scene = SIM_SCENES[simIndex];
+    const scenes = frame.querySelectorAll(".sim-scene");
+    scenes.forEach((el, i) => el.classList.toggle("on", i === simIndex));
+    if (title) title.textContent = scene.title;
+    if (body) body.textContent = scene.body;
+    if (kicker) kicker.textContent = `${String(simIndex + 1).padStart(2, "0")} / ${String(SIM_SCENES.length).padStart(2, "0")}`;
+    $("sim-dots")?.querySelectorAll(".sim-dot").forEach((d, i) => d.classList.toggle("on", i === simIndex));
+    if (prev) prev.disabled = simIndex === 0;
+    const last = simIndex >= SIM_SCENES.length - 1;
+    if (next) next.textContent = last ? "Try it for yourself" : "Next";
+    if (tryBox) tryBox.hidden = !last;
+    if (!auto) restartSimTimer();
+  }
+
+  function restartSimTimer() {
+    clearInterval(simTimer);
+    simTimer = setInterval(() => {
+      if (simIndex < SIM_SCENES.length - 1) paintSim(simIndex + 1, { auto: true });
+      else clearInterval(simTimer);
+    }, 4200);
+  }
+
+  function initSim() {
+    const frame = $("sim-frame");
+    const dots = $("sim-dots");
+    if (!frame || !dots || simReady) return;
+    simReady = true;
+    frame.innerHTML = SIM_SCENES.map((s, i) => `<div class="sim-scene${i === 0 ? " on" : ""}" data-sim="${i}">${s.html}</div>`).join("");
+    dots.innerHTML = SIM_SCENES.map((_, i) => `<button type="button" class="sim-dot${i === 0 ? " on" : ""}" data-sim-dot="${i}" aria-label="Step ${i + 1}"></button>`).join("");
+    $("sim-next")?.addEventListener("click", () => {
+      if (simIndex >= SIM_SCENES.length - 1) {
+        clearInterval(simTimer);
+        $("sim-try")?.scrollIntoView({ behavior: "smooth", block: "center" });
+        if (!signedIn()) setTimeout(() => openCreateAccount(), 450);
+        return;
+      }
+      paintSim(simIndex + 1);
+    });
+    $("sim-prev")?.addEventListener("click", () => paintSim(simIndex - 1));
+    dots.addEventListener("click", (e) => {
+      const b = e.target.closest?.("[data-sim-dot]");
+      if (!b) return;
+      paintSim(Number(b.dataset.simDot) || 0);
+    });
+    paintSim(0);
+    // Autoplay when the sim scrolls into view
+    const root = $("tour");
+    if (root && "IntersectionObserver" in window) {
+      const io = new IntersectionObserver(
+        (entries) => {
+          if (entries.some((en) => en.isIntersecting)) restartSimTimer();
+          else clearInterval(simTimer);
+        },
+        { threshold: 0.35 }
+      );
+      io.observe(root);
+    } else restartSimTimer();
+  }
+
+  function jumpToSim() {
+    initSim();
+    $("tour")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    paintSim(0);
+  }
+
   function init() {
     ensureDom();
     ensureTourDom();
+    initSim();
     store()?.onChange?.(() => {
       applyGateChrome();
       if (signedIn()) {
@@ -880,10 +1012,15 @@ window.LuneOnboard = (function () {
         e.preventDefault();
         openCreateAccount();
       }
+      const sim = e.target.closest?.("[data-lp-sim]");
+      if (sim) {
+        e.preventDefault();
+        jumpToSim();
+      }
       const walk = e.target.closest?.("[data-lp-walkthrough]");
       if (walk) {
         e.preventDefault();
-        startPieceWalkthrough(walk.dataset.lpWalkthrough || "debussy-clair-de-lune");
+        jumpToSim();
       }
       const personalise = e.target.closest?.("[data-lp-personalise]");
       if (personalise) {
