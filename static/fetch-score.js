@@ -6,8 +6,8 @@
 window.LuneFetchScore = (function () {
   const CATALOG_URL = () =>
     typeof luneUrl === "function"
-      ? luneUrl("/static/remote-catalog.json?v=fetch01")
-      : "static/remote-catalog.json?v=fetch01";
+      ? luneUrl("/static/remote-catalog.json?v=fetch02")
+      : "static/remote-catalog.json?v=fetch02";
 
   let catalogPromise = null;
   const xmlCache = new Map();
@@ -67,6 +67,11 @@ window.LuneFetchScore = (function () {
     const cat = await loadCatalog();
     const needle = fold(body.query || body.title || "");
     if (!needle) return null;
+    // A link or a typeahead pick names one catalogue entry exactly: honour it
+    // before any fuzzy matching, or a similar title can open the wrong piece.
+    const wanted = String(body.query || "").trim().toLowerCase();
+    const exact = (cat.items || []).find((e) => e.id === wanted || e.query === wanted);
+    if (exact) return hostAllowed(exact.url, cat.allowlistHosts) ? exact : null;
     let best = null;
     let bestScore = 0;
     for (const entry of cat.items || []) {
@@ -112,7 +117,8 @@ window.LuneFetchScore = (function () {
     if (buffer.byteLength < 200) throw new Error("Empty score");
     // Refuse HTML error pages
     const sniff = new TextDecoder().decode(buffer.slice(0, 80)).toLowerCase();
-    if (sniff.includes("<!doctype") || sniff.includes("<html")) throw new Error("Not a score file");
+    // (MusicXML has a DOCTYPE of its own, so only an HTML one is refused.)
+    if (sniff.includes("<!doctype html") || sniff.includes("<html")) throw new Error("Not a score file");
     const xml = await bytesToMusicXml(buffer, entry.url);
     xmlCache.set(entry.url, xml);
     return xml;
@@ -139,6 +145,8 @@ window.LuneFetchScore = (function () {
         filename: (entry.url || "").split("/").pop() || "score.musicxml",
         musicxml,
         overview: {},
+        epoch: entry.epoch || "",
+        era: entry.era || "",
         source: entry.source || "remote",
         downloadName: `${String(entry.title || "score")
           .replace(/[^A-Za-z0-9._-]+/g, "_")

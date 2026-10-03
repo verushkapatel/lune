@@ -221,12 +221,6 @@
   "lines": 119,
   "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
  },
- "frederic-chopin-chopin-spring-waltz": {
-  "file": "frederic-chopin-chopin-spring-waltz.brf",
-  "text": "frederic-chopin-chopin-spring-waltz.txt",
-  "lines": 113,
-  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
- },
  "frederic-chopin-mazurka-op-17-no-3": {
   "file": "frederic-chopin-mazurka-op-17-no-3.brf",
   "text": "frederic-chopin-mazurka-op-17-no-3.txt",
@@ -501,12 +495,6 @@
   "file": "frederic-chopin-prelude-in-e-minor.brf",
   "text": "frederic-chopin-prelude-in-e-minor.txt",
   "lines": 51,
-  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
- },
- "frederic-chopin-spring-waltz": {
-  "file": "frederic-chopin-spring-waltz.brf",
-  "text": "frederic-chopin-spring-waltz.txt",
-  "lines": 84,
   "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
  },
  "frederic-chopin-waltz-in-a-minorchopin": {

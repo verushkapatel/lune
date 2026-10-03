@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- lune02 -->
-  <!-- deploy-lune02 -->
-  <!-- deploy-lune02 -->
+  <!-- lune03 -->
+  <!-- deploy-lune03 -->
+  <!-- deploy-lune03 -->
 
 <meta charset="UTF-8">
   <script>
+    // Light or dark, before the first paint.
+    try { if (localStorage.getItem("lune.theme") === "light") document.documentElement.dataset.theme = "light"; } catch (e) {}
     // Installing, offline use and the microphone all need https.
     if (location.protocol === "http:" && /(^|\.)lune\.page$/.test(location.hostname)) location.replace("https://" + location.host + location.pathname + location.search + location.hash);
   </script>
@@ -32,12 +34,12 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Lune">
-  <link rel="icon" href="static/assets/favicon.svg?v=lune02" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=lune02">
+  <link rel="icon" href="static/assets/favicon.svg?v=lune03" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=lune03">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2?v=lune02" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="static/styles.css?v=lune02">
-  <link rel="preload" href="static/search-index.json?v=lune02" as="fetch" crossorigin>
+  <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2?v=lune03" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="static/styles.css?v=lune03">
+  <link rel="preload" href="static/search-index.json?v=lune03" as="fetch" crossorigin>
 </head>
 <body>
   <div id="app">
@@ -738,6 +740,7 @@
               <div class="explain-cta-row">
                 <button type="button" class="primary" id="btn-explain-score">Open score</button>
                 <button type="button" class="quiet" id="btn-download" hidden>Download</button>
+                <button type="button" class="quiet" id="btn-share-piece" title="Send this piece’s status, the bars you’re reviewing and your remarks as text">Share progress</button>
               </div>
               <div class="access-strip explain-access" id="explain-access" role="group" aria-label="Reading and access">
                 <span class="access-strip-label">Reading &amp; access</span>
@@ -888,6 +891,7 @@
       <li>Humdrum encodings of Bach by David Huron, and Bach chorales from the <a href="https://github.com/cuthbertLab/music21" target="_blank" rel="noopener">music21</a> corpus.</li>
       <li><a href="https://github.com/OpenScore" target="_blank" rel="noopener">OpenScore</a> (CC0) — Lieder, string quartets, and other CC0 MusicXML encodings.</li>
       <li>The <a href="https://github.com/musetrainer/library" target="_blank" rel="noopener">musetrainer/library</a> public-domain MusicXML collection.</li>
+      <li>Piano scores from the <a href="https://github.com/fosfrancesco/asap-dataset" target="_blank" rel="noopener">ASAP dataset</a> (Foscarin, McLeod, Rigaux, Jacquemard and Sakai), licensed <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a>. They are fetched from that project when you open one.</li>
       <li>Other allowlisted open MusicXML hosts (e.g. Mutopia / Wikimedia Commons when a free MusicXML file is listed) — fetched on demand, never paid APIs, never random PDFs.</li>
     </ul>
     <p class="dim">Each open piece shows “Fetched from … · license · View source” under the score. Lune only opens MusicXML/MXL from an allowlist of free hosts. All compositions here are public-domain or openly licensed encodings; if you hold rights in an edition and want it removed, <a href="https://github.com/verushkapatel/lune/issues" target="_blank" rel="noopener">open an issue</a>.</p>
@@ -923,23 +927,23 @@
   <script src="static/vendor/opensheetmusicdisplay.min.js"></script>
   <script src="static/vendor/pdf.min.js"></script>
   <script src="static/vendor/Tone.js"></script>
-  <script src="static/piano.js?v=lune02"></script>
-  <script src="static/annotate.js?v=lune02"></script>
-  <script src="static/lite-analyze.js?v=lune02"></script>
-  <script src="static/fetch-score.js?v=lune02"></script>
-  <script src="static/lyric-lane.js?v=lune02"></script>
-  <script src="static/menu.js?v=lune02"></script>
-  <script src="static/lune-config.js?v=lune02"></script>
-  <script src="static/store.js?v=lune02"></script>
-  <script src="static/onboard.js?v=lune02"></script>
-  <script src="static/impact.js?v=lune02"></script>
-  <script src="static/feedback.js?v=lune02"></script>
-  <script src="static/ask.js?v=lune02"></script>
-  <script src="static/app.js?v=lune02"></script>
-  <script src="static/landing-score.js?v=lune02"></script>
-  <script src="static/practice.js?v=lune02"></script>
-  <script src="static/follow.js?v=lune02"></script>
-  <script src="static/study.js?v=lune02"></script>
-  <script src="static/install.js?v=lune02"></script>
+  <script src="static/piano.js?v=lune03"></script>
+  <script src="static/annotate.js?v=lune03"></script>
+  <script src="static/lite-analyze.js?v=lune03"></script>
+  <script src="static/fetch-score.js?v=lune03"></script>
+  <script src="static/lyric-lane.js?v=lune03"></script>
+  <script src="static/menu.js?v=lune03"></script>
+  <script src="static/lune-config.js?v=lune03"></script>
+  <script src="static/store.js?v=lune03"></script>
+  <script src="static/onboard.js?v=lune03"></script>
+  <script src="static/impact.js?v=lune03"></script>
+  <script src="static/feedback.js?v=lune03"></script>
+  <script src="static/ask.js?v=lune03"></script>
+  <script src="static/app.js?v=lune03"></script>
+  <script src="static/landing-score.js?v=lune03"></script>
+  <script src="static/practice.js?v=lune03"></script>
+  <script src="static/follow.js?v=lune03"></script>
+  <script src="static/study.js?v=lune03"></script>
+  <script src="static/install.js?v=lune03"></script>
 </body>
 </html>

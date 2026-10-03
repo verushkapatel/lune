@@ -488,6 +488,7 @@ window.LunePractice = (function () {
       <div class="lp-ask-row">
         <button type="button" class="quiet" data-lp="ask">Ask Lune about bar ${primary}</button>
         <button type="button" class="quiet" data-lp="plan">Add to my plan</button>
+        <button type="button" class="quiet" data-lp="share" title="A link that opens this piece at these bars with your instructions">Share ${bars.length > 1 ? "these bars" : "this bar"}</button>
       </div>
       <h4 class="lp-h">How did it go?</h4>
       <div class="lp-grades" role="group" aria-label="Rate this practice">
@@ -554,6 +555,7 @@ window.LunePractice = (function () {
       if (!btn) return;
       if (btn.dataset.lp === "aloud") readSelectedAloud();
       else if (btn.dataset.lp === "ask") window.LuneAsk?.open?.({ bar: primary });
+      else if (btn.dataset.lp === "share") openAssignDialog(bars);
       else if (btn.dataset.lp === "plan" && window.LuneAsk) {
         // the plan is written from this bar's analysis and your remarks on it
         window.LuneAsk.open({ bar: primary });
@@ -865,6 +867,7 @@ window.LunePractice = (function () {
         <footer class="rep-foot">
           <button type="button" class="link-btn" data-lp-access>Reading &amp; access</button>
           <span aria-hidden="true">·</span>
+          <button type="button" class="link-btn" id="rep-share" title="Send the list of your pieces and where each one stands, as text">Share my repertoire</button> ·
           <button type="button" class="link-btn" id="rep-export">Download my data</button>
           <span aria-hidden="true">·</span>
           <a class="link-btn" href="#/study">Reading study</a>
@@ -892,6 +895,11 @@ window.LunePractice = (function () {
       await renderRepertoire();
     });
     main.querySelector("#rep-export").addEventListener("click", exportData);
+    main.querySelector("#rep-share")?.addEventListener("click", async () => {
+      const text = await repertoireSummary();
+      if (!text) return toast("Your Repertoire is empty — add a piece first");
+      shareText("My repertoire", text);
+    });
     main.querySelector("#rep-new-task")?.addEventListener("click", () => {
       openTaskDialog({
         pieceKey: keyFor(state.piece),
@@ -1101,7 +1109,7 @@ window.LunePractice = (function () {
               <div class="rep-card-main">
                 <h3>${esc(p.title)}</h3>
                 <p class="rep-card-by">${esc(p.composer || (p.source === "upload" ? "Your score" : ""))}</p>
-                <p class="rep-card-meta">Last practised ${esc(ago(p.last_practised_at))}${n ? ` · ${n} note${n === 1 ? "" : "s"}` : ""}</p>
+                <p class="rep-card-meta">${levelFor(p.piece_key) ? `<span title="Lune’s estimate from the score’s hardest bars. Not an exam grade.">Level: ${esc(levelFor(p.piece_key))} (Lune’s estimate)</span> · ` : ""}Last practised ${esc(ago(p.last_practised_at))}${n ? ` · ${n} note${n === 1 ? "" : "s"}` : ""}</p>
               </div>
               <div class="rep-card-actions">
                 <label class="visually-hidden" for="st-${esc(p.piece_key)}">Status</label>
@@ -1540,6 +1548,10 @@ window.LunePractice = (function () {
     if (bindOverflowMenus.done) return;
     bindOverflowMenus.done = true;
     $("btn-settings")?.addEventListener("click", () => openSettings());
+    $("btn-share-piece")?.addEventListener("click", async () => {
+      if (!state.piece) return;
+      shareText(titleFor(state.piece), await pieceSummary());
+    });
     $("btn-share")?.addEventListener("click", () => openShare());
     // The bar panel's third button says what it does instead of hiding it behind dots.
     const listen = $("btn-coach-more");
@@ -1664,6 +1676,13 @@ window.LunePractice = (function () {
       <h2>Settings</h2>
       <h3>Account</h3>
       ${signedIn ? row("account", "Your account", `${esc(store.status().email || "Signed in")} — export or delete your data, sign out.`) : row("signin", "Sign in or create an account", "Keeps your Repertoire, remarks and plans on every device. Free.")}
+      <h3>Appearance</h3>
+      <div class="settings-theme" role="group" aria-label="Appearance">
+        ${[["dark", "Dark"], ["light", "Light"]]
+          .map(([v, l]) => `<button type="button" data-theme-set="${v}" aria-pressed="${(document.documentElement.dataset.theme || "dark") === v}">${l}</button>`)
+          .join("")}
+      </div>
+      <p class="settings-note">The score follows: a dark page with light notes at night, a white page in the light.</p>
       <h3>Reading and access</h3>
       ${sw("readableFont", "Easy read letters", "A typeface where every letter shape is distinct.")}
       ${sw("largePrint", "Large print", "Bigger notes, letters and buttons.")}
@@ -1679,6 +1698,7 @@ window.LunePractice = (function () {
         <select id="set-mins">${[10, 15, 20, 30, 45, 60, 90].map((n) => `<option ${n === mins ? "selected" : ""}>${n}</option>`).join("")}</select>
       </div>
       ${signedIn ? row("week", "See this week", "Days practised against your goal, bars that improved, bars that still trip you.") : ""}
+      ${row("example-week", "See an example week", "A made-up week, so you can see what This week, Share and Invite look like before you have one of your own.")}
       <h3>App</h3>
       ${install}
       ${row("upload", "Upload a score", "MusicXML, PDF or a photo. It stays on this device unless you add it to your Repertoire while signed in.")}
@@ -1716,6 +1736,20 @@ window.LunePractice = (function () {
       }
     };
     d.onclick = (e) => {
+      const th = e.target.closest("[data-theme-set]");
+      if (th) {
+        const light = th.dataset.themeSet === "light";
+        if (light) document.documentElement.dataset.theme = "light";
+        else delete document.documentElement.dataset.theme;
+        try {
+          localStorage.setItem("lune.theme", light ? "light" : "dark");
+        } catch {
+          /* private mode: lasts for this visit */
+        }
+        document.querySelector('meta[name="theme-color"]')?.setAttribute("content", light ? "#f5f5f5" : "#0a0a0a");
+        d.querySelectorAll("[data-theme-set]").forEach((x) => x.setAttribute("aria-pressed", String(x === th)));
+        return;
+      }
       const b = e.target.closest("[data-set]");
       if (!b) return;
       const act = b.dataset.set;
@@ -1723,6 +1757,7 @@ window.LunePractice = (function () {
       if (act === "account") openAccountDialog();
       else if (act === "signin") window.LuneOnboard?.openCreateAccount?.();
       else if (act === "week") window.LuneImpact?.openWeeklyReview?.();
+      else if (act === "example-week") openExampleWeek();
       else if (act === "install") window.LuneInstall?.install?.();
       else if (act === "upload") $("file")?.click();
       else if (act === "feedback") window.LuneFeedback?.open?.();
@@ -1731,6 +1766,56 @@ window.LunePractice = (function () {
       else if (act === "owner-impact") window.LuneImpact?.openOwnerImpact?.();
       else if (act === "owner-feedback") window.LuneFeedback?.openOwner?.();
     };
+    if (!d.open) d.showModal();
+  }
+
+  /** A walk through This week → Share → Invite with invented numbers, labelled as an example throughout. */
+  function openExampleWeek() {
+    const d = dialog("example-week-dialog");
+    d.classList.add("settings-dialog");
+    const days = Number(store.prefs().practiceDays) || 4;
+    const steps = [
+      {
+        k: "Example · 1 of 3 · This week",
+        h: "A week, at a glance",
+        body: `<div class="impact-stats impact-stats-owner">
+            <div><span class="impact-num">3</span><span class="dim">days practised · goal ${days}</span></div>
+            <div><span class="impact-num">5</span><span class="dim">bars rated Good or Easy</span></div>
+            <div><span class="impact-num">2</span><span class="dim">bars still Hard</span></div>
+            <div><span class="impact-num">1</span><span class="dim">plan finished</span></div>
+          </div>
+          <p class="settings-note">These numbers are invented. Yours fill in as you practise: a day counts when you rate a bar, finish a plan task or open a piece to practise. Change your goal in Settings under Your week.</p>`,
+      },
+      {
+        k: "Example · 2 of 3 · Share this week",
+        h: "What a teacher or parent sees",
+        body: `<div class="example-share"><p class="auth-kicker">A Lune pianist · this week</p><p><strong>3 days practised</strong>, goal ${days}</p><p>Clair de lune · Für Elise</p><p class="dim">No email. No remark text. Hard bar numbers only if you tick the box.</p></div>
+          <p class="settings-note">Share, then This week, makes a read-only page like this with its own link. You choose the name and the pieces, and you can switch the link off whenever you like. It needs an account so that you can switch it off later.</p>`,
+      },
+      {
+        k: "Example · 3 of 3 · Invite",
+        h: "Bring someone with you",
+        body: `<p class="settings-note">Invite sends the same week page with one extra line: “Invited by a pianist on Lune”. If they make an account they start with their own empty studio. There are no points, no leaderboards and no friend lists.</p>`,
+      },
+    ];
+    let i = 0;
+    const paint = () => {
+      const s = steps[i];
+      d.innerHTML = `${closeRow}<p class="auth-kicker">${s.k}</p><h2>${s.h}</h2>${s.body}
+        <div class="onboard-nav auth-keep-nav">
+          <button type="button" class="quiet" data-ex="back" ${i === 0 ? "disabled" : ""}>Back</button>
+          <button type="button" class="primary" data-ex="next">${i === steps.length - 1 ? "Done" : "Next"}</button>
+        </div>`;
+    };
+    d.onclick = (e) => {
+      const b = e.target.closest("[data-ex]");
+      if (!b) return;
+      if (b.dataset.ex === "back") i = Math.max(0, i - 1);
+      else if (i === steps.length - 1) return d.close();
+      else i += 1;
+      paint();
+    };
+    paint();
     if (!d.open) d.showModal();
   }
 
@@ -2120,7 +2205,43 @@ window.LunePractice = (function () {
   }
 
   /** app.js calls this whenever the score (re)renders or the view changes. */
+  /**
+   * Lune's own estimate of how demanding a piece is, from its analysed bars
+   * (the average of the hardest quarter). It is not an exam-board grade and
+   * the interface says so. Kept per piece once its score has been read.
+   */
+  const LEVELS = [
+    [8, "Beginner"],
+    [20, "Early intermediate"],
+    [45, "Intermediate"],
+    [80, "Advanced"],
+    [Infinity, "Virtuoso"],
+  ];
+  function rememberLevel(piece) {
+    const key = keyFor(piece);
+    const scores = Object.values(piece?.debriefs || {})
+      .map((d) => d?.difficulty?.score)
+      .filter((x) => Number.isFinite(x))
+      .sort((a, b) => a - b);
+    if (!key || scores.length < 4) return;
+    const top = scores.slice(Math.floor(scores.length * 0.75));
+    const mean = top.reduce((a, b) => a + b, 0) / top.length;
+    try {
+      localStorage.setItem(`lune.level.${key}`, LEVELS.find(([max]) => mean < max)[1]);
+    } catch {
+      /* private mode */
+    }
+  }
+  function levelFor(key) {
+    try {
+      return localStorage.getItem(`lune.level.${key}`) || "";
+    } catch {
+      return "";
+    }
+  }
+
   function afterScoreRender() {
+    rememberLevel(state.piece);
     paintScoreMarks();
     ensureToolbar();
     syncAddButtons();

@@ -403,6 +403,66 @@ window.LuneOnboard = (function () {
     s.syncPrefs?.();
   }
 
+  /**
+   * The two reading questions, asked aloud. Lune reads each one and listens
+   * for yes or no; Y and N on the keyboard work too, and so does silence
+   * (no change). For someone who cannot see the buttons.
+   */
+  async function voiceSetup(stage) {
+    const status = stage.querySelector("#onboard-voice-status");
+    const P = window.LunePractice;
+    const say = (text) =>
+      new Promise((resolve) => {
+        if (status) status.textContent = text;
+        if (!("speechSynthesis" in window)) return resolve();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = "en-GB";
+        u.onend = u.onerror = () => resolve();
+        speechSynthesis.cancel();
+        speechSynthesis.speak(u);
+        setTimeout(resolve, 15000); // never wait forever on a silent device
+      });
+    const hear = () =>
+      new Promise((resolve) => {
+        let done = false;
+        const finish = (v) => {
+          if (done) return;
+          done = true;
+          document.removeEventListener("keydown", onKey);
+          P?.stopHearing?.();
+          resolve(v);
+        };
+        const onKey = (e) => {
+          if (/^y$/i.test(e.key)) finish(true);
+          else if (/^n$/i.test(e.key)) finish(false);
+        };
+        document.addEventListener("keydown", onKey);
+        if (P?.canListenForWords?.()) {
+          P.hearPhrase()
+            .then((t) => finish(/\b(yes|yeah|yep|please|sure|ok|okay|i do|i am)\b/i.test(t) ? true : /\b(no|nope|skip|not)\b/i.test(t) ? false : null))
+            .catch(() => {});
+        }
+        setTimeout(() => finish(null), 12000);
+      });
+    const questions = [
+      ["vision", "Are you blind, or do you have low vision? Say yes or no, or press Y or N.", "Large print, high contrast and spoken bars are on."],
+      ["dyslexia", "Do you have dyslexia? Say yes or no, or press Y or N.", "Easy read letters are on."],
+    ];
+    for (const [kind, question, confirm] of questions) {
+      await say(question);
+      const answer = await hear();
+      if (answer === true) {
+        setNeed(kind, true);
+        const b = stage.querySelector(`[data-need="${kind}"]`);
+        b?.setAttribute("aria-pressed", "true");
+        b?.classList.add("on");
+        await say(confirm);
+      } else await say(answer === false ? "Left off." : "No answer heard. Left as it is.");
+    }
+    await say("That is everything. Press Next to carry on.");
+    stage.querySelector("[data-next]")?.focus();
+  }
+
   function persistPrefsPartial() {
     const s = store();
     if (!s?.setPref) return;
@@ -983,6 +1043,8 @@ window.LuneOnboard = (function () {
         </div>
         <div class="onboard-needs" role="group" aria-label="Reading help">
           <p class="onboard-practice-label">Would either of these help you read? Skip if not.</p>
+          <button type="button" class="quiet onboard-voice" data-voice-setup>Answer by listening and speaking instead</button>
+          <p class="onboard-voice-status dim" id="onboard-voice-status" role="status" aria-live="assertive"></p>
           ${[
             ["dyslexia", "I have dyslexia", "Letter names in a typeface where every letter shape is distinct."],
             ["vision", "I’m blind or have low vision", "Large print, high contrast, and every bar described aloud. Lune also works with your device’s own screen reader."],
@@ -1121,6 +1183,13 @@ window.LuneOnboard = (function () {
   }
 
   function bindOnboardEvents(stage) {
+    stage.querySelector("[data-voice-setup]")?.addEventListener("click", (e) => {
+      e.currentTarget.disabled = true;
+      voiceSetup(stage).finally(() => {
+        const b = stage.querySelector("[data-voice-setup]");
+        if (b) b.disabled = false;
+      });
+    });
     stage.querySelectorAll("[data-need]").forEach((b) =>
       b.addEventListener("click", () => {
         const on = b.getAttribute("aria-pressed") !== "true";

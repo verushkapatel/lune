@@ -9044,3 +9044,55 @@ body.is-home .piece-tabs:not([hidden]) { display: flex; }
   font: inherit;
   font-size: 16px;
 }
+
+/* ---------- light and dark ----------
+ * Lune is drawn for the dark. Light mode turns the whole app over (dark
+ * surfaces become light, light ink becomes dark) and then turns back the
+ * things that must keep their own colours: pictures, the piano, the logo art.
+ * The score follows the theme: a white page in light mode, and in dark mode
+ * a dark page with light notes. */
+:root { --flip: invert(1) hue-rotate(180deg); }
+.score-page,
+.fx-paper,
+.study-staff { filter: var(--flip); }
+html[data-theme="light"] { filter: var(--flip); background: #0a0a0a; }
+/* (the page keeps its own flip in light mode too: flipped twice, it is white again) */
+.score-page,
+.fx-paper { box-shadow: none; border-color: #cfcfcf; }
+html[data-theme="light"] img,
+html[data-theme="light"] video,
+html[data-theme="light"] canvas,
+html[data-theme="light"] .lune-kbd,
+html[data-theme="light"] .sim-piano,
+html[data-theme="light"] .onboard-composer-face,
+html[data-theme="light"] .onboard-composer-chip-face { filter: var(--flip); }
+.settings-theme {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+}
+.settings-theme button {
+  min-height: 36px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.settings-theme button[aria-pressed="true"] { background: #f0f0f0; color: #0a0a0a; }
+.onboard-voice { justify-self: start; min-height: 40px; padding: 0 16px; }
+.onboard-voice-status { min-height: 1.4em; margin: 0; font-size: 14px; }
+.example-share {
+  margin: 14px 0;
+  padding: 18px;
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  display: grid;
+  gap: 6px;
+}
+.example-share p { margin: 0; }
