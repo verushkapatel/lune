@@ -150,6 +150,8 @@ function showView(name) {
   document.body.classList.toggle("is-studio", name === "studio");
   document.body.classList.remove("phone-search-open");
   $("btn-search")?.setAttribute("aria-expanded", "false");
+  const studioNav = $("studio-nav");
+  if (studioNav) studioNav.hidden = name !== "studio";
   if (name !== "studio") {
     closeCoach();
     document.body.classList.remove("studio-search-open");
@@ -162,6 +164,7 @@ function showView(name) {
   } else {
     const seg = $("studio-seg");
     if (seg) seg.hidden = false;
+    refreshStudioNav();
   }
   // Never leave the results popup hanging over discover/studio
   if (name !== "home") closeSearchResults({ blur: true });
@@ -1205,6 +1208,33 @@ function openCredits(section) {
   else dlg.scrollTop = 0;
 }
 
+/** ← overview (Explain) · → score. Logo is Home. */
+function refreshStudioNav() {
+  const back = $("btn-nav-back");
+  const fwd = $("btn-nav-fwd");
+  if (!back || !fwd) return;
+  const panel = state.panel || "explain";
+  const atOverview = panel === "explain";
+  const atScore = panel === "score" || panel === "piano";
+  back.disabled = atOverview;
+  back.setAttribute("aria-label", "Overview");
+  back.title = "Overview";
+  back.classList.toggle("is-dim", atOverview);
+  fwd.disabled = atScore;
+  fwd.setAttribute("aria-label", "Score");
+  fwd.title = "Score";
+  fwd.classList.toggle("is-dim", atScore);
+}
+
+function studioNavBack() {
+  const panel = state.panel || "explain";
+  if (panel === "score" || panel === "piano") setStudioPanel("explain");
+}
+
+function studioNavForward() {
+  if ((state.panel || "explain") === "explain") setStudioPanel("score");
+}
+
 function setStudioPanel(panel, { skipScore = false } = {}) {
   const next = ["score", "explain", "piano"].includes(panel) ? panel : "explain";
   state.panel = next;
@@ -1239,6 +1269,7 @@ function setStudioPanel(panel, { skipScore = false } = {}) {
   document.body.classList.toggle("is-panel-score", next === "score");
   document.body.classList.toggle("is-panel-explain", next === "explain");
   document.body.classList.toggle("is-panel-piano", next === "piano");
+  refreshStudioNav();
 
   const dock = $("studio-dock");
   if (dock) dock.hidden = !(next === "score" || next === "piano");
@@ -1534,6 +1565,27 @@ function listenBarSpan() {
   return pieceBarSpan();
 }
 
+/** Quarters in a bar from the time signature (9/8 → 4.5). */
+function signatureBarQuarters() {
+  const ts = state.piece?.timeSignature || state.piece?.overview?.timeSignature || "4/4";
+  const [b, bt] = String(ts).split("/").map(Number);
+  if (b > 0 && bt > 0) return (b * 4) / bt;
+  return 4;
+}
+
+/** True span of one bar in quarter notes — never "last onset + 1". */
+function barLengthQuarters(barNum, pack) {
+  const d = debriefFor(barNum) || state.piece?.debriefs?.[String(barNum)];
+  if (Number(d?.ql) > 0) return Number(d.ql);
+  const fromNotes = (pack || []).length
+    ? Math.max(...pack.map((n) => (Number(n.offset) || 0) + (Number(n.duration) || 0)))
+    : 0;
+  const fromTs = signatureBarQuarters();
+  // Pickup / incomplete bars land shorter than the signature.
+  if (fromNotes > 0 && fromNotes < fromTs - 0.2) return fromNotes;
+  return Math.max(fromTs, fromNotes, 1);
+}
+
 function collectNotes(fromBar, toBar) {
   const notes = [];
   const debriefs = state.piece?.debriefs || {};
@@ -1541,12 +1593,16 @@ function collectNotes(fromBar, toBar) {
   for (let b = fromBar; b <= toBar; b++) {
     const d = debriefFor(b) || debriefs[String(b)];
     const pack = d?.playback || [...(d?.rh || []), ...(d?.lh || [])];
-    const localMax = Math.max(0, ...pack.map((n) => Number(n.offset) || 0));
+    const seen = new Set();
     for (const n of pack) {
       if (!n.midi) continue;
+      // Same pitch at the same onset from mirrored voices → one attack.
+      const key = `${Math.round((Number(n.offset) || 0) * 1000)}:${n.midi}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
       notes.push({ ...n, absOffset: barCursor + (Number(n.offset) || 0), bar: b });
     }
-    barCursor += Math.max(localMax + 1, 1);
+    barCursor += barLengthQuarters(b, pack);
   }
   return notes;
 }
@@ -1575,9 +1631,9 @@ function practiceTempoBpm() {
     state.piece?.meta?.tempo ||
     "";
   const m = String(raw).match(/(\d{2,3})\s*(?:bpm)?/i);
-  const marked = m ? Number(m[1]) : 80;
-  // Cap for practice: printed allegros still play at a readable pace.
-  return Math.max(60, Math.min(96, marked || 80));
+  const marked = m ? Number(m[1]) : 72;
+  // Honour slow markings (Andante 50); still soft-cap allegros for practice.
+  return Math.max(40, Math.min(96, marked || 72));
 }
 
 /** Ensure the full-piece timeline is armed so scrub / Play-from-here works. */
@@ -2367,6 +2423,7 @@ function bindOsmdRenderOverlays(osmd) {
   let settleTimer = 0;
   const reapply = () => {
     if (state.osmd !== osmd) return;
+    untangleScoreDirections($("osmd"));
     applyScoreOverlays();
     paintSelectionHilites();
   };
@@ -2389,6 +2446,88 @@ function bindOsmdRenderOverlays(osmd) {
         applyScoreOverlays();
       }, 180);
     });
+  }
+}
+
+/**
+ * OSMD often stacks metronome (♩ = 50) on top of verbal tempo ("Andante…")
+ * and wedges directions into each other. Nudge colliding direction text apart
+ * in the drawn SVG without re-engraving the notes.
+ */
+function untangleScoreDirections(host) {
+  const svg = host?.querySelector?.("svg");
+  if (!svg) return;
+  const texts = [...svg.querySelectorAll("text")].filter((t) => {
+    if (t.closest("g.lyrics")) return false;
+    if (t.classList.contains("lune-letter") || t.classList.contains("lune-finger")) return false;
+    if (t.classList.contains("lane-letter") || t.classList.contains("lane-finger")) return false;
+    const s = (t.textContent || "").trim();
+    if (!s || /^\d+$/.test(s)) return false; // measure numbers
+    return true;
+  });
+  if (texts.length < 2) return;
+
+  const box = (el) => {
+    try {
+      return el.getBBox();
+    } catch {
+      return null;
+    }
+  };
+  const overlap = (a, b) => a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+  const isMetronome = (el) => /[=＝]|♩|♪|bpm/i.test(el.textContent || "") || /^\s*\d{2,3}\s*$/.test((el.textContent || "").trim());
+
+  // Prefer lifting metronome marks; otherwise shift the lower/right label.
+  for (let pass = 0; pass < 3; pass++) {
+    let moved = 0;
+    for (let i = 0; i < texts.length; i++) {
+      const a = texts[i];
+      const ba = box(a);
+      if (!ba || ba.width < 1 || ba.height < 1) continue;
+      for (let j = i + 1; j < texts.length; j++) {
+        const b = texts[j];
+        const bb = box(b);
+        if (!bb || bb.width < 1 || bb.height < 1) continue;
+        // Only untangle labels that share a neighbourhood (same system header).
+        if (Math.abs(ba.y - bb.y) > 28 || Math.abs(ba.x - bb.x) > 160) continue;
+        if (!overlap(ba, bb) && !(ba.y < bb.y + bb.height + 2 && ba.y + ba.height + 2 > bb.y && ba.x < bb.x + bb.width + 4 && ba.x + ba.width + 4 > bb.x)) {
+          continue;
+        }
+        let lift = a;
+        let stay = b;
+        if (isMetronome(b) && !isMetronome(a)) {
+          lift = b;
+          stay = a;
+        } else if (isMetronome(a) && !isMetronome(b)) {
+          lift = a;
+          stay = b;
+        } else if (bb.y >= ba.y) {
+          lift = b;
+          stay = a;
+        }
+        const curY = Number(lift.getAttribute("y"));
+        if (!Number.isFinite(curY)) continue;
+        const stayBox = box(stay);
+        const liftBox = box(lift);
+        if (!stayBox || !liftBox) continue;
+        const gap = 3;
+        const need = stayBox.y - (liftBox.y + liftBox.height);
+        if (need >= gap) continue;
+        const dy = gap - need;
+        lift.setAttribute("y", String(curY - dy));
+        // If still horizontally crushed, ease metronome to the right of the word.
+        const after = box(lift);
+        const other = box(stay);
+        if (after && other && overlap(after, other)) {
+          const curX = Number(lift.getAttribute("x"));
+          if (Number.isFinite(curX)) {
+            lift.setAttribute("x", String(Math.max(curX, other.x + other.width + 6)));
+          }
+        }
+        moved++;
+      }
+    }
+    if (!moved) break;
   }
 }
 
@@ -2677,6 +2816,10 @@ async function renderScore() {
     R.HorizontalBetweenLyricsDistance = 0.45;
     R.BetweenSyllableMinimumDistance = 0.6;
     R.RenderLyricist = false;
+    // Lift metronome (♩ = 50) above verbal tempo so they don't sit on "Andante".
+    R.MetronomeMarksDrawn = true;
+    R.MetronomeMarkYShift = -2.8;
+    R.MetronomeMarkXShift = 2;
   } catch {
     /* older OSMD */
   }
@@ -2689,6 +2832,7 @@ async function renderScore() {
   osmd.zoom = cachedFitZoom(1);
   osmd.render();
   fitScoreToWidth(osmd);
+  untangleScoreDirections($("osmd"));
   state.osmdRenderedWidth = Math.round($("osmd")?.clientWidth || 0);
   watchScoreWidth();
   wireScoreMeasureClicks();
@@ -3429,6 +3573,8 @@ function bind() {
   });
 
   on("btn-home", "click", () => goHome());
+  on("btn-nav-back", "click", () => studioNavBack());
+  on("btn-nav-fwd", "click", () => studioNavForward());
   on("btn-open", "click", () => $("file")?.click());
   on("btn-home-upload", "click", () => $("file")?.click());
   on("btn-discover-home", "click", () => goHome());

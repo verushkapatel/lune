@@ -525,14 +525,19 @@ window.LuneLite = (function () {
     };
     const playback = [];
     const held = new Map();
+    const seenPlay = new Set();
     for (const n of [...rh, ...lh].sort((a, b) => a.offset - b.offset)) {
       if (n.tieStop) continue;
+      const key = `${Math.round(n.offset * 1000)}:${n.midi}`;
+      if (seenPlay.has(key)) continue;
+      seenPlay.add(key);
       playback.push(strip(n));
       held.set(n.midi, n);
     }
     return {
       measure: num,
       found: true,
+      ql: Number(bar?.ql) > 0 ? Number(bar.ql) : beatsQl,
       difficulty: { measure: num, score: Math.round(score * 100) / 100, reasons: reasons.length ? [...new Set(reasons)] : ["straightforward"], noteCount: all.length, isHard },
       advice,
       tags: uniqTags,

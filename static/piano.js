@@ -22,8 +22,8 @@ window.LunePiano = (function () {
   let audioEpoch = 0;
   /** Event indices already queued for the current audioEpoch. */
   const scheduled = new Set();
-  // Seconds per quarter note. Default ≈ 80 bpm — calm practice pace (was 0.42 ≈ 143 bpm).
-  let beat = 0.75;
+  // Seconds per quarter note. Default ≈ 72 bpm — calm practice pace (was 0.42 ≈ 143 bpm).
+  let beat = 60 / 72;
   /** Schedule a hair ahead of now so the first note never clicks against a cold bus. */
   const SCHEDULE_PAD = 0.055;
   /** Musical-time look-ahead — keeps Stop able to silence (no long Tone queue). */
@@ -188,7 +188,9 @@ window.LunePiano = (function () {
       .filter((n) => n.midi)
       .map((n) => {
         const t = (Number(n.absOffset ?? n.offset) || 0) * beat;
-        const dur = Math.max(0.22, (Number(n.duration) || 0.5) * beat * 1.18);
+        // Keep sounding length close to the written value — stretch made
+        // long notes feel like they were re-attacking into the next bar.
+        const dur = Math.max(0.1, (Number(n.duration) || 0.5) * beat * 1.02);
         const finger =
           n.fingering != null && n.fingering !== ""
             ? String(n.fingering)
@@ -382,7 +384,7 @@ window.LunePiano = (function () {
   function setTempoBpm(bpm) {
     const n = Number(bpm);
     if (!Number.isFinite(n) || n <= 0) return 60 / beat;
-    const clamped = Math.max(56, Math.min(108, n));
+    const clamped = Math.max(40, Math.min(108, n));
     beat = 60 / clamped;
     return clamped;
   }
