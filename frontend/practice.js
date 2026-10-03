@@ -1729,9 +1729,13 @@ window.LunePractice = (function () {
       `<button type="button" class="settings-row" data-set="${act}"><strong>${title}</strong><span>${text}</span></button>`;
     const sw = (k, label, hint) => `<label class="lp-switch"><input type="checkbox" data-pref="${k}" ${p[k] ? "checked" : ""}>
       <span><strong>${label}</strong><small>${hint}</small></span></label>`;
-    const install = window.LuneInstall?.available?.()
-      ? row("install", "Install Lune", "Put Lune on this device as an app. It opens in its own window and works offline for pieces you have opened.")
-      : `<p class="settings-note"><strong>Install Lune</strong> On iPhone or iPad: Share, then Add to Home Screen. On a laptop in Chrome or Edge: the install icon at the end of the address bar. If you already installed it, you are set.</p>`;
+    const install = window.LuneInstall?.installed?.()
+      ? `<p class="settings-note"><strong>Installed</strong>Lune is running as an app on this device.</p>`
+      : `<button type="button" class="settings-row" data-install id="set-install"><strong>Install Lune</strong><span>${
+          window.LuneInstall?.available?.()
+            ? "Put Lune on this device as an app. It opens in its own window and works offline for pieces you have opened."
+            : "Steps for this browser: iPhone and iPad use Share, then Add to Home Screen; Safari on a Mac uses File, then Add to Dock."
+        }</span></button>`;
     const privacy = document.querySelector("#credits-privacy + ul")?.outerHTML || "";
     d.innerHTML = `${closeRow}
       <p class="auth-kicker">Settings</p>
@@ -1904,7 +1908,6 @@ window.LunePractice = (function () {
       else if (act === "signin") window.LuneOnboard?.openCreateAccount?.();
       else if (act === "week") window.LuneImpact?.openWeeklyReview?.();
       else if (act === "example-week") openExampleWeek();
-      else if (act === "install") window.LuneInstall?.install?.();
       else if (act === "upload") $("file")?.click();
       else if (act === "feedback") window.LuneFeedback?.open?.();
       else if (act === "credits") document.querySelector("[data-open-credits]")?.click();
@@ -2127,7 +2130,7 @@ window.LunePractice = (function () {
     }
     items.push({ label: "Reading & access", action: () => openAccessDialog() });
     items.push({ label: "Feedback", action: () => window.LuneFeedback?.open?.() });
-    if (window.LuneInstall?.available?.()) items.push({ label: "Install Lune", action: () => window.LuneInstall.install() });
+    if (window.LuneInstall && !window.LuneInstall.installed()) items.push({ label: "Install Lune", action: () => window.LuneInstall.install() });
     items.push({ label: "Credits & licenses", action: () => document.querySelector("[data-open-credits]")?.click() });
     if (!studio) items.push({ label: "Privacy", action: () => openCreditsPrivacy() });
     return items;

@@ -9176,3 +9176,11 @@ body.is-home .piece-tabs:not([hidden]) { display: flex; }
 .settings-steps code { font-size: 13px; color: var(--text); word-break: break-all; }
 /* sliders get the same focus ring as everything else */
 input[type="range"]:focus-visible { outline: 2px solid var(--text); outline-offset: 4px; border-radius: 4px; }
+
+/* Install Lune: instructions for browsers without an install prompt */
+.install-dialog { max-width: 520px; }
+.install-dialog h3 { margin: 18px 0 6px; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.install-platform { border-top: 1px solid var(--line); padding: 10px 0; }
+.install-platform summary { cursor: pointer; font-size: 15px; color: var(--text); }
+.install-platform ol { margin: 8px 0 2px; padding-left: 22px; font-size: 14px; line-height: 1.55; color: var(--muted); }
+.install-platform li + li { margin-top: 4px; }
