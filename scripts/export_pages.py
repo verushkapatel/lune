@@ -185,6 +185,12 @@ def main() -> None:
     catalog = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(catalog)
     catalog.build(SITE, reanalyze=False)
+    # Braille music for every piece music21 can translate (static/braille/).
+    if os.environ.get("LUNE_SKIP_BRAILLE") != "1":
+        bspec = importlib.util.spec_from_file_location("braille_export", ROOT / "scripts" / "braille_export.py")
+        braille = importlib.util.module_from_spec(bspec)
+        bspec.loader.exec_module(braille)
+        braille.main(SITE)
     print(f"site: {SITE}  opens: {len(opens)}", flush=True)
 
 

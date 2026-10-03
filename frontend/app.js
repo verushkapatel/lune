@@ -139,6 +139,12 @@ function showView(name) {
   if (home) home.hidden = name !== "home";
   if (discover) discover.hidden = name !== "discover";
   if (studio) studio.hidden = name !== "studio";
+  const rep = $("repertoire");
+  if (rep) rep.hidden = name !== "repertoire";
+  const study = $("study");
+  if (study) study.hidden = name !== "study";
+  document.body.classList.toggle("is-repertoire", name === "repertoire");
+  document.body.classList.toggle("is-study", name === "study");
   document.body.classList.toggle("is-home", name === "home");
   document.body.classList.toggle("is-discover", name === "discover");
   document.body.classList.toggle("is-studio", name === "studio");
@@ -178,7 +184,7 @@ function closeSearchResults({ blur = false } = {}) {
 const SEARCH_LIMIT = 8;
 // Paint on the next frame only — coalesces burst keystrokes, ~0–16ms feel (no 100ms lag).
 const SEARCH_DEBOUNCE_MS = 0;
-const SEARCH_INDEX_URL = luneUrl("/static/search-index.json?v=fix73");
+const SEARCH_INDEX_URL = luneUrl("/static/search-index.json?v=fix80");
 /** Composers whose piano works are typically still under copyright — honest empty state. */
 const COPYRIGHT_ERA_COMPOSERS = [
   "ginastera", "prokofiev", "shostakovich", "khachaturian", "kabalevsky",
@@ -1170,6 +1176,7 @@ function renderExplainPanel(piece) {
     });
   }
   renderPieceCredit(piece);
+  window.LunePractice?.decorateExplain(piece);
 }
 
 /** Fine-print source line for the open piece (overview + under the score). */
@@ -1265,7 +1272,10 @@ function setStudioPanel(panel, { skipScore = false } = {}) {
   if (next === "score") {
     requestAnimationFrame(() => {
       paintSelectionHilites();
+      window.LunePractice?.afterScoreRender();
     });
+  } else {
+    window.LuneFollow?.stop?.({ quiet: true });
   }
 
   if (next === "score" && !skipScore && state.piece?.musicxml) {
@@ -2267,6 +2277,7 @@ function applyScoreOverlays() {
     LuneAnnotate.clearLetterOverlays(host);
     styleLaneText(host);
     state.laneStaggered = staggerLaneLabels(host);
+    window.LunePractice?.afterScoreRender();
     return;
   }
   const wantLetters = !!state.scoreLetters;
@@ -2401,7 +2412,9 @@ function laneTouches(svg) {
   for (const el of svg.querySelectorAll("g.lyrics text")) {
     if ((el.textContent || "").trim() === (window.LuneLane?.SPARE || "~")) continue;
     const b = el.getBBox();
-    const key = Math.round(b.y / 3);
+    // group by baseline, not box top: "B♭" has a taller box than "F" on the
+    // same line, and must still be checked against it
+    const key = Math.round(Number(el.getAttribute("y")) || b.y);
     if (!rows.has(key)) rows.set(key, []);
     rows.get(key).push(b);
   }
@@ -2473,7 +2486,7 @@ function fitScoreToWidth(osmd) {
   const host = $("osmd");
   let svg = host?.querySelector("svg");
   if (!svg || !osmd) return;
-  const key = `${state.piece?.id || state.piece?.title || ""}|${Math.round(host.clientWidth / 20)}`;
+  const key = fitZoomKey();
   let ratio = scoreOverflowRatio(host, svg);
   // small overflows: scale the drawing (instant); big ones: re-engrave smaller
   for (let pass = 0; pass < 2 && ratio < 0.97; pass++) {
@@ -2495,10 +2508,14 @@ function fitScoreToWidth(osmd) {
   }
 }
 
-function cachedFitZoom(defaultZoom) {
+function fitZoomKey() {
   const host = $("osmd");
-  const key = `${state.piece?.id || state.piece?.title || ""}|${Math.round((host?.clientWidth || 0) / 20)}`;
-  return fitZoomCache.get(key) ?? defaultZoom;
+  const boost = window.LunePractice?.zoomBoost?.() || 1;
+  return `${state.piece?.id || state.piece?.title || ""}|${Math.round((host?.clientWidth || 0) / 20)}|${boost}`;
+}
+function cachedFitZoom(defaultZoom) {
+  const boost = window.LunePractice?.zoomBoost?.() || 1;
+  return fitZoomCache.get(fitZoomKey()) ?? defaultZoom * boost;
 }
 
 /**
@@ -2564,7 +2581,9 @@ function staggerLaneLabels(host) {
   const rows = new Map();
   for (const el of labels) {
     const b = el.getBBox();
-    const key = Math.round(b.y / 3);
+    // group by baseline, not box top: "B♭" has a taller box than "F" on the
+    // same line, and must still be checked against it
+    const key = Math.round(Number(el.getAttribute("y")) || b.y);
     if (!rows.has(key)) rows.set(key, []);
     rows.get(key).push({ el, b });
   }
@@ -2634,8 +2653,6 @@ async function renderScore() {
     const roomy = scoreNeedsRoom();
     osmd.EngravingRules.BetweenStaffDistance = roomy ? 9.5 : 3.5;
     osmd.EngravingRules.StaffDistance = roomy ? 18 : 7.5;
-    const wide = ($("osmd")?.clientWidth || 900) >= 720;
-    osmd.zoom = cachedFitZoom(wide ? 1.18 : 1.08);
     state.overlaySpacePass = 0;
     state.overlaySpaceKey = overlaySpaceKey();
     state.overlaySpacingLock = false;
@@ -2657,6 +2674,9 @@ async function renderScore() {
   state.scoreWasRoomy = scoreNeedsRoom();
   bindOsmdRenderOverlays(osmd);
   await osmd.load(xml);
+  // load() resets zoom, so set it afterwards: 1 (the size the label lane is
+  // tuned for), larger in large-print mode, or the cached fit for this width.
+  osmd.zoom = cachedFitZoom(1);
   osmd.render();
   fitScoreToWidth(osmd);
   state.osmdRenderedWidth = Math.round($("osmd")?.clientWidth || 0);
@@ -3110,6 +3130,7 @@ function openBarCoach() {
   }
   body.innerHTML = html;
   keepBarVisible(bars[0]);
+  window.LunePractice?.decorateCoach(bars);
 }
 
 /** Phone: the bar sheet covers the lower half — scroll the tapped bar above it. */
@@ -3202,6 +3223,7 @@ async function openFile(file) {
     try {
       const xml = await LuneLite.readScoreFile(file);
       const piece = LuneLite.analyze(xml, { filename: file.name });
+      await window.LunePractice?.onUploadOpened(piece, xml);
       await openPieceSession(piece, { panel: "score" });
       setRoute(piece, "score");
     } catch (err) {
@@ -3247,6 +3269,7 @@ function parseRoute() {
 }
 
 async function applyRoute() {
+  if (window.LunePractice?.handleRoute(location.hash)) return;
   const r = parseRoute();
   routeApplying = true;
   try {
@@ -3689,7 +3712,13 @@ try {
   bind();
   showView("home");
   window.addEventListener("popstate", () => applyRoute().catch(() => {}));
-  if (parseRoute()) applyRoute().catch(() => {});
+  // Repertoire / study / assignment modules load after this file.
+  const boot = () => {
+    window.LunePractice?.init().catch((e) => console.warn("[lune] practice init", e));
+    if (parseRoute()) applyRoute().catch(() => {});
+  };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, { once: true });
+  else boot();
 } catch (err) {
   console.error("Lune bind failed", err);
   const t = document.getElementById("toast");

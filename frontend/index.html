@@ -23,12 +23,12 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Lune">
-  <link rel="icon" href="static/assets/favicon.svg?v=fix73" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=fix73">
-  <link rel="manifest" href="static/manifest.json?v=fix73">
+  <link rel="icon" href="static/assets/favicon.svg?v=fix80" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=fix80">
+  <link rel="manifest" href="static/manifest.json?v=fix80">
   <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="static/styles.css?v=fix73">
-  <link rel="preload" href="static/search-index.json?v=fix73" as="fetch" crossorigin>
+  <link rel="stylesheet" href="static/styles.css?v=fix80">
+  <link rel="preload" href="static/search-index.json?v=fix80" as="fetch" crossorigin>
 </head>
 <body>
   <div id="app">
@@ -125,12 +125,12 @@
           <div class="home-meet-frame">
             <img
               class="home-meet-face"
-              src="static/assets/composers/chopin.jpg?v=fix73"
+              src="static/assets/composers/chopin.jpg?v=fix80"
               alt=""
               width="96"
               height="128"
               decoding="async"
-              onerror="this.onerror=null;this.src='static/assets/composers/silhouette.svg?v=fix73'"
+              onerror="this.onerror=null;this.src='static/assets/composers/silhouette.svg?v=fix80'"
             >
             <div class="home-meet-copy">
               <p class="home-meet-kicker">1832 · Mazurka</p>
@@ -590,9 +590,13 @@
     </ul>
     <h3 id="credits-privacy">Privacy</h3>
     <ul>
-      <li>No accounts, no cookies, no analytics, no ads.</li>
-      <li>Scores you upload are read inside your browser. They are never sent anywhere and are gone when you close the tab.</li>
-      <li>When you press play, piano sounds load from tonejs.github.io; GitHub Pages hosts the site. Neither receives anything about your scores.</li>
+      <li>No cookies, no analytics, no ads. Lune never sells or shares anything about you.</li>
+      <li>Your Repertoire, bar notes and review dates are saved in your own browser. If you choose to make an account, they’re stored in Lune’s database (Supabase) under your email address, locked so only you can read them. You can download or delete everything from the Account panel at any time.</li>
+      <li>Scores you upload are read inside your browser. They leave your device only if you add them to your Repertoire while signed in, and then only into your private storage.</li>
+      <li>The microphone (voice notes, Play along) is used only while you ask Lune to listen. Audio is analysed in the browser and never recorded or uploaded; voice notes may use your browser’s built-in speech recognition, which can be provided by its maker (for example Google in Chrome, Apple in Safari).</li>
+      <li>Under 13? Ask a parent or guardian before making an account.</li>
+      <li>The reading study records only a participant code, answers and timings — never names.</li>
+      <li>When you press play, piano sounds load from tonejs.github.io; GitHub Pages hosts the site.</li>
     </ul>
     <h3>Contact</h3>
     <p>Questions, corrections or takedown requests: <a href="https://github.com/verushkapatel/lune/issues" target="_blank" rel="noopener">github.com/verushkapatel/lune/issues</a>.</p>
@@ -601,10 +605,15 @@
   <script src="static/vendor/opensheetmusicdisplay.min.js"></script>
   <script src="static/vendor/pdf.min.js"></script>
   <script src="static/vendor/Tone.js"></script>
-  <script src="static/piano.js?v=fix73"></script>
-  <script src="static/annotate.js?v=fix73"></script>
-  <script src="static/lite-analyze.js?v=fix73"></script>
-  <script src="static/lyric-lane.js?v=fix73"></script>
-  <script src="static/app.js?v=fix73"></script>
+  <script src="static/piano.js?v=fix80"></script>
+  <script src="static/annotate.js?v=fix80"></script>
+  <script src="static/lite-analyze.js?v=fix80"></script>
+  <script src="static/lyric-lane.js?v=fix80"></script>
+  <script src="static/app.js?v=fix80"></script>
+  <script src="static/lune-config.js?v=fix80"></script>
+  <script src="static/store.js?v=fix80"></script>
+  <script src="static/practice.js?v=fix80"></script>
+  <script src="static/follow.js?v=fix80"></script>
+  <script src="static/study.js?v=fix80"></script>
 </body>
 </html>
