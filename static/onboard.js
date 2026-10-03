@@ -76,6 +76,8 @@ window.LuneOnboard = (function () {
     ],
   };
 
+  const WELCOME_VERSION = 2;
+
   let step = 0;
   let selectedComposers = new Set();
   let selectedGrade = 5;
@@ -92,7 +94,8 @@ window.LuneOnboard = (function () {
     return onboarded();
   }
   function seenWelcome() {
-    return !!store()?.prefs()?.seenWelcome;
+    const p = store()?.prefs() || {};
+    return !!p.seenWelcome && Number(p.welcomeVersion) === WELCOME_VERSION;
   }
 
   function ensureDom() {
@@ -102,39 +105,156 @@ window.LuneOnboard = (function () {
     welcome.className = "welcome";
     welcome.hidden = true;
     welcome.innerHTML = `
-      <div class="welcome-stage">
-        <header class="welcome-hero">
-          <svg class="lune-mark welcome-mark" viewBox="0 0 40 40" width="48" height="48" aria-hidden="true">
-            <g stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.45">
+      <section class="welcome-hero" aria-label="Lune">
+        <div class="welcome-hero-motif" aria-hidden="true">
+          <svg class="welcome-motif-mark" viewBox="0 0 40 40" focusable="false">
+            <g stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.35">
               <line x1="5" y1="24" x2="35" y2="24"/><line x1="5" y1="28" x2="35" y2="28"/><line x1="5" y1="32" x2="35" y2="32"/>
             </g>
             <path fill="currentColor" d="M26.2 7.2c-5.9.9-10.4 6-10.4 12.1 0 6.1 4.5 11.2 10.4 12.1A12.2 12.2 0 0 1 14 19.3c0-6.6 5.2-12 11.8-12.2.1 0 .3 0 .4 0z"/>
           </svg>
-          <p class="welcome-brand">Lune</p>
+        </div>
+        <div class="welcome-hero-inner">
+          <div class="welcome-lockup">
+            <svg class="lune-mark welcome-mark" viewBox="0 0 40 40" width="72" height="72" aria-hidden="true">
+              <g stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.45">
+                <line x1="5" y1="24" x2="35" y2="24"/><line x1="5" y1="28" x2="35" y2="28"/><line x1="5" y1="32" x2="35" y2="32"/>
+              </g>
+              <path fill="currentColor" d="M26.2 7.2c-5.9.9-10.4 6-10.4 12.1 0 6.1 4.5 11.2 10.4 12.1A12.2 12.2 0 0 1 14 19.3c0-6.6 5.2-12 11.8-12.2.1 0 .3 0 .4 0z"/>
+            </svg>
+            <p class="welcome-brand">Lune</p>
+          </div>
           <h1>Quiet practice.<br>Clear notes.</h1>
-          <p class="welcome-lead">A night-studio companion for the hours alone at the piano — public-domain scores you can hear, letter names under the staff, a falling-key tutorial, and a plan you write yourself.</p>
+          <p class="welcome-lead">A night-studio companion for the hours alone at the piano — scores you can hear, letter names under the staff, falling keys at your tempo, and a plan you write yourself.</p>
           <div class="welcome-cta">
             <button type="button" class="primary big" id="btn-experience-lune">Experience Lune</button>
             <button type="button" class="quiet" id="btn-welcome-signin">I already have an account</button>
-            <p class="welcome-fine">Free · no ads · sign in later to keep your studio</p>
           </div>
+          <p class="welcome-fine">Free · no ads · sign in later to keep your studio across devices</p>
+          <button type="button" class="welcome-scroll" id="btn-welcome-scroll" aria-label="See how Lune works">
+            <span>See how it works</span>
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      </section>
+
+      <section class="welcome-story" id="welcome-story" aria-labelledby="welcome-story-h">
+        <header class="welcome-story-head">
+          <p class="about-kicker">Inside the studio</p>
+          <h2 id="welcome-story-h">Three quiet tools. One place.</h2>
+          <p class="welcome-story-lead">Open a score. Hear it. Name every note. Learn the keys. Write a plan for the bars that won’t sit — then keep coming back.</p>
         </header>
-        <section class="welcome-diff" aria-labelledby="welcome-diff-h">
-          <p class="about-kicker">Why Lune</p>
-          <h2 id="welcome-diff-h">Different on purpose.</h2>
-          <ul class="welcome-diff-list">
-            <li><strong>Notes that stay out of the way</strong><span>Letter names or fingers sit in their own lane under the staff — never painted on the heads.</span></li>
-            <li><strong>Piano tutorial, in the room</strong><span>Falling notes onto a real keyboard view, with the same BPM slider and original-tempo marker as the score.</span></li>
-            <li><strong>Your plan, not someone else’s homework</strong><span>Select the bars you need. Speak or jot a note. Lune turns it into a quiet practice plan.</span></li>
-            <li><strong>Built for every reader</strong><span>Dyslexia-friendly type, large print, high contrast, braille downloads where a score has one.</span></li>
-          </ul>
-        </section>
-        <section class="welcome-strip" aria-label="What you will try">
-          <div class="welcome-strip-card"><span>Score</span><p>Hear it. Name every note.</p></div>
-          <div class="welcome-strip-card"><span>Piano</span><p>Falling keys at your tempo.</p></div>
-          <div class="welcome-strip-card"><span>Plan</span><p>Bars you chose. Summarised.</p></div>
-        </section>
-      </div>`;
+
+        <article class="welcome-chapter">
+          <div class="welcome-chapter-copy">
+            <p class="welcome-step">01</p>
+            <h3>Every note, named</h3>
+            <p>Letter names or finger numbers sit in their own lane under the staff — never painted on the heads. Toggle one or the other so the page stays readable.</p>
+          </div>
+          <figure class="welcome-chapter-visual" aria-hidden="true">
+            <svg class="welcome-viz" viewBox="0 0 360 220" focusable="false">
+              <rect x="0.5" y="0.5" width="359" height="219" rx="2" fill="#0c0c0c" stroke="#2a2a2a"/>
+              <g>
+                <rect x="24" y="22" width="64" height="22" rx="11" fill="#f5f5f5"/>
+                <text x="40" y="37" fill="#0a0a0a" font-size="11" font-family="Fraunces, Georgia, serif">Letters</text>
+                <rect x="96" y="22" width="64" height="22" rx="11" fill="none" stroke="#3a3a3a"/>
+                <text x="110" y="37" fill="#757575" font-size="11" font-family="Fraunces, Georgia, serif">Fingers</text>
+              </g>
+              <g stroke="#3a3a3a" stroke-width="1" fill="none">
+                <line x1="28" y1="72" x2="332" y2="72"/><line x1="28" y1="84" x2="332" y2="84"/>
+                <line x1="28" y1="96" x2="332" y2="96"/><line x1="28" y1="108" x2="332" y2="108"/>
+                <line x1="28" y1="120" x2="332" y2="120"/><line x1="28" y1="148" x2="332" y2="148"/>
+                <line x1="28" y1="160" x2="332" y2="160"/><line x1="28" y1="172" x2="332" y2="172"/>
+                <line x1="28" y1="184" x2="332" y2="184"/><line x1="28" y1="196" x2="332" y2="196"/>
+              </g>
+              <g fill="#f0f0f0">
+                <ellipse cx="90" cy="102" rx="5.5" ry="4"/><rect x="94.5" y="78" width="1.5" height="24"/>
+                <ellipse cx="150" cy="90" rx="5.5" ry="4"/><rect x="154.5" y="66" width="1.5" height="24"/>
+                <ellipse cx="210" cy="96" rx="5.5" ry="4"/><rect x="214.5" y="72" width="1.5" height="24"/>
+                <ellipse cx="90" cy="184" rx="5.5" ry="4"/><ellipse cx="90" cy="172" rx="5.5" ry="4"/><ellipse cx="90" cy="160" rx="5.5" ry="4"/>
+              </g>
+              <g fill="#f5f5f5" font-size="11" font-family="Fraunces, Georgia, serif" text-anchor="middle">
+                <text x="90" y="136">G♯</text><text x="150" y="124">C♯</text><text x="210" y="130">E</text>
+              </g>
+            </svg>
+          </figure>
+        </article>
+
+        <article class="welcome-chapter welcome-chapter-flip">
+          <div class="welcome-chapter-copy">
+            <p class="welcome-step">02</p>
+            <h3>Keys that move with you</h3>
+            <p>Play at any tempo. Falling notes land on a real keyboard view — same BPM slider and original-tempo marker as the score.</p>
+          </div>
+          <figure class="welcome-chapter-visual" aria-hidden="true">
+            <svg class="welcome-viz welcome-viz-keys" viewBox="0 0 360 220" focusable="false">
+              <rect x="0.5" y="0.5" width="359" height="219" rx="2" fill="#0c0c0c" stroke="#2a2a2a"/>
+              <text x="24" y="36" fill="#757575" font-size="10" letter-spacing="2" font-family="Fraunces, Georgia, serif">KEYBOARD · 0.75×</text>
+              <g>
+                <rect x="24" y="56" width="28" height="120" fill="#f5f5f5" stroke="#0a0a0a"/>
+                <rect x="52" y="56" width="28" height="120" fill="#f5f5f5" stroke="#0a0a0a"/>
+                <rect class="welcome-key-lit" x="80" y="56" width="28" height="120" fill="#d8d8d8" stroke="#0a0a0a"/>
+                <rect x="108" y="56" width="28" height="120" fill="#f5f5f5" stroke="#0a0a0a"/>
+                <rect x="136" y="56" width="28" height="120" fill="#f5f5f5" stroke="#0a0a0a"/>
+                <rect class="welcome-key-lit" x="164" y="56" width="28" height="120" fill="#d0d0d0" stroke="#0a0a0a"/>
+                <rect x="192" y="56" width="28" height="120" fill="#f5f5f5" stroke="#0a0a0a"/>
+                <rect x="220" y="56" width="28" height="120" fill="#f5f5f5" stroke="#0a0a0a"/>
+                <rect x="248" y="56" width="28" height="120" fill="#f5f5f5" stroke="#0a0a0a"/>
+                <rect x="276" y="56" width="28" height="120" fill="#f5f5f5" stroke="#0a0a0a"/>
+                <rect x="304" y="56" width="28" height="120" fill="#f5f5f5" stroke="#0a0a0a"/>
+                <rect x="42" y="56" width="18" height="72" fill="#111"/><rect x="70" y="56" width="18" height="72" fill="#111"/>
+                <rect x="126" y="56" width="18" height="72" fill="#111"/><rect x="154" y="56" width="18" height="72" fill="#111"/>
+                <rect x="182" y="56" width="18" height="72" fill="#111"/><rect x="238" y="56" width="18" height="72" fill="#111"/>
+                <rect x="266" y="56" width="18" height="72" fill="#111"/>
+                <text x="94" y="158" text-anchor="middle" fill="#0a0a0a" font-size="14" font-family="Fraunces, Georgia, serif">2</text>
+                <text x="178" y="158" text-anchor="middle" fill="#0a0a0a" font-size="14" font-family="Fraunces, Georgia, serif">5</text>
+              </g>
+            </svg>
+          </figure>
+        </article>
+
+        <article class="welcome-chapter">
+          <div class="welcome-chapter-copy">
+            <p class="welcome-step">03</p>
+            <h3>Your plan, not homework</h3>
+            <p>Select the bars that won’t sit. Speak or jot a note. Lune summarises a quiet practice plan into your repertoire — yours to keep.</p>
+          </div>
+          <figure class="welcome-chapter-visual" aria-hidden="true">
+            <svg class="welcome-viz" viewBox="0 0 360 220" focusable="false">
+              <rect x="0.5" y="0.5" width="359" height="219" rx="2" fill="#0c0c0c" stroke="#2a2a2a"/>
+              <text x="24" y="36" fill="#757575" font-size="10" letter-spacing="2" font-family="Fraunces, Georgia, serif">PRACTICE PLAN</text>
+              <text x="24" y="72" fill="#f0f0f0" font-size="22" font-family="Fraunces, Georgia, serif">Bars 17–20 · left hand</text>
+              <text x="24" y="104" fill="#9a9a9a" font-size="14" font-family="Fraunces, Georgia, serif">Hands separate at 60. Then together, soft.</text>
+              <g stroke="#3a3a3a" fill="none">
+                <rect x="24" y="128" width="88" height="56" rx="2"/><rect x="124" y="128" width="88" height="56" rx="2"/>
+                <rect x="224" y="128" width="88" height="56" rx="2" stroke="#f0f0f0"/>
+              </g>
+              <text x="268" y="162" text-anchor="middle" fill="#f0f0f0" font-size="12" font-family="Fraunces, Georgia, serif">selected</text>
+            </svg>
+          </figure>
+        </article>
+      </section>
+
+      <section class="welcome-diff" aria-labelledby="welcome-diff-h">
+        <p class="about-kicker">Why Lune</p>
+        <h2 id="welcome-diff-h">Different on purpose.</h2>
+        <ul class="welcome-diff-list">
+          <li><strong>Notes that stay out of the way</strong><span>Letter names or fingers under the staff — never on the heads.</span></li>
+          <li><strong>Piano tutorial, in the room</strong><span>Falling notes onto a keyboard view, same tempo control as the score.</span></li>
+          <li><strong>Built for every reader</strong><span>Dyslexia-friendly type, large print, high contrast, braille when a score has one.</span></li>
+          <li><strong>No account required to try</strong><span>Experience the full studio first. Sign in only when you want plans and notes to travel with you.</span></li>
+        </ul>
+      </section>
+
+      <section class="welcome-close" aria-label="Begin">
+        <p class="welcome-close-brand">Lune</p>
+        <h2>Ready when you are.</h2>
+        <p>A short personalisation — composers and grade — then the studio opens. Sign in whenever you want to keep it.</p>
+        <div class="welcome-cta">
+          <button type="button" class="primary big" id="btn-experience-lune-2">Experience Lune</button>
+          <button type="button" class="quiet" id="btn-welcome-signin-2">I already have an account</button>
+        </div>
+      </section>`;
     document.getElementById("app")?.appendChild(welcome);
 
     const onboard = document.createElement("main");
@@ -169,16 +289,26 @@ window.LuneOnboard = (function () {
       <form method="dialog" class="credits-close-row">
         <button type="submit" class="icon-btn" aria-label="Close"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
       </form>
+      <p class="about-kicker">Optional</p>
       <h2>Keep your studio</h2>
-      <p>You’ve seen how Lune works. Sign in with email so plans and notes stay with you — on this piano tonight, and the next one.</p>
+      <p>You’ve felt how Lune works. Sign in with email so repertoire, bar notes and practice plans stay with you — tonight’s piano, and the next one.</p>
       <div class="onboard-nav">
-        <button type="button" class="quiet" data-keep-later>Continue exploring</button>
+        <button type="button" class="quiet" data-keep-later>Keep exploring</button>
         <button type="button" class="primary" data-keep-signin>Sign in with email</button>
       </div>`;
     document.body.appendChild(keep);
 
-    welcome.querySelector("#btn-experience-lune")?.addEventListener("click", startExperience);
-    welcome.querySelector("#btn-welcome-signin")?.addEventListener("click", () => openCreateAccount());
+    const bindExperience = (sel) =>
+      welcome.querySelector(sel)?.addEventListener("click", startExperience);
+    const bindSignin = (sel) =>
+      welcome.querySelector(sel)?.addEventListener("click", () => openCreateAccount());
+    bindExperience("#btn-experience-lune");
+    bindExperience("#btn-experience-lune-2");
+    bindSignin("#btn-welcome-signin");
+    bindSignin("#btn-welcome-signin-2");
+    welcome.querySelector("#btn-welcome-scroll")?.addEventListener("click", () => {
+      $("welcome-story")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
     account.querySelector("#create-account-form")?.addEventListener("submit", onCreateSubmit);
     keep.querySelector("[data-keep-later]")?.addEventListener("click", () => {
       keep.close();
@@ -192,6 +322,7 @@ window.LuneOnboard = (function () {
 
   function startExperience() {
     store()?.setPref?.("seenWelcome", true);
+    store()?.setPref?.("welcomeVersion", WELCOME_VERSION);
     showOnboard(0);
   }
 
@@ -243,9 +374,13 @@ window.LuneOnboard = (function () {
     ensureDom();
     hideAllMains();
     const w = $("welcome");
-    if (w) w.hidden = false;
+    if (w) {
+      w.hidden = false;
+      w.scrollTop = 0;
+    }
     document.body.classList.add("is-welcome");
     document.body.classList.remove("is-onboard", "is-home", "is-studio", "is-discover", "is-repertoire");
+    window.scrollTo?.(0, 0);
   }
 
   function hideAllMains() {
@@ -267,26 +402,52 @@ window.LuneOnboard = (function () {
     paintOnboard();
   }
 
+  function progressHtml(active) {
+    const labels = ["Meet Lune", "Composers", "Grade", "Tonight"];
+    return `<ol class="onboard-progress" aria-label="Onboarding progress">
+      ${labels
+        .map(
+          (label, i) =>
+            `<li class="${i === active ? "on" : i < active ? "done" : ""}"><span>${i + 1}</span><em>${label}</em></li>`
+        )
+        .join("")}
+    </ol>`;
+  }
+
   function paintOnboard() {
     const stage = $("onboard-stage");
     if (!stage) return;
-    const email = store().status().email || "";
     if (step === 0) {
       stage.innerHTML = `
-        <p class="eyebrow">Inside Lune</p>
-        <h1>How it sits beside you.</h1>
+        ${progressHtml(0)}
+        <p class="eyebrow">A minute with the studio</p>
+        <h1>How Lune sits beside you.</h1>
+        <p class="onboard-help">Other practice apps drown the page in chrome. Lune stays quiet so you can hear yourself think.</p>
         <div class="onboard-intro">
-          <article><h2>1 · Open a score</h2><p>Public-domain piano music, or your own MusicXML. Letter names or fingers under every note.</p></article>
-          <article><h2>2 · Hear &amp; see the keys</h2><p>Play with a metronome in the piece’s meter. Or open Piano — falling notes onto the keyboard, speed you choose.</p></article>
-          <article><h2>3 · Write your own plan</h2><p>Select the bars that won’t sit. Speak or jot a note. Lune summarises a practice plan into your Repertoire.</p></article>
+          <article>
+            <span class="onboard-intro-n">01</span>
+            <h2>Open a score</h2>
+            <p>Public-domain piano music, or your own MusicXML. Letter names or fingers under every note.</p>
+          </article>
+          <article>
+            <span class="onboard-intro-n">02</span>
+            <h2>Hear &amp; see the keys</h2>
+            <p>Play with a metronome in the piece’s meter. Or open Piano — falling notes onto the keyboard, at the speed you choose.</p>
+          </article>
+          <article>
+            <span class="onboard-intro-n">03</span>
+            <h2>Write your own plan</h2>
+            <p>Select the bars that won’t sit. Speak or jot a note. Lune summarises a practice plan into your Repertoire.</p>
+          </article>
         </div>
-        <p class="onboard-diff">Other apps drown the page in chrome. Lune stays quiet so you can hear yourself think.</p>
-        <button type="button" class="primary big" data-next>Personalise my studio</button>`;
+        <button type="button" class="primary big" data-next>Personalise my studio</button>
+        <p class="onboard-diff">No account needed yet — sign in later to keep plans across devices.</p>`;
     } else if (step === 1) {
       stage.innerHTML = `
-        <p class="eyebrow">Step 1 of 3</p>
+        ${progressHtml(1)}
+        <p class="eyebrow">Taste</p>
         <h1>Which composers are you into?</h1>
-        <p class="onboard-help">Pick a few. We’ll recommend pieces that fit.</p>
+        <p class="onboard-help">Pick a few. We’ll recommend pieces that fit how you play.</p>
         <div class="onboard-chips" role="group" aria-label="Composers">
           ${COMPOSERS.map(
             (c) =>
@@ -299,7 +460,8 @@ window.LuneOnboard = (function () {
         </div>`;
     } else if (step === 2) {
       stage.innerHTML = `
-        <p class="eyebrow">Step 2 of 3</p>
+        ${progressHtml(2)}
+        <p class="eyebrow">Level</p>
         <h1>What grade do you play?</h1>
         <p class="onboard-help">Roughly ABRSM Grade 1–8. Be honest — recommendations stay kinder that way.</p>
         <div class="onboard-grades" role="radiogroup" aria-label="Grade">
@@ -317,14 +479,16 @@ window.LuneOnboard = (function () {
     } else {
       const recs = recommendations();
       stage.innerHTML = `
-        <p class="eyebrow">Step 3 of 3</p>
-        <h1>Start here tonight.</h1>
-        <p class="onboard-help">Grade ${selectedGrade}${selectedComposers.size ? ` · ${[...selectedComposers].slice(0, 3).join(", ")}` : ""}. Open one — or browse from Home. Sign in whenever you want to keep everything.</p>
+        ${progressHtml(3)}
+        <p class="eyebrow">Tonight</p>
+        <h1>Start here.</h1>
+        <p class="onboard-help">Grade ${selectedGrade}${selectedComposers.size ? ` · ${[...selectedComposers].slice(0, 3).join(", ")}` : ""}. Open one now — or enter the studio and browse. Sign in whenever you want to keep everything.</p>
         <ul class="onboard-recs">
           ${recs
             .map(
-              (r) => `<li>
-              <button type="button" class="onboard-rec" data-open-query="${esc(r.query)}" ${r.id ? `data-open-piece="${esc(r.id)}"` : ""}>
+              (r, i) => `<li>
+              <button type="button" class="onboard-rec${i === 0 ? " onboard-rec-featured" : ""}" data-open-query="${esc(r.query)}" ${r.id ? `data-open-piece="${esc(r.id)}"` : ""}>
+                ${i === 0 ? `<span class="onboard-rec-tag">Suggested first</span>` : ""}
                 <strong>${esc(r.title)}</strong>
                 <span>${esc(r.composer)} · about grade ${r.grade}</span>
               </button>
@@ -413,6 +577,7 @@ window.LuneOnboard = (function () {
   function finishOnboard({ quiet = false, skipKeepPrompt = false } = {}) {
     store().setPref("onboarded", true);
     store().setPref("seenWelcome", true);
+    store().setPref("welcomeVersion", WELCOME_VERSION);
     store().setPref("grade", selectedGrade);
     store().setPref("composers", [...selectedComposers]);
     store().setPref("recommendations", recommendations());
@@ -452,7 +617,7 @@ window.LuneOnboard = (function () {
       bar.id = "keep-account-banner";
       bar.className = "keep-account-banner";
       bar.innerHTML = `
-        <p>Exploring on this device. <strong>Sign in</strong> to keep plans and notes.</p>
+        <p>You’re exploring on this device. <strong>Sign in</strong> when you want plans and notes to stay with you.</p>
         <button type="button" class="primary" data-lp-create-account>Sign in</button>`;
       const app = $("app");
       const header = app?.querySelector?.("header.bar");
