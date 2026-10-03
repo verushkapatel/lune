@@ -2180,32 +2180,37 @@ body.is-panel-piano .piano-dock-label {
   position: absolute;
   top: 0;
   bottom: auto;
-  width: 2px;
+  width: 1.5px;
   background: #0a0a0a;
   z-index: 6;
   pointer-events: auto;
   cursor: ew-resize;
   touch-action: none;
   will-change: transform;
-  transition: transform 0.05s linear, top 0.12s ease, height 0.12s ease, opacity 0.2s ease;
-  opacity: 0.92;
-  box-shadow: none;
+  /* No transform transition — lag fights the audio clock. Soften only geometry. */
+  transition: top 0.14s ease, height 0.14s ease, opacity 0.18s ease;
+  opacity: 0.88;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.55);
 }
 .playhead-line.on {
   opacity: 1;
 }
+.playhead-line.playing {
+  opacity: 1;
+  transition: top 0.14s ease, height 0.14s ease, opacity 0.18s ease;
+}
 .playhead-line.scrubbing {
   transition: none;
   opacity: 1;
-  width: 3px;
+  width: 2px;
 }
 .playhead-line::before {
   content: "";
   position: absolute;
-  top: -2px;
-  left: -7px;
-  width: 16px;
-  height: 14px;
+  top: -3px;
+  left: -5px;
+  width: 12px;
+  height: 8px;
   background: #0a0a0a;
   border-radius: 0;
   clip-path: polygon(50% 100%, 0 0, 100% 0);
@@ -2225,8 +2230,8 @@ body.is-panel-piano .piano-dock-label {
   position: absolute;
   z-index: 4;
   pointer-events: none;
-  background: rgba(0, 0, 0, 0.045);
-  border: 1px solid rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.035);
+  border: 1px solid rgba(0, 0, 0, 0.14);
   box-sizing: border-box;
   transition: left 0.1s linear, width 0.1s linear, top 0.12s ease, height 0.12s ease;
 }

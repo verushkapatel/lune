@@ -193,9 +193,10 @@ window.LuneStore = (function () {
         const { data, error } = await client.rpc("owner_impact_stats");
         if (!error && data) {
           return {
-            users: users.users,
+            users: users.users ?? data.users ?? null,
             weeks: data.weeks ?? rollups.length,
-            plans: data.plans ?? plans,
+            // Plans live local-first; cloud RPC may honestly return 0.
+            plans: Number(data.plans) || plans,
             stumbles: data.stumbles ?? stumbles,
             shares: data.shares ?? shares,
             mode: "cloud",
@@ -631,10 +632,15 @@ window.LuneStore = (function () {
   function weekSnapshot(week = weekStartKey()) {
     const rows = listActivity({ week });
     const days = new Set(rows.map((r) => r.day));
-    const sessions = rows.filter((r) => r.kind === "practice" || r.kind === "follow" || r.kind === "review").length;
+    const sessions = rows.filter((r) =>
+      r.kind === "practice" || r.kind === "follow" || r.kind === "review" || r.kind === "task" || r.kind === "tonight"
+    ).length;
     const mins = rows.reduce((n, r) => n + (Number(r.mins) || 0), 0);
     const good = rows.filter((r) => r.kind === "review" && (r.grade === "good" || r.grade === "easy")).length;
     const hard = rows.filter((r) => r.kind === "review" && (r.grade === "again" || r.grade === "hard")).length;
+    const barsWorked = new Set(
+      rows.filter((r) => r.bar != null && Number(r.bar) > 0).map((r) => `${r.piece_key}:${r.bar}`)
+    ).size;
     const goalDays = Number(prefs().practiceDays) || 4;
     const goalMins = Number(prefs().practiceMins) || 30;
     return {
@@ -643,6 +649,7 @@ window.LuneStore = (function () {
       goalDays,
       sessions,
       mins,
+      barsWorked,
       goalMinsPerSession: goalMins,
       good,
       hard,

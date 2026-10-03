@@ -664,7 +664,7 @@ window.LunePractice = (function () {
     scroller.scrollBy({ top: b.screenTop - sr.top - Math.min(120, sr.height * 0.2), behavior: "smooth" });
   }
 
-  async function openFromRepertoire(key, { bar = null } = {}) {
+  async function openFromRepertoire(key, { bar = null, bars = null } = {}) {
     const row = await store.getPiece(key);
     const isUpload = row?.source === "upload" || key.startsWith("upload-");
     if (isUpload) {
@@ -694,10 +694,20 @@ window.LunePractice = (function () {
       }
       await applyRoute();
     }
-    if (bar && (await waitForScore())) {
-      setBarSelection([bar], { open: true });
-      requestAnimationFrame(() => scrollToBar(bar));
+    const list = (bars?.length ? bars : bar != null ? [bar] : [])
+      .map(Number)
+      .filter((n) => n > 0);
+    if (list.length && (await waitForScore())) {
+      focusBars(list);
     }
+  }
+
+  /** Select practice bars on the open score (tonight’s plan / stumble map). */
+  function focusBars(bars) {
+    const list = [...new Set((bars || []).map(Number).filter((n) => n > 0))].sort((a, b) => a - b);
+    if (!list.length) return;
+    setBarSelection(list, { open: true, primary: list[0] });
+    requestAnimationFrame(() => scrollToBar(list[0]));
   }
 
   /** Called by app.js after an uploaded score opens. */
@@ -1835,6 +1845,7 @@ window.LunePractice = (function () {
     showRepertoire,
     renderRepertoire,
     openFromRepertoire,
+    focusBars,
     zoomBoost,
     addCurrentToRepertoire,
     saveNote,

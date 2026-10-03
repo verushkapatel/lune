@@ -26,8 +26,14 @@ window.LunePiano = (function () {
   let audioEpoch = 0;
   /** Event indices already queued for the current audioEpoch. */
   const scheduled = new Set();
-  // Seconds per quarter note. Default ≈ 72 bpm — calm practice pace (was 0.42 ≈ 143 bpm).
+  // Seconds per quarter note (fallback when the score has no tempo map).
   let beat = 60 / 72;
+  /** Written tempo map in quarter-note units: [{ q, bpm }, ...] sorted by q. */
+  let tempoMapQ = [];
+  /** First written marking — slider BPM is scaled against this. */
+  let baseBpm = 72;
+  /** practiceBpm / baseBpm — 1.0 keeps every written tempo change. */
+  let tempoScale = 1;
   /** Original note list so tempo changes can rebuild the timeline in place. */
   let sourceNotes = [];
   /** Schedule a hair ahead of now so the first note never clicks against a cold bus. */
@@ -199,14 +205,53 @@ window.LunePiano = (function () {
     return Math.min(0.8, Math.max(0.34, shaped));
   }
 
+  /** Seconds at quarter-position `q`, honouring the written tempo map × scale. */
+  function secondsAtQuarter(q) {
+    const qq = Math.max(0, Number(q) || 0);
+    if (!tempoMapQ.length) {
+      const spq = beat / Math.max(0.05, tempoScale);
+      return qq * spq;
+    }
+    let sec = 0;
+    let prevQ = 0;
+    let bpm = tempoMapQ[0].bpm;
+    for (let i = 0; i < tempoMapQ.length; i++) {
+      const seg = tempoMapQ[i];
+      const at = Math.max(0, Number(seg.q) || 0);
+      if (at >= qq) break;
+      if (at > prevQ) {
+        sec += (at - prevQ) * (60 / Math.max(1, bpm * tempoScale));
+        prevQ = at;
+      }
+      bpm = Number(seg.bpm) || bpm;
+    }
+    sec += (qq - prevQ) * (60 / Math.max(1, bpm * tempoScale));
+    return sec;
+  }
+
+  /** Local seconds-per-quarter at quarter-position `q` (for note durations). */
+  function spqAtQuarter(q) {
+    if (!tempoMapQ.length) return beat / Math.max(0.05, tempoScale);
+    let bpm = tempoMapQ[0].bpm;
+    const qq = Math.max(0, Number(q) || 0);
+    for (const seg of tempoMapQ) {
+      if ((Number(seg.q) || 0) <= qq + 1e-9) bpm = Number(seg.bpm) || bpm;
+      else break;
+    }
+    return 60 / Math.max(1, bpm * tempoScale);
+  }
+
   function buildEvents(notes) {
     const raw = (notes || [])
       .filter((n) => n.midi)
       .map((n) => {
-        const t = (Number(n.absOffset ?? n.offset) || 0) * beat;
+        const barOff = Number(n.offset) || 0;
+        const absQ = Number(n.absOffset ?? n.offset) || 0;
+        const barStartQ = absQ - barOff;
+        const t = secondsAtQuarter(absQ);
         // Keep sounding length close to the written value — stretch made
         // long notes feel like they were re-attacking into the next bar.
-        const dur = Math.max(0.1, (Number(n.duration) || 0.5) * beat * 1.02);
+        const dur = Math.max(0.1, (Number(n.duration) || 0.5) * spqAtQuarter(absQ) * 1.02);
         const finger =
           n.fingering != null && n.fingering !== ""
             ? String(n.fingering)
@@ -216,6 +261,10 @@ window.LunePiano = (function () {
         return {
           t,
           dur,
+          q: absQ,
+          barOff,
+          barStartQ,
+          barStartT: secondsAtQuarter(barStartQ),
           midi: n.midi,
           bar: n.bar || null,
           name: midiToNote(n.midi),
@@ -223,7 +272,7 @@ window.LunePiano = (function () {
           hand: n.hand || null,
         };
       })
-      .sort((a, b) => a.t - b.t);
+      .sort((a, b) => a.t - b.t || a.midi - b.midi);
 
     const density = new Map();
     for (const e of raw) {
@@ -253,23 +302,40 @@ window.LunePiano = (function () {
   }
 
   function barAtTime(at) {
-    let bar = events[0]?.bar || null;
-    for (const e of events) {
-      if (e.t <= at + 0.01) bar = e.bar;
+    const marks = barMarkers();
+    if (!marks.length) {
+      let bar = events[0]?.bar || null;
+      for (const e of events) {
+        if (e.t <= at + 0.01) bar = e.bar;
+        else break;
+      }
+      return bar;
+    }
+    let bar = marks[0].bar;
+    for (const m of marks) {
+      if (m.t <= at + 0.001) bar = m.bar;
       else break;
     }
     return bar;
   }
 
+  /**
+   * Bar downbeats from the engraved bar start (absOffset − offset), not the
+   * first sounding note — leading rests must keep the playhead in the new bar.
+   */
   function barMarkers() {
     const seen = new Map();
     for (const e of events) {
       if (e.bar == null) continue;
-      if (!seen.has(e.bar)) seen.set(e.bar, e.t);
+      const t0 = Number.isFinite(e.barStartT)
+        ? e.barStartT
+        : Math.max(0, e.t - (Number(e.barOff) || 0) * (beat / Math.max(0.05, tempoScale)));
+      if (!seen.has(e.bar) || t0 < seen.get(e.bar)) seen.set(e.bar, t0);
     }
+    const total = duration();
     return [...seen.entries()]
-      .sort((a, b) => a[1] - b[1])
-      .map(([bar, t]) => ({ bar, t, ratio: duration() ? t / duration() : 0 }));
+      .sort((a, b) => a[1] - b[1] || a[0] - b[0])
+      .map(([bar, t]) => ({ bar, t, ratio: total > 0 ? t / total : 0 }));
   }
 
   function passesHand(e) {
@@ -520,14 +586,16 @@ window.LunePiano = (function () {
   }
 
   /** Load a timeline without starting audio (for scrub-before-play). */
-  /** Set seconds-per-quarter from a BPM (clamped for practice). */
+  /** Set practice BPM. Scales the written tempo map so 1.0× = original. */
   function setTempoBpm(bpm, { rebuild = true } = {}) {
     const n = Number(bpm);
     if (!Number.isFinite(n) || n <= 0) return getTempoBpm();
-    const clamped = Math.max(40, Math.min(120, n));
+    const clamped = Math.max(40, Math.min(200, n));
     const prevTotal = duration();
     const ratio = prevTotal > 0 ? progress() / prevTotal : 0;
     const wasPlaying = playing;
+    const base = Math.max(1, baseBpm || 72);
+    tempoScale = clamped / base;
     beat = 60 / clamped;
     if (rebuild && sourceNotes.length) {
       clearAudio();
@@ -552,7 +620,72 @@ window.LunePiano = (function () {
   }
 
   function getTempoBpm() {
-    return Math.round(60 / beat);
+    return Math.round(baseBpm * tempoScale);
+  }
+
+  /**
+   * Written tempo map: [{ bar, bpm }] or [{ q, bpm }].
+   * `base` is the marking the practice slider is relative to (usually the first).
+   */
+  function setTempoMap(map, base) {
+    const rows = Array.isArray(map) ? map : [];
+    const byQ = [];
+    for (const row of rows) {
+      const bpm = Number(row?.bpm);
+      if (!Number.isFinite(bpm) || bpm <= 0) continue;
+      if (row.q != null && Number.isFinite(Number(row.q))) {
+        byQ.push({ q: Math.max(0, Number(row.q)), bpm });
+        continue;
+      }
+      // Bar-indexed maps are resolved against sourceNotes when arming.
+      byQ.push({ bar: Number(row.bar), bpm, q: null });
+    }
+    tempoMapQ = byQ;
+    if (Number.isFinite(Number(base)) && Number(base) > 0) {
+      baseBpm = Number(base);
+    } else if (byQ.length && Number.isFinite(byQ[0].bpm)) {
+      baseBpm = byQ[0].bpm;
+    }
+    beat = 60 / Math.max(1, baseBpm * tempoScale);
+    return tempoMapQ.slice();
+  }
+
+  /** Resolve any bar-keyed tempo rows using note bar starts, then rebuild times. */
+  function resolveTempoMapAgainstNotes(notes) {
+    if (!tempoMapQ.length) return;
+    const barStart = new Map();
+    for (const n of notes || []) {
+      if (n.bar == null) continue;
+      const absQ = Number(n.absOffset ?? n.offset) || 0;
+      const off = Number(n.offset) || 0;
+      const startQ = absQ - off;
+      if (!barStart.has(n.bar) || startQ < barStart.get(n.bar)) {
+        barStart.set(n.bar, startQ);
+      }
+    }
+    const resolved = [];
+    for (const row of tempoMapQ) {
+      if (row.q != null && Number.isFinite(row.q)) {
+        resolved.push({ q: row.q, bpm: row.bpm });
+        continue;
+      }
+      if (row.bar != null && barStart.has(row.bar)) {
+        resolved.push({ q: barStart.get(row.bar), bpm: row.bpm });
+      }
+    }
+    resolved.sort((a, b) => a.q - b.q);
+    // Collapse identical consecutive bpms at the same q
+    const out = [];
+    for (const r of resolved) {
+      const last = out[out.length - 1];
+      if (last && Math.abs(last.q - r.q) < 1e-6) {
+        last.bpm = r.bpm;
+        continue;
+      }
+      if (last && Math.abs(last.bpm - r.bpm) < 1e-6) continue;
+      out.push({ q: r.q, bpm: r.bpm });
+    }
+    if (out.length) tempoMapQ = out;
   }
 
   function getEvents() {
@@ -563,7 +696,13 @@ window.LunePiano = (function () {
     clearAudio();
     playing = false;
     sourceNotes = Array.isArray(notes) ? notes.slice() : [];
+    if (opts.tempoMap) setTempoMap(opts.tempoMap, opts.baseBpm ?? opts.tempoBpm);
+    else {
+      tempoMapQ = [];
+      if (opts.baseBpm != null) baseBpm = Number(opts.baseBpm) || baseBpm;
+    }
     if (opts.tempoBpm != null) setTempoBpm(opts.tempoBpm, { rebuild: false });
+    resolveTempoMapAgainstNotes(sourceNotes);
     events = buildEvents(sourceNotes);
     if (!events.length) return false;
     if (opts.onTick) onTick = opts.onTick;
@@ -586,7 +725,13 @@ window.LunePiano = (function () {
     clearAudio();
     playing = false;
     sourceNotes = Array.isArray(notes) ? notes.slice() : [];
+    if (opts.tempoMap) setTempoMap(opts.tempoMap, opts.baseBpm ?? opts.tempoBpm);
+    else {
+      tempoMapQ = [];
+      if (opts.baseBpm != null) baseBpm = Number(opts.baseBpm) || baseBpm;
+    }
     if (opts.tempoBpm != null) setTempoBpm(opts.tempoBpm, { rebuild: false });
+    resolveTempoMapAgainstNotes(sourceNotes);
     events = buildEvents(sourceNotes);
     if (!events.length) return false;
     onTick = opts.onTick || null;
@@ -734,6 +879,7 @@ window.LunePiano = (function () {
     getRate,
     setTempoBpm,
     getTempoBpm,
+    setTempoMap,
     getEvents,
     setMeter,
     getMeter,

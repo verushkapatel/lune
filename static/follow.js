@@ -449,18 +449,20 @@ window.LuneFollow = (function () {
       <button type="button" class="quiet ink lf-map" aria-pressed="true">Stumble map</button>
       <button type="button" class="quiet ink lf-close" aria-label="Close">×</button>`;
     p.querySelector(".lf-tonight")?.addEventListener("click", async (e) => {
-      const piece = state.piece || window.LunePractice?.currentPiece?.() || null;
+      const piece = state.piece || null;
       const made = await window.LuneImpact?.buildTonightPlan?.({
         pieceKey: r.key,
         title: piece?.overview?.title || piece?.title || r.key,
         composer: piece?.overview?.composer || piece?.composer || "",
         stats: r.stats,
+        open: false,
       });
       if (made) {
         e.currentTarget.disabled = true;
         e.currentTarget.textContent = "In your plan";
         window.LunePractice?.refreshBadge?.();
-        window.toast?.("Tonight’s plan is ready");
+        window.LunePractice?.focusBars?.(made.bars);
+        window.toast?.("Tonight’s bars are selected — work them slowly");
         window.LuneImpact?.paintHomeImpact?.();
       }
     });

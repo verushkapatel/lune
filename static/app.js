@@ -1423,7 +1423,7 @@ function primeTimeline() {
     seedTempoFromPiece();
     LunePiano.setRate?.(state.playRate || 1);
     state.timelineKind = "piece";
-    LunePiano.arm(notes, { ...playbackHandlers(), from: 0, tempoBpm: practiceTempoBpm() });
+    LunePiano.arm(notes, { ...playbackHandlers(), from: 0, ...playbackTempoOpts() });
     renderScrubTicks();
     syncPlayButton();
     if (state.panel === "piano") mountPianoTutorial();
@@ -1538,6 +1538,46 @@ function peekScoreMeta(xml) {
     if (perMin) tempo = `${Math.round(Number(perMin[1]))} bpm`;
   }
   return { timeSignature, tempo };
+}
+
+/**
+ * All written <sound tempo> markings with their measure numbers.
+ * MusicXML tempo is always quarters-per-minute.
+ */
+function extractTempoMap(xml) {
+  const src = String(xml || "");
+  if (!src) return [];
+  const map = [];
+  const chunks = src.split(/(?=<measure\b)/i);
+  let bar = 1;
+  for (const chunk of chunks) {
+    const nm = chunk.match(/<measure[^>]*\bnumber\s*=\s*["'](-?\d+)/i);
+    if (nm) bar = Number(nm[1]);
+    for (const m of chunk.matchAll(/<sound\b[^>]*\btempo\s*=\s*["'](\d+(?:\.\d+)?)["'][^>]*>/gi)) {
+      const bpm = Number(m[1]);
+      if (Number.isFinite(bpm) && bpm > 0) map.push({ bar, bpm });
+    }
+  }
+  return map;
+}
+
+function pieceTempoMap() {
+  try {
+    return extractTempoMap(state.piece?.musicxml);
+  } catch {
+    return [];
+  }
+}
+
+function playbackTempoOpts(extra = {}) {
+  const marked = state.markedBpm || markedTempoBpm();
+  const map = pieceTempoMap();
+  return {
+    tempoBpm: practiceTempoBpm(),
+    baseBpm: marked,
+    tempoMap: map.length ? map : [{ bar: pieceBarSpan()[0], bpm: marked }],
+    ...extra,
+  };
 }
 
 /** Pull time signature / tempo from MusicXML when the catalogue overview lacks them. */
@@ -1805,17 +1845,22 @@ function markedTempoBpm() {
     state.piece?.overview?.tempo ||
     state.piece?.meta?.tempo ||
     "";
-  const m = String(raw).match(/(\d{2,3})\s*(?:bpm)?/i);
-  const marked = m ? Number(m[1]) : 72;
-  return Math.max(40, Math.min(200, marked || 72));
+  const m = String(raw).match(/(\d{2,3}(?:\.\d+)?)\s*(?:bpm)?/i);
+  let marked = m ? Number(m[1]) : NaN;
+  if (!Number.isFinite(marked)) {
+    const map = pieceTempoMap();
+    if (map.length) marked = map[0].bpm;
+  }
+  if (!Number.isFinite(marked) || marked <= 0) marked = 72;
+  return Math.max(40, Math.min(208, marked));
 }
 
-/** Practice tempo — user slider, seeded from the marking. */
+/** Practice tempo — user slider, seeded from the marking (original = 1.0×). */
 function practiceTempoBpm() {
   if (Number.isFinite(state.practiceBpm) && state.practiceBpm > 0) {
-    return Math.max(40, Math.min(120, state.practiceBpm));
+    return Math.max(40, Math.min(208, state.practiceBpm));
   }
-  return Math.max(40, Math.min(96, markedTempoBpm()));
+  return markedTempoBpm();
 }
 
 function pieceTimeSignature() {
@@ -1835,7 +1880,7 @@ function applyPieceMeter() {
   const meta = $("piano-tut-meta");
   if (meta) {
     const title = state.piece?.overview?.title || state.piece?.title || "This piece";
-    meta.textContent = `${title} · ${ts} · drag tempo below — original marked`;
+    meta.textContent = `${title} · ${ts} · original tempo marked — drag to practice`;
   }
 }
 
@@ -1845,21 +1890,25 @@ function syncTempoUi() {
   const slider = $("bpm-slider");
   const readout = $("bpm-readout");
   const mark = $("bpm-orig-mark");
-  if (slider && document.activeElement !== slider) slider.value = String(bpm);
-  if (readout) readout.textContent = String(bpm);
+  if (slider) {
+    const needMax = Math.max(120, Math.ceil(marked / 10) * 10, Math.ceil(bpm / 10) * 10);
+    if (Number(slider.max) < needMax) slider.max = String(Math.min(208, needMax));
+    if (document.activeElement !== slider) slider.value = String(bpm);
+  }
+  if (readout) readout.textContent = String(Math.round(bpm));
   if (mark && slider) {
     const min = Number(slider.min) || 40;
     const max = Number(slider.max) || 120;
     const pct = ((Math.max(min, Math.min(max, marked)) - min) / (max - min)) * 100;
     mark.style.left = `${pct}%`;
-    mark.title = `Original · ${marked} bpm`;
+    mark.title = `Original · ${Math.round(marked)} bpm`;
   }
   const meterEl = $("bpm-meter");
   if (meterEl) meterEl.textContent = pieceTimeSignature();
 }
 
 function setPracticeBpm(bpm, { rebuild = true } = {}) {
-  const next = Math.max(40, Math.min(120, Number(bpm) || 72));
+  const next = Math.max(40, Math.min(208, Number(bpm) || 72));
   state.practiceBpm = next;
   try {
     if (rebuild && LunePiano.hasTimeline?.()) {
@@ -1887,8 +1936,8 @@ function seedTempoFromPiece({ force = false } = {}) {
   state._tempoSeedKey = pieceKey;
   const marked = markedTempoBpm();
   state.markedBpm = marked;
-  // Soft practice seed — allegros start calmer; user can raise the slider.
-  state.practiceBpm = Math.max(40, Math.min(96, marked));
+  // Default = written tempo (1.0×). Slider still lets you practice slower/faster.
+  state.practiceBpm = marked;
   applyPieceMeter();
   try {
     LunePiano.setTempoBpm?.(state.practiceBpm, { rebuild: false });
@@ -1931,10 +1980,9 @@ async function ensurePieceTimeline(seekRatio = null) {
   } catch {
     /* ignore */
   }
-  const tempoBpm = practiceTempoBpm();
   if (!LunePiano.hasTimeline() || state.timelineKind !== "piece") {
     state.timelineKind = "piece";
-    LunePiano.arm(notes, { ...playbackHandlers(), from: ratio, tempoBpm });
+    LunePiano.arm(notes, { ...playbackHandlers(), from: ratio, ...playbackTempoOpts() });
   } else if (seekRatio != null) {
     LunePiano.seek(ratio, { resumeIfWasPlaying: false });
   }
@@ -2032,6 +2080,83 @@ function barLocalRatio(bar, progress) {
   return Math.max(0, Math.min(1, (progress - start) / span));
 }
 
+/** Map timeline progress to an X inside the measure using engraved note onsets. */
+function playheadXInMeasure(bounds, bar, progress, anchors) {
+  const local = barLocalRatio(bar, progress);
+  const pad = Math.min(10, Math.max(2, bounds.width * 0.02));
+  const xMin = bounds.left + pad;
+  const xMax = bounds.left + bounds.width - pad;
+
+  if (!anchors?.length) {
+    return xMin + local * Math.max(0, xMax - xMin);
+  }
+
+  const marks = LunePiano.barMarkers?.() || [];
+  const idx = marks.findIndex((m) => Number(m.bar) === Number(bar));
+  const startT = idx >= 0 ? marks[idx].t : 0;
+  const endT =
+    idx >= 0 && idx + 1 < marks.length
+      ? marks[idx + 1].t
+      : LunePiano.duration() || startT + 1;
+  const barQl = Math.max(
+    0.25,
+    barLengthQuarters(bar, null) || signatureBarQuarters() || 4
+  );
+
+  // Timed anchors: prefer event onsets in this bar (seconds), matched by barOff.
+  const timed = [];
+  try {
+    const ev = (LunePiano.getEvents?.() || []).filter((e) => Number(e.bar) === Number(bar));
+    const byQ = new Map();
+    for (const e of ev) {
+      const q = Number.isFinite(e.barOff) ? e.barOff : null;
+      if (q == null) continue;
+      if (!byQ.has(Math.round(q * 1000))) byQ.set(Math.round(q * 1000), e.t);
+    }
+    for (const a of anchors) {
+      const t = byQ.get(Math.round(a.q * 1000));
+      if (t != null) timed.push({ t, x: a.x });
+      else {
+        // Fall back: map quarter offset → time via bar span (constant-tempo approx).
+        const tApprox = startT + (a.q / barQl) * Math.max(0.001, endT - startT);
+        timed.push({ t: tApprox, x: a.x });
+      }
+    }
+  } catch {
+    for (const a of anchors) {
+      timed.push({
+        t: startT + (a.q / barQl) * Math.max(0.001, endT - startT),
+        x: a.x,
+      });
+    }
+  }
+  timed.sort((a, b) => a.t - b.t);
+
+  const first = timed[0];
+  const last = timed[timed.length - 1];
+  // Lead-in before first onset (rests / pickup silence inside the bar)
+  if (progress <= first.t) {
+    const lead = Math.max(0.001, first.t - startT);
+    const u = Math.max(0, Math.min(1, (progress - startT) / lead));
+    return xMin + u * Math.max(0, first.x - xMin);
+  }
+  if (progress >= last.t) {
+    const tail = Math.max(0.001, endT - last.t);
+    const u = Math.max(0, Math.min(1, (progress - last.t) / tail));
+    return last.x + u * Math.max(0, xMax - last.x);
+  }
+  for (let i = 0; i < timed.length - 1; i++) {
+    const a = timed[i];
+    const b = timed[i + 1];
+    if (progress >= a.t && progress <= b.t) {
+      const span = Math.max(0.001, b.t - a.t);
+      const u = (progress - a.t) / span;
+      return a.x + u * (b.x - a.x);
+    }
+  }
+  return first.x;
+}
+
 let _playheadScrollAt = 0;
 let _playheadLastBar = null;
 
@@ -2042,7 +2167,7 @@ function placePlayhead(bar, progress = 0, total = 0) {
 
   const hide = () => {
     line.hidden = true;
-    line.classList.remove("on");
+    line.classList.remove("on", "playing");
     line.style.transform = "";
     line.style.height = "";
     line.style.top = "";
@@ -2068,14 +2193,16 @@ function placePlayhead(bar, progress = 0, total = 0) {
       : null;
 
   if (bounds && scroll && state.panel === "score") {
-    const local = barLocalRatio(bar, progress);
-    const x = bounds.left + Math.max(2, Math.min(bounds.width - 2, local * bounds.width));
+    const anchors = LuneAnnotate.playheadAnchorsInHost?.(state.osmd, host, bar) || null;
+    const x = playheadXInMeasure(bounds, bar, progress, anchors);
+    const playing = !!LunePiano.isPlaying?.();
     line.hidden = false;
     line.classList.add("on");
-    line.style.top = `${Math.max(0, bounds.top - 4)}px`;
-    line.style.height = `${bounds.height + 8}px`;
+    line.classList.toggle("playing", playing && !state.scrubbing);
+    line.style.top = `${Math.max(0, bounds.top - 6)}px`;
+    line.style.height = `${bounds.height + 12}px`;
     line.style.left = "0";
-    line.style.transform = `translateX(${x}px)`;
+    line.style.transform = `translate3d(${x}px,0,0)`;
 
     if (hilite) {
       hilite.hidden = false;
@@ -2089,7 +2216,6 @@ function placePlayhead(bar, progress = 0, total = 0) {
     // During playback: instant scroll, only on bar change, and only when
     // the measure is substantially out of view. Prefer vertical; skip tiny
     // horizontal nudges so we don’t fight the reader.
-    const playing = !!LunePiano.isPlaying?.();
     const barChanged = _playheadLastBar !== Number(bar);
     _playheadLastBar = Number(bar);
     if (barChanged || (!playing && state.scrubbing)) {
@@ -2148,6 +2274,7 @@ function placePlayhead(bar, progress = 0, total = 0) {
   }
   line.hidden = false;
   line.classList.add("on");
+  line.classList.toggle("playing", !!LunePiano.isPlaying?.() && !state.scrubbing);
   let ratio = total > 0 ? Math.max(0, Math.min(1, progress / total)) : 0;
   if (!(total > 0)) {
     const nums = Object.keys(state.piece?.debriefs || {})
@@ -2160,7 +2287,7 @@ function placePlayhead(bar, progress = 0, total = 0) {
   line.style.top = "0";
   line.style.height = "100%";
   line.style.left = "0";
-  line.style.transform = `translateX(${x}px)`;
+  line.style.transform = `translate3d(${x}px,0,0)`;
 }
 
 function stopAll() {
@@ -2195,7 +2322,7 @@ function stopAll() {
     const line = $("playhead-line");
     if (line) {
       line.hidden = true;
-      line.classList.remove("on");
+      line.classList.remove("on", "playing");
     }
     const hilite = $("measure-hilite");
     if (hilite) hilite.hidden = true;
@@ -2519,7 +2646,7 @@ async function startPiecePlayback(seekRatio = 0) {
   state.timelineKind = "piece";
   await LunePiano.play(notes, {
     from: ratio,
-    tempoBpm: practiceTempoBpm(),
+    ...playbackTempoOpts(),
     ...playbackHandlers(),
   });
   renderScrubTicks();
