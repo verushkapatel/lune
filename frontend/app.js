@@ -178,7 +178,7 @@ function closeSearchResults({ blur = false } = {}) {
 const SEARCH_LIMIT = 8;
 // Paint on the next frame only — coalesces burst keystrokes, ~0–16ms feel (no 100ms lag).
 const SEARCH_DEBOUNCE_MS = 0;
-const SEARCH_INDEX_URL = luneUrl("/static/search-index.json?v=fix67");
+const SEARCH_INDEX_URL = luneUrl("/static/search-index.json?v=fix73");
 /** Composers whose piano works are typically still under copyright — honest empty state. */
 const COPYRIGHT_ERA_COMPOSERS = [
   "ginastera", "prokofiev", "shostakovich", "khachaturian", "kabalevsky",
@@ -2574,7 +2574,9 @@ function staggerLaneLabels(host) {
     row.sort((p, q) => p.b.x - q.b.x);
     let lastRight = -Infinity;
     for (const { el, b } of row) {
-      const gap = Math.max(1.2, b.height * 0.08);
+      // labels for different notes need a visible gap, not just no overlap,
+      // or "E G♯" reads as one word
+      const gap = Math.max(2.5, b.height * 0.3);
       if (b.x >= lastRight + gap && !touchesInk(b)) {
         lastRight = b.x + b.width;
         continue;
@@ -3270,7 +3272,10 @@ async function applyRoute() {
       else setStudioPanel(r.panel);
       return;
     }
-    const piece = await withLoader("Finding the score", () => tryOpen({ query: r.id, title: r.id.replace(/-/g, " ") }));
+    // static site: exact catalogue id; local server: let it resolve the words
+    const piece = await withLoader("Finding the score", () =>
+      tryOpen(LUNE_ON_PAGES ? { query: r.id } : { query: r.id.replace(/-/g, " "), title: "" })
+    );
     if (!piece || piece.kind !== "score") {
       goHome({ keepTabs: true });
       toast("That link points to a score Lune doesn’t have any more — search for it instead.");
