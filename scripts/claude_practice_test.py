@@ -80,7 +80,7 @@ def main(p):
     pg.click('#rep-list [data-open="beethoven-fur-elise"]')
     wait_score(pg)
     check("repertoire: Open goes to the score", pg.evaluate("location.hash").startswith("#/beethoven-fur-elise/score"))
-    check("score: toolbar shows 'In Repertoire'", "in repertoire" in pg.inner_text(".lp-tools-bar").lower(), pg.inner_text(".lp-tools-bar"))
+    check("score: toolbar shows 'In Repertoire'", pg.get_attribute("#btn-bookmark", "aria-label") == "In Repertoire", pg.get_attribute("#btn-bookmark", "aria-label"))
     pg.evaluate("() => setBarSelection([5], {open: true})")
     pg.wait_for_selector(".lp-coach")
     pg.fill("#lp-note-input", "play faster here")
@@ -152,6 +152,7 @@ def main(p):
 
     # --- braille link on the overview ---
     pg.goto(BASE + "#/twinkle/explain", wait_until="networkidle")
+    pg.click("#btn-download")
     pg.wait_for_selector(".lp-braille", timeout=15000)
     href = pg.get_attribute(".lp-braille", "href")
     brf = pg.evaluate("(h) => fetch(h).then(r => r.text())", href)
@@ -178,7 +179,7 @@ def main(p):
     pg.goto(BASE, wait_until="networkidle")
     pg.set_input_files("#file", f"{UP}/valid.musicxml")
     wait_score(pg, 10)
-    pg.click(".lp-tools-bar [data-lp-add]")
+    pg.click("#btn-bookmark")
     pg.wait_for_timeout(300)
     key = pg.evaluate("LunePractice.keyFor(state.piece)")
     pg.goto(BASE + "#/repertoire", wait_until="networkidle")

@@ -77,7 +77,9 @@ with sync_playwright() as p:
     pg.wait_for_timeout(700)
     chip = pg.evaluate("""() => { const b = document.querySelector('.chip.finger-only b, .tone-finger'); if (!b) return null; const cs = getComputedStyle(b); const bg = getComputedStyle(b.closest('.chip')); return {c: cs.color, bg: bg.backgroundColor}; }""")
     check("bar panel: finger digits have a visible colour", chip and chip["c"] != chip["bg"], chip)
-    if pg.locator("#btn-plan").count() and pg.locator("#btn-plan").is_visible():
+    if pg.locator("#btn-coach-more").count() and pg.locator("#btn-coach-more").is_visible():
+        pg.click("#btn-coach-more")
+        pg.wait_for_selector("#btn-plan")
         pg.click("#btn-plan")
         pg.wait_for_timeout(500)
         body = pg.evaluate("() => document.getElementById('help-body')?.innerText || ''")
