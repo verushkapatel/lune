@@ -1,6 +1,6 @@
 /* Lune — questionnaire first, then email OTP, then recommendations.
- * Soft gate (“Make Lune yours”) opens the immersive path. Clair de lune
- * and search stay signed-in-only. Prefs: localStorage + profiles.prefs when cloud.
+ * Soft gate (“Make Lune yours”) opens the immersive path. Guests can open
+ * Clair de lune; search stays signed-in-only. Prefs: localStorage + profiles.prefs when cloud.
  */
 window.LuneOnboard = (function () {
   const store = () => window.LuneStore;
@@ -1541,7 +1541,7 @@ window.LuneOnboard = (function () {
             ? `Stepping stones from ${levelName(g)} toward ${levelName(a)} — and a few more for tonight.`
             : "From the composers, level, and dream piece you shared.";
       }
-      grid.innerHTML = show
+      const recHtml = show
         .map((r, i) => {
           const role = r.role || (i === 0 ? "Start tonight" : "For you");
           const openAttrs = r.id
@@ -1554,7 +1554,14 @@ window.LuneOnboard = (function () {
           </button>`;
         })
         .join("");
+      // Repainting identical buttons would swallow a click that is in progress.
+      if (grid.dataset.painted !== recHtml) {
+        grid.dataset.painted = recHtml;
+        grid.innerHTML = recHtml;
+      }
       grid.querySelectorAll("[data-rec-q]").forEach((b) => {
+        if (b.dataset.bound) return;
+        b.dataset.bound = "1";
         b.addEventListener("click", () => {
           const q = $("q");
           if (!q) return;
@@ -1632,28 +1639,12 @@ window.LuneOnboard = (function () {
     return false;
   }
 
-  function isSignInPiece(pieceOrId) {
-    const raw =
-      typeof pieceOrId === "string"
-        ? pieceOrId
-        : [pieceOrId?.id, pieceOrId?.openQuery, pieceOrId?.query, pieceOrId?.title, pieceOrId?.hay]
-            .filter(Boolean)
-            .join(" ");
-    const s = String(raw || "")
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-    return (
-      s.includes("debussy-clair-de-lune") ||
-      s.includes("clair de lune") ||
-      s.includes("clair-de-lune") ||
-      /\bclair\s*de\s*lune\b/.test(s)
-    );
-  }
-
-  function requirePieceAccess(pieceOrId, message) {
-    if (!isSignInPiece(pieceOrId)) return true;
-    return requireSignIn(message || "Sign in free to open Clair de lune");
+  /**
+   * Every library piece opens without an account — Clair de lune included, so
+   * a first visit can see the real studio. Sign-in keeps plans and syncs them.
+   */
+  function requirePieceAccess() {
+    return true;
   }
 
   function route() {
@@ -1871,21 +1862,28 @@ window.LuneOnboard = (function () {
         if (data?.items) window.__LUNE_SEARCH_ITEMS__ = data.items;
       })
       .catch(() => {});
+    // Cloud prefs are fetched once per sign-in, not on every store change
+    // (the fetch itself reports a change, which used to start it again).
+    let prefsPulled = false;
     store()?.onChange?.(() => {
       applyGateChrome();
       if (signedIn()) {
         $("keep-lune-dialog")?.close?.();
         $("create-account-dialog")?.close?.();
         paintKeepBanner();
-        // Prefer local onboarding flags so a background pull cannot re-lock the gate.
-        store()
-          ?.pullPrefs?.({ preferLocal: true })
-          ?.then?.(() => {
-            paintSignedHome();
-            applyGateChrome();
-          });
+        if (!prefsPulled) {
+          prefsPulled = true;
+          // Prefer local onboarding flags so a background pull cannot re-lock the gate.
+          store()
+            ?.pullPrefs?.({ preferLocal: true })
+            ?.then?.(() => {
+              paintSignedHome();
+              applyGateChrome();
+            });
+        }
         paintSignedHome();
       } else {
+        prefsPulled = false;
         // Next sign-in should get a fresh welcome-back moment.
         try {
           sessionStorage.removeItem(SESSION_BACK_KEY);
@@ -1937,7 +1935,6 @@ window.LuneOnboard = (function () {
     requireUnlock,
     requireSignIn,
     requirePieceAccess,
-    isSignInPiece,
     unlocked,
     signedIn,
     onboarded,

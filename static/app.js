@@ -257,6 +257,8 @@ function showView(name) {
     LuneOnboard.requireUnlock();
     return;
   }
+  // Leaving the studio closes the microphone.
+  if (name !== "studio") window.LuneFollow?.stop?.({ quiet: true });
   const home = $("home");
   const discover = $("discover");
   const studio = $("studio");
@@ -1913,7 +1915,88 @@ function normalizeNoteHand(h, fallback = null) {
   return fallback;
 }
 
+/**
+ * Ties and hands, read from the MusicXML: which notes only continue a held
+ * note (never struck), how much longer the note that starts the tie really
+ * sounds, and which staff each note is written on (lower staff = left hand).
+ * The analysis lists every written note, so without this a tied melody note
+ * was struck again at each tie, or cut short.
+ * Keys are "bar:midi:offset" with the offset in thousandths of a crotchet.
+ */
+const _tieCache = new WeakMap();
+function tieIndex(piece) {
+  const empty = { stops: new Set(), extra: new Map(), staff: new Map() };
+  if (!piece?.musicxml) return empty;
+  if (_tieCache.has(piece)) return _tieCache.get(piece);
+  const out = { stops: new Set(), extra: new Map(), staff: new Map() };
+  _tieCache.set(piece, out);
+  const STEP = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+  const text = (el, tag) => {
+    for (const c of el.children) if (c.nodeName === tag) return c.textContent.trim();
+    return "";
+  };
+  try {
+    const doc = new DOMParser().parseFromString(piece.musicxml, "application/xml");
+    if (doc.getElementsByTagName("parsererror").length) return out;
+    const parts = [...doc.getElementsByTagName("part")];
+    for (const part of parts) {
+      // lower staff (or the second part) is the left hand
+      const partStaff = parts.length > 1 ? (parts.indexOf(part) === 0 ? 1 : 2) : 0;
+      let div = 1;
+      const open = new Map(); // midi → key of the note that started the tie
+      let index = 0;
+      for (const m of part.children) {
+        if (m.nodeName !== "measure") continue;
+        index += 1;
+        const num = parseInt(m.getAttribute("number"), 10);
+        const bar = Number.isFinite(num) ? num : index;
+        let pos = 0;
+        let last = 0;
+        for (const el of m.children) {
+          const tag = el.nodeName;
+          if (tag === "attributes") {
+            const d = parseInt(el.getElementsByTagName("divisions")[0]?.textContent, 10);
+            if (d > 0) div = d;
+          } else if (tag === "backup") pos -= parseInt(text(el, "duration"), 10) || 0;
+          else if (tag === "forward") pos += parseInt(text(el, "duration"), 10) || 0;
+          else if (tag === "note") {
+            const chord = [...el.children].some((c) => c.nodeName === "chord");
+            const grace = [...el.children].some((c) => c.nodeName === "grace");
+            const dur = parseInt(text(el, "duration"), 10) || 0;
+            const onset = chord ? last : pos;
+            if (!chord) {
+              last = pos;
+              if (!grace) pos += dur;
+            }
+            const pitch = [...el.children].find((c) => c.nodeName === "pitch");
+            if (!pitch || grace) continue;
+            const midi =
+              (parseInt(text(pitch, "octave"), 10) + 1) * 12 +
+              (STEP[text(pitch, "step").toUpperCase()] ?? 0) +
+              Math.round(Number(text(pitch, "alter")) || 0);
+            const ties = [...el.children].filter((c) => c.nodeName === "tie").map((t) => t.getAttribute("type"));
+            const key = `${bar}:${midi}:${Math.round((onset / div) * 1000)}`;
+            if (!out.staff.has(key)) out.staff.set(key, partStaff || parseInt(text(el, "staff"), 10) || 1);
+            if (ties.includes("stop") && open.has(midi)) {
+              const root = open.get(midi);
+              out.stops.add(key);
+              out.extra.set(root, (out.extra.get(root) || 0) + dur / div);
+              if (!ties.includes("start")) open.delete(midi);
+            } else if (ties.includes("start")) {
+              open.set(midi, key);
+            }
+          }
+        }
+      }
+    }
+  } catch {
+    /* play the notes as written */
+  }
+  return out;
+}
+
 function collectNotes(fromBar, toBar) {
+  const ties = tieIndex(state.piece);
   const notes = [];
   const debriefs = state.piece?.debriefs || {};
   let barCursor = 0;
@@ -1932,7 +2015,17 @@ function collectNotes(fromBar, toBar) {
       const key = `${Math.round((Number(n.offset) || 0) * 1000)}:${n.midi}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      notes.push({ ...n, absOffset: barCursor + (Number(n.offset) || 0), bar: b });
+      const tieKey = `${b}:${n.midi}:${Math.round((Number(n.offset) || 0) * 1000)}`;
+      if (ties.stops.has(tieKey)) continue; // held over from the note before
+      const held = ties.extra.get(tieKey) || 0;
+      const staff = ties.staff.get(tieKey);
+      notes.push({
+        ...n,
+        hand: staff ? (staff >= 2 ? "lh" : "rh") : n.hand,
+        duration: (Number(n.duration) || 0) + held,
+        absOffset: barCursor + (Number(n.offset) || 0),
+        bar: b,
+      });
     }
     barCursor += barLengthQuarters(b, pack);
   }
@@ -2127,7 +2220,8 @@ function updateScrub({ progress, total, bar }) {
   const scrub = $("scrub");
   if (scrub) {
     if (!state.scrubbing && total > 0) {
-      scrub.value = String(Math.round((progress / total) * 1000));
+      const v = String(Math.round((progress / total) * 1000));
+      if (scrub.value !== v) scrub.value = v;
       state.scrubRatio = progress / total;
     } else if (total <= 0) {
       scrub.value = "0";
@@ -2136,8 +2230,11 @@ function updateScrub({ progress, total, bar }) {
   }
   const timeEl = $("scrub-time");
   const barEl = $("scrub-bar");
-  if (timeEl) timeEl.textContent = `${fmtTime(progress)} / ${fmtTime(total)}`;
-  if (barEl) barEl.textContent = bar ? `Bar ${bar}` : "Bar —";
+  const timeText = `${fmtTime(progress)} / ${fmtTime(total)}`;
+  const barText = bar ? `Bar ${bar}` : "Bar —";
+  // This runs every frame while playing: touch the page only when the text changes.
+  if (timeEl && timeEl.textContent !== timeText) timeEl.textContent = timeText;
+  if (barEl && barEl.textContent !== barText) barEl.textContent = barText;
   placePlayhead(bar, progress, total);
   syncPlayButton();
 }
@@ -2151,7 +2248,7 @@ function syncPlayButton() {
   const aria =
     label === "Pause" ? "Pause" : label === "Resume" ? "Resume" : "Play";
   const playBtn = $("btn-play-range");
-  if (playBtn) {
+  if (playBtn && playBtn.textContent !== label) {
     playBtn.textContent = label;
     playBtn.setAttribute("aria-label", aria);
   }
@@ -2161,8 +2258,10 @@ function syncPlayButton() {
     const canStop =
       LunePiano.isPlaying() ||
       (LunePiano.hasTimeline() && LunePiano.progress() > 0.02);
-    stop.disabled = !canStop;
-    stop.setAttribute("aria-disabled", canStop ? "false" : "true");
+    if (stop.disabled === canStop) {
+      stop.disabled = !canStop;
+      stop.setAttribute("aria-disabled", canStop ? "false" : "true");
+    }
   }
 }
 
@@ -2197,79 +2296,84 @@ function barLocalRatio(bar, progress) {
   return Math.max(0, Math.min(1, (progress - start) / span));
 }
 
-/** Map timeline progress to an X inside the measure using engraved note onsets. */
-function playheadXInMeasure(bounds, bar, progress, anchors) {
-  const local = barLocalRatio(bar, progress);
-  const pad = Math.min(10, Math.max(2, bounds.width * 0.02));
-  const xMin = bounds.left + pad;
-  const xMax = bounds.left + bounds.width - pad;
-
-  if (!anchors?.length) {
-    return xMin + local * Math.max(0, xMax - xMin);
+/**
+ * Everything the playhead needs for one bar: where the bar sits and which x
+ * belongs to which moment. Measured once per bar (and again if the score is
+ * re-engraved or the tempo changes) — never on every animation frame, which
+ * forced a layout 60 times a second and made playback stutter.
+ */
+let _phGeo = null;
+function playheadGeometry(bar, host) {
+  const svg = host.querySelector("svg");
+  const total = LunePiano.duration() || 0;
+  const g = _phGeo;
+  if (g && g.bar === bar && g.osmd === state.osmd && g.svg === svg && g.w === host.clientWidth && g.total === total) {
+    return g;
   }
-
+  const bounds = LuneAnnotate.measureBoundsInHost?.(state.osmd, host, bar);
+  if (!bounds) return null;
+  const anchors = LuneAnnotate.playheadAnchorsInHost?.(state.osmd, host, bar) || [];
   const marks = LunePiano.barMarkers?.() || [];
   const idx = marks.findIndex((m) => Number(m.bar) === Number(bar));
   const startT = idx >= 0 ? marks[idx].t : 0;
-  const endT =
-    idx >= 0 && idx + 1 < marks.length
-      ? marks[idx + 1].t
-      : LunePiano.duration() || startT + 1;
-  const barQl = Math.max(
-    0.25,
-    barLengthQuarters(bar, null) || signatureBarQuarters() || 4
-  );
+  const endT = idx >= 0 && idx + 1 < marks.length ? marks[idx + 1].t : total || startT + 1;
+  const span = Math.max(0.001, endT - startT);
+  const barQl = Math.max(0.25, barLengthQuarters(bar, null) || signatureBarQuarters() || 4);
+  const pad = Math.min(10, Math.max(2, bounds.width * 0.02));
 
-  // Timed anchors: prefer event onsets in this bar (seconds), matched by barOff.
-  const timed = [];
+  // Each engraved onset gets the time its note sounds (by offset in the bar).
+  const byQ = new Map();
   try {
-    const ev = (LunePiano.getEvents?.() || []).filter((e) => Number(e.bar) === Number(bar));
-    const byQ = new Map();
-    for (const e of ev) {
-      const q = Number.isFinite(e.barOff) ? e.barOff : null;
-      if (q == null) continue;
-      if (!byQ.has(Math.round(q * 1000))) byQ.set(Math.round(q * 1000), e.t);
-    }
-    for (const a of anchors) {
-      const t = byQ.get(Math.round(a.q * 1000));
-      if (t != null) timed.push({ t, x: a.x });
-      else {
-        // Fall back: map quarter offset → time via bar span (constant-tempo approx).
-        const tApprox = startT + (a.q / barQl) * Math.max(0.001, endT - startT);
-        timed.push({ t: tApprox, x: a.x });
-      }
+    for (const e of LunePiano.getEvents?.() || []) {
+      if (Number(e.bar) !== Number(bar) || !Number.isFinite(e.barOff)) continue;
+      const k = Math.round(e.barOff * 1000);
+      if (!byQ.has(k)) byQ.set(k, e.t);
     }
   } catch {
-    for (const a of anchors) {
-      timed.push({
-        t: startT + (a.q / barQl) * Math.max(0.001, endT - startT),
-        x: a.x,
-      });
-    }
+    /* constant-tempo fallback below */
   }
-  timed.sort((a, b) => a.t - b.t);
+  const timed = anchors
+    .map((a) => ({ t: byQ.get(Math.round(a.q * 1000)) ?? startT + (a.q / barQl) * span, x: a.x }))
+    .sort((a, b) => a.t - b.t);
 
+  _phGeo = {
+    bar,
+    osmd: state.osmd,
+    svg,
+    w: host.clientWidth,
+    total,
+    bounds,
+    timed,
+    startT,
+    endT,
+    xMin: bounds.left + pad,
+    xMax: bounds.left + bounds.width - pad,
+  };
+  return _phGeo;
+}
+
+/** Playhead x at this moment: glides between the bar's engraved onsets. */
+function playheadX(g, progress) {
+  const { timed, startT, endT, xMin, xMax } = g;
+  if (!timed.length) {
+    const u = Math.max(0, Math.min(1, (progress - startT) / Math.max(0.001, endT - startT)));
+    return xMin + u * Math.max(0, xMax - xMin);
+  }
   const first = timed[0];
   const last = timed[timed.length - 1];
-  // Lead-in before first onset (rests / pickup silence inside the bar)
+  // Lead-in before the first onset (rests / pickup silence inside the bar)
   if (progress <= first.t) {
-    const lead = Math.max(0.001, first.t - startT);
-    const u = Math.max(0, Math.min(1, (progress - startT) / lead));
+    const u = Math.max(0, Math.min(1, (progress - startT) / Math.max(0.001, first.t - startT)));
     return xMin + u * Math.max(0, first.x - xMin);
   }
   if (progress >= last.t) {
-    const tail = Math.max(0.001, endT - last.t);
-    const u = Math.max(0, Math.min(1, (progress - last.t) / tail));
+    const u = Math.max(0, Math.min(1, (progress - last.t) / Math.max(0.001, endT - last.t)));
     return last.x + u * Math.max(0, xMax - last.x);
   }
   for (let i = 0; i < timed.length - 1; i++) {
     const a = timed[i];
     const b = timed[i + 1];
-    if (progress >= a.t && progress <= b.t) {
-      const span = Math.max(0.001, b.t - a.t);
-      const u = (progress - a.t) / span;
-      return a.x + u * (b.x - a.x);
-    }
+    if (progress >= a.t && progress <= b.t) return a.x + ((progress - a.t) / Math.max(0.001, b.t - a.t)) * (b.x - a.x);
   }
   return first.x;
 }
@@ -2286,6 +2390,7 @@ function placePlayhead(bar, progress = 0, total = 0) {
     line.hidden = true;
     line.classList.remove("on", "playing");
     line.style.transform = "";
+    line._geo = null;
     line.style.height = "";
     line.style.top = "";
     if (hilite) {
@@ -2304,30 +2409,32 @@ function placePlayhead(bar, progress = 0, total = 0) {
   // Prefer OSMD measure geometry when the score is on stage
   const host = $("osmd");
   const scroll = $("score-scroll");
-  const bounds =
-    state.osmd && host && !host.hidden
-      ? LuneAnnotate.measureBoundsInHost?.(state.osmd, host, bar)
-      : null;
+  const geo =
+    state.osmd && host && !host.hidden && scroll && state.panel === "score" ? playheadGeometry(bar, host) : null;
+  const bounds = geo?.bounds || null;
 
-  if (bounds && scroll && state.panel === "score") {
-    const anchors = LuneAnnotate.playheadAnchorsInHost?.(state.osmd, host, bar) || null;
-    const x = playheadXInMeasure(bounds, bar, progress, anchors);
+  if (bounds) {
+    const x = playheadX(geo, progress);
     const playing = !!LunePiano.isPlaying?.();
+    const barChangedNow = _playheadLastBar !== Number(bar) || line.hidden;
     line.hidden = false;
     line.classList.add("on");
     line.classList.toggle("playing", playing && !state.scrubbing);
-    line.style.top = `${Math.max(0, bounds.top - 6)}px`;
-    line.style.height = `${bounds.height + 12}px`;
-    line.style.left = "0";
-    line.style.transform = `translate3d(${x}px,0,0)`;
-
-    if (hilite) {
-      hilite.hidden = false;
-      hilite.style.left = `${bounds.left}px`;
-      hilite.style.top = `${bounds.top}px`;
-      hilite.style.width = `${bounds.width}px`;
-      hilite.style.height = `${bounds.height}px`;
+    // Only the x moves within a bar; the box is set once per bar.
+    if (barChangedNow || line._geo !== geo) {
+      line._geo = geo;
+      line.style.top = `${Math.max(0, bounds.top - 6)}px`;
+      line.style.height = `${bounds.height + 12}px`;
+      line.style.left = "0";
+      if (hilite) {
+        hilite.hidden = false;
+        hilite.style.left = `${bounds.left}px`;
+        hilite.style.top = `${bounds.top}px`;
+        hilite.style.width = `${bounds.width}px`;
+        hilite.style.height = `${bounds.height}px`;
+      }
     }
+    line.style.transform = `translate3d(${x}px,0,0)`;
 
     // Follow the sounding measure without smooth-scroll rocking.
     // During playback: instant scroll, only on bar change, and only when
@@ -2572,9 +2679,9 @@ function syncKbdToggleUi() {
 function applyKeyboardVisibility(on) {
   const dock = $("piano-dock");
   if (!dock) return;
-  const show =
-    (state.panel === "piano" && on !== false) ||
-    (state.panel === "score" && !!on);
+  // The Piano tab draws its own keyboard under the falling notes, lined up
+  // key for key; the dock is the slim keyboard under the score.
+  const show = state.panel === "score" && !!on;
   if (state.panel === "score") state.keyboardVisible = !!on;
   if (state.panel === "piano") state.keyboardVisible = true;
 
@@ -2621,7 +2728,7 @@ function clearKeyboard() {
 }
 
 function onPianoKeys(payload) {
-  if (!state.keyboardVisible && state.panel !== "piano") return;
+  if (!state.keyboardVisible || state.panel !== "score") return;
   const kbd = ensureKeyboard();
   if (!kbd) return;
   if (payload?.changed !== false || payload?.active?.length) {
@@ -3347,7 +3454,7 @@ async function renderScore() {
   // the engraver reserves the space and spaces bars so labels never collide.
   const laneMode = wantFingers ? "fingers" : wantLetters ? "letters" : "off";
   state.renderedLaneMode = laneMode;
-  const xml = LuneLane.build(base, { mode: laneMode, debriefs: state.piece.debriefs || {} });
+  const xml = LuneLane.build(LuneLane.printed(base), { mode: laneMode, debriefs: state.piece.debriefs || {} });
   $("osmd").hidden = false;
   $("osmd").innerHTML = "";
   const osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay($("osmd"), {
@@ -4065,10 +4172,12 @@ function bind() {
     }
     e.preventDefault();
     const id = b.dataset.openPiece;
+    // The landing's "Open Clair de lune" goes straight to the page of music.
+    const panel = b.dataset.openPanel === "score" ? "score" : "explain";
     try {
-      history.pushState({ lune: id }, "", `${location.pathname}${location.search}#/${id}/explain`);
+      history.pushState({ lune: id }, "", `${location.pathname}${location.search}#/${id}/${panel}`);
     } catch {
-      location.hash = `#/${id}/explain`;
+      location.hash = `#/${id}/${panel}`;
       return;
     }
     applyRoute().catch((err) => toast(err.message));

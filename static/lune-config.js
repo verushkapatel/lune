@@ -13,6 +13,9 @@ window.LUNE_CONFIG = {
   ownerEmail: "verushkapatel@icloud.com",
   /** Inbox for replies / feedback (also used as mailto on the site). */
   feedbackEmail: "info@lune.page",
+  /** Form-to-email relay for the Feedback form: answers are posted to
+   *  <relay><feedbackEmail> and arrive as an email. Empty string turns it off. */
+  feedbackRelay: "https://formsubmit.co/ajax/",
   /** Auth / OTP sender identity (Supabase SMTP From). */
   authEmail: "login@lune.page",
 };

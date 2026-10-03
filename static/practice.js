@@ -201,7 +201,7 @@ window.LunePractice = (function () {
     return !!Recognition && !!window.isSecureContext;
   }
   /** Open coach note field for the current/selected bar (type fallback). */
-  function focusTypeNote(bar) {
+  function focusTypeNote(bar, text = "") {
     const target = bar || state.selected || selectedBarsSorted()[0] || null;
     if (target != null) {
       try {
@@ -215,6 +215,8 @@ window.LunePractice = (function () {
     setTimeout(() => {
       const ta = document.getElementById("lp-note-input");
       if (ta) {
+        // words already spoken are kept, ready to save
+        if (text && !ta.value) ta.value = text;
         ta.focus();
         ta.placeholder = ta.placeholder || "Type a note for this bar";
       }
@@ -254,12 +256,21 @@ window.LunePractice = (function () {
       };
       rec.onerror = (e) => {
         activeRec = null;
+        // stopping it yourself is not a failure: keep whatever was heard
+        if (e.error === "aborted") {
+          resolve(finalText.trim());
+          return;
+        }
         const why =
           e.error === "not-allowed" || e.error === "service-not-allowed"
-            ? "Lune needs microphone permission — type your note instead."
+            ? "Lune needs the microphone for voice notes. Allow it in the address bar, or type the note."
             : e.error === "no-speech"
-              ? "Didn’t catch that — try again, or type the note."
-              : "Voice notes aren’t available right now — type the note instead.";
+              ? "Didn’t catch that — tap the microphone and try again, or type the note."
+              : e.error === "audio-capture"
+                ? "No microphone found — type the note instead."
+                : e.error === "network"
+                  ? "Voice notes need an internet connection in this browser — type the note instead."
+                  : "Voice notes aren’t available right now — type the note instead.";
         reject(new Error(why));
       };
       rec.onend = () => {
@@ -289,7 +300,12 @@ window.LunePractice = (function () {
       stopHearing();
       return;
     }
-    if (!state.piece) return;
+    if (!state.piece) {
+      toast("Open a score first — then say a note for any bar.");
+      return;
+    }
+    // one listener on the microphone at a time
+    if (window.LuneFollow?.isOn?.()) await window.LuneFollow.stop({ quiet: true }).catch(() => {});
     const sel = state.selected || selectedBarsSorted()[0] || null;
     if (!canListenForWords()) {
       if (!window.isSecureContext && !_voiceSecureToasted) {
@@ -318,8 +334,10 @@ window.LunePractice = (function () {
         return;
       }
       if (!bar) {
-        toast("Which bar? Tap one, then type or say the note.");
-        focusTypeNote(sel);
+        // No bar named and none selected: keep the words and ask where they go.
+        const guess = Number(LunePiano.currentBar?.()) || pieceBarSpan()[0];
+        toast(`Got it. Say “bar 12 …” next time, or press Save to put this on bar ${guess}.`);
+        focusTypeNote(guess, body);
         return;
       }
       if (!debriefFor(bar)) {
@@ -674,6 +692,19 @@ window.LunePractice = (function () {
         await switchToScorePanel();
       } else {
         const xml = await store.loadUploadedScore(key);
+        if (!xml && row?.title) {
+          // A piece added by name has no file of its own. If the library has
+          // that piece, open it — keeping this Repertoire entry's notes.
+          const found = await withLoader("Finding the score", () =>
+            tryOpen({ query: row.title, title: row.title, composer: row.composer || "" })
+          ).catch(() => null);
+          if (found?.kind === "score" && found.musicxml) {
+            found.repKey = key;
+            await openPieceSession(found, { panel: "explain" });
+            await switchToScorePanel();
+            return;
+          }
+        }
         if (!xml) {
           pendingAttach = { key, title: row?.title || "your piece" };
           toast(`Choose the score file for “${row?.title || "this piece"}” to open it.`);
@@ -805,8 +836,16 @@ window.LunePractice = (function () {
     main.addEventListener("change", async (e) => {
       const sel = e.target.closest("select[data-status]");
       if (sel) {
-        await store.updatePiece(sel.dataset.status, { status: sel.value });
-        toast("Status updated");
+        const label = sel.selectedOptions[0]?.textContent || sel.value;
+        try {
+          await store.updatePiece(sel.dataset.status, { status: sel.value });
+          // the saved choice is now what the list shows; nothing to rebuild
+          const list = $("rep-list");
+          if (list) list.dataset.painted = "";
+          toast(`Marked ${label.toLowerCase()}`);
+        } catch (err) {
+          toast(`Couldn’t save that — ${err.message || "check the connection"}`);
+        }
       }
     });
     return main;
@@ -986,7 +1025,7 @@ window.LunePractice = (function () {
           .join("")
       : `<p class="rep-empty">No tasks yet. On a score, select bars and tap <em>Add to plan</em> — or speak a note and let Lune summarise it.</p>`;
 
-    listEl.innerHTML = pieces.length
+    const listHtml = pieces.length
       ? pieces
           .map((p) => {
             const n = counts[p.piece_key] || 0;
@@ -1011,6 +1050,13 @@ window.LunePractice = (function () {
           })
           .join("")
       : `<p class="rep-empty">Your Repertoire is empty. Type a piece above, or press <em>Add to Repertoire</em> on any score.</p>`;
+    // Rebuilding identical cards closes an open status menu and drops clicks
+    // that are in progress, so the list is only replaced when it changed.
+    const listChanged = listEl.dataset.painted !== listHtml;
+    if (listChanged) {
+      listEl.dataset.painted = listHtml;
+      listEl.innerHTML = listHtml;
+    }
     const addSec = $("rep-add-section");
     const todaySec = $("rep-today")?.closest(".rep-section");
     const listWrap = $("rep-list")?.closest(".rep-section");
@@ -1023,6 +1069,7 @@ window.LunePractice = (function () {
         listWrap.after(addSec);
       }
     }
+    if (!listChanged) return;
     listEl.querySelectorAll("[data-card-more]").forEach((btn) => {
       const key = btn.dataset.cardMore;
       const piece = pieces.find((p) => p.piece_key === key);
@@ -1489,8 +1536,11 @@ window.LunePractice = (function () {
       // Keep Owner stats as its own clear entry (user count) — not only under Impact.
       items.push({ label: "Owner stats", action: () => openOwnerStats() });
       items.push({ label: "Impact", action: () => window.LuneImpact?.openOwnerImpact?.() });
+      items.push({ label: "Feedback received", action: () => window.LuneFeedback?.openOwner?.() });
     }
     items.push({ label: "Reading & access", action: () => openAccessDialog() });
+    items.push({ label: "Feedback", action: () => window.LuneFeedback?.open?.() });
+    if (window.LuneInstall?.available?.()) items.push({ label: "Install Lune", action: () => window.LuneInstall.install() });
     items.push({ label: "Credits & licenses", action: () => document.querySelector("[data-open-credits]")?.click() });
     if (!studio) items.push({ label: "Privacy", action: () => openCreditsPrivacy() });
     return items;
@@ -1854,22 +1904,34 @@ window.LunePractice = (function () {
     const last = pieces[0];
     const n = store.listTasks().filter((t) => !t.done).length;
     host.hidden = false;
-    host.innerHTML = `<p class="home-continue-k">Continue</p>
+    const html = `<p class="home-continue-k">Continue</p>
       <p class="home-continue-t">${esc(last.title)}</p>
       <div class="home-continue-actions">
         <button type="button" class="primary" data-open="${esc(last.piece_key)}">Open</button>
         ${n ? `<button type="button" class="quiet" data-go-rep>${n} task${n === 1 ? "" : "s"} in your plan</button>` : ""}
       </div>`;
+    // Replacing the button while it is being pressed loses the click.
+    if (host.dataset.painted !== html) {
+      host.dataset.painted = html;
+      host.innerHTML = html;
+    }
     host.onclick = (e) => {
       const b = e.target.closest("button");
-      if (!b) return;
-      if (b.hasAttribute("data-go-rep")) showRepertoire();
-      else if (b.dataset.open) openFromRepertoire(b.dataset.open).catch((err) => toast(err.message));
+      if (!b || b.disabled) return;
+      if (b.hasAttribute("data-go-rep")) return showRepertoire();
+      if (!b.dataset.open) return;
+      b.disabled = true;
+      openFromRepertoire(b.dataset.open)
+        .catch((err) => toast(err.message))
+        .finally(() => {
+          b.disabled = false;
+        });
     };
   }
 
   return {
     init,
+    stopHearing,
     keyFor,
     parseSpoken,
     tagsFor,

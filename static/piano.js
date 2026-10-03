@@ -39,7 +39,9 @@ window.LunePiano = (function () {
   /** Schedule a hair ahead of now so the first note never clicks against a cold bus. */
   const SCHEDULE_PAD = 0.055;
   /** Musical-time look-ahead — keeps Stop able to silence (no long Tone queue). */
-  const LOOKAHEAD = 0.14;
+  const LOOKAHEAD = 0.4;
+  /** When the tab is hidden, frames stop and timers slow to about one a second. */
+  const LOOKAHEAD_HIDDEN = 2.2;
 
   const RATES = [0.5, 0.75, 1, 1.25, 1.5];
 
@@ -268,6 +270,10 @@ window.LunePiano = (function () {
           midi: n.midi,
           bar: n.bar || null,
           name: midiToNote(n.midi),
+          // the score's own spelling (A♭, not G♯) for labels
+          label: String(n.letter || n.pitch || "")
+            .replace(/-?\d+$/, "")
+            .replace(/^([A-Ga-g])(.*)$/, (m, a, acc) => a.toUpperCase() + acc.replace(/b/g, "♭").replace(/#/g, "♯")),
           finger,
           hand: n.hand || null,
         };
@@ -398,21 +404,28 @@ window.LunePiano = (function () {
     if (output) output.mute = false;
   }
 
+  // Next event to consider. Events are sorted by time, so each one is looked
+  // at once instead of the whole piece being scanned on every frame.
+  let pumpCursor = 0;
+  let pumpTimer = 0;
+
   function pumpSchedule(at) {
     if (!sampler || !playing) return;
     openBus();
-    const epoch = audioEpoch;
     const r = Math.max(0.25, rate);
-    const horizon = at + LOOKAHEAD;
+    // Look-ahead is in musical time, so scale it by the rate to keep the same
+    // wall-clock margin; hidden tabs get a long one because timers crawl there.
+    const horizon = at + (document.hidden ? LOOKAHEAD_HIDDEN : LOOKAHEAD) * r;
     const now = Tone.now() + SCHEDULE_PAD;
-    for (let i = 0; i < events.length; i++) {
+    while (pumpCursor < events.length) {
+      const i = pumpCursor;
       const e = events[i];
       if (e.t > horizon) break;
+      pumpCursor += 1;
       if (e.t + e.dur <= at) continue;
       if (!passesHand(e)) continue;
-      const key = `${epoch}:${i}`;
-      if (scheduled.has(key)) continue;
-      scheduled.add(key);
+      if (scheduled.has(i)) continue;
+      scheduled.add(i);
       // Wall-clock delay scaled by playback rate (slow-mo stretches attacks)
       const when = now + Math.max(0, (e.t - at) / r);
       // Keep a short release tail in wall time so notes don't chop at any rate
@@ -456,13 +469,27 @@ window.LunePiano = (function () {
       /* ignore */
     }
     scheduled.clear();
+    // Start from the first event still sounding at this point.
+    pumpCursor = 0;
+    while (pumpCursor < events.length && events[pumpCursor].t + events[pumpCursor].dur <= at) pumpCursor += 1;
+    // Long notes that began earlier sit behind the cursor: rewind to cover them.
+    let back = pumpCursor;
+    while (back > 0 && events[back - 1].t > at - 30) back -= 1;
+    pumpCursor = back;
     openBus();
     pumpSchedule(at);
+    // Frames stop in a background tab; this keeps the music going there.
+    clearInterval(pumpTimer);
+    pumpTimer = setInterval(() => {
+      if (playing) pumpSchedule(progress());
+    }, 100);
   }
 
   function clearAudio() {
     cancelAnimationFrame(raf);
     raf = 0;
+    clearInterval(pumpTimer);
+    pumpTimer = 0;
     audioEpoch += 1;
     scheduled.clear();
     try {
@@ -881,6 +908,8 @@ window.LunePiano = (function () {
     getTempoBpm,
     setTempoMap,
     getEvents,
+    /** The live timeline itself (read only) — a new array whenever it is rebuilt. */
+    eventsRef: () => events,
     setMeter,
     getMeter,
     setMetronome,
@@ -895,33 +924,41 @@ window.LunePiano = (function () {
   };
 })();
 
-/* Falling-note piano tutorial (MuseScore-style) above the keyboard. */
+/* Falling-note piano tutorial.
+ *
+ * One canvas holds both the falling notes and the keyboard, so a note always
+ * lands on exactly the key it belongs to. The keyboard covers the range the
+ * piece uses (whole octaves, at least three) rather than all 88 keys, which
+ * keeps the keys wide enough to read. Right hand is white, left hand is the
+ * steel blue used for it elsewhere; each note carries its name and finger,
+ * and bar lines scroll down with the music.
+ */
 window.LuneTutorial = (function () {
   const WHITE_PC = new Set([0, 2, 4, 5, 7, 9, 11]);
-  const MIDI_LO = 21;
-  const MIDI_HI = 108;
+  const LOOK_AHEAD = 3.4; // seconds of music visible above the keys
+  const COLORS = {
+    rh: { note: "#f2f2f2", noteBlack: "#c4c4c4", key: "#bdbdbd", keyBlack: "#8f8f8f", ink: "#0a0a0a" },
+    lh: { note: "#8fa0c0", noteBlack: "#6b7fa3", key: "#8799bb", keyBlack: "#4a6aa3", ink: "#0a0f1c" },
+  };
+
   let canvas = null;
   let ctx = null;
   let host = null;
   let raf = 0;
-  let lookAhead = 3.6;
+  let ro = null;
   let handFilter = "both"; // both | rh | lh
+  let eventsRef = null; // the timeline the layout below was built for
+  let events = [];
+  let maxDur = 0;
+  let bars = [];
+  let layout = null;
 
-  function isBlack(midi) {
-    return !WHITE_PC.has(((midi % 12) + 12) % 12);
-  }
-
-  function whiteIndex(midi) {
-    let n = 0;
-    for (let m = MIDI_LO; m < midi; m++) if (!isBlack(m)) n += 1;
-    return n;
-  }
-
-  function totalWhites() {
-    let n = 0;
-    for (let m = MIDI_LO; m <= MIDI_HI; m++) if (!isBlack(m)) n += 1;
-    return n;
-  }
+  const isBlack = (midi) => !WHITE_PC.has(((midi % 12) + 12) % 12);
+  const isLeft = (e) => {
+    const h = String(e.hand || "").toLowerCase();
+    return h === "lh" || h === "l" || h === "left";
+  };
+  const shown = (e) => handFilter === "both" || (handFilter === "lh") === isLeft(e);
 
   function mount(el) {
     host = el;
@@ -929,6 +966,14 @@ window.LuneTutorial = (function () {
     canvas = host.querySelector("canvas") || document.createElement("canvas");
     if (!canvas.parentNode) host.appendChild(canvas);
     ctx = canvas.getContext("2d");
+    if (!ro && "ResizeObserver" in window) {
+      ro = new ResizeObserver(() => {
+        resize();
+        paint(window.LunePiano?.progress?.() || 0);
+      });
+    }
+    ro?.disconnect();
+    ro?.observe(host);
     resize();
   }
 
@@ -936,109 +981,279 @@ window.LuneTutorial = (function () {
     if (!host || !canvas) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const w = host.clientWidth || 640;
-    const h = host.clientHeight || 220;
+    const h = host.clientHeight || 320;
     canvas.width = Math.max(1, Math.floor(w * dpr));
     canvas.height = Math.max(1, Math.floor(h * dpr));
     canvas.style.width = `${w}px`;
     canvas.style.height = `${h}px`;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    layout = null;
   }
 
-  function midiX(midi, width, whites) {
-    const wi = whiteIndex(midi);
-    const keyW = width / whites;
-    if (isBlack(midi)) return wi * keyW;
-    return wi * keyW + keyW * 0.08;
+  /** Pick up a new timeline (new piece, new tempo) without copying it every frame. */
+  function syncEvents() {
+    const ref = window.LunePiano?.eventsRef?.() || [];
+    if (ref === eventsRef) return;
+    eventsRef = ref;
+    events = ref;
+    maxDur = 0;
+    for (const e of events) if (e.dur > maxDur) maxDur = e.dur;
+    bars = window.LunePiano?.barMarkers?.() || [];
+    layout = null;
   }
 
-  function midiW(midi, width, whites) {
-    const keyW = width / whites;
-    return isBlack(midi) ? keyW * 0.55 : keyW * 0.84;
-  }
-
-  function paint(at) {
-    if (!ctx || !canvas) return;
-    const w = host.clientWidth || 640;
-    const h = host.clientHeight || 220;
-    const whites = totalWhites();
-    const hitY = h - 10;
-    const pps = (hitY - 24) / lookAhead;
-    const events = (window.LunePiano?.getEvents?.() || []).filter((e) => {
-      if (e.t + e.dur < at - 0.05 || e.t > at + lookAhead) return false;
-      const h = String(e.hand || "").toLowerCase();
-      const isLh = h === "lh" || h === "l" || h === "left";
-      if (handFilter === "rh") return !isLh;
-      if (handFilter === "lh") return isLh;
-      return true;
-    });
-
-    ctx.clearRect(0, 0, w, h);
-    // MuseScore-style lane guides on white-key columns
-    for (let m = MIDI_LO; m <= MIDI_HI; m++) {
-      if (isBlack(m)) continue;
-      const x = midiX(m, w, whites);
-      const kw = midiW(m, w, whites);
-      ctx.fillStyle = m % 12 === 0 ? "rgba(255,255,255,0.045)" : "rgba(255,255,255,0.018)";
-      ctx.fillRect(x, 0, kw, h);
-      ctx.strokeStyle = "rgba(255,255,255,0.04)";
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, h);
-      ctx.stroke();
-    }
-    // hit line
-    ctx.strokeStyle = "rgba(245,245,245,0.65)";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(0, hitY);
-    ctx.lineTo(w, hitY);
-    ctx.stroke();
-    ctx.fillStyle = "rgba(245,245,245,0.08)";
-    ctx.fillRect(0, hitY - 10, w, 20);
-
-    for (const e of events) {
-      const x = midiX(e.midi, w, whites);
-      const bw = Math.max(5, midiW(e.midi, w, whites));
-      const top = hitY - (e.t - at) * pps - e.dur * pps;
-      const bh = Math.max(8, e.dur * pps);
-      const active = e.t <= at && e.t + e.dur > at;
-      const h = String(e.hand || "").toLowerCase();
-      const rh = !(h === "lh" || h === "l" || h === "left");
-      // RH: bright white bars · LH: soft steel accent (navy only here)
-      if (active) {
-        ctx.fillStyle = rh ? "#f5f5f5" : "#8fa0c0";
-      } else {
-        ctx.fillStyle = rh ? "rgba(235,235,235,0.72)" : "rgba(107,127,163,0.7)";
-      }
-      const r = Math.min(4, bw / 2);
-      roundRect(ctx, x, top, bw, bh, r);
-      ctx.fill();
-      if (e.finger && bh > 16 && bw > 11) {
-        ctx.fillStyle = active ? "#0a0a0a" : "rgba(10,10,10,0.8)";
-        ctx.font = "600 12px Fraunces, Georgia, serif";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(String(e.finger), x + bw / 2, top + Math.min(bh / 2, 14));
+  /** Key geometry for the range this piece needs. */
+  function buildLayout(w, h) {
+    let lo = 60;
+    let hi = 72;
+    if (events.length) {
+      lo = Infinity;
+      hi = -Infinity;
+      for (const e of events) {
+        if (e.midi < lo) lo = e.midi;
+        if (e.midi > hi) hi = e.midi;
       }
     }
+    // whole octaves, C up to B, with a little air either side
+    lo = Math.floor((lo - 1) / 12) * 12;
+    hi = Math.ceil((hi + 2) / 12) * 12 - 1;
+    while (hi - lo + 1 < 36) {
+      if (lo > 24) lo -= 12;
+      if (hi - lo + 1 < 36 && hi < 107) hi += 12;
+      if (lo <= 24 && hi >= 107) break;
+    }
+    lo = Math.max(21, lo);
+    hi = Math.min(108, hi);
+
+    let whites = 0;
+    for (let m = lo; m <= hi; m++) if (!isBlack(m)) whites += 1;
+    const whiteW = w / whites;
+    const blackW = whiteW * 0.62;
+    const keys = new Map();
+    let wi = 0;
+    for (let m = lo; m <= hi; m++) {
+      if (isBlack(m)) keys.set(m, { x: wi * whiteW - blackW / 2, w: blackW, black: true });
+      else {
+        keys.set(m, { x: wi * whiteW, w: whiteW, black: false });
+        wi += 1;
+      }
+    }
+    const kbH = Math.max(72, Math.min(150, h * 0.27));
+    const rollH = h - kbH;
+    return { lo, hi, keys, whiteW, kbH, rollH, w, h, pps: rollH / LOOK_AHEAD };
   }
 
   function roundRect(c, x, y, w, h, r) {
+    const rr = Math.max(0, Math.min(r, w / 2, h / 2));
     c.beginPath();
-    c.moveTo(x + r, y);
-    c.arcTo(x + w, y, x + w, y + h, r);
-    c.arcTo(x + w, y + h, x, y + h, r);
-    c.arcTo(x, y + h, x, y, r);
-    c.arcTo(x, y, x + w, y, r);
+    c.moveTo(x + rr, y);
+    c.arcTo(x + w, y, x + w, y + h, rr);
+    c.arcTo(x + w, y + h, x, y + h, rr);
+    c.arcTo(x, y + h, x, y, rr);
+    c.arcTo(x, y, x + w, y, rr);
     c.closePath();
+  }
+
+  /** First event that could still be on screen at this moment. */
+  function firstVisible(at) {
+    const from = at - maxDur - 0.1;
+    let a = 0;
+    let b = events.length;
+    while (a < b) {
+      const mid = (a + b) >> 1;
+      if (events[mid].t < from) a = mid + 1;
+      else b = mid;
+    }
+    return a;
+  }
+
+  function paint(at) {
+    if (!ctx || !canvas || !host) return;
+    syncEvents();
+    const w = host.clientWidth || 640;
+    const h = host.clientHeight || 320;
+    if (!layout || layout.w !== w || layout.h !== h) layout = buildLayout(w, h);
+    const L = layout;
+    const { rollH, kbH, pps, keys } = L;
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "#050505";
+    ctx.fillRect(0, 0, w, rollH);
+
+    // lanes: a faint column under every black key, a line at each C
+    for (let m = L.lo; m <= L.hi; m++) {
+      const k = keys.get(m);
+      if (k.black) {
+        ctx.fillStyle = "rgba(255,255,255,0.022)";
+        ctx.fillRect(k.x, 0, k.w, rollH);
+      } else if (m % 12 === 0 || m % 12 === 5) {
+        ctx.fillStyle = m % 12 === 0 ? "rgba(255,255,255,0.09)" : "rgba(255,255,255,0.04)";
+        ctx.fillRect(Math.round(k.x), 0, 1, rollH);
+      }
+    }
+
+    if (!events.length) {
+      ctx.fillStyle = "#7a7a7a";
+      ctx.font = "15px Fraunces, Georgia, serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("Press Play — the notes fall onto the keys.", w / 2, rollH / 2);
+    }
+
+    // bar lines travel down with the music
+    ctx.font = "11px Fraunces, Georgia, serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "bottom";
+    for (const b of bars) {
+      if (b.t < at - 0.05) continue;
+      if (b.t > at + LOOK_AHEAD) break;
+      const y = Math.round(rollH - (b.t - at) * pps) + 0.5;
+      ctx.strokeStyle = "rgba(255,255,255,0.13)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+      ctx.fillStyle = "rgba(255,255,255,0.38)";
+      ctx.fillText(String(b.bar), 6, y - 3);
+    }
+
+    // falling notes
+    const pressed = new Map(); // midi → event sounding now
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, w, rollH);
+    ctx.clip();
+    for (let i = firstVisible(at); i < events.length; i++) {
+      const e = events[i];
+      if (e.t > at + LOOK_AHEAD) break;
+      if (e.t + e.dur < at || !shown(e)) continue;
+      const k = keys.get(e.midi);
+      if (!k) continue;
+      const tone = COLORS[isLeft(e) ? "lh" : "rh"];
+      const active = e.t <= at;
+      if (active) pressed.set(e.midi, e);
+      const inset = k.black ? 0 : Math.min(3, k.w * 0.12);
+      const x = k.x + inset;
+      const bw = k.w - inset * 2;
+      const bottom = rollH - (e.t - at) * pps;
+      const top = bottom - e.dur * pps + 2; // a hair of air between repeated notes
+      const bh = Math.max(6, bottom - top);
+      ctx.fillStyle = k.black ? tone.noteBlack : tone.note;
+      ctx.globalAlpha = active ? 1 : 0.86;
+      if (active) {
+        ctx.shadowColor = tone.note;
+        ctx.shadowBlur = 14;
+      }
+      roundRect(ctx, x, bottom - bh, bw, bh, Math.min(5, bw / 2));
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+
+      // name at the end that reaches the key first, finger above it
+      if (bw >= 13) {
+        ctx.fillStyle = tone.ink;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "alphabetic";
+        const cx = x + bw / 2;
+        const size = Math.max(9, Math.min(13, bw * 0.5));
+        if (e.label && bh >= size + 6) {
+          ctx.font = `600 ${size}px Fraunces, Georgia, serif`;
+          ctx.fillText(e.label, cx, bottom - 5);
+        }
+        if (e.finger && bh >= size * 2 + 12) {
+          ctx.font = `${size - 1}px Fraunces, Georgia, serif`;
+          ctx.globalAlpha = 0.7;
+          ctx.fillText(String(e.finger), cx, bottom - 8 - size);
+          ctx.globalAlpha = 1;
+        }
+      }
+    }
+    ctx.restore();
+
+    // keyboard
+    const ky = rollH;
+    ctx.fillStyle = "#0a0a0a";
+    ctx.fillRect(0, ky, w, kbH);
+    for (let m = L.lo; m <= L.hi; m++) {
+      const k = keys.get(m);
+      if (k.black) continue;
+      const hit = pressed.get(m);
+      const tone = hit ? COLORS[isLeft(hit) ? "lh" : "rh"] : null;
+      const g = ctx.createLinearGradient(0, ky, 0, ky + kbH);
+      if (tone) {
+        g.addColorStop(0, tone.key);
+        g.addColorStop(1, tone.note);
+      } else {
+        g.addColorStop(0, "#e9e6de");
+        g.addColorStop(1, "#f7f5ef");
+      }
+      ctx.fillStyle = g;
+      roundRect(ctx, k.x + 0.5, ky + 2, k.w - 1, kbH - 3, 3);
+      ctx.fill();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "alphabetic";
+      if (hit?.finger && k.w >= 12) {
+        ctx.fillStyle = tone.ink;
+        ctx.font = `600 ${Math.min(14, k.w * 0.55)}px Fraunces, Georgia, serif`;
+        ctx.fillText(String(hit.finger), k.x + k.w / 2, ky + kbH - 10);
+      } else if (m % 12 === 0 && k.w >= 14) {
+        ctx.fillStyle = "#8d887c";
+        ctx.font = "9px Fraunces, Georgia, serif";
+        ctx.fillText(`C${m / 12 - 1}`, k.x + k.w / 2, ky + kbH - 8);
+      }
+    }
+    const blackH = kbH * 0.62;
+    for (let m = L.lo; m <= L.hi; m++) {
+      const k = keys.get(m);
+      if (!k.black) continue;
+      const hit = pressed.get(m);
+      const tone = hit ? COLORS[isLeft(hit) ? "lh" : "rh"] : null;
+      ctx.fillStyle = tone ? tone.keyBlack : "#121212";
+      roundRect(ctx, k.x, ky + 2, k.w, blackH, 2.5);
+      ctx.fill();
+      if (!tone) {
+        ctx.fillStyle = "rgba(255,255,255,0.07)";
+        ctx.fillRect(k.x + 1.5, ky + 3, k.w - 3, blackH - 8);
+      } else if (hit.finger && k.w >= 11) {
+        ctx.fillStyle = "#fafafa";
+        ctx.font = `600 ${Math.min(12, k.w * 0.7)}px Fraunces, Georgia, serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "alphabetic";
+        ctx.fillText(String(hit.finger), k.x + k.w / 2, ky + blackH - 6);
+      }
+    }
+
+    // where the notes land
+    ctx.fillStyle = "rgba(245,245,245,0.7)";
+    ctx.fillRect(0, ky - 1, w, 2);
+    for (const [m, e] of pressed) {
+      const k = keys.get(m);
+      const tone = COLORS[isLeft(e) ? "lh" : "rh"];
+      const glow = ctx.createLinearGradient(0, ky - 26, 0, ky);
+      glow.addColorStop(0, "rgba(255,255,255,0)");
+      glow.addColorStop(1, tone.note);
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = glow;
+      ctx.fillRect(k.x, ky - 26, k.w, 26);
+      ctx.globalAlpha = 1;
+    }
   }
 
   function start() {
     cancelAnimationFrame(raf);
+    let lastAt = -1;
+    let lastRef = null;
     const loop = () => {
-      const at = window.LunePiano?.progress?.() || 0;
-      paint(at);
       raf = requestAnimationFrame(loop);
+      if (!host || !host.offsetParent) return; // panel not on screen
+      const at = window.LunePiano?.progress?.() || 0;
+      const ref = window.LunePiano?.eventsRef?.() || null;
+      // nothing moved: leave the last frame up
+      if (at === lastAt && ref === lastRef && layout) return;
+      lastAt = at;
+      lastRef = ref;
+      paint(at);
     };
     resize();
     raf = requestAnimationFrame(loop);
@@ -1056,7 +1271,8 @@ window.LuneTutorial = (function () {
 
   function setHandFilter(mode) {
     handFilter = ["both", "rh", "lh"].includes(mode) ? mode : "both";
-    drawOnce();
+    layout = null;
+    if (canvas) paint(window.LunePiano?.progress?.() || 0);
   }
 
   return { mount, start, stop, drawOnce, resize, setHandFilter };

@@ -896,6 +896,27 @@ window.LuneStore = (function () {
     return readLocal().study || [];
   }
 
+  /* ---------------- feedback (opt-in quotes and numbers) ---------------- */
+
+  /** Returns "cloud" when the row was stored; "mail" means the caller should offer email instead. */
+  async function addFeedback(row) {
+    if (client) {
+      const { error } = await client.from("feedback").insert(row);
+      if (!error) return "cloud";
+    }
+    return "mail";
+  }
+
+  async function ownerFeedback() {
+    if (!isOwner()) throw new Error("Owner sign-in required.");
+    if (!client) throw new Error("Feedback is stored in the cloud — sign in online to read it.");
+    const { data, error } = await client.rpc("owner_feedback");
+    if (error) {
+      throw new Error("Run the feedback section of supabase/schema.sql in the Supabase SQL editor, then reopen this.");
+    }
+    return data || [];
+  }
+
   /* ---------------- preferences + export ---------------- */
 
   function prefs() {
@@ -960,6 +981,10 @@ window.LuneStore = (function () {
       if (error) throw error;
       const remotePrefs = data?.prefs;
       if (!remotePrefs || typeof remotePrefs !== "object") return false;
+      // Only announce a change when the merge really changed something: a
+      // listener that pulls again on every announcement would loop forever.
+      const stable = (o) => JSON.stringify(Object.keys(o || {}).sort().map((k) => [k, o[k]]));
+      let changed = false;
       mutateLocal((d) => {
         const local = d.prefs || {};
         const merged = preferLocal
@@ -979,9 +1004,10 @@ window.LuneStore = (function () {
           const remLen = Array.isArray(rem) ? rem.length : rem && typeof rem === "object" ? 1 : 0;
           if (locLen && locLen >= remLen) merged[key] = loc;
         }
+        changed = stable(merged) !== stable(local);
         d.prefs = merged;
       });
-      emit();
+      if (changed) emit();
       return true;
     } catch (err) {
       console.warn("[lune] prefs pull skipped", err);
@@ -1062,6 +1088,8 @@ window.LuneStore = (function () {
     stumbleMap,
     addStudyRows,
     localStudyRows,
+    addFeedback,
+    ownerFeedback,
     listTasks,
     addTask,
     updateTask,

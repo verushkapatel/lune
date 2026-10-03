@@ -8459,3 +8459,315 @@ body:not(.is-signed-in) .home-member {
 .member-footer-actions { margin: 0 0 8px; }
 body.is-share .bar,
 body.is-share #keep-account-banner { display: none !important; }
+
+/* ---------- landing: live score in the feature chapters ----------
+ * The same white page as the studio, engraved by landing-score.js. */
+.fx-paper {
+  position: relative;
+  margin: 14px;
+  padding: 10px 8px 12px;
+  min-height: 150px;
+  background: var(--paper);
+  border: 1px solid #050505;
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+.fx-score {
+  width: 100%;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.fx-score svg { display: block; max-width: 100%; }
+.fx-score.is-tappable { cursor: pointer; }
+.fx-score svg text.lane-letter,
+.fx-score svg text.lane-finger {
+  font-family: var(--serif);
+  font-weight: 600;
+  fill: #1c2b52;
+}
+.fx-readable .fx-score svg text.lane-letter,
+body.lp-readable .fx-score svg text.lane-letter {
+  font-family: "Atkinson Hyperlegible", system-ui, sans-serif !important;
+}
+/* the demo controls are real buttons wearing the existing demo chrome */
+.fx-seg button,
+button.fx-chip,
+button.fx-play,
+.fx-ask-bars button {
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.fx-seg button {
+  min-height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  color: #777;
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.fx-seg button:hover { color: #c8c8c8; }
+.fx-seg button.on,
+.fx-seg button.on:hover {
+  background: #f0f0f0;
+  color: #0a0a0a;
+}
+button.fx-play { min-width: 64px; justify-content: center; }
+button.fx-play:disabled { cursor: progress; color: #777; background: transparent; border-color: #333; }
+.fx-transport { align-items: center; }
+.fx-tempo {
+  flex: 1 1 90px;
+  min-width: 70px;
+  max-width: 180px;
+  accent-color: #f0f0f0;
+}
+.fx-tools .fx-easy-k { margin: 0; }
+.fx-live-playhead {
+  position: absolute;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: #111;
+  pointer-events: none;
+}
+.fx-bar-mark {
+  position: absolute;
+  border: 1px solid rgba(17, 17, 17, 0.28);
+  border-radius: 3px;
+  background: rgba(17, 17, 17, 0.04);
+  pointer-events: none;
+}
+.fx-bar-mark.is-stumble {
+  border-color: rgba(17, 17, 17, 0.7);
+  background: rgba(17, 17, 17, 0.11);
+}
+.fx-bar-mark.is-selected {
+  border: 1.5px solid #111;
+  background: rgba(17, 17, 17, 0.05);
+}
+.fx-bar-mark span {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-family: var(--serif);
+  font-size: 10px;
+  line-height: 1;
+  color: #333;
+}
+.fx-bar-mark.is-note {
+  border: 0;
+  background: none;
+}
+.fx-bar-mark.is-note span {
+  top: -4px;
+  left: auto;
+  right: 8px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #111;
+  color: #fafafa;
+  font-family: inherit;
+}
+.fx-ask-bars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 14px 12px;
+}
+.fx-ask-bars button {
+  min-height: 28px;
+  padding: 0 12px;
+  border: 1px solid #333;
+  border-radius: 999px;
+  color: #aaa;
+}
+.fx-ask-bars button:hover { border-color: #666; color: #f0f0f0; }
+.home-feat-device > .fx-ask-panel {
+  min-height: 118px;
+  padding: 16px 18px 18px;
+  border-top: 1px solid #1c1c1c;
+}
+.home-feat-device > .fx-follow-side,
+.home-feat-device > .fx-note-panel {
+  border: 0;
+  border-top: 1px solid #1c1c1c;
+}
+.home-feat-device > .fx-follow-side {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 12px 16px;
+}
+.home-feat-device > .fx-follow-side p { margin: 0; }
+
+/* ---------- landing: who it's for ---------- */
+.home-for {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 96px 36px 88px;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.7s var(--ease), transform 0.7s var(--ease);
+}
+.home-for.is-in { opacity: 1; transform: none; }
+.home-for h2 {
+  margin: 0 0 48px;
+  max-width: 18ch;
+  font-weight: 400;
+  font-size: clamp(32px, 4.6vw, 48px);
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+}
+.home-for-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(24px, 4vw, 56px);
+}
+.home-for-grid article {
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+.home-for-grid h3 {
+  margin: 0 0 12px;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 22px;
+  letter-spacing: -0.01em;
+}
+.home-for-grid p {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.6;
+}
+.home-for-ask {
+  margin: 56px 0 0;
+  max-width: 62ch;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.6;
+}
+@media (max-width: 820px) {
+  .home-for { padding: 64px 20px 56px; }
+  .home-for h2 { margin-bottom: 32px; }
+  .home-for-grid { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-for { opacity: 1; transform: none; transition: none; }
+}
+
+/* ---------- feedback form ---------- */
+.feedback-dialog label[for] {
+  display: block;
+  margin: 18px 0 6px;
+  font-size: 14px;
+}
+.feedback-dialog textarea,
+.feedback-dialog select,
+.feedback-dialog input[type="text"],
+.feedback-dialog input[type="number"] {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: #0e0e0e;
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.5;
+}
+.feedback-dialog textarea { resize: vertical; }
+.feedback-dialog textarea:focus,
+.feedback-dialog select:focus,
+.feedback-dialog input:focus {
+  outline: none;
+  border-color: #f0f0f0;
+}
+.feedback-dialog .impact-fieldset { margin-top: 18px; }
+.feedback-hint { margin: 6px 0 0; font-size: 13px; line-height: 1.5; }
+.feedback-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.feedback-thanks {
+  margin: 24px 0;
+  font-family: var(--serif);
+  font-size: 22px;
+}
+.feedback-list {
+  list-style: none;
+  margin: 20px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+.feedback-list li {
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.feedback-list p { margin: 0 0 6px; }
+.feedback-quote { font-family: var(--serif); font-size: 17px; line-height: 1.45; }
+.feedback-meta { font-size: 13px; }
+@media (max-width: 520px) {
+  .feedback-pair { grid-template-columns: 1fr; }
+}
+
+/* ---------- Piano tab: notes and keys share one canvas ---------- */
+.piano-roll-hit { display: none; }
+body.is-panel-piano .piano-stage { padding-bottom: 10px; }
+body.is-panel-piano .piano-roll {
+  min-height: 0;
+  border-radius: 8px;
+}
+
+/* ---------- home: feedback ---------- */
+.home-feedback {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 88px 36px 96px;
+  border-top: 1px solid var(--line);
+}
+.home-feedback[data-reveal] {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.7s var(--ease), transform 0.7s var(--ease);
+}
+.home-feedback.is-in { opacity: 1; transform: none; }
+.home-feedback h2 {
+  margin: 0 0 16px;
+  font-weight: 400;
+  font-size: clamp(32px, 4.6vw, 48px);
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+}
+.home-feedback > p:not(.about-kicker) {
+  margin: 0 0 28px;
+  max-width: 52ch;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.6;
+}
+@media (max-width: 820px) {
+  .home-feedback { padding: 56px 20px 64px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-feedback[data-reveal] { opacity: 1; transform: none; transition: none; }
+}
+#member-feedback {
+  max-width: 920px;
+  padding: 48px 28px 64px;
+  border-top: 0;
+}
+#member-feedback h2 { font-size: clamp(28px, 5vw, 40px); letter-spacing: -0.015em; }

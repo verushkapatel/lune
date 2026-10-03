@@ -118,6 +118,54 @@ window.LuneLane = (function () {
   }
 
   /**
+   * Drop notes the edition marks as not printed (print-object="no").
+   *
+   * Engravers add hidden voices so playback can spell out a rolled chord.
+   * The engraver here still drew their stems and ledger lines and left the
+   * heads transparent, so a bar looked like it had lost its note heads.
+   * For the page, a hidden note is only time passing: chord members are
+   * removed and the first note becomes a <forward> of the same length.
+   * Sound and analysis keep using the untouched MusicXML.
+   */
+  function printed(xml) {
+    if (!xml || !xml.includes('print-object="no"')) return xml;
+    const doc = new DOMParser().parseFromString(xml, "application/xml");
+    if (doc.getElementsByTagName("parsererror").length) return xml;
+    const hidden = (n) => n.getAttribute("print-object") === "no";
+    let changed = false;
+    for (const note of [...doc.getElementsByTagName("note")]) {
+      if (!note.parentNode || !hidden(note) || !kid(note, "pitch")) continue;
+      // Hidden notes inside a beam hold the beam together — leave those alone.
+      if (kid(note, "beam")) continue;
+      if (kid(note, "chord") || kid(note, "grace")) {
+        note.remove();
+        changed = true;
+        continue;
+      }
+      // Printed notes stacked on a hidden one: the first printed note leads the chord.
+      let next = note.nextElementSibling;
+      let heir = null;
+      while (next && next.nodeName === "note" && kid(next, "chord")) {
+        if (!hidden(next)) { heir = next; break; }
+        next = next.nextElementSibling;
+      }
+      if (heir) {
+        kid(heir, "chord").remove();
+        note.remove();
+        changed = true;
+        continue;
+      }
+      const dur = kid(note, "duration");
+      if (!dur) continue;
+      const fwd = doc.createElement("forward");
+      fwd.appendChild(dur.cloneNode(true));
+      note.replaceWith(fwd);
+      changed = true;
+    }
+    return changed ? new XMLSerializer().serializeToString(doc) : xml;
+  }
+
+  /**
    * Return MusicXML with a lyric lane. mode: "letters" | "fingers" | "off".
    * Existing lyrics are removed (piano scores rarely carry any; a lane must
    * never mix with sung text).
@@ -202,5 +250,5 @@ window.LuneLane = (function () {
     return new XMLSerializer().serializeToString(doc);
   }
 
-  return { build, SPARE };
+  return { build, printed, SPARE };
 })();
