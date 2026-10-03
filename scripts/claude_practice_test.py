@@ -8,8 +8,12 @@ import json
 import sys
 from playwright.sync_api import sync_playwright
 
+from claude_test_state import browser_only, unlock_guest
+
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8100/lune/"
 UP = sys.argv[2] if len(sys.argv) > 2 else "/tmp/up"
+# Catalogue id of Für Elise; the older #/beethoven-fur-elise links resolve to it.
+ELISE = "ludwig-van-beethoven-fur-elise"
 out = []
 
 
@@ -25,6 +29,7 @@ def wait_score(pg, n=50):
 def main(p):
     b = p.chromium.launch(headless=True)
     ctx = b.new_context(viewport={"width": 1280, "height": 860})
+    browser_only(ctx)
     pg = ctx.new_page()
     errs = []
     pg.on("pageerror", lambda e: errs.append(str(e)[:200]))
@@ -57,6 +62,8 @@ def main(p):
     check("review: intervals grow (1 → 3 → ~7.5 days), 'again' resets", ok, sched)
 
     # --- Repertoire: add from search ---
+    check("gate: Repertoire is off until the device is unlocked", pg.is_disabled("#btn-repertoire"))
+    unlock_guest(pg)
     pg.click("#btn-repertoire")
     pg.wait_for_selector("#repertoire:not([hidden])")
     check("repertoire: header button opens the page, URL #/repertoire", pg.evaluate("location.hash") == "#/repertoire")
@@ -66,7 +73,8 @@ def main(p):
     pg.wait_for_timeout(250)
     sug = pg.inner_text("#rep-suggest")
     check("repertoire: typing suggests catalogue pieces", "Für Elise" in sug, sug[:120])
-    pg.click("#rep-suggest [data-add]")
+    # several arrangements match; add the catalogue's own "Für Elise"
+    pg.click(f'#rep-suggest [data-add="{ELISE}"]')
     pg.wait_for_timeout(300)
     cards = pg.inner_text("#rep-list")
     check("repertoire: piece added", "Für Elise" in cards, cards[:120])
@@ -77,10 +85,10 @@ def main(p):
     check("repertoire: a typed piece not in the library can be added", "only have on paper" in pg.inner_text("#rep-list"))
 
     # --- open from Repertoire, note on a bar ---
-    pg.click('#rep-list [data-open="beethoven-fur-elise"]')
+    pg.click(f'#rep-list [data-open="{ELISE}"]')
     wait_score(pg)
-    check("repertoire: Open goes to the score", pg.evaluate("location.hash").startswith("#/beethoven-fur-elise/score"))
-    check("score: toolbar shows 'In Repertoire'", pg.get_attribute("#btn-bookmark", "aria-label") == "In Repertoire", pg.get_attribute("#btn-bookmark", "aria-label"))
+    check("repertoire: Open goes to the score", pg.evaluate("location.hash").startswith(f"#/{ELISE}/score"))
+    check("score: toolbar says the piece is in the Repertoire", pg.get_attribute("#btn-bookmark", "aria-label") == "This piece is in your Repertoire", pg.get_attribute("#btn-bookmark", "aria-label"))
     pg.evaluate("() => setBarSelection([5], {open: true})")
     pg.wait_for_selector(".lp-coach")
     pg.fill("#lp-note-input", "play faster here")
@@ -115,26 +123,32 @@ def main(p):
     pg.wait_for_timeout(400)
     due = pg.inner_text(".lp-due")
     check("review: grading shows next review", "Next review" in due, due)
-    pg.evaluate("() => LuneStore.queueBar('beethoven-fur-elise', 12)")
     # describe aloud
     words = pg.evaluate("() => LunePractice.describeBar(5)")
     check("access: bar description reads hands, notes, fingers", "Right hand" in words and "Left hand" in words, words[:160])
 
-    # --- today's bars → opens bar ---
+    # --- your plan: add bar 12 from the coach → opens bar ---
+    pg.evaluate("() => setBarSelection([12], {open: true})")
+    pg.click('.lp-coach [data-lp="plan"]')
+    # the plan is now written by Ask Lune from the bar's analysis and remarks
+    pg.wait_for_function("() => LuneStore.listTasks().some(t => (t.bars || []).includes(12))", timeout=15000)
+    pg.click("#ask-close")
+    pg.evaluate("() => setBarSelection([5], {open: true})")
     pg.click("#btn-repertoire")
     pg.wait_for_selector("#repertoire:not([hidden])")
     pg.wait_for_timeout(300)
     today = pg.inner_text("#rep-today")
-    check("today: queued bar 12 is due", "Bar 12" in today, today[:120])
+    check("plan: bar 12 added from the coach is listed", "bar 12" in today.lower(), today[:120])
     badge = pg.evaluate("() => document.getElementById('rep-badge').hidden ? '' : document.getElementById('rep-badge').textContent")
-    check("today: header badge counts due bars", badge == "1", badge)
+    check("plan: header badge counts open tasks", badge == "1", badge)
     pg.click('#rep-today [data-bar="12"]')
     pg.wait_for_function("() => state.selectedBars.includes(12) && !document.getElementById('coach').hidden", timeout=30000)
-    check("today: tapping a due bar opens it in the score", True)
+    check("plan: opening a task goes to its bar in the score", True)
 
     # --- teacher link ---
     url = pg.evaluate(
-        """() => location.origin + location.pathname + '#/assign/' + LunePractice.b64urlEncode({v:1, p:'beethoven-fur-elise', t:'Für Elise', c:'Ludwig van Beethoven', by:'Ms Rao', m:'Hands separately at 60 — watch the thumb.', bars:[12,13], notes:[{b:13, x:'Lift on the rest'}]})"""
+        """(id) => location.origin + location.pathname + '#/assign/' + LunePractice.b64urlEncode({v:1, p:id, t:'Für Elise', c:'Ludwig van Beethoven', by:'Ms Rao', m:'Hands separately at 60 — watch the thumb.', bars:[12,13], notes:[{b:13, x:'Lift on the rest'}]})""",
+        ELISE,
     )
     pg2 = ctx.new_page()
     pg2.on("pageerror", lambda e: errs.append(str(e)[:200]))
@@ -146,28 +160,31 @@ def main(p):
     check("teacher link: first assigned bar selected", pg2.evaluate("state.selectedBars.join(',')") == "12")
     pg2.click("#lp-assign-banner [data-x=save]")
     pg2.wait_for_timeout(800)
-    n = pg2.evaluate("async () => (await LuneStore.listNotes('beethoven-fur-elise')).filter(n => n.source === 'teacher').length")
+    n = pg2.evaluate("async (id) => (await LuneStore.listNotes(id)).filter(n => n.source === 'teacher').length", ELISE)
     check("teacher link: saving adds the teacher's notes", n == 2, n)
     pg2.close()
 
     # --- braille link on the overview ---
     pg.goto(BASE + "#/twinkle/explain", wait_until="networkidle")
-    pg.click("#btn-download")
-    pg.wait_for_selector(".lp-braille", timeout=15000)
-    href = pg.get_attribute(".lp-braille", "href")
-    brf = pg.evaluate("(h) => fetch(h).then(r => r.text())", href)
-    ok = brf and all(32 <= ord(c) < 127 or c in "\r\n" for c in brf) and max(len(l) for l in brf.splitlines()) <= 40
-    check("braille: .brf download is ASCII braille, ≤40 cells a line", ok, href)
+    try:
+        pg.click("#btn-download")
+        pg.wait_for_selector(".lp-braille", timeout=15000)
+        href = pg.get_attribute(".lp-braille", "href")
+        brf = pg.evaluate("(h) => fetch(h).then(r => r.text())", href)
+        ok = brf and all(32 <= ord(c) < 127 or c in "\r\n" for c in brf) and max(len(l) for l in brf.splitlines()) <= 40
+        check("braille: .brf download is ASCII braille, ≤40 cells a line", ok, href)
+    except Exception as e:  # noqa: BLE001
+        check("braille: .brf download is ASCII braille, ≤40 cells a line", False, str(e).splitlines()[0])
 
     # --- reading & access ---
     pg.goto(BASE + "#/repertoire", wait_until="networkidle")
-    pg.click("[data-lp-access]")
+    pg.click("#repertoire [data-lp-access]")
     pg.check("#access-dialog input[data-pref=readableFont]")
     pg.check("#access-dialog input[data-pref=largePrint]")
     cls = pg.evaluate("document.body.className")
     check("access: large print + readable font classes", "lp-large" in cls and "lp-readable" in cls, cls)
     pg.keyboard.press("Escape")
-    pg.goto(BASE + "#/beethoven-fur-elise/score", wait_until="networkidle")
+    pg.goto(BASE + f"#/{ELISE}/score", wait_until="networkidle")
     wait_score(pg)
     z = pg.evaluate("state.osmd.zoom")
     check("access: large print engraves the score larger", z > 1.3, z)

@@ -55,6 +55,8 @@ the full note breakdown.
 - **Reading & access** — bar descriptions read aloud (R), arrow keys from bar
   to bar, large print, an easier-to-read typeface (Atkinson Hyperlegible),
   high contrast, and braille music (.brf) downloads for library pieces.
+- **Feedback** (`#feedback`) — what changed, in the pianist's or teacher's own
+  words, with an explicit quote permission ([docs/OUTREACH.md](docs/OUTREACH.md)).
 - **Reading study** (`#/study`) — a 10-minute experiment on whether the letter
   row helps students learn to read ([docs/study-protocol.md](docs/study-protocol.md)).
 - **Fingering benchmark** against the PIG dataset
@@ -63,10 +65,20 @@ the full note breakdown.
 ## Tests
 
 ```bash
-python3 scripts/export_pages.py            # build the static site
-(cd pages-site/.. && python3 -m http.server 8100)   # serve it under /lune/
-python3 scripts/claude_pages_test.py       # search, catalogue, uploads, links
-python3 scripts/claude_practice_test.py    # Repertoire, notes, review, links, access, study
-python3 scripts/claude_follow_test.py      # Play along with a synthetic performance
-python3 scripts/pig_benchmark.py --selftest
+scripts/sync_pages_dev.sh                      # copy frontend/ into the built site
+# serve a folder whose /lune/ is pages-site on port 8137, then:
+.venv/bin/python scripts/lune_flow_test.py     # flows, AI provider + fallback, music, accessibility, phone
+.venv/bin/python scripts/contrast_audit.py     # contrast on ten screens, dark and light
+.venv/bin/python scripts/claude_pages_test.py http://127.0.0.1:8137/lune/     # catalogue: every bundled piece opens
+.venv/bin/python scripts/claude_practice_test.py http://127.0.0.1:8137/lune/  # Repertoire, remarks, review, links
+python3 scripts/verify_no_blocked.py           # no in-copyright piece listed or shipped
 ```
+
+## Build
+
+```bash
+scripts/build_site.sh        # clean build into pages-site (downloads sources; slow)
+python3 scripts/build_light_theme.py   # after changing styles.css
+```
+
+Ask Lune can use a language model on your own computer: see [docs/AI.md](docs/AI.md).

@@ -8,6 +8,8 @@ import sys
 import time
 from playwright.sync_api import sync_playwright
 
+from claude_test_state import browser_only, sign_in_locally
+
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8100/lune/"
 UP = sys.argv[2] if len(sys.argv) > 2 else "/tmp/up"
 out = []
@@ -29,11 +31,15 @@ def search_rows(pg, q):
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     ctx = b.new_context(viewport={"width": 1280, "height": 860})
+    browser_only(ctx)
     pg = ctx.new_page()
     errs, api_calls = [], []
     pg.on("pageerror", lambda e: errs.append(str(e)[:200]))
     pg.on("request", lambda r: api_calls.append(r.url) if "/api/" in r.url else None)
     pg.goto(BASE, wait_until="networkidle")
+    # Search is members-only: guests see no search form until they sign in.
+    check("gate: search hidden from guests", not pg.is_visible("#q") and not pg.is_visible("#btn-search"))
+    sign_in_locally(pg)
 
     # --- search ---
     rows = search_rows(pg, "moonlite")
@@ -41,7 +47,9 @@ with sync_playwright() as p:
     rows = search_rows(pg, "river flows in you")
     check("search: 'river flows in you' returns nothing unrelated", not rows, rows[:3])
     rows = search_rows(pg, "fur elise")
-    check("search: Für Elise listed once", sum("Elise" in r for r in rows) == 1, rows[:4])
+    # easy, fingered and beginner arrangements are different pieces; the same one must not appear twice
+    elise = [r for r in rows if "Elise" in r]
+    check("search: no Für Elise entry is listed twice", elise and len(elise) == len(set(elise)), rows[:6])
     rows = search_rows(pg, "chopin")
     titles = [r.split(" | ")[0] for r in rows]
     check("search: no duplicate titles for 'chopin'", len(titles) == len(set(titles)), titles)
@@ -53,11 +61,20 @@ with sync_playwright() as p:
     # --- every catalogue entry opens the piece it names ---
     opens = pg.evaluate("() => fetch('static/opens.json').then(r => r.json())")
     idx = pg.evaluate("() => fetch('static/search-index.json').then(r => r.json())")
-    check("catalogue: index == openable pieces", len(idx["items"]) == len(opens), f"{len(idx['items'])} vs {len(opens)}")
+    # the index now lists bundled scores (opens.json) plus ones fetched on demand (remote-catalog.json)
+    remote = pg.evaluate("() => fetch('static/remote-catalog.json').then(r => r.json())")
+    openable = {r["id"] for r in opens} | {r["id"] for r in remote["items"]}
+    index_ids = [i["id"] for i in idx["items"]]
+    check(
+        "catalogue: index == openable pieces",
+        # every listed piece opens, and none is listed twice (remote copies of bundled works are left out of the index)
+        set(index_ids) <= openable and len(index_ids) == len(set(index_ids)),
+        f"{len(index_ids)} index rows vs {len(openable)} openable pieces ({len(index_ids) - len(set(index_ids))} ids listed twice)",
+    )
     bad = []
     for row in opens:
         r = pg.evaluate(
-            "async (id) => { const p = await tryOpenStatic({query: id, analyze: true}); return {kind: p.kind, title: p.title || p.overview?.title, bars: Object.keys(p.debriefs||{}).length, story: !!(p.overview?.composerInfo?.bio || p.overview?.composerInfo?.full || p.overview?.composerInfo?.hook)}; }",
+            "async (id) => { const p = await tryOpenStatic({query: id, analyze: true}); const deb = Object.keys(p.debriefs||{}).length ? p.debriefs : (p.musicxml ? (LuneLite.analyze(p.musicxml, {filename: 'x.musicxml'}).debriefs || {}) : {}); return {kind: p.kind, title: p.title || p.overview?.title, bars: Object.keys(deb).length, story: !!(p.overview?.composerInfo?.bio || p.overview?.composerInfo?.full || p.overview?.composerInfo?.hook)}; }",
             row["id"],
         )
         if r["kind"] != "score" or r["title"] != row["title"] or r["bars"] < 1:
@@ -77,8 +94,9 @@ with sync_playwright() as p:
     pg.wait_for_timeout(700)
     chip = pg.evaluate("""() => { const b = document.querySelector('.chip.finger-only b, .tone-finger'); if (!b) return null; const cs = getComputedStyle(b); const bg = getComputedStyle(b.closest('.chip')); return {c: cs.color, bg: bg.backgroundColor}; }""")
     check("bar panel: finger digits have a visible colour", chip and chip["c"] != chip["bg"], chip)
-    if pg.locator("#btn-coach-more").count() and pg.locator("#btn-coach-more").is_visible():
-        pg.click("#btn-coach-more")
+    if pg.locator("#btn-tell").count() and pg.locator("#btn-tell").is_visible():
+        # practice notes now live in Ask Lune, for the selected bar
+        pg.click("#btn-tell")
         pg.wait_for_selector("#btn-plan")
         pg.click("#btn-plan")
         pg.wait_for_timeout(500)
@@ -95,7 +113,12 @@ with sync_playwright() as p:
     pg.wait_for_function("() => !document.getElementById('studio')?.hidden", timeout=30000)
     pg.wait_for_timeout(300)
     h1 = pg.evaluate("() => location.hash")
-    check("link: opening a piece changes the URL", h1.startswith("#/debussy-clair-de-lune"), h1)
+    opened = pg.evaluate("() => ({id: state.piece?.id, title: state.piece?.title || state.piece?.overview?.title || ''})")
+    check(
+        "link: opening a piece changes the URL",
+        "clair de lune" in opened["title"].lower() and "debussy" in h1 and h1.startswith(f"#/{opened['id']}/"),
+        f"{h1} · {opened}",
+    )
     pg.go_back()
     pg.wait_for_timeout(800)
     check("back: returns home inside the site", pg.url.startswith(BASE) and pg.evaluate("() => !document.getElementById('home').hidden"), pg.url)

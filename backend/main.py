@@ -42,6 +42,7 @@ from backend.context import build_score_digest
 from backend.discover import piece_overview, search_catalogue
 from backend.fingering import suggest_fingering
 from backend.limits import guard
+from backend.remote_fetch import credit_for_source, open_remote_piece
 from backend.scoresource import (
     list_available,
     resolve_score,
@@ -922,6 +923,12 @@ async def open_searched_piece(request: Request) -> Dict[str, Any]:
     resolved = resolve_score(title, composer, query=query)
     if not resolved and query:
         resolved = resolve_score(query, "", query=query)
+    # Allowlisted free MusicXML fetch-on-open (GitHub raw only — never PDF / paid APIs)
+    if not resolved:
+        try:
+            resolved = await run_in_threadpool(open_remote_piece, title, composer, query)
+        except Exception:
+            resolved = None
     if not resolved:
         return {
             "kind": "catalogue",
@@ -932,9 +939,9 @@ async def open_searched_piece(request: Request) -> Dict[str, Any]:
                 title or query, composer, epoch=epoch, portrait=portrait
             ),
             "message": (
-                "No free MusicXML for this exact title yet. Search for a known free "
-                "piece (Chopin Mazurka, Für Elise, Raindrop, Clair de Lune, The Entertainer…), "
-                "or open your own MusicXML / PDF / photo."
+                "No free MusicXML for this title in Lune’s allowlisted sources yet "
+                "(musetrainer, OpenScore, and other open MusicXML hosts). "
+                "Try another spelling, or upload your own MusicXML."
             ),
         }
 
@@ -965,8 +972,20 @@ async def open_searched_piece(request: Request) -> Dict[str, Any]:
     piece["source"] = resolved["source"]
     piece["downloadName"] = _download_name(piece)
     piece["openQuery"] = query
-    if resolved.get("fallbackNote"):
+    credit = resolved.get("credit") or credit_for_source(resolved.get("source") or "")
+    if credit:
+        piece["credit"] = credit
+    if resolved.get("remoteFetched"):
+        piece["remoteFetched"] = True
+        src = (credit or {}).get("source") or resolved.get("source") or "open source"
+        lic = (credit or {}).get("license") or ""
+        piece["fallbackNote"] = resolved.get("fallbackNote") or (
+            f"Fetched from {src}" + (f" · {lic}" if lic else "") + "."
+        )
+    elif resolved.get("fallbackNote"):
         piece["fallbackNote"] = resolved["fallbackNote"]
+    if resolved.get("id"):
+        piece["id"] = resolved["id"]
     return piece
 
 
@@ -1076,6 +1095,17 @@ def sample_score() -> Dict[str, Any]:
 @app.get("/")
 def index() -> FileResponse:
     return FileResponse(FRONTEND / "index.html")
+
+
+# Served beside the page, as on the published site (a worker covers only its own folder).
+@app.get("/sw.js")
+def service_worker() -> FileResponse:
+    return FileResponse(FRONTEND / "sw.js", media_type="text/javascript")
+
+
+@app.get("/manifest.webmanifest")
+def web_manifest() -> FileResponse:
+    return FileResponse(FRONTEND / "manifest.webmanifest", media_type="application/manifest+json")
 
 
 app.mount("/static", StaticFiles(directory=FRONTEND), name="static")

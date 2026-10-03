@@ -176,6 +176,10 @@ def main() -> None:
     if 'name="lune-static"' not in index_html:
         index_html = index_html.replace("<head>", '<head>\n  <meta name="lune-static" content="1">', 1)
     (SITE / "index.html").write_text(index_html, encoding="utf-8")
+    # The service worker and manifest belong beside index.html: a worker only
+    # covers the folder it is served from.
+    for name in ("sw.js", "manifest.webmanifest"):
+        shutil.move(str(SITE / "static" / name), str(SITE / name))
     (SITE / ".nojekyll").write_text("", encoding="utf-8")
 
     # Only list scores that are really there, once each, with credits.

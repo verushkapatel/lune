@@ -118,12 +118,79 @@ window.LuneLane = (function () {
   }
 
   /**
+   * Drop notes the edition marks as not printed (print-object="no").
+   *
+   * Engravers add hidden voices so playback can spell out a rolled chord.
+   * The engraver here still drew their stems and ledger lines and left the
+   * heads transparent, so a bar looked like it had lost its note heads.
+   * For the page, a hidden note is only time passing: chord members are
+   * removed and the first note becomes a <forward> of the same length.
+   * Sound and analysis keep using the untouched MusicXML.
+   */
+  function printed(xml) {
+    if (!xml || !xml.includes('print-object="no"')) return xml;
+    const doc = new DOMParser().parseFromString(xml, "application/xml");
+    if (doc.getElementsByTagName("parsererror").length) return xml;
+    const hidden = (n) => n.getAttribute("print-object") === "no";
+    let changed = false;
+    for (const note of [...doc.getElementsByTagName("note")]) {
+      if (!note.parentNode || !hidden(note) || !kid(note, "pitch")) continue;
+      // Hidden notes inside a beam hold the beam together — leave those alone.
+      if (kid(note, "beam")) continue;
+      if (kid(note, "chord") || kid(note, "grace")) {
+        note.remove();
+        changed = true;
+        continue;
+      }
+      // Printed notes stacked on a hidden one: the first printed note leads the chord.
+      let next = note.nextElementSibling;
+      let heir = null;
+      while (next && next.nodeName === "note" && kid(next, "chord")) {
+        if (!hidden(next)) { heir = next; break; }
+        next = next.nextElementSibling;
+      }
+      if (heir) {
+        kid(heir, "chord").remove();
+        note.remove();
+        changed = true;
+        continue;
+      }
+      const dur = kid(note, "duration");
+      if (!dur) continue;
+      const fwd = doc.createElement("forward");
+      fwd.appendChild(dur.cloneNode(true));
+      note.replaceWith(fwd);
+      changed = true;
+    }
+    return changed ? new XMLSerializer().serializeToString(doc) : xml;
+  }
+
+  /**
    * Return MusicXML with a lyric lane. mode: "letters" | "fingers" | "off".
    * Existing lyrics are removed (piano scores rarely carry any; a lane must
    * never mix with sung text).
    */
+  /**
+   * mode "both" engraves the letter names and remembers each label's finger
+   * number beside it, so switching Notes / Fingers / Off afterwards is a text
+   * swap on the page instead of a second engraving. Each label carries an
+   * invisible tag (zero-width characters) that identifies it after the
+   * engraver has drawn it; `labels` maps that tag back to letter and finger.
+   */
+  let labels = [];
+  const ZW = ["\u200B", "\u200C"];
+  const tag = (i) => "\u2060" + i.toString(2).split("").map((b) => ZW[Number(b)]).join("");
+  function untag(text) {
+    const at = String(text || "").indexOf("\u2060");
+    if (at < 0) return null;
+    const bits = [...text.slice(at + 1)].map((c) => ZW.indexOf(c)).filter((b) => b >= 0);
+    return labels[parseInt(bits.join("") || "0", 2)] || null;
+  }
+
   function build(xml, { mode = "letters", debriefs = {} } = {}) {
     if (!xml || mode === "off") return xml;
+    const both = mode === "both";
+    if (both) labels = [];
     const doc = new DOMParser().parseFromString(xml, "application/xml");
     if (doc.getElementsByTagName("parsererror").length) return xml;
     for (const l of [...doc.getElementsByTagName("lyric")]) l.remove();
@@ -141,7 +208,7 @@ window.LuneLane = (function () {
         byNum.get(key).push(...notes);
       }
     });
-    const fingers = mode === "fingers" ? fingerMap(byNum, debriefs || {}) : null;
+    const fingers = mode === "fingers" || both ? fingerMap(byNum, debriefs || {}) : null;
 
     // Most label lines any chord needs, per staff — plus one spare line that
     // stays empty: labels in impossibly dense spots drop onto it (zig-zag),
@@ -193,6 +260,11 @@ window.LuneLane = (function () {
         // a unison doubled across voices is one key → one label
         const uniq = g.filter((n, i) => i === 0 || n.midi !== g[i - 1].midi);
         uniq.forEach((n, i) => {
+          if (both) {
+            labels.push({ letter: n.letter, finger: fingers.get(n.el) || "" });
+            addLyric(n.el, i + 1, n.letter + tag(labels.length - 1));
+            return;
+          }
           const text = fingers ? fingers.get(n.el) || "" : n.letter;
           if (!text) return;
           addLyric(n.el, i + 1, text);
@@ -202,5 +274,5 @@ window.LuneLane = (function () {
     return new XMLSerializer().serializeToString(doc);
   }
 
-  return { build, SPARE };
+  return { build, printed, untag, SPARE };
 })();

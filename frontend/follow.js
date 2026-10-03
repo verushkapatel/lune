@@ -17,6 +17,7 @@ window.LuneFollow = (function () {
   const MIN_GAP_MS = 100; // onsets closer than this are one attack
 
   let run = null;
+  let starting = false; // a second tap while the mic prompt is open must not start twice
 
   /* ---------- expected events from the score ---------- */
 
@@ -72,24 +73,105 @@ window.LuneFollow = (function () {
 
   /* ---------- audio ---------- */
 
+  function setButton(mode) {
+    const btn = $("btn-follow");
+    if (!btn) return;
+    const on = mode === "on";
+    btn.classList.toggle("on", on);
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+    btn.setAttribute("aria-busy", mode === "starting" ? "true" : "false");
+    const text = on ? "Listening" : mode === "starting" ? "Starting" : "Play along";
+    const lab = btn.querySelector(".lp-tool-label");
+    if (lab) lab.textContent = text;
+    btn.setAttribute("aria-label", on ? "Stop listening" : text);
+  }
+
   async function start() {
-    if (run) return;
-    if (!state.piece || !state.osmd) return toast("Open a score first.");
-    if (!navigator.mediaDevices?.getUserMedia) return toast("This browser can’t use the microphone.");
+    if (run || starting) return;
+    starting = true;
+    try {
+      await begin();
+    } finally {
+      starting = false;
+      if (!run) setButton("off");
+    }
+  }
+
+  async function begin() {
+    if (!state.piece) {
+      toast("Open a score first — then tap Play along.");
+      return;
+    }
+    if (state.panel !== "score" || !state.osmd) {
+      // Play along follows the engraved page: bring it up, then carry on.
+      setButton("starting");
+      try {
+        await switchToScorePanel();
+      } catch {
+        /* reported below */
+      }
+      if (!state.osmd) {
+        toast("The score is still loading — try Play along again in a moment.");
+        return;
+      }
+    }
+    if (!window.isSecureContext) {
+      toast("Play along needs a secure connection (HTTPS).");
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      toast("This browser can’t use the microphone for Play along.");
+      return;
+    }
     const events = buildEvents();
-    if (events.length < 4) return toast("This score has too few notes to follow.");
-    stopAll(); // Lune's own playback would be heard by the mic
+    if (events.length < 4) {
+      toast("This score has too few notes for Play along.");
+      return;
+    }
+    try {
+      stopAll(); // Lune's own playback would be heard by the mic
+    } catch {
+      /* ignore */
+    }
+    window.LunePractice?.stopHearing?.(); // one listener on the microphone at a time
+    setButton("starting");
     let stream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
       });
-    } catch {
-      toast("Lune needs microphone permission to listen. Nothing is recorded.");
+    } catch (err) {
+      const name = String(err?.name || err?.message || "");
+      toast(
+        /NotAllowed|Permission|denied|Security/i.test(name)
+          ? "Lune needs the microphone for Play along. Allow it in the browser’s address bar, then tap again — nothing is recorded or uploaded."
+          : /NotFound|DevicesNotFound|Overconstrained/i.test(name)
+            ? "No microphone found. Plug one in or check your sound settings, then tap again."
+            : /NotReadable|TrackStart|Abort/i.test(name)
+              ? "Another app is using the microphone. Close it, then tap Play along again."
+              : "Couldn’t open the microphone. Check permissions and try again."
+      );
       return;
     }
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const src = ctx.createMediaStreamSource(stream);
+    let ctx;
+    let src;
+    try {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      // Safari starts audio contexts suspended; without this nothing is heard.
+      if (ctx.state === "suspended") await ctx.resume();
+      src = ctx.createMediaStreamSource(stream);
+    } catch {
+      stream.getTracks().forEach((t) => t.stop());
+      try {
+        await ctx?.close();
+      } catch {
+        /* never opened */
+      }
+      toast("This browser couldn’t start listening. Try again, or use Chrome or Safari.");
+      return;
+    }
+    // Microphone unplugged or permission withdrawn mid-run: finish cleanly.
+    stream.getTracks().forEach((t) => t.addEventListener("ended", () => stop().catch(() => {}), { once: true }));
     const an = ctx.createAnalyser();
     an.fftSize = 4096; // ~90 ms window: short enough for quick notes
     an.smoothingTimeConstant = 0;
@@ -143,15 +225,18 @@ window.LuneFollow = (function () {
       log: [],
       t0: performance.now(),
     };
-    run.timer = setInterval(tick, 20);
+    run.timer = setInterval(() => {
+      try {
+        tick();
+      } catch (err) {
+        // one bad frame must not leave the microphone open with no way to stop
+        console.warn("[lune] play along stopped", err);
+        stop().catch(() => {});
+      }
+    }, 20);
     showPanel();
     showBar(events[pos].bar);
-    const btn = $("btn-follow");
-    btn?.classList.add("on");
-    const lab = btn?.querySelector(".lp-tool-label");
-    if (lab) lab.textContent = "Listening";
-    btn?.setAttribute("aria-label", "Listening");
-    btn?.setAttribute("aria-pressed", "true");
+    setButton("on");
   }
 
   function tick() {
@@ -380,12 +465,7 @@ window.LuneFollow = (function () {
     } catch {
       /* already closed */
     }
-    const btn = $("btn-follow");
-    btn?.classList.remove("on");
-    btn?.setAttribute("aria-pressed", "false");
-    const lab = btn?.querySelector(".lp-tool-label");
-    if (lab) lab.textContent = "Play along";
-    btn?.setAttribute("aria-label", "Play along");
+    setButton("off");
     $("lf-hilite")?.remove();
     lastShownBar = null;
     window.__luneFollowLast = { log: r.log, stats: r.stats, matched: r.matched, onsets: r.onsets, events: r.events.length, startPos: r.startPos, pos: r.pos };
@@ -409,20 +489,39 @@ window.LuneFollow = (function () {
     const first = r.events[r.startPos]?.bar;
     const last = r.events[Math.max(r.startPos, r.pos - 1)]?.bar;
     if (!p) return;
+    const mins = Number(LuneStore.prefs?.()?.practiceMins) || 30;
+    const ranked = bars
+      .sort((a, b) => b[1].wrong + 2 * b[1].hesitations - (a[1].wrong + 2 * a[1].hesitations))
+      .slice(0, 5);
     p.innerHTML = `<span class="lf-text"><strong>${first === last ? `Bar ${first}` : `Bars ${first}–${last}`}</strong> · ${
-      bars.length
-        ? `${bars.length} bar${bars.length === 1 ? "" : "s"} to look at: ${bars
-            .sort((a, b) => b[1].wrong + 2 * b[1].hesitations - (a[1].wrong + 2 * a[1].hesitations))
-            .slice(0, 5)
-            .map(([b]) => b)
-            .join(", ")}`
+      ranked.length
+        ? `${ranked.length} bar${ranked.length === 1 ? "" : "s"} to look at: ${ranked.map(([b]) => b).join(", ")}`
         : "clean run — nothing to flag"
     }</span>
-      ${bars.length ? `<button type="button" class="primary lf-review">Review these bars</button>` : ""}
+      ${ranked.length ? `<button type="button" class="primary lf-tonight">Make tonight’s ${mins} minutes</button>` : ""}
+      ${ranked.length ? `<button type="button" class="quiet ink lf-review">Review these bars</button>` : ""}
       <button type="button" class="quiet ink lf-map" aria-pressed="true">Stumble map</button>
       <button type="button" class="quiet ink lf-close" aria-label="Close">×</button>`;
+    p.querySelector(".lf-tonight")?.addEventListener("click", async (e) => {
+      const piece = state.piece || null;
+      const made = await window.LuneImpact?.buildTonightPlan?.({
+        pieceKey: r.key,
+        title: piece?.overview?.title || piece?.title || r.key,
+        composer: piece?.overview?.composer || piece?.composer || "",
+        stats: r.stats,
+        open: false,
+      });
+      if (made) {
+        e.currentTarget.disabled = true;
+        e.currentTarget.textContent = "In your plan";
+        window.LunePractice?.refreshBadge?.();
+        window.LunePractice?.focusBars?.(made.bars);
+        window.toast?.("Tonight’s bars are selected — work them slowly");
+        window.LuneImpact?.paintHomeImpact?.();
+      }
+    });
     p.querySelector(".lf-review")?.addEventListener("click", async (e) => {
-      for (const [b] of bars) await LuneStore.queueBar(r.key, Number(b));
+      for (const [b] of ranked) await LuneStore.queueBar(r.key, Number(b));
       e.currentTarget.disabled = true;
       e.currentTarget.textContent = "In Today’s bars";
       window.LunePractice?.refreshBadge();
@@ -438,9 +537,13 @@ window.LuneFollow = (function () {
     window.LunePractice?.paintScoreMarks();
   }
 
-  function toggle() {
-    if (run) stop();
-    else start();
+  async function toggle() {
+    try {
+      if (run) await stop();
+      else await start();
+    } catch (err) {
+      toast(err?.message || "Play along couldn’t start. Open a score and allow the microphone.");
+    }
   }
 
   return { start, stop, toggle, isOn: () => !!run, __buildEvents: buildEvents, __template: template };

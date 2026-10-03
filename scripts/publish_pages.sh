@@ -5,6 +5,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 SITE="${1:-pages-site}"
 [ -f "$SITE/index.html" ] || { echo "No site at $SITE — build it first (python3 scripts/export_pages.py)"; exit 1; }
+# Never publish a site that lists or ships an in-copyright piece.
+python3 scripts/verify_no_blocked.py "$SITE"
 WORK="$(mktemp -d)"
 git fetch -q origin gh-pages
 git worktree add -q "$WORK" origin/gh-pages --detach
@@ -15,4 +17,4 @@ git commit -q -m "Publish Lune site from $(git -C "$OLDPWD" rev-parse --short HE
 git push origin HEAD:gh-pages
 cd - >/dev/null
 git worktree remove --force "$WORK"
-echo "Published: https://verushkapatel.github.io/lune/"
+echo "Published: https://lune.page/ (also https://verushkapatel.github.io/lune/)"
