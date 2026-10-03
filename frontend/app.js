@@ -3718,7 +3718,27 @@ function staggerLaneLabels(host) {
   return moved;
 }
 
+/**
+ * The Piano tab needs the score engraved for its timeline while the Score
+ * panel is hidden. Engraving into a hidden (zero-width) panel draws bars with
+ * negative widths, so the panel is laid out off screen at full width meanwhile.
+ */
 async function renderScore() {
+  const pane = $("panel-score");
+  const offstage = !!pane?.hidden;
+  if (offstage) {
+    pane.classList.add("score-offstage");
+    pane.hidden = false;
+  }
+  try {
+    await renderScoreNow();
+  } finally {
+    if (offstage && state.panel !== "score") pane.hidden = true;
+    pane?.classList.remove("score-offstage");
+  }
+}
+
+async function renderScoreNow() {
   const base = state.rawMusicxml || state.piece?.musicxml || "";
   if (!base) return;
   const wantLetters = !!state.scoreLetters;

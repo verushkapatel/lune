@@ -13,7 +13,11 @@ import json
 import sys
 import urllib.request
 
+from pathlib import Path
+
 from playwright.sync_api import sync_playwright
+
+sys.path.insert(0, str(Path(__file__).parent))
 
 BASE = "http://127.0.0.1:8137/lune/"
 STANDIN = "http://127.0.0.1:8139/v1/chat/completions"
@@ -515,9 +519,44 @@ def section_catalogue(browser):
     ctx.close()
 
 
+# ---------------------------------------------------------------- console
+
+
+def section_console(browser):
+    """Every screen: no page errors, no console errors, no failed requests to Lune itself.
+
+    Requests to other hosts are listed but not failed: this environment's network
+    policy blocks some of them (Supabase, fonts, model hosts) that work for visitors.
+    """
+    from lune_screens import READY, SCREENS
+
+    bad, outside = [], set()
+    for name, (url, js, wait) in SCREENS.items():
+        ctx = browser.new_context(viewport={"width": 1280, "height": 860})
+        pg = ctx.new_page()
+        errs = []
+        pg.on("pageerror", lambda e: errs.append(f"pageerror {str(e)[:120]}"))
+        pg.on("console", lambda m: errs.append(f"console {m.text[:120]}") if m.type == "error" else None)
+        pg.on("requestfailed", lambda r: (errs.append(f"failed {r.url[:100]}") if r.url.startswith(BASE.split("/lune/")[0]) else outside.add(r.url.split("/")[2])))
+        pg.on("response", lambda r: errs.append(f"{r.status} {r.url[:100]}") if r.status >= 400 and r.url.startswith(BASE.split("/lune/")[0]) else None)
+        pg.goto(url, wait_until="networkidle")
+        if "score" in url or "piano" in url:
+            pg.wait_for_function(READY, timeout=60000)
+        if js:
+            pg.evaluate(js)
+        pg.wait_for_timeout(wait)
+        # a console error caused by a blocked outside host is the network policy, not Lune
+        errs = [e for e in errs if not (e.startswith("console Failed to load resource") and outside)]
+        if errs:
+            bad.append((name, errs[:3]))
+        ctx.close()
+    check(f"console: {len(SCREENS)} screens with no page errors, console errors or failed requests to Lune", not bad, bad)
+    print(f"      (outside hosts this environment could not reach: {', '.join(sorted(outside)) or 'none'})")
+
+
 # ---------------------------------------------------------------- main
 
-SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week, "catalogue": section_catalogue}
+SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week, "catalogue": section_catalogue, "console": section_console}
 
 if __name__ == "__main__":
     want = sys.argv[1:] or list(SECTIONS)
