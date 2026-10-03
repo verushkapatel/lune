@@ -187,7 +187,7 @@ function closeSearchResults({ blur = false } = {}) {
 const SEARCH_LIMIT = 8;
 // Paint on the next frame only — coalesces burst keystrokes, ~0–16ms feel (no 100ms lag).
 const SEARCH_DEBOUNCE_MS = 0;
-const SEARCH_INDEX_URL = luneUrl("/static/search-index.json?v=fix91");
+const SEARCH_INDEX_URL = luneUrl("/static/search-index.json?v=fix94");
 /** Composers whose piano works are typically still under copyright — honest empty state. */
 const COPYRIGHT_ERA_COMPOSERS = [
   "ginastera", "prokofiev", "shostakovich", "khachaturian", "kabalevsky",
@@ -1360,7 +1360,7 @@ async function ensureScoreReady() {
     !Object.keys(state.piece.debriefs).length;
   return withLoader(needs ? "Reading the score" : "Engraving the page", async () => {
     if (needs) {
-      const full = await (prefetchAnalysis(state.piece) || tryOpen({
+      let full = await (prefetchAnalysis(state.piece) || tryOpen({
         title: state.piece.title || "",
         composer: state.piece.composer || "",
         epoch: state.piece.epoch || state.piece.era || "",
@@ -1371,6 +1371,34 @@ async function ensureScoreReady() {
           "",
         analyze: true,
       }));
+      // Pages: no Python analysis sidecar → read the MusicXML in the browser.
+      const stillEmpty =
+        !full ||
+        full.kind !== "score" ||
+        !full.debriefs ||
+        !Object.keys(full.debriefs).length;
+      if (stillEmpty && state.piece.musicxml && window.LuneLite?.analyze) {
+        try {
+          const local = LuneLite.analyze(state.piece.musicxml, {
+            filename: state.piece.filename || state.piece.downloadName || "score.musicxml",
+          });
+          full = {
+            ...state.piece,
+            ...local,
+            musicxml: state.piece.musicxml,
+            opened: true,
+            needsAnalysis: false,
+            title: state.piece.title || local.title,
+            composer: state.piece.composer || local.composer,
+            overview: state.piece.overview?.title ? state.piece.overview : local.overview,
+            id: state.piece.id || "",
+            credit: state.piece.credit || null,
+            openQuery: state.piece.openQuery || "",
+          };
+        } catch (err) {
+          console.warn("[lune] local analysis failed", err);
+        }
+      }
       if (full && full.kind === "score" && full.musicxml) {
         state.piece = full;
         state.rawMusicxml = full.musicxml || "";
