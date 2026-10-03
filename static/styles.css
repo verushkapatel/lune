@@ -26,7 +26,7 @@
   --line-strong: #3d3d3d;
   --text: #f5f5f5;
   --muted: #a8a8a8;
-  --dim: #757575;
+  --dim: #858585; /* 4.9:1 or better on --bg and --surface */
   --accent: #ffffff;
   --accent-ink: #0a0a0a;
   --accent-soft: #1c1c1c;
@@ -1617,7 +1617,7 @@ body.is-panel-piano .piano-pane {
 .piano-tut-meta {
   margin: 0;
   font-size: 12px;
-  color: #6a6a6a;
+  color: #858585;
   text-align: right;
 }
 .piano-roll {
@@ -2844,6 +2844,7 @@ body.is-panel-piano .piano-dock-label {
   letter-spacing: 0.02em;
 }
 #scrub-time {
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
 }
@@ -2913,7 +2914,7 @@ body.coach-open.is-panel-score .studio-dock {
   font-size: 10px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #888;
+  color: #666;
 }
 .coach-title {
   margin: 0;
@@ -2997,7 +2998,7 @@ body.coach-open.is-panel-score .studio-dock {
   font-size: 11px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #888;
+  color: #666; /* 5.7:1 on the white bar panel */
 }
 #help-body p,
 #help-body li {
@@ -4458,7 +4459,7 @@ body.is-repertoire .rep-btn {
 .lp-save { border: 1px solid #111; background: #111; color: #fff; }
 .lp-save:hover { background: #000; }
 @keyframes lp-pulse { 50% { box-shadow: 0 0 0 6px rgba(0, 0, 0, 0.12); } }
-.lp-grades { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.lp-grades { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .lp-grade {
   min-height: 44px;
   border: 1px solid #d0d0d0;
@@ -4473,8 +4474,10 @@ body.is-repertoire .rep-btn {
 .lp-grade.lp-again.picked { background: #7a1f1f; color: #fff; border-color: #7a1f1f; }
 .lp-grade.lp-hard.picked { background: #8a5a12; color: #fff; border-color: #8a5a12; }
 .lp-grade.lp-good.picked { background: #111; color: #fff; border-color: #111; }
-.lp-grade.lp-easy.picked { background: #1f5e3a; color: #fff; border-color: #1f5e3a; }
+.lp-grade.lp-okay.picked { background: #4a4a4a; color: #fff; border-color: #4a4a4a; }
+.lp-grade.lp-strong.picked { background: #1f5e3a; color: #fff; border-color: #1f5e3a; }
 .lp-due { margin: 8px 0 0; font-size: 12.5px; color: #6b6b6b; }
+#coach .lp-due.dim { color: #636363; } /* the panel is white paper; --dim is for the page */
 .lp-teacher {
   margin-top: 12px;
   padding: 10px 12px;
@@ -5135,7 +5138,7 @@ body.is-panel-piano .studio-dock .tempo-control {
 .coach .hand-label {
   font-size: 10px !important;
   letter-spacing: 0.16em !important;
-  color: #7a7a7a !important;
+  color: #636363 !important;
 }
 .coach-bar-block > h4 {
   margin: 18px 0 8px;
@@ -5643,7 +5646,7 @@ body.is-onboard {
   letter-spacing: 0.18em;
   text-transform: uppercase;
   font-size: 11px;
-  color: #6a6a6a;
+  color: #858585;
 }
 .onboard-progress {
   list-style: none;
@@ -5657,7 +5660,7 @@ body.is-onboard {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: #4a4a4a;
+  color: #858585;
   font-size: 12px;
   letter-spacing: 0.04em;
 }
@@ -5854,7 +5857,7 @@ body.is-onboard {
   font-size: 12px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #6a6a6a;
+  color: #858585;
 }
 .onboard-search,
 .onboard-auth input,
@@ -8453,7 +8456,7 @@ body:not(.is-signed-in) .home-member {
 .share-foot {
   margin-top: 56px;
   font-size: 13px;
-  color: #777;
+  color: #858585;
 }
 .share-foot a { color: #bbb; }
 .member-footer-actions { margin: 0 0 8px; }
@@ -8508,7 +8511,7 @@ button.fx-play,
   padding: 0 12px;
   border: 0;
   border-radius: 999px;
-  color: #777;
+  color: #858585;
   transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
 .fx-seg button:hover { color: #c8c8c8; }
@@ -8892,7 +8895,29 @@ body.is-home .piece-tabs:not([hidden]) { display: flex; }
 .ask-mic.on { background: #f0f0f0; color: #0a0a0a; }
 .ask-send { min-height: 42px; padding: 0 16px; }
 .ask-fine { margin: 0; padding: 2px 18px 12px; font-size: 11px; color: var(--dim); }
+.ask-ai-offer {
+  margin: 6px 14px 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.ask-ai-offer p { margin: 0 0 6px; }
+.ask-ai-more { margin: 0 0 8px; }
+.ask-ai-more summary { cursor: pointer; color: var(--text); }
+.ask-ai-more p { margin: 6px 0 0; }
+.ask-ai-offer strong { color: var(--text); font-weight: 600; }
+.ask-ai-offer progress,
+.settings-device-ai progress { width: 100%; height: 6px; accent-color: var(--text); }
+.settings-sub { margin: 14px 0 4px; font-size: 14px; font-weight: 600; color: var(--text); }
+.settings-device-ai { margin-bottom: 8px; }
+.settings-device-ai p { margin: 10px 0; font-size: 14px; line-height: 1.55; color: var(--muted); }
 .lp-ask-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
+.lp-ai-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--line); }
+.lp-ai-row::before { content: "Lune AI"; flex-basis: 100%; font-size: 12px; color: var(--muted); }
+.ask-chips .ask-chip-ai { color: var(--text); border-color: var(--muted); }
 .lp-asked-q { margin: 6px 0 2px; font-size: 13px; color: var(--ink-muted); }
 .lp-asked-a { margin: 0 0 8px; font-size: 14px; line-height: 1.5; white-space: pre-line; }
 @media (max-width: 640px) {
@@ -9157,3 +9182,65 @@ body.is-home .piece-tabs:not([hidden]) { display: flex; }
 .settings-steps code { font-size: 13px; color: var(--text); word-break: break-all; }
 /* sliders get the same focus ring as everything else */
 input[type="range"]:focus-visible { outline: 2px solid var(--text); outline-offset: 4px; border-radius: 4px; }
+
+/* Install Lune: instructions for browsers without an install prompt */
+.install-dialog { max-width: 520px; }
+.install-dialog h3 { margin: 18px 0 6px; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.install-platform { border-top: 1px solid var(--line); padding: 10px 0; }
+.install-platform summary { cursor: pointer; font-size: 15px; color: var(--text); }
+.install-platform ol { margin: 8px 0 2px; padding-left: 22px; font-size: 14px; line-height: 1.55; color: var(--muted); }
+.install-platform li + li { margin-top: 4px; }
+
+/* Share this week: the display name field matches the other dialog fields */
+.impact-dialog label[for="share-display-name"] { display: block; margin: 14px 0 6px; font-size: 13px; color: var(--muted); }
+.impact-dialog #share-display-name {
+  display: block;
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 16px;
+  border-radius: 2px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+}
+.impact-dialog #share-display-name:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
+
+/* the score takes keyboard focus (arrow keys move bar by bar) */
+#score-scroll:focus { outline: none; }
+#score-scroll:focus-visible { outline: 2px solid var(--text); outline-offset: -2px; }
+
+/* This week: what the week holds, done or not, and why each item is there */
+.week-progress { margin: 4px 0 10px; font-size: 14px; color: var(--muted); }
+.week-items { list-style: none; margin: 0; padding: 0; text-align: left; }
+.week-item {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 2px 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.week-status {
+  grid-row: span 2;
+  align-self: start;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+.week-item.is-done .week-status { color: var(--text); }
+.week-item.is-done .week-status::before { content: "✓ "; }
+.week-what { font-size: 15px; color: var(--text); }
+.week-what em { font-style: normal; font-size: 12px; color: var(--muted); margin-left: 4px; }
+.week-why { font-size: 13px; line-height: 1.45; color: var(--muted); }
+
+/* the score engraved for the Piano tab's timeline while its own panel is not on screen */
+.studio-panel.score-offstage {
+  position: fixed !important;
+  left: -200vw !important;
+  top: 0;
+  width: 100vw;
+  visibility: hidden;
+  pointer-events: none;
+}

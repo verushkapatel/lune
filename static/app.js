@@ -1082,7 +1082,77 @@ function createSession(piece, panel = "explain") {
   };
 }
 
+/* Open tabs survive a reload: only their ids are kept, and a tab's score is
+ * fetched again when it is clicked. Uploaded scores are not kept. */
+const TABS_KEY = "lune.tabs";
+let tabsRestored = false;
+
+function sessionRouteId(s) {
+  return s?.lazy ? s.lazy.id : pieceRouteId(s?.piece);
+}
+
+function saveTabs() {
+  if (!tabsRestored) return; // nothing is written over the saved tabs before they are read
+  const tabs = state.sessions
+    .filter((s) => sessionRouteId(s))
+    .map((s) => ({
+      id: sessionRouteId(s),
+      title: s.shortTitle,
+      composer: s.lazy ? s.lazy.composer : s.piece?.overview?.composer || s.piece?.composer || "",
+      panel: s.panel || "explain",
+    }));
+  try {
+    if (tabs.length) localStorage.setItem(TABS_KEY, JSON.stringify({ tabs, active: sessionRouteId(activeSession()) || null }));
+    else localStorage.removeItem(TABS_KEY);
+  } catch {
+    /* private mode: tabs last for this visit */
+  }
+}
+
+/** Put back the tabs from the last visit, without loading any score. */
+function restoreTabs() {
+  if (tabsRestored) return;
+  tabsRestored = true;
+  let saved = null;
+  try {
+    saved = JSON.parse(localStorage.getItem(TABS_KEY) || "null");
+  } catch {
+    saved = null;
+  }
+  if (!Array.isArray(saved?.tabs)) return;
+  for (const t of saved.tabs.slice(0, 12)) {
+    if (!t?.id || state.sessions.some((s) => sessionRouteId(s) === t.id)) continue;
+    const s = createSession(null, t.panel === "score" || t.panel === "piano" ? t.panel : "explain");
+    s.lazy = { id: String(t.id), composer: String(t.composer || "") };
+    s.shortTitle = String(t.title || t.id);
+    state.sessions.push(s);
+  }
+  renderPieceTabs();
+}
+
+/** A restored tab gets its score when it is first opened. */
+async function materializeSession(s) {
+  if (!s?.lazy) return true;
+  const id = s.lazy.id;
+  const piece = await withLoader("Opening the score", () =>
+    tryOpen(LUNE_ON_PAGES ? { query: id } : { query: id.replace(/-/g, " "), title: "" })
+  ).catch(() => null);
+  if (!piece || piece.kind !== "score") {
+    state.sessions.splice(state.sessions.indexOf(s), 1);
+    renderPieceTabs();
+    toast("That tab’s score couldn’t be opened again, so it was closed.");
+    return false;
+  }
+  enrichPieceMeta(piece);
+  delete s.lazy;
+  s.piece = piece;
+  s.rawMusicxml = piece.musicxml || "";
+  s.shortTitle = shortPieceTitle(piece.overview?.title || piece.title);
+  return true;
+}
+
 function renderPieceTabs() {
+  saveTabs();
   const host = $("piece-tabs");
   const quiet = $("studio-piece-quiet");
   if (!host) return;
@@ -1118,11 +1188,11 @@ function renderPieceTabs() {
 
   const frag = document.createDocumentFragment();
   for (const s of state.sessions) {
+    const current = s.id === state.activeSessionId && !s.lazy;
     const tab = document.createElement("div");
-    tab.className = "piece-tab" + (studio && s.id === state.activeSessionId ? " on" : "");
-    tab.setAttribute("role", "tab");
-    tab.setAttribute("aria-selected", s.id === state.activeSessionId ? "true" : "false");
-    const composerName = s.piece?.overview?.composer || s.piece?.composer || "";
+    tab.className = "piece-tab" + (current ? " on" : "") + (s.lazy ? " piece-tab-lazy" : "");
+    tab.setAttribute("role", "presentation");
+    const composerName = s.lazy ? s.lazy.composer : s.piece?.overview?.composer || s.piece?.composer || "";
     const faceUrl =
       localComposerFaceUrl(composerName) ||
       (s.piece?.overview?.composerInfo?.image || "").trim() ||
@@ -1142,7 +1212,10 @@ function renderPieceTabs() {
     btn.type = "button";
     btn.className = "piece-tab-label";
     btn.title = s.piece?.title || s.shortTitle;
-    btn.textContent = s.id === state.activeSessionId ? s.shortTitle : s.shortTitle;
+    btn.textContent = s.shortTitle;
+    btn.setAttribute("role", "tab");
+    btn.setAttribute("aria-selected", current ? "true" : "false");
+    if (current) btn.setAttribute("aria-current", "page");
     btn.addEventListener("click", () => {
       // from the home page the "active" piece still has to be brought back on stage
       if (!document.body.classList.contains("is-studio") && s.id === state.activeSessionId) showView("studio");
@@ -1443,6 +1516,13 @@ function setStudioPanel(panel, { skipScore = false } = {}) {
   state.mode = next === "explain" ? "ask" : next === "score" ? "listen" : "piano";
   const s = activeSession();
   if (s) s.panel = next;
+  // Explain has the piece title as its own h1; Score and Piano get one for screen readers
+  const h1 = $("studio-h1");
+  if (h1) {
+    const t = state.piece?.overview?.title || state.piece?.title || "Score";
+    h1.textContent = `${t}: ${next === "score" ? "score" : next === "piano" ? "piano" : "overview"}`;
+    h1.hidden = next === "explain";
+  }
 
   ["score", "explain", "piano"].forEach((name) => {
     const el = $(`panel-${name}`);
@@ -1763,6 +1843,24 @@ function enrichPieceMeta(piece) {
 async function openPieceSession(piece, { panel = "explain" } = {}) {
   if (window.LuneOnboard && !LuneOnboard.requireUnlock()) return;
   if (window.LuneOnboard && !LuneOnboard.requirePieceAccess?.(piece)) return;
+  // the same piece already has a tab (perhaps one restored from the last visit): use it
+  const rid = pieceRouteId(piece);
+  const twin = rid && state.sessions.find((x) => sessionRouteId(x) === rid);
+  if (twin) {
+    if (twin.lazy) {
+      enrichPieceMeta(piece);
+      delete twin.lazy;
+      twin.piece = piece;
+      twin.rawMusicxml = piece.musicxml || "";
+      twin.shortTitle = shortPieceTitle(piece.overview?.title || piece.title);
+      twin.panel = panel;
+    }
+    if (twin.id === state.activeSessionId) showView("studio");
+    else await activateSession(twin.id);
+    if (panel === "score") await switchToScorePanel();
+    else setStudioPanel(panel);
+    return;
+  }
   snapshotActiveSession();
   stopAll();
   closeCoach();
@@ -1802,11 +1900,12 @@ async function activateSession(id) {
     showView("studio");
     return;
   }
+  const s = state.sessions.find((x) => x.id === id);
+  if (!s) return;
+  if (s.lazy && !(await materializeSession(s))) return;
   snapshotActiveSession();
   stopAll();
   closeCoach();
-  const s = state.sessions.find((x) => x.id === id);
-  if (!s) return;
   state.activeSessionId = id;
   applySessionToState(s);
   fillPieceChrome(s.piece);
@@ -3619,7 +3718,27 @@ function staggerLaneLabels(host) {
   return moved;
 }
 
+/**
+ * The Piano tab needs the score engraved for its timeline while the Score
+ * panel is hidden. Engraving into a hidden (zero-width) panel draws bars with
+ * negative widths, so the panel is laid out off screen at full width meanwhile.
+ */
 async function renderScore() {
+  const pane = $("panel-score");
+  const offstage = !!pane?.hidden;
+  if (offstage) {
+    pane.classList.add("score-offstage");
+    pane.hidden = false;
+  }
+  try {
+    await renderScoreNow();
+  } finally {
+    if (offstage && state.panel !== "score") pane.hidden = true;
+    pane?.classList.remove("score-offstage");
+  }
+}
+
+async function renderScoreNow() {
   const base = state.rawMusicxml || state.piece?.musicxml || "";
   if (!base) return;
   const wantLetters = !!state.scoreLetters;
@@ -3927,7 +4046,7 @@ function lettersBlock(d) {
         return `<span class="chip ${fingersFirst ? "finger-only" : "letter"} chord" title="Chord">${inner}</span>`;
       })
       .join("");
-  let html = `<h4>Notes</h4>`;
+  let html = `<h4 aria-level="3">Notes</h4>`;
   if (d.rh?.length) html += `<p class="hand-label">Right hand</p><div class="notes">${fmt(d.rh)}</div>`;
   if (d.lh?.length) html += `<p class="hand-label">Left hand</p><div class="notes">${fmt(d.lh)}</div>`;
   if (!d.rh?.length && !d.lh?.length) html += `<p class="dim">No pitched notes in this bar.</p>`;
@@ -3985,7 +4104,7 @@ function barSectionHtml(num, d) {
   }
   if (first) {
     const open = !!window._luneAdviceOpen;
-    html += `<h4>How to practise it</h4><div class="coach-advice"><p>${escapeHtml(first)}</p>`;
+    html += `<h4 aria-level="3">How to practise it</h4><div class="coach-advice"><p>${escapeHtml(first)}</p>`;
     if (extra.length) {
       html += `<button type="button" class="coach-more-btn" data-coach-more aria-expanded="${open ? "true" : "false"}">${open ? "Less on this bar" : "More on this bar"}</button>`;
       html += `<div class="coach-advice-more"${open ? "" : " hidden"}><ul class="focus-list">${extra
@@ -4062,7 +4181,7 @@ function lineSummaryHtml(bar) {
     }
   }
   const tip = hardest.d.advice?.[0] || "";
-  let html = `<section class="coach-line-block"><h4>This line · bars ${line[0]}\u2013${line[line.length - 1]}</h4><ul class="line-summary">`;
+  let html = `<section class="coach-line-block"><h4 aria-level="3">This line · bars ${line[0]}\u2013${line[line.length - 1]}</h4><ul class="line-summary">`;
   html += `<li><strong>Hardest bar:</strong> bar ${hardest.num}${
     hardest.d.headline ? ` (${escapeHtml(hardest.d.headline)})` : ""
   }.</li>`;
@@ -4159,7 +4278,7 @@ async function askPlan() {
   for (const num of bars) {
     html += lettersBlock(debriefFor(num) || { rh: [], lh: [] });
   }
-  html += `<h4>Session</h4><ul>${(plan.steps || [])
+  html += `<h4 aria-level="3">Session</h4><ul>${(plan.steps || [])
     .map((s) => `<li><strong>${escapeHtml(s.title)}</strong> (${s.minutes}m) — ${escapeHtml(s.detail)}</li>`)
     .join("")}</ul>`;
   $("help-body").innerHTML = html;
@@ -4268,7 +4387,7 @@ async function applyRoute() {
       }
       return;
     }
-    const open = state.sessions.find((x) => pieceRouteId(x.piece) === r.id);
+    const open = state.sessions.find((x) => sessionRouteId(x) === r.id);
     if (open) {
       if (open.id !== state.activeSessionId) await activateSession(open.id);
       else showView("studio");
@@ -4434,7 +4553,10 @@ function bind() {
     if (e.key === "Escape") {
       if (document.querySelector(".lune-menu.is-open")) return;
       if (state.coachOpen) {
+        const inPanel = $("coach")?.contains(document.activeElement) || document.activeElement === document.body;
         closeCoach();
+        // keyboard users land back on the score, where the arrow keys pick the next bar
+        if (inPanel || document.activeElement === $("score-scroll")) $("score-scroll")?.focus({ preventScroll: true });
         e.preventDefault();
         return;
       }
@@ -4777,6 +4899,11 @@ window.showView = showView;
 try {
   bind();
   window.addEventListener("popstate", () => applyRoute().catch(() => {}));
+  // keep each tab's last panel for the next visit
+  window.addEventListener("pagehide", () => {
+    snapshotActiveSession();
+    saveTabs();
+  });
   // Repertoire / study / onboard modules load after this file.
   const boot = async () => {
     try {
@@ -4784,6 +4911,7 @@ try {
     } catch (e) {
       console.warn("[lune] store init", e);
     }
+    restoreTabs();
     window.LuneOnboard?.init?.();
     window.LuneImpact?.init?.();
     const gate = window.LuneOnboard?.route?.() || "app";

@@ -25,11 +25,43 @@ window.LuneStore = (function () {
 
   /* ---------------- local backend ---------------- */
 
+  /*
+   * Practice ratings, weakest to strongest: Again, Hard, Okay, Good, Strong.
+   * Until lune04 there were four, and the top one was called "easy"; it is
+   * the same rating as Strong and is renamed wherever it is read.
+   */
+  const GRADES = ["again", "hard", "okay", "good", "strong"];
+  const GRADE_ALIASES = { easy: "strong" };
+  function normGrade(g) {
+    const k = String(g || "").toLowerCase();
+    return GRADE_ALIASES[k] || k;
+  }
+  /** Rename stored "easy" ratings to "strong", once, in this browser's copy. */
+  function migrateGrades(data) {
+    let changed = false;
+    for (const c of data.cards || []) {
+      if (c.last_grade && GRADE_ALIASES[c.last_grade]) {
+        c.last_grade = GRADE_ALIASES[c.last_grade];
+        changed = true;
+      }
+    }
+    for (const r of data.activity || []) {
+      if (r.grade && GRADE_ALIASES[r.grade]) {
+        r.grade = GRADE_ALIASES[r.grade];
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
   function readLocal() {
     try {
       const raw = localStorage.getItem(LOCAL_KEY);
       const data = raw ? JSON.parse(raw) : null;
-      if (data && data.v === 1) return data;
+      if (data && data.v === 1) {
+        if (migrateGrades(data)) writeLocal(data);
+        return data;
+      }
     } catch {
       /* private mode or blocked storage */
     }
@@ -533,6 +565,8 @@ window.LuneStore = (function () {
       if ("done" in patch) {
         becameDone = !!patch.done && !row.done;
         row.done = !!patch.done;
+        if (becameDone) row.done_at = nowIso();
+        else if (!row.done) row.done_at = null;
       }
       if ("plan" in patch) row.plan = patch.plan;
       if ("notes" in patch) row.notes = String(patch.notes || "").slice(0, 800);
@@ -719,8 +753,10 @@ window.LuneStore = (function () {
       r.kind === "practice" || r.kind === "follow" || r.kind === "review" || r.kind === "task" || r.kind === "tonight"
     ).length;
     const mins = rows.reduce((n, r) => n + (Number(r.mins) || 0), 0);
-    const good = rows.filter((r) => r.kind === "review" && (r.grade === "good" || r.grade === "easy")).length;
-    const hard = rows.filter((r) => r.kind === "review" && (r.grade === "again" || r.grade === "hard")).length;
+    const rated = (...g) => rows.filter((r) => r.kind === "review" && g.includes(normGrade(r.grade))).length;
+    const good = rated("good", "strong");
+    const okay = rated("okay");
+    const hard = rated("again", "hard");
     const barsWorked = new Set(
       rows.filter((r) => r.bar != null && Number(r.bar) > 0).map((r) => `${r.piece_key}:${r.bar}`)
     ).size;
@@ -735,6 +771,7 @@ window.LuneStore = (function () {
       barsWorked,
       goalMinsPerSession: goalMins,
       good,
+      okay,
       hard,
       updated_at: nowIso(),
     };
@@ -779,8 +816,16 @@ window.LuneStore = (function () {
   /* ---------------- review cards (spaced repetition) ---------------- */
 
   const DAY = 86400000;
-  /** SM-2 style scheduling, tuned for practice (minutes → days → weeks). */
-  function schedule(card, grade) {
+  /**
+   * SM-2 style scheduling, tuned for practice (minutes → days → weeks).
+   * Each rating sits on one scale, so a stronger rating never brings a bar
+   * back sooner: Again (10 minutes, a lapse), Hard (×0.6, ease −0.15),
+   * Okay (×0.8), Good (×1), Strong (×1.4, ease +0.15).
+   */
+  const STEP = { hard: 0.6, okay: 0.8, good: 1, strong: 1.4 };
+  function schedule(card, rawGrade) {
+    const grade = normGrade(rawGrade);
+    if (!GRADES.includes(grade)) throw new Error(`Unknown rating: ${rawGrade}`);
     const c = { ease: 2.5, interval_days: 0, reps: 0, lapses: 0, ...card };
     if (grade === "again") {
       c.lapses += 1;
@@ -791,9 +836,9 @@ window.LuneStore = (function () {
     } else {
       c.reps += 1;
       if (grade === "hard") c.ease = Math.max(1.3, c.ease - 0.15);
-      if (grade === "easy") c.ease = c.ease + 0.15;
+      if (grade === "strong") c.ease = c.ease + 0.15;
       const base = c.reps === 1 ? 1 : c.reps === 2 ? 3 : c.interval_days * c.ease;
-      const mult = grade === "hard" ? 0.6 : grade === "easy" ? 1.4 : 1;
+      const mult = STEP[grade];
       c.interval_days = Math.max(1, Math.round(base * mult * 10) / 10);
       c.due_at = new Date(Date.now() + c.interval_days * DAY).toISOString();
     }
@@ -805,7 +850,8 @@ window.LuneStore = (function () {
     if (remote()) {
       let q = client.from("bar_cards").select("*");
       if (pieceKey) q = q.eq("piece_key", pieceKey);
-      return check(await q.order("due_at")) || [];
+      // rows saved before the rename say "easy"; they are rewritten on their next review
+      return (check(await q.order("due_at")) || []).map((c) => (c.last_grade ? { ...c, last_grade: normGrade(c.last_grade) } : c));
     }
     const cards = readLocal().cards;
     return (pieceKey ? cards.filter((c) => c.piece_key === pieceKey) : cards).sort((a, b) => a.due_at.localeCompare(b.due_at));
@@ -1042,6 +1088,9 @@ window.LuneStore = (function () {
   }
 
   return {
+    GRADES,
+    normGrade,
+    schedule,
     __attach,
     init,
     status,

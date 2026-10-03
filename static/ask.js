@@ -8,6 +8,9 @@
  * Answers come from a provider (LuneAIProvider):
  *   - "rules"    built in, always available: a rule-based assistant that
  *                runs in the browser and sends nothing anywhere.
+ *   - "device"   optional: Lune AI, an open-weight model that runs inside
+ *                this browser (ai-device.js). Nothing is downloaded until
+ *                the pianist turns it on, and the size is shown first.
  *   - "endpoint" optional: a language model behind an OpenAI-compatible
  *                chat endpoint the person sets in Settings (for example
  *                Ollama on their own computer, or their own serverless
@@ -192,6 +195,8 @@ Rules:
   const TASKS = {
     answerQuestion: (q) => q,
     explainBar: () => "Explain what happens in this bar and what makes it easy or hard, using only CONTEXT.",
+    whyHard: () =>
+      "Say why this bar is hard, or that it is not, using only CONTEXT.bar.difficulty, CONTEXT.bar.technicalFeatures and the notes in CONTEXT.bar. Then suggest one thing to try.",
     explainPracticeProblem: (q) => `The pianist says: "${q}". Using CONTEXT (their ratings, remarks and the bar's difficulty), say what is most likely going wrong and one thing to try.`,
     suggestPractice: () => "Suggest how to practise this bar or passage in three short steps, each tied to something in CONTEXT.",
     generatePracticePlan: (bars, mins) => `Write a practice plan of ${mins} minutes for bars ${bars.join(", ")}. Numbered steps with minutes for each, hands-separate or slow-tempo work only where CONTEXT supports it, and keep the pianist's goal.`,
@@ -201,7 +206,24 @@ Rules:
     explainMusicalTerms: (q) => `Explain this musical term plainly for a piano student: ${q}`,
   };
 
+  const D = () => window.LuneDeviceAI;
   const providers = {
+    /** Lune AI: an open-weight model running in this browser. */
+    device: {
+      available: () => !!D()?.enabled() || D()?.status() === "ready",
+      label: () => `Lune AI on this device (${D()?.MODEL.name})`,
+      async answer(question, ctx, { onToken } = {}) {
+        const res = await D().chat(
+          [
+            { role: "system", content: SYSTEM_PROMPT },
+            { role: "user", content: `CONTEXT:\n${JSON.stringify(ctx)}\n\nQUESTION: ${question}` },
+          ],
+          { onToken },
+        );
+        if (!res?.text) throw new Error("model sent no answer");
+        return res.text.slice(0, 4000);
+      },
+    },
     /** A language model behind an OpenAI-compatible chat endpoint. */
     endpoint: {
       available: () => !!aiSettings().endpoint,
@@ -233,8 +255,11 @@ Rules:
           clearTimeout(timer);
         }
       },
+      label: () => `your local model (${aiSettings().model})`,
     },
   };
+  /** A model the pianist set up themselves comes first, then Lune AI on this device. */
+  const active = () => (providers.endpoint.available() ? providers.endpoint : providers.device.available() ? providers.device : null);
 
   /* ---------- actions ---------- */
 
@@ -291,9 +316,9 @@ Rules:
     if (LuneAIProvider.connected()) {
       try {
         const note = await LuneAIProvider.generatePracticePlan(picked[0], picked, mins);
-        if (note) out += `\n\nFrom your local model (${LuneAIProvider.model()}):\n${note}`;
+        if (note) out += `\n\nFrom ${LuneAIProvider.label()}:\n${note}`;
       } catch {
-        out += "\n\nYour local model didn’t answer, so this plan is Lune’s built-in one.";
+        out += "\n\nThe model didn’t answer, so this plan is Lune’s built-in one.";
       }
     }
     return out;
@@ -304,7 +329,7 @@ Rules:
     await P()?.addCurrentToRepertoire?.({ quiet: true }).catch(() => {});
     for (const b of bars) await store().reviewBar(key, b, grade);
     P()?.refreshBadge?.();
-    const word = { again: "to do again tomorrow", hard: "as hard", good: "as good", easy: "as easy" }[grade];
+    const word = { again: "to do again soon", hard: "as hard", okay: "as okay", good: "as good", strong: "as strong" }[grade];
     return `Logged bar${bars.length === 1 ? "" : "s"} ${bars.join(", ")} ${word}. Lune will bring ${bars.length === 1 ? "it" : "them"} back at the right time.`;
   }
 
@@ -330,11 +355,13 @@ Rules:
       ? "again"
       : /\b(hard|tricky|difficult|struggl)/.test(t)
         ? "hard"
-        : /\b(easy|effortless|no problem)\b/.test(t)
-          ? "easy"
-          : /\b(good|fine|better|okay|ok|clean|went well)\b/.test(t)
-            ? "good"
-            : null;
+        : /\b(strong|easy|effortless|secure|no problem)\b/.test(t)
+          ? "strong"
+          : /\b(okay|ok|so-so|mostly|alright)\b/.test(t)
+            ? "okay"
+            : /\b(good|fine|better|clean|went well|solid)\b/.test(t)
+              ? "good"
+              : null;
     if (grade && !isQuestion && bars.length && /\b(was|went|felt|is|that|it)\b/.test(t)) {
       return { bar: bars[0], a: await rate(bars, grade), saved: "review" };
     }
@@ -400,6 +427,54 @@ Rules:
     return { bar, question: true, a: lines.filter(Boolean).join("\n") || "I don't have more on this bar." };
   }
 
+  /*
+   * The model-only actions. Each has a fixed place: these chips in Ask Lune
+   * and the Lune AI row in the bar panel (practice.js). They are shown only
+   * while a model is connected; the built-in rules have their own chips.
+   */
+  const MODEL_ACTIONS = {
+    explainBar: { label: "Explain this bar", bar: true, fallback: "How do I practise this bar?" },
+    whyHard: { label: "Why is this hard?", bar: true, fallback: "Why is this bar hard?" },
+    suggestPractice: { label: "Suggest practice", bar: true, fallback: "How do I practise this bar?" },
+    explainFingering: { label: "Explain the fingering", bar: true, fallback: "What is the fingering?" },
+    summarizePractice: { label: "Summarise my practice", bar: false, fallback: null },
+  };
+
+  /** Run one model action on a bar (or the piece) and show it in the panel. */
+  async function runTask(task, bar = null) {
+    const act = MODEL_ACTIONS[task];
+    if (!act) return;
+    open({ bar });
+    line("you", act.label);
+    const model = active();
+    let a = null;
+    if (model) {
+      const shown = line("lune", model === providers.device && D().status() !== "ready" ? "Loading Lune AI…" : "Thinking…");
+      shown.setAttribute("aria-hidden", "true");
+      let streamed = "";
+      try {
+        a = await model.answer(TASKS[task](), await buildContext(act.bar ? bar || selectedBarsSorted()[0] || null : null), {
+          onToken: (t) => {
+            streamed += t;
+            shown.textContent = streamed;
+          },
+        });
+      } catch {
+        a = null;
+      }
+      shown.remove();
+    }
+    let note = "";
+    if (!a) {
+      note = "The model didn’t answer, so this is Lune’s built-in reply.";
+      a = act.fallback ? (await reply(act.fallback)).a : "Lune’s built-in answers can’t summarise practice. This week shows the days, bars and ratings instead.";
+    }
+    const said = line("lune", a);
+    if (!note) said.dataset.via = "model";
+    else line("lune", note).classList.add("ask-note");
+    remember({ bar: act.bar ? bar || selectedBarsSorted()[0] || null : null, q: act.label, a, note: note || undefined, via: note ? undefined : "model", t: Date.now() });
+  }
+
   /* ---------- the panel ---------- */
 
   function ensurePanel() {
@@ -430,6 +505,7 @@ Rules:
         <input id="ask-input" type="text" maxlength="400" placeholder="Ask, or say “bar 12, keep the thumb light”">
         <button type="submit" class="primary ask-send">Send</button>
       </form>
+      <div class="ask-ai-offer" id="ask-ai-offer" hidden></div>
       <p class="ask-fine" id="ask-fine"></p>`;
     document.body.appendChild(p);
     p.querySelector("#ask-close").addEventListener("click", close);
@@ -442,7 +518,12 @@ Rules:
       ask(text);
     });
     p.querySelector("#ask-mic").addEventListener("click", speakInto);
+    p.querySelector("#ask-ai-offer").addEventListener("click", (e) => {
+      if (e.target.closest("[data-ai-on]")) turnOnDeviceAI(p.querySelector("#ask-ai-offer"));
+    });
     p.querySelector("#ask-chips").addEventListener("click", (e) => {
+      const t = e.target.closest("button[data-task]");
+      if (t) return runTask(t.dataset.task, selectedBarsSorted()[0] || null);
       const b = e.target.closest("button[data-q]");
       if (b) ask(b.dataset.q);
     });
@@ -467,8 +548,11 @@ Rules:
     if (fine) {
       fine.textContent = providers.endpoint.available()
         ? `Local model connected (${aiSettings().model}). Questions go to it with this bar’s score facts and your remarks.`
-        : "Local model not connected. These are Lune’s built-in answers from its reading of the score and your remarks. Nothing is sent anywhere. Connect a model in Settings.";
+        : providers.device.available()
+          ? `Lune AI is on. ${D().MODEL.name} runs in this browser and answers from this bar’s score facts and your remarks. Nothing you ask leaves this device.`
+          : "These are Lune’s built-in answers, worked out from the score and your remarks. They are not from a language model. Nothing is sent anywhere.";
     }
+    paintDeviceOffer();
     const sel = selectedBarsSorted();
     const where = $("ask-where");
     const title = state.piece?.overview?.title || state.piece?.title || "";
@@ -485,10 +569,81 @@ Rules:
           ["Make a plan", "Make a plan"],
           ["What key and tempo?", "Key and tempo"],
         ];
+    const modelChips = active()
+      ? Object.entries(MODEL_ACTIONS)
+          .filter(([, a]) => a.bar === !!sel.length)
+          .map(([task, a]) => `<button type="button" class="ask-chip-ai" data-task="${task}">${esc(a.label)}</button>`)
+          .join("")
+      : "";
     $("ask-chips").innerHTML =
+      modelChips +
       chips.map(([q, label]) => `<button type="button" data-q="${esc(q)}">${esc(label)}</button>`).join("") +
       // the coach's full step-by-step notes for the selected bars, written into the bar panel
       (sel.length ? `<button type="button" id="btn-plan">Step-by-step notes</button>` : "");
+  }
+
+  /* ---------- turning Lune AI on (ask first, show the size, then download) ---------- */
+
+  /** Offer Lune AI in the panel when no model is connected. Nothing downloads until the button is pressed. */
+  async function paintDeviceOffer() {
+    const box = $("ask-ai-offer");
+    if (!box || box.dataset.busy) return;
+    if (!D() || active()) {
+      box.hidden = true;
+      return;
+    }
+    const plan = await D().plan();
+    if (!plan.supported) {
+      box.hidden = true;
+      return;
+    }
+    box.innerHTML = deviceOfferHtml(plan);
+    box.hidden = false;
+  }
+
+  function deviceOfferHtml(plan) {
+    const size = esc(D().sizeText(plan.bytes));
+    const slow =
+      plan.device === "wasm" ? " This browser has no WebGPU, so it runs on the processor and each answer takes noticeably longer." : "";
+    return `<p><strong>Lune AI</strong> answers with a language model that runs in this browser. It downloads ${size} once.</p>
+      <details class="ask-ai-more"><summary>What this means</summary>
+        <p>The model is ${esc(plan.name)} (${esc(plan.licence)} licence), fetched from Hugging Face and kept in this browser.
+        After that it works offline and nothing you ask leaves this device. It answers from Lune’s reading of the score and your remarks.${slow}
+        It is a general model, not one trained for Lune, and it can be wrong.</p></details>
+      <button type="button" class="quiet" data-ai-on>Download ${size} and turn on</button>`;
+  }
+
+  /** Download the model with a progress bar; used by Ask Lune and Settings. */
+  async function turnOnDeviceAI(box, { onDone } = {}) {
+    if (!D()) return;
+    box.dataset.busy = "1";
+    box.innerHTML = `<p class="ask-ai-progress-label" role="status">Downloading Lune AI…</p>
+      <progress max="1" value="0" aria-label="Lune AI download"></progress>`;
+    const bar = box.querySelector("progress");
+    const label = box.querySelector(".ask-ai-progress-label");
+    let lastPct = -1;
+    const stop = D().on((ev) => {
+      if (ev.type !== "progress" || !ev.total) return;
+      bar.value = ev.loaded / ev.total;
+      const pct = Math.floor((100 * ev.loaded) / ev.total);
+      // update the spoken status in tens so a screen reader is not flooded
+      if (Math.floor(pct / 10) !== Math.floor(lastPct / 10)) label.textContent = `Downloading Lune AI: ${pct}% of ${D().sizeText(ev.total)}`;
+      lastPct = pct;
+    });
+    try {
+      await D().load();
+      label.textContent = "Lune AI is on. Ask anything about the piece or a bar.";
+      bar.remove();
+      paintContext();
+      onDone?.(true);
+    } catch (err) {
+      label.textContent = `Lune AI could not start here (${err.message || "unknown error"}). Ask Lune keeps using its built-in answers.`;
+      bar.remove();
+      onDone?.(false);
+    } finally {
+      stop();
+      delete box.dataset.busy;
+    }
   }
 
   function paintHistory() {
@@ -502,7 +657,9 @@ Rules:
     }
     for (const h of rows) {
       line("you", h.q);
-      line("lune", h.a);
+      const a = line("lune", h.a);
+      if (h.via === "model") a.dataset.via = "model";
+      if (h.note) line("lune", h.note).classList.add("ask-note");
     }
   }
 
@@ -516,19 +673,30 @@ Rules:
       out = { a: err?.message || "That didn't work — try again." };
     }
     // A question may go to the connected model; the built-in answer is the fallback.
-    if (out.question && providers.endpoint.available()) {
-      const waiting = line("lune", "Thinking…");
+    const model = out.question ? active() : null;
+    let shown = null;
+    if (model) {
+      shown = line("lune", model === providers.device && D().status() !== "ready" ? "Loading Lune AI…" : "Thinking…");
+      // the words appear as they are written; screen readers get the finished answer once
+      shown.setAttribute("aria-hidden", "true");
+      let streamed = "";
       try {
-        out.a = await providers.endpoint.answer(text, await buildContext(out.bar || selectedBarsSorted()[0] || null));
+        out.a = await model.answer(text, await buildContext(out.bar || selectedBarsSorted()[0] || null), {
+          onToken: (t) => {
+            streamed += t;
+            shown.textContent = streamed;
+          },
+        });
         out.via = "model";
       } catch {
         out.note = "The model didn’t answer, so this is Lune’s built-in reply.";
       }
-      waiting.remove();
+      shown.remove();
     }
-    line("lune", out.a);
+    const said = line("lune", out.a);
+    if (out.via === "model") said.dataset.via = "model";
     if (out.note) line("lune", out.note).classList.add("ask-note");
-    remember({ bar: out.bar || null, q: text, a: out.a, t: Date.now() });
+    remember({ bar: out.bar || null, q: text, a: out.a, note: out.note, via: out.via, t: Date.now() });
     if (out.saved) {
       P()?.paintScoreMarks?.();
       if (state.coachOpen) openBarCoach();
@@ -567,7 +735,10 @@ Rules:
     }
   }
 
+  let opener = null;
   function open({ bar = null } = {}) {
+    const from = document.activeElement;
+    if (from && from !== document.body && !$("ask-lune")?.contains(from)) opener = from;
     if (!state.piece) {
       toast("Open a score first — then ask Lune about any bar.");
       return;
@@ -589,9 +760,13 @@ Rules:
 
   function close() {
     const p = $("ask-lune");
+    const had = p && !p.hidden && p.contains(document.activeElement);
     if (p) p.hidden = true;
     document.body.classList.remove("ask-open");
     P()?.stopHearing?.();
+    // focus goes back to what opened the panel
+    if (had && opener?.isConnected) opener.focus({ preventScroll: true });
+    opener = null;
   }
 
   /** Keep the panel pointed at the bar that is selected while it is open. */
@@ -609,15 +784,17 @@ Rules:
    * present a rule-based answer as a model's.
    */
   const LuneAIProvider = {
-    connected: () => providers.endpoint.available(),
-    model: () => aiSettings().model,
+    connected: () => !!active(),
+    model: () => (providers.endpoint.available() ? aiSettings().model : D()?.MODEL.name || ""),
+    label: () => active()?.label() || "",
     async run(task, bar, ...args) {
-      if (!providers.endpoint.available() || !TASKS[task]) return null;
-      return providers.endpoint.answer(TASKS[task](...args), await buildContext(bar));
+      const m = active();
+      if (!m || !TASKS[task]) return null;
+      return m.answer(TASKS[task](...args), await buildContext(bar));
     },
   };
   for (const task of Object.keys(TASKS)) LuneAIProvider[task] = (bar, ...args) => LuneAIProvider.run(task, bar, ...args);
   window.LuneAIProvider = LuneAIProvider;
 
-  return { open, close, ask, historyFor, onSelection, buildContext, aiSettings, SYSTEM_PROMPT, testModel: () => providers.endpoint.answer("Reply with the single word: ready", { test: true }) };
+  return { open, close, ask, historyFor, onSelection, buildContext, aiSettings, SYSTEM_PROMPT, TASKS, MODEL_ACTIONS, runTask, modelConnected: () => !!active(), deviceOfferHtml, turnOnDeviceAI, testModel: () => providers.endpoint.answer("Reply with the single word: ready", { test: true }) };
 })();
