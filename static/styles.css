@@ -158,9 +158,13 @@ body.is-discover .bar {
   font: inherit;
   cursor: pointer;
   padding: 0;
+  margin-right: 10px;
   opacity: 0.72;
   transition: opacity 0.2s ease;
   flex-shrink: 0;
+}
+body.is-home .top-search {
+  margin-left: 6px;
 }
 .brand:hover { opacity: 1; }
 body.is-studio .brand {
