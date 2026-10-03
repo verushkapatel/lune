@@ -318,7 +318,7 @@ function closeSearchResults({ blur = false } = {}) {
 const SEARCH_LIMIT = 8;
 // Paint on the next frame only — coalesces burst keystrokes, ~0–16ms feel (no 100ms lag).
 const SEARCH_DEBOUNCE_MS = 0;
-const SEARCH_INDEX_URL = luneUrl("/static/search-index.json?v=catalog01");
+const SEARCH_INDEX_URL = luneUrl("/static/search-index.json?v=catalog02");
 /** Composers whose piano works are typically still under copyright — honest empty state. */
 const COPYRIGHT_ERA_COMPOSERS = [
   "ginastera", "prokofiev", "shostakovich", "khachaturian", "kabalevsky",
@@ -778,6 +778,11 @@ async function loadStaticXml(file) {
 }
 
 async function tryOpenStatic(body) {
+  // Prefer allowlisted remote MusicXML when the search hit is marked remote.
+  if (body.remote && window.LuneFetchScore?.tryOpenRemote) {
+    const remote = await window.LuneFetchScore.tryOpenRemote(body);
+    if (remote && remote.opened !== false) return remote;
+  }
   const rows = await loadStaticOpens();
   // 1) exact catalogue id / query (typeahead picks and shared links)
   let best = rows.find((r) => (body.query && (r.id === body.query || r.query === body.query)));
@@ -785,51 +790,61 @@ async function tryOpenStatic(body) {
   if (!best) {
     const typed = body.query || body.title || "";
     const hit = filterSearchIndex(typed, 1, rows)[0];
-    if (hit) best = rows.find((r) => r.query === hit.query) || null;
+    if (hit) best = rows.find((r) => r.query === hit.query || r.id === hit.id) || null;
   }
-  if (!best) {
-    return {
-      kind: "catalogue",
-      opened: false,
-      title: body.title || body.query || "",
-      composer: "",
-      message: "No free score for that yet.",
-    };
-  }
-  const musicxml = await loadStaticXml(best.file);
-  if (body.analyze && best.analysis) {
-    const res = await fetch(luneUrl(`/static/${best.analysis}`));
-    if (res.ok) {
-      const full = await res.json();
-      full.musicxml = musicxml;
-      full.opened = true;
-      full.kind = "score";
-      full.needsAnalysis = false;
-      full.openQuery = body.query || "";
-      full.id = best.id || full.id || "";
-      if (best.credit && !full.credit) full.credit = best.credit;
-      if (best.fallbackNote) full.fallbackNote = best.fallbackNote;
-      return full;
+  if (best?.file) {
+    try {
+      const musicxml = await loadStaticXml(best.file);
+      if (body.analyze && best.analysis) {
+        const res = await fetch(luneUrl(`/static/${best.analysis}`));
+        if (res.ok) {
+          const full = await res.json();
+          full.musicxml = musicxml;
+          full.opened = true;
+          full.kind = "score";
+          full.needsAnalysis = false;
+          full.openQuery = body.query || "";
+          full.id = best.id || full.id || "";
+          if (best.credit && !full.credit) full.credit = best.credit;
+          if (best.fallbackNote) full.fallbackNote = best.fallbackNote;
+          return full;
+        }
+      }
+      return {
+        kind: "score",
+        opened: true,
+        needsAnalysis: true,
+        title: best.title,
+        composer: best.composer,
+        filename: (best.file || "").split("/").pop(),
+        musicxml,
+        overview: best.overview || {},
+        epoch: best.epoch || "",
+        era: best.epoch || "",
+        debriefs: {},
+        source: best.source || "library",
+        downloadName: best.downloadName || "score.musicxml",
+        id: best.id || "",
+        credit: best.credit || null,
+        openQuery: body.query || "",
+        fallbackNote: best.fallbackNote || "",
+      };
+    } catch {
+      /* fall through to remote fetch */
     }
   }
+  // 3) Allowlisted free MusicXML/MXL fetch (GitHub raw only — no PDFs, no paid APIs)
+  if (window.LuneFetchScore?.tryOpenRemote) {
+    const remote = await window.LuneFetchScore.tryOpenRemote(body);
+    if (remote) return remote;
+  }
   return {
-    kind: "score",
-    opened: true,
-    needsAnalysis: true,
-    title: best.title,
-    composer: best.composer,
-    filename: (best.file || "").split("/").pop(),
-    musicxml,
-    overview: best.overview || {},
-    epoch: best.epoch || "",
-    era: best.epoch || "",
-    debriefs: {},
-    source: best.source || "library",
-    downloadName: best.downloadName || "score.musicxml",
-    id: best.id || "",
-    credit: best.credit || null,
-    openQuery: body.query || "",
-    fallbackNote: best.fallbackNote || "",
+    kind: "catalogue",
+    opened: false,
+    title: body.title || body.query || "",
+    composer: body.composer || "",
+    message:
+      "No free MusicXML for that title in Lune’s allowlisted sources yet. Try another spelling, pick a result from search, or upload your own MusicXML.",
   };
 }
 
@@ -842,8 +857,22 @@ async function tryOpen(body) {
       body: JSON.stringify(body),
     });
     if (!res.ok) return null;
-    return await res.json();
+    const piece = await res.json();
+    if (piece && piece.opened !== false && piece.kind !== "catalogue") return piece;
+    // Server miss → try the same free remote MusicXML allowlist in-browser.
+    if (window.LuneFetchScore?.tryOpenRemote) {
+      const remote = await window.LuneFetchScore.tryOpenRemote(body);
+      if (remote && remote.opened !== false) return remote;
+    }
+    return piece;
   } catch {
+    if (window.LuneFetchScore?.tryOpenRemote) {
+      try {
+        return await window.LuneFetchScore.tryOpenRemote(body);
+      } catch {
+        return null;
+      }
+    }
     return null;
   }
 }
@@ -861,6 +890,8 @@ async function fetchAndDiscover(works) {
         epoch: item.epoch || "",
         query: item.query || typed,
         portrait: item.portrait || "",
+        remote: !!item.remote,
+        id: item.id || "",
       });
       if (!piece) continue;
       if (piece.opened === false || piece.kind === "catalogue") {
@@ -1332,7 +1363,11 @@ function renderPieceCredit(piece) {
   const bits = [];
   if (piece?.local) bits.push("Your own score — read in this browser only");
   else if (c?.source) {
-    bits.push(`Score: ${link(c.source, c.sourceUrl)}${c.license ? ` · ${link(c.license, c.licenseUrl)}` : ""}`);
+    const prefix = piece?.remoteFetched ? "Fetched from " : "Score: ";
+    const parts = [`${prefix}${link(c.source, c.sourceUrl)}`];
+    if (c.license) parts.push(link(c.license, c.licenseUrl));
+    if (c.sourceUrl) parts.push(link("View source", c.sourceUrl));
+    bits.push(parts.join(" · "));
   }
   if (!piece?.local) {
     bits.push(

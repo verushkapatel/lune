@@ -64,6 +64,8 @@ window.LuneOnboard = (function () {
     Gershwin: "gershwin.jpg",
   };
   const COMPOSERS = Object.keys(COMPOSER_FACES);
+  /** Extra names from the live library (silhouette if no portrait). */
+  let libraryComposerNames = [];
 
   const LEVELS = [
     { g: 1, name: "Beginner", blurb: "First pieces · ABRSM 1" },
@@ -146,8 +148,9 @@ window.LuneOnboard = (function () {
   const STEP_LABELS = ["Composers", "Level", "Aspire", "Practice", "Dream", "Account", "Path"];
   const WELCOME_VERSION = 3;
   /** Post-OTP hello moment — bump to re-show after copy changes. */
-  const SIGNED_WELCOME_VERSION = 1;
+  const SIGNED_WELCOME_VERSION = 2;
   const DRAFT_KEY = "lune.onboard.draft.v1";
+  const SESSION_BACK_KEY = "lune.welcomeBack.session";
 
   let step = 0;
   let selectedComposers = new Set();
@@ -157,6 +160,7 @@ window.LuneOnboard = (function () {
   let practiceMins = 30;
   let dreamPiece = null;
   let dreamQuery = "";
+  let composerQuery = "";
   let keepPromptShown = false;
   let authPendingEmail = "";
   let authEmbeddedMsg = "";
@@ -164,6 +168,8 @@ window.LuneOnboard = (function () {
   let pendingEnterStudio = false;
   /** After OTP, show the warm hello once before signed-in home. */
   let pendingSignedWelcome = false;
+  /** Returning member — show “Welcome back” instead of first-time hello. */
+  let pendingWelcomeBack = false;
 
   function signedIn() {
     const st = store()?.status?.() || {};
@@ -204,6 +210,99 @@ window.LuneOnboard = (function () {
     store()?.setPref?.("signedWelcomeVersion", SIGNED_WELCOME_VERSION);
     store()?.syncPrefs?.();
   }
+  function sessionWelcomeBackSeen() {
+    try {
+      return sessionStorage.getItem(SESSION_BACK_KEY) === "1";
+    } catch {
+      return false;
+    }
+  }
+  function markSessionWelcomeBack() {
+    try {
+      sessionStorage.setItem(SESSION_BACK_KEY, "1");
+    } catch {
+      /* private mode */
+    }
+  }
+  function foldSearch(s) {
+    return String(s || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+  }
+  function allComposerChoices() {
+    if (libraryComposerNames.length) return libraryComposerNames;
+    return COMPOSERS;
+  }
+  function filteredComposers(q) {
+    const needle = foldSearch(q);
+    // Idle grid stays portrait-first; typing searches the full OpenOpus catalogue.
+    if (!needle) return COMPOSERS;
+    return allComposerChoices().filter((c) => foldSearch(c).includes(needle));
+  }
+  function hydrateFromPrefs() {
+    const p = store()?.prefs() || {};
+    if (Array.isArray(p.composers) && p.composers.length) selectedComposers = new Set(p.composers);
+    if (p.grade != null) selectedGrade = Number(p.grade) || selectedGrade;
+    if (p.aspireGrade != null) aspireGrade = Number(p.aspireGrade) || aspireGrade;
+    if (p.practiceDays != null) practiceDays = Number(p.practiceDays) || practiceDays;
+    if (p.practiceMins != null) practiceMins = Number(p.practiceMins) || practiceMins;
+    if (p.dreamPiece) dreamPiece = p.dreamPiece;
+  }
+  /** Completed path in cloud/local — never re-ask taste questions. */
+  function hasCompletedOnboarding() {
+    const p = store()?.prefs() || {};
+    if (p.onboarded) return true;
+    const composers = Array.isArray(p.composers) ? p.composers : [];
+    const hasPath =
+      (Array.isArray(p.progression) && p.progression.length) ||
+      (Array.isArray(p.recommendations) && p.recommendations.length);
+    // Returning cloud profile may lag the onboarded flag — treat a saved path as done.
+    return composers.length > 0 && p.grade != null && !!p.dreamPiece && hasPath;
+  }
+  async function ensureLibraryComposers() {
+    if (libraryComposerNames.length) return;
+    const set = new Set();
+    const loadJson = async (path) => {
+      try {
+        const url = typeof window.luneUrl === "function" ? window.luneUrl(path) : path.replace(/^\//, "");
+        const res = await fetch(url, { cache: "force-cache" });
+        if (!res.ok) return null;
+        return await res.json();
+      } catch {
+        return null;
+      }
+    };
+    const catalogue = await loadJson("/static/composers-index.json");
+    for (const c of catalogue?.composers || []) {
+      const name = String(c || "").trim();
+      if (name) set.add(name);
+    }
+    const index = await loadJson("/static/search-index.json");
+    for (const it of index?.items || []) {
+      const c = String(it.composer || "").trim();
+      if (c && c.toLowerCase() !== "traditional") set.add(c);
+    }
+    // Prefer short portrait keys as the selectable label when they match a full name.
+    const preferred = [];
+    const used = new Set();
+    for (const short of COMPOSERS) {
+      const hit = [...set].find(
+        (full) => foldSearch(full) === foldSearch(short) || foldSearch(full).includes(foldSearch(short))
+      );
+      if (hit) {
+        preferred.push(short);
+        used.add(foldSearch(hit));
+        used.add(foldSearch(short));
+      }
+    }
+    for (const full of [...set].sort((a, b) => a.localeCompare(b))) {
+      if (used.has(foldSearch(full))) continue;
+      preferred.push(full);
+    }
+    libraryComposerNames = preferred;
+  }
 
   function luneAsset(path) {
     const onPages =
@@ -219,8 +318,16 @@ window.LuneOnboard = (function () {
     return `${root}${path}`;
   }
   function composerFaceUrl(name) {
-    const file = COMPOSER_FACES[name];
-    if (file) return luneAsset(`/static/assets/composers/${file}?v=${COMPOSER_FACE_V}`);
+    if (COMPOSER_FACES[name]) {
+      return luneAsset(`/static/assets/composers/${COMPOSER_FACES[name]}?v=${COMPOSER_FACE_V}`);
+    }
+    const n = foldSearch(name);
+    const keys = Object.keys(COMPOSER_FACES).sort((a, b) => b.length - a.length);
+    for (const key of keys) {
+      if (n.includes(foldSearch(key))) {
+        return luneAsset(`/static/assets/composers/${COMPOSER_FACES[key]}?v=${COMPOSER_FACE_V}`);
+      }
+    }
     return luneAsset(`/static/assets/composers/silhouette.svg?v=${COMPOSER_FACE_V}`);
   }
   function levelName(g) {
@@ -325,7 +432,8 @@ window.LuneOnboard = (function () {
       hello.className = "hello";
       hello.hidden = true;
       hello.innerHTML = `
-      <section class="hello-hero" aria-label="Welcome to Lune">
+      <section class="hello-hero" id="hello-hero" aria-label="Welcome to Lune">
+        <div class="hello-moon" aria-hidden="true"></div>
         <div class="hello-hero-inner">
           <div class="hello-lockup">
             <svg class="lune-mark hello-mark" viewBox="0 0 40 40" width="64" height="64" aria-hidden="true">
@@ -333,10 +441,10 @@ window.LuneOnboard = (function () {
             </svg>
             <p class="hello-brand">Lune</p>
           </div>
-          <p class="hello-kicker">You’re in</p>
-          <h1>Welcome.</h1>
-          <p class="hello-lead">Thank you for choosing Lune.</p>
-          <p class="hello-story">Named for Clair de lune — the piece that settles everything when practice feels lost. Your studio is ready: a quiet night place where practice can feel right again.</p>
+          <p class="hello-kicker" id="hello-kicker">You’re in</p>
+          <h1 id="hello-title">Welcome.</h1>
+          <p class="hello-lead" id="hello-lead">Thank you for choosing Lune.</p>
+          <p class="hello-story" id="hello-story">Named for Clair de lune — the piece that settles everything when practice feels lost. Your studio is ready: a quiet night place where practice can feel right again.</p>
           <div class="hello-cta">
             <button type="button" class="primary big" id="btn-hello-enter">Enter your studio</button>
           </div>
@@ -345,7 +453,9 @@ window.LuneOnboard = (function () {
       document.getElementById("app")?.appendChild(hello);
       hello.querySelector("#btn-hello-enter")?.addEventListener("click", () => {
         markSignedWelcomeSeen();
+        markSessionWelcomeBack();
         pendingSignedWelcome = false;
+        pendingWelcomeBack = false;
         enterApp();
       });
     }
@@ -565,28 +675,43 @@ window.LuneOnboard = (function () {
     if (d && !d.open) d.showModal();
   }
 
-  function afterAuth() {
+  async function afterAuth() {
     persistPrefsPartial();
+    try {
+      await store()?.pullPrefs?.({ preferLocal: true });
+    } catch {
+      /* offline */
+    }
     store()?.syncPrefs?.();
+    hydrateFromPrefs();
     window.LuneImpact?.clearInvite?.();
     $("create-account-dialog")?.close?.();
     $("keep-lune-dialog")?.close?.();
-    // Fresh sign-in → warm hello once (never restart guest sim / never re-ask email).
+
+    // Returning members: never re-open the taste questionnaire.
+    if (hasCompletedOnboarding()) {
+      markStudioReady();
+      clearDraft();
+      pendingEnterStudio = false;
+      if (!seenSignedWelcome()) {
+        pendingSignedWelcome = true;
+        pendingWelcomeBack = false;
+        showSignedWelcome({ mode: "first" });
+        return;
+      }
+      if (!sessionWelcomeBackSeen()) {
+        pendingWelcomeBack = true;
+        showSignedWelcome({ mode: "back" });
+        return;
+      }
+      enterApp();
+      return;
+    }
+
     if (!seenSignedWelcome()) pendingSignedWelcome = true;
     if (pendingEnterStudio) {
       pendingEnterStudio = false;
       finishOnboard({ quiet: false, skipKeepPrompt: true });
-      return;
-    }
-    const prefs = store()?.prefs?.() || {};
-    const hasPath =
-      (selectedComposers.size || (Array.isArray(prefs.composers) && prefs.composers.length)) &&
-      (dreamPiece || prefs.dreamPiece);
-    // Returning users with a saved path → personal home (or one-time hello).
-    if (prefs.onboarded && hasPath) {
-      markStudioReady();
-      if (pendingSignedWelcome && !seenSignedWelcome()) showSignedWelcome();
-      else enterApp();
       return;
     }
     // Signed in but questionnaire incomplete → resume questions (never the email step).
@@ -607,18 +732,44 @@ window.LuneOnboard = (function () {
     window.scrollTo?.(0, 0);
   }
 
-  function showSignedWelcome() {
+  function showSignedWelcome({ mode } = {}) {
     ensureDom();
     hideAllMains();
+    const back = mode === "back" || pendingWelcomeBack;
     const h = $("hello");
+    const hero = $("hello-hero");
     if (h) {
       h.hidden = false;
       h.scrollTop = 0;
+      h.classList.toggle("hello-back", back);
+    }
+    if (hero) hero.classList.toggle("hello-hero-back", back);
+    const kicker = $("hello-kicker");
+    const title = $("hello-title");
+    const lead = $("hello-lead");
+    const story = $("hello-story");
+    const cta = $("btn-hello-enter");
+    if (back) {
+      if (kicker) kicker.textContent = "Again";
+      if (title) title.textContent = "Welcome back.";
+      if (lead) lead.textContent = "Your studio is as you left it.";
+      if (story)
+        story.textContent =
+          "Same night light, same scores, same path. Pick up wherever practice paused — Clair de lune is still here when you need it.";
+      if (cta) cta.textContent = "Continue";
+    } else {
+      if (kicker) kicker.textContent = "You’re in";
+      if (title) title.textContent = "Welcome.";
+      if (lead) lead.textContent = "Thank you for choosing Lune.";
+      if (story)
+        story.textContent =
+          "Named for Clair de lune — the piece that settles everything when practice feels lost. Your studio is ready: a quiet night place where practice can feel right again.";
+      if (cta) cta.textContent = "Enter your studio";
     }
     document.body.classList.add("is-hello");
+    document.body.classList.toggle("is-hello-back", back);
     document.body.classList.remove("is-welcome", "is-onboard", "is-home", "is-studio", "is-discover", "is-repertoire");
     window.scrollTo?.(0, 0);
-    // Focus the enter CTA for keyboard / screen-reader flow
     setTimeout(() => $("btn-hello-enter")?.focus?.(), 80);
   }
 
@@ -663,21 +814,34 @@ window.LuneOnboard = (function () {
   }
 
   function filteredDreams(q) {
-    const needle = String(q || "")
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .trim();
+    const needle = foldSearch(q);
     const pool = [...DREAM_SUGGESTIONS];
     for (const g of Object.values(GRADE_POOL)) {
       for (const p of g) {
         if (!pool.some((x) => x.title === p.title)) pool.push(p);
       }
     }
-    if (!needle) return pool.slice(0, 8);
+    // Merge live library titles when the search index has been loaded.
+    try {
+      const items = window.LuneSearchIndex?.items || window.__LUNE_SEARCH_ITEMS__ || [];
+      for (const it of items) {
+        if (!it?.title) continue;
+        if (pool.some((x) => x.title === it.title && x.composer === it.composer)) continue;
+        pool.push({
+          title: it.title,
+          composer: it.composer || "",
+          query: it.query || it.title,
+          id: it.id || "",
+          grade: it.grade || null,
+        });
+      }
+    } catch {
+      /* ignore */
+    }
+    if (!needle) return pool.slice(0, 12);
     return pool
-      .filter((p) => `${p.title} ${p.composer} ${p.query || ""}`.toLowerCase().includes(needle))
-      .slice(0, 10);
+      .filter((p) => foldSearch(`${p.title} ${p.composer} ${p.query || ""} ${p.hay || ""}`).includes(needle))
+      .slice(0, 14);
   }
 
   function paintOnboard() {
@@ -687,21 +851,56 @@ window.LuneOnboard = (function () {
     if (step === 0) stage.classList.add("onboard-stage-wide");
 
     if (step === 0) {
+      const visible = filteredComposers(composerQuery);
+      const selected = [...selectedComposers];
       stage.innerHTML = `
         ${progressHtml(0)}
         <p class="eyebrow">Taste</p>
         <h1>Which composers are you into?</h1>
-        <p class="onboard-help">Pick a few. Their faces stay with your studio — recommendations lean their way.</p>
-        <div class="onboard-composer-grid" role="group" aria-label="Composers">
-          ${COMPOSERS.map((c) => {
-            const on = selectedComposers.has(c);
-            return `<button type="button" class="onboard-composer${on ? " on" : ""}" data-composer="${esc(c)}" aria-pressed="${on}">
-              <span class="onboard-composer-face" style="background-image:url('${composerFaceUrl(c)}')"></span>
-              <span class="onboard-composer-name">${esc(c)}</span>
-            </button>`;
-          }).join("")}
+        <p class="onboard-help">Search the library, then pick a few. Their faces stay with your studio — recommendations lean their way.</p>
+        <label class="onboard-search-label" for="composer-q">Search composers</label>
+        <div class="onboard-composer-search">
+          <svg class="onboard-composer-search-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/>
+            <path d="M15.5 15.5L20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+          <input id="composer-q" class="onboard-search onboard-composer-q" type="search" autocomplete="off"
+            placeholder="Bach, Chopin, Scriabin…" value="${esc(composerQuery)}" aria-label="Search composers">
         </div>
-        ${navHtml({ back: false, nextDisabled: !selectedComposers.size })}`;
+        ${
+          selected.length
+            ? `<div class="onboard-composer-chips" aria-label="Selected composers">
+                ${selected
+                  .map(
+                    (c) => `<button type="button" class="onboard-composer-chip" data-composer-chip="${esc(c)}" aria-label="Remove ${esc(c)}">
+                      <span class="onboard-composer-chip-face" style="background-image:url('${composerFaceUrl(c)}')"></span>
+                      ${esc(c)}
+                      <span aria-hidden="true">×</span>
+                    </button>`
+                  )
+                  .join("")}
+              </div>`
+            : ""
+        }
+        <div class="onboard-composer-grid" role="group" aria-label="Composers">
+          ${
+            visible.length
+              ? visible
+                  .map((c) => {
+                    const on = selectedComposers.has(c);
+                    return `<button type="button" class="onboard-composer${on ? " on" : ""}" data-composer="${esc(c)}" aria-pressed="${on}">
+                      <span class="onboard-composer-face" style="background-image:url('${composerFaceUrl(c)}')"></span>
+                      <span class="onboard-composer-name">${esc(c)}</span>
+                    </button>`;
+                  })
+                  .join("")
+              : `<p class="onboard-composer-empty">No composers match “${esc(composerQuery.trim())}”.</p>`
+          }
+        </div>
+        ${navHtml({ back: false, nextDisabled: !selectedComposers.size })}
+        <p class="onboard-already">
+          <button type="button" class="quiet" data-already>I already have an account</button>
+        </p>`;
     } else if (step === 1) {
       stage.innerHTML = `
         ${progressHtml(1)}
@@ -897,6 +1096,24 @@ window.LuneOnboard = (function () {
     stage.querySelector("[data-finish]")?.addEventListener("click", () => finishOnboard());
     stage.querySelector("[data-already]")?.addEventListener("click", () => openCreateAccount());
 
+    const composerInput = stage.querySelector("#composer-q");
+    composerInput?.addEventListener("input", () => {
+      composerQuery = composerInput.value || "";
+      paintOnboard();
+      const again = $("composer-q");
+      if (again) {
+        again.focus();
+        const len = again.value.length;
+        again.setSelectionRange(len, len);
+      }
+    });
+    stage.querySelectorAll("[data-composer-chip]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        selectedComposers.delete(btn.dataset.composerChip);
+        paintOnboard();
+        saveDraft();
+      });
+    });
     stage.querySelectorAll("[data-composer]").forEach((btn) => {
       btn.addEventListener("click", () => {
         const c = btn.dataset.composer;
@@ -1034,18 +1251,9 @@ window.LuneOnboard = (function () {
         authEmbeddedMsg = "";
         authPendingEmail = "";
         persistPrefsPartial();
-        markStudioReady();
         window.LuneImpact?.clearInvite?.();
-        if (!seenSignedWelcome()) pendingSignedWelcome = true;
-        if (pendingEnterStudio) {
-          pendingEnterStudio = false;
-          finishOnboard({ quiet: false, skipKeepPrompt: true });
-        } else if (selectedComposers.size && dreamPiece) {
-          showOnboard(6);
-        } else {
-          // Already signed in — never bounce back to the email step.
-          afterAuth();
-        }
+        // Single gateway — skips questionnaire for returning members.
+        await afterAuth();
       } catch (err) {
         authEmbeddedMsg = err.message || String(err);
         paintOnboard();
@@ -1205,8 +1413,9 @@ window.LuneOnboard = (function () {
     if (o) o.hidden = true;
     if (w) w.hidden = true;
     if (h) h.hidden = true;
-    document.body.classList.remove("is-welcome", "is-onboard", "is-hello");
+    document.body.classList.remove("is-welcome", "is-onboard", "is-hello", "is-hello-back");
     document.body.classList.add("is-signed-in");
+    $("hello")?.classList.remove("hello-back");
     $("create-account-dialog")?.close?.();
     $("keep-lune-dialog")?.close?.();
     // Always land on the personal home — do not re-enter the soft gate.
@@ -1385,6 +1594,12 @@ window.LuneOnboard = (function () {
         el.disabled = !ok;
       }
     });
+    // Top-bar auth: guests only — signed-in users keep Account via More menu.
+    const barAuth = $("btn-bar-auth");
+    if (barAuth) {
+      barAuth.hidden = !!authed;
+      barAuth.setAttribute("aria-hidden", authed ? "true" : "false");
+    }
     if (!authed) {
       document.body.classList.remove("phone-search-open", "studio-search-open");
       $("btn-search")?.setAttribute("aria-expanded", "false");
@@ -1454,11 +1669,23 @@ window.LuneOnboard = (function () {
     document.body.classList.remove("is-welcome", "is-onboard", "is-hello");
     // Returning signed-in visitors land on their studio home, not the guest gate.
     if (signedIn()) {
-      markStudioReady();
+      hydrateFromPrefs();
+      if (hasCompletedOnboarding()) markStudioReady();
       document.body.classList.add("is-signed-in");
-      if (!seenSignedWelcome()) {
+      if (hasCompletedOnboarding()) {
+        if (!seenSignedWelcome()) {
+          pendingSignedWelcome = true;
+          showSignedWelcome({ mode: "first" });
+          return "hello";
+        }
+        if (!sessionWelcomeBackSeen()) {
+          pendingWelcomeBack = true;
+          showSignedWelcome({ mode: "back" });
+          return "hello";
+        }
+      } else if (!seenSignedWelcome()) {
         pendingSignedWelcome = true;
-        showSignedWelcome();
+        showSignedWelcome({ mode: "first" });
         return "hello";
       }
     }
@@ -1632,6 +1859,18 @@ window.LuneOnboard = (function () {
     ensureDom();
     ensureTourDom();
     loadDraft();
+    ensureLibraryComposers().then(() => {
+      if (step === 0 && !$("onboard")?.hidden) paintOnboard();
+    });
+    // Expose search-index items for dream-piece filtering when app.js loads them.
+    fetch(
+      typeof window.luneUrl === "function" ? window.luneUrl("/static/search-index.json") : "static/search-index.json"
+    )
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.items) window.__LUNE_SEARCH_ITEMS__ = data.items;
+      })
+      .catch(() => {});
     store()?.onChange?.(() => {
       applyGateChrome();
       if (signedIn()) {
@@ -1647,6 +1886,13 @@ window.LuneOnboard = (function () {
           });
         paintSignedHome();
       } else {
+        // Next sign-in should get a fresh welcome-back moment.
+        try {
+          sessionStorage.removeItem(SESSION_BACK_KEY);
+        } catch {
+          /* private mode */
+        }
+        pendingWelcomeBack = false;
         paintSignedHome();
       }
     });

@@ -1,9 +1,12 @@
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- navy01 -->
-  <!-- deploy-navy01 -->
-        <meta charset="UTF-8">
+  <!-- signin01 -->
+  <!-- deploy-signin01 -->
+
+<meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Lune — so practice feels right again</title>
   <meta name="description" content="Lune — named for Clair de lune. A night studio for pianists when practice feels lost: hear a score, name every note, and find your way back to the music.">
@@ -26,12 +29,12 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Lune">
-  <link rel="icon" href="static/assets/favicon.svg?v=navy01" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=navy01">
-  <link rel="manifest" href="static/manifest.json?v=navy01">
+  <link rel="icon" href="static/assets/favicon.svg?v=signin01" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=signin01">
+  <link rel="manifest" href="static/manifest.json?v=signin01">
   <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2?v=navy01" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="static/styles.css?v=navy01">
-  <link rel="preload" href="static/search-index.json?v=navy01" as="fetch" crossorigin>
+  <link rel="stylesheet" href="static/styles.css?v=signin01">
+  <link rel="preload" href="static/search-index.json?v=signin01" as="fetch" crossorigin>
 </head>
 <body>
   <div id="app">
@@ -91,6 +94,9 @@
         </svg>
         <span class="rep-btn-label">Repertoire</span>
         <span class="rep-badge" id="rep-badge" hidden></span>
+      </button>
+      <button type="button" class="bar-auth" id="btn-bar-auth" data-lp-personalise>
+        Sign in<span class="bar-auth-rest"> or Create account</span>
       </button>
       <button type="button" class="icon-btn" id="btn-more" aria-label="More" title="More">
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
@@ -878,7 +884,6 @@
     </div>
   </div>
 
-
   <dialog class="credits-dialog" id="credits-dialog" aria-labelledby="credits-title">
     <form method="dialog" class="credits-close-row">
       <button type="submit" class="icon-btn" aria-label="Close credits" title="Close">
@@ -893,11 +898,11 @@
     <ul>
       <li>Humdrum editions by <a href="https://github.com/craigsapp" target="_blank" rel="noopener">Craig Stuart Sapp</a> (Beethoven, Chopin, Haydn, Joplin, Mozart, Scarlatti, Scriabin). Several are licensed <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a>: credit the editor, non-commercial use, share alike.</li>
       <li>Humdrum encodings of Bach by David Huron, and Bach chorales from the <a href="https://github.com/cuthbertLab/music21" target="_blank" rel="noopener">music21</a> corpus.</li>
-      <li><a href="https://musescore.com/score/4053926" target="_blank" rel="noopener">OpenScore</a> (CC0) — Für Elise.</li>
-      <li>The <a href="https://github.com/musetrainer/library" target="_blank" rel="noopener">MuseTrainer</a> public-domain MusicXML library (Chopin nocturnes, Debussy, Liszt, Satie, Bach minuet).</li>
-      <li>MuseScore community uploads (Mozart K. 545, Clementi Sonatinas) — linked on each piece.</li>
+      <li><a href="https://github.com/OpenScore" target="_blank" rel="noopener">OpenScore</a> (CC0) — Lieder, string quartets, and other CC0 MusicXML encodings.</li>
+      <li>The <a href="https://github.com/musetrainer/library" target="_blank" rel="noopener">musetrainer/library</a> public-domain MusicXML collection.</li>
+      <li>Other allowlisted open MusicXML hosts (e.g. Mutopia / Wikimedia Commons when a free MusicXML file is listed) — fetched on demand, never paid APIs, never random PDFs.</li>
     </ul>
-    <p class="dim">Each piece shows its own source and license under the score and the overview. All compositions are in the public domain; if you hold rights in an edition here and want it removed, <a href="https://github.com/verushkapatel/lune/issues" target="_blank" rel="noopener">open an issue</a> and it will be taken down.</p>
+    <p class="dim">Each open piece shows “Fetched from … · license · View source” under the score. Lune only opens MusicXML/MXL from an allowlist of free hosts. All compositions here are public-domain or openly licensed encodings; if you hold rights in an edition and want it removed, <a href="https://github.com/verushkapatel/lune/issues" target="_blank" rel="noopener">open an issue</a>.</p>
     <h3>Words</h3>
     <ul>
       <li>Composer, era and work notes are written for Lune and partly adapted from <a href="https://en.wikipedia.org/" target="_blank" rel="noopener">Wikipedia</a>, available under <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>.</li>
@@ -929,18 +934,19 @@
   <script src="static/vendor/opensheetmusicdisplay.min.js"></script>
   <script src="static/vendor/pdf.min.js"></script>
   <script src="static/vendor/Tone.js"></script>
-  <script src="static/piano.js?v=navy01"></script>
-  <script src="static/annotate.js?v=navy01"></script>
-  <script src="static/lite-analyze.js?v=navy01"></script>
-  <script src="static/lyric-lane.js?v=navy01"></script>
-  <script src="static/menu.js?v=navy01"></script>
-  <script src="static/lune-config.js?v=navy01"></script>
-  <script src="static/store.js?v=navy01"></script>
-  <script src="static/onboard.js?v=navy01"></script>
-  <script src="static/impact.js?v=navy01"></script>
-  <script src="static/app.js?v=navy01"></script>
-  <script src="static/practice.js?v=navy01"></script>
-  <script src="static/follow.js?v=navy01"></script>
-  <script src="static/study.js?v=navy01"></script>
+  <script src="static/piano.js?v=signin01"></script>
+  <script src="static/annotate.js?v=signin01"></script>
+  <script src="static/lite-analyze.js?v=signin01"></script>
+  <script src="static/fetch-score.js?v=signin01"></script>
+  <script src="static/lyric-lane.js?v=signin01"></script>
+  <script src="static/menu.js?v=signin01"></script>
+  <script src="static/lune-config.js?v=signin01"></script>
+  <script src="static/store.js?v=signin01"></script>
+  <script src="static/onboard.js?v=signin01"></script>
+  <script src="static/impact.js?v=signin01"></script>
+  <script src="static/app.js?v=signin01"></script>
+  <script src="static/practice.js?v=signin01"></script>
+  <script src="static/follow.js?v=signin01"></script>
+  <script src="static/study.js?v=signin01"></script>
 </body>
 </html>
