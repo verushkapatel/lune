@@ -8511,7 +8511,7 @@ button.fx-play,
   padding: 0 12px;
   border: 0;
   border-radius: 999px;
-  color: #777;
+  color: #858585;
   transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
 .fx-seg button:hover { color: #c8c8c8; }

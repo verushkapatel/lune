@@ -467,9 +467,47 @@ def section_week(browser):
     ctx.close()
 
 
+# ---------------------------------------------------------------- catalogue
+
+
+def section_catalogue(browser):
+    # this sandbox's proxy re-signs HTTPS, so remote scores need its certificate accepted here
+    ctx = browser.new_context(viewport={"width": 1280, "height": 860}, ignore_https_errors=True)
+    pg = ctx.new_page()
+    pg.errors = []
+    pg.on("pageerror", lambda e: pg.errors.append(str(e)[:200]))
+    pg.goto(BASE, wait_until="networkidle")
+    cat = pg.evaluate("() => fetch('static/remote-catalog.json').then(r => r.json())")
+    k576 = [x for x in cat["items"] if x["source"] == "dcml-mozart"]
+    check("catalogue: K. 576 has its three movements", [x["title"] for x in k576] == [
+        "Piano Sonata no. 18 in D major, K. 576 — Allegro",
+        "Piano Sonata no. 18 in D major, K. 576 — Adagio",
+        "Piano Sonata no. 18 in D major, K. 576 — Allegretto"], [x["title"] for x in k576])
+    ok = all(x["url"].startswith("https://raw.githubusercontent.com/") and x["credit"]["license"] == "CC BY-NC-SA 4.0" and x["credit"]["licenseUrl"] for x in k576)
+    check("catalogue: each comes from the allowlisted host with its licence", ok)
+    idx = pg.evaluate("() => fetch('static/search-index.json').then(r => r.json())")
+    eighteen = [x["title"] for x in idx["items"] if "Sonata no. 18" in x["title"] and "Mozart" in x.get("composer", "")]
+    check("catalogue: sonata no. 18 is listed once per movement", len(eighteen) == 3, eighteen)
+    check("catalogue: the index counts match its items", idx["count"] == len(idx["items"]) and cat["count"] == len(cat["items"]))
+    hits = pg.evaluate("() => filterSearchIndex('mozart sonata 18', 8).map(h => h.title)")
+    check("catalogue: searching “mozart sonata 18” finds it", any("K. 576" in h for h in hits), hits)
+    pg.goto(BASE + "#/dcml-mozart-k576-2/score", wait_until="networkidle")
+    pg.wait_for_function("() => state.piece && Object.keys(state.piece.debriefs || {}).length > 0", timeout=90000)
+    info = pg.evaluate("() => [state.piece.title || state.piece.overview?.title, Object.keys(state.piece.debriefs).length, state.piece.credit?.license, document.querySelectorAll('#osmd svg').length]")
+    check("catalogue: the Adagio opens, is analysed bar by bar and renders", info[0].endswith("Adagio") and info[1] > 50 and info[3] > 0, info)
+    check("catalogue: the opened piece carries its licence", info[2] == "CC BY-NC-SA 4.0", info)
+    pg.goto(BASE, wait_until="networkidle")
+    pg.evaluate("() => document.querySelector('[data-open-credits]').click()")
+    pg.wait_for_timeout(400)
+    credits = pg.inner_text("dialog[open]")
+    check("catalogue: the credits name the edition, its licence and When in Rome", "Annotated Mozart Sonatas" in credits and "When in Rome" in credits)
+    check("catalogue: no page errors", not pg.errors, pg.errors[:3])
+    ctx.close()
+
+
 # ---------------------------------------------------------------- main
 
-SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week}
+SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week, "catalogue": section_catalogue}
 
 if __name__ == "__main__":
     want = sys.argv[1:] or list(SECTIONS)

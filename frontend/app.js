@@ -4026,7 +4026,7 @@ function lettersBlock(d) {
         return `<span class="chip ${fingersFirst ? "finger-only" : "letter"} chord" title="Chord">${inner}</span>`;
       })
       .join("");
-  let html = `<h4>Notes</h4>`;
+  let html = `<h4 aria-level="3">Notes</h4>`;
   if (d.rh?.length) html += `<p class="hand-label">Right hand</p><div class="notes">${fmt(d.rh)}</div>`;
   if (d.lh?.length) html += `<p class="hand-label">Left hand</p><div class="notes">${fmt(d.lh)}</div>`;
   if (!d.rh?.length && !d.lh?.length) html += `<p class="dim">No pitched notes in this bar.</p>`;
@@ -4084,7 +4084,7 @@ function barSectionHtml(num, d) {
   }
   if (first) {
     const open = !!window._luneAdviceOpen;
-    html += `<h4>How to practise it</h4><div class="coach-advice"><p>${escapeHtml(first)}</p>`;
+    html += `<h4 aria-level="3">How to practise it</h4><div class="coach-advice"><p>${escapeHtml(first)}</p>`;
     if (extra.length) {
       html += `<button type="button" class="coach-more-btn" data-coach-more aria-expanded="${open ? "true" : "false"}">${open ? "Less on this bar" : "More on this bar"}</button>`;
       html += `<div class="coach-advice-more"${open ? "" : " hidden"}><ul class="focus-list">${extra
@@ -4161,7 +4161,7 @@ function lineSummaryHtml(bar) {
     }
   }
   const tip = hardest.d.advice?.[0] || "";
-  let html = `<section class="coach-line-block"><h4>This line · bars ${line[0]}\u2013${line[line.length - 1]}</h4><ul class="line-summary">`;
+  let html = `<section class="coach-line-block"><h4 aria-level="3">This line · bars ${line[0]}\u2013${line[line.length - 1]}</h4><ul class="line-summary">`;
   html += `<li><strong>Hardest bar:</strong> bar ${hardest.num}${
     hardest.d.headline ? ` (${escapeHtml(hardest.d.headline)})` : ""
   }.</li>`;
@@ -4258,7 +4258,7 @@ async function askPlan() {
   for (const num of bars) {
     html += lettersBlock(debriefFor(num) || { rh: [], lh: [] });
   }
-  html += `<h4>Session</h4><ul>${(plan.steps || [])
+  html += `<h4 aria-level="3">Session</h4><ul>${(plan.steps || [])
     .map((s) => `<li><strong>${escapeHtml(s.title)}</strong> (${s.minutes}m) — ${escapeHtml(s.detail)}</li>`)
     .join("")}</ul>`;
   $("help-body").innerHTML = html;
