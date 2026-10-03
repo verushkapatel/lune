@@ -22,7 +22,8 @@ window.LunePiano = (function () {
   let audioEpoch = 0;
   /** Event indices already queued for the current audioEpoch. */
   const scheduled = new Set();
-  const beat = 0.42;
+  // Seconds per quarter note. Default ≈ 80 bpm — calm practice pace (was 0.42 ≈ 143 bpm).
+  let beat = 0.75;
   /** Schedule a hair ahead of now so the first note never clicks against a cold bus. */
   const SCHEDULE_PAD = 0.055;
   /** Musical-time look-ahead — keeps Stop able to silence (no long Tone queue). */
@@ -377,9 +378,23 @@ window.LunePiano = (function () {
   }
 
   /** Load a timeline without starting audio (for scrub-before-play). */
+  /** Set seconds-per-quarter from a BPM (clamped for practice). */
+  function setTempoBpm(bpm) {
+    const n = Number(bpm);
+    if (!Number.isFinite(n) || n <= 0) return 60 / beat;
+    const clamped = Math.max(56, Math.min(108, n));
+    beat = 60 / clamped;
+    return clamped;
+  }
+
+  function getTempoBpm() {
+    return Math.round(60 / beat);
+  }
+
   function arm(notes, opts = {}) {
     clearAudio();
     playing = false;
+    if (opts.tempoBpm != null) setTempoBpm(opts.tempoBpm);
     events = buildEvents(notes);
     if (!events.length) return false;
     if (opts.onTick) onTick = opts.onTick;
@@ -401,6 +416,7 @@ window.LunePiano = (function () {
     await ensure();
     clearAudio();
     playing = false;
+    if (opts.tempoBpm != null) setTempoBpm(opts.tempoBpm);
     events = buildEvents(notes);
     if (!events.length) return false;
     onTick = opts.onTick || null;
@@ -546,6 +562,8 @@ window.LunePiano = (function () {
     hasTimeline,
     setRate,
     getRate,
+    setTempoBpm,
+    getTempoBpm,
     setKeysHandler,
     activeAt,
     isReady,

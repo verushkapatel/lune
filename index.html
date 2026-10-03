@@ -24,12 +24,12 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Lune">
-  <link rel="icon" href="static/assets/favicon.svg?v=fix90" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=fix90">
-  <link rel="manifest" href="static/manifest.json?v=fix90">
+  <link rel="icon" href="static/assets/favicon.svg?v=fix91" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=fix91">
+  <link rel="manifest" href="static/manifest.json?v=fix91">
   <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="static/styles.css?v=fix90">
-  <link rel="preload" href="static/search-index.json?v=fix90" as="fetch" crossorigin>
+  <link rel="stylesheet" href="static/styles.css?v=fix91">
+  <link rel="preload" href="static/search-index.json?v=fix91" as="fetch" crossorigin>
 </head>
 <body>
   <div id="app">
@@ -120,10 +120,6 @@
           <p class="lead">
             Free piano scores with letter names or finger numbers under every note, a coach for the bars that feel hard, and a memory for the ones you keep missing.
           </p>
-          <form class="hero-search" id="hero-search">
-            <label class="visually-hidden" for="hero-q">Search a piece or composer</label>
-            <input id="hero-q" type="search" placeholder="Search a piece or composer…" autocomplete="off">
-          </form>
           <div class="hero-chips" id="hero-chips">
             <button type="button" class="hero-chip" data-open-piece="beethoven-fur-elise">Für Elise</button>
             <button type="button" class="hero-chip" data-open-piece="debussy-clair-de-lune">Clair de lune</button>
@@ -133,6 +129,53 @@
             <button type="button" class="quiet" id="btn-home-upload">Upload your MusicXML</button>
             <span class="home-cta-note">Files stay in your browser.</span>
           </div>
+        </div>
+      </section>
+
+      <section class="home-features" id="features" aria-labelledby="features-h">
+        <div class="home-features-inner">
+          <p class="about-kicker">In the studio</p>
+          <h2 id="features-h">Everything you can do with a score.</h2>
+          <p class="home-features-lead">Open any piece and these tools are ready — no guessing, no sign-up.</p>
+          <ul class="home-feature-list">
+            <li>
+              <strong>Letter names or finger numbers</strong>
+              <span>Toggle Notes · Fingers · Off. Labels sit in their own lane under the staff, never on the notes.</span>
+            </li>
+            <li>
+              <strong>Hear it</strong>
+              <span>Play, pause, scrub the timeline, change speed from 0.5× to 1.5×. A playhead follows the bar.</span>
+            </li>
+            <li>
+              <strong>Watch the keys</strong>
+              <span>Show the on-screen keyboard under the score so pressed keys light as the music plays.</span>
+            </li>
+            <li>
+              <strong>Coach for any bar</strong>
+              <span>Tap a bar for its notes, suggested fingers, and how to practise it. Play that bar or its line.</span>
+            </li>
+            <li>
+              <strong>Your notes</strong>
+              <span>Type or say a note on a bar (“bar 12, play faster here”). Markers stay on the score.</span>
+            </li>
+            <li>
+              <strong>Today’s bars</strong>
+              <span>Rate a bar After · Hard · Good · Easy. Lune brings the hard ones back on a schedule in Repertoire.</span>
+            </li>
+            <li>
+              <strong>Play along</strong>
+              <span>Lune listens through the microphone, follows your place, and marks wrong notes and hesitations.</span>
+            </li>
+            <li>
+              <strong>Assign to a student</strong>
+              <span>Select bars, make a link with instructions. The student opens it and saves it to their Repertoire.</span>
+            </li>
+            <li>
+              <strong>Reading &amp; access</strong>
+              <span>Large print, Atkinson Hyperlegible, high contrast, bars read aloud, arrow-key navigation, braille (.brf) downloads.</span>
+            </li>
+          </ul>
+          <p class="home-features-keys">Shortcuts: Space play · ← → move bar · R read aloud · N note · Esc close</p>
         </div>
       </section>
 
@@ -582,16 +625,16 @@
   <script src="static/vendor/opensheetmusicdisplay.min.js"></script>
   <script src="static/vendor/pdf.min.js"></script>
   <script src="static/vendor/Tone.js"></script>
-  <script src="static/piano.js?v=fix90"></script>
-  <script src="static/annotate.js?v=fix90"></script>
-  <script src="static/lite-analyze.js?v=fix90"></script>
-  <script src="static/lyric-lane.js?v=fix90"></script>
-  <script src="static/menu.js?v=fix90"></script>
-  <script src="static/app.js?v=fix90"></script>
-  <script src="static/lune-config.js?v=fix90"></script>
-  <script src="static/store.js?v=fix90"></script>
-  <script src="static/practice.js?v=fix90"></script>
-  <script src="static/follow.js?v=fix90"></script>
-  <script src="static/study.js?v=fix90"></script>
+  <script src="static/piano.js?v=fix91"></script>
+  <script src="static/annotate.js?v=fix91"></script>
+  <script src="static/lite-analyze.js?v=fix91"></script>
+  <script src="static/lyric-lane.js?v=fix91"></script>
+  <script src="static/menu.js?v=fix91"></script>
+  <script src="static/app.js?v=fix91"></script>
+  <script src="static/lune-config.js?v=fix91"></script>
+  <script src="static/store.js?v=fix91"></script>
+  <script src="static/practice.js?v=fix91"></script>
+  <script src="static/follow.js?v=fix91"></script>
+  <script src="static/study.js?v=fix91"></script>
 </body>
 </html>

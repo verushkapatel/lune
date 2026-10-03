@@ -184,7 +184,7 @@ function closeSearchResults({ blur = false } = {}) {
 const SEARCH_LIMIT = 8;
 // Paint on the next frame only — coalesces burst keystrokes, ~0–16ms feel (no 100ms lag).
 const SEARCH_DEBOUNCE_MS = 0;
-const SEARCH_INDEX_URL = luneUrl("/static/search-index.json?v=fix90");
+const SEARCH_INDEX_URL = luneUrl("/static/search-index.json?v=fix91");
 /** Composers whose piano works are typically still under copyright — honest empty state. */
 const COPYRIGHT_ERA_COMPOSERS = [
   "ginastera", "prokofiev", "shostakovich", "khachaturian", "kabalevsky",
@@ -1310,7 +1310,7 @@ function primeTimeline() {
     if (!notes.length) return;
     LunePiano.setRate?.(state.playRate || 1);
     state.timelineKind = "piece";
-    LunePiano.arm(notes, { ...playbackHandlers(), from: 0 });
+    LunePiano.arm(notes, { ...playbackHandlers(), from: 0, tempoBpm: practiceTempoBpm() });
     renderScrubTicks();
     syncPlayButton();
   } catch {
@@ -1567,6 +1567,19 @@ function playbackHandlers() {
   };
 }
 
+/** Practice tempo from the score marking, clamped so pieces never race. */
+function practiceTempoBpm() {
+  const raw =
+    state.piece?.tempo ||
+    state.piece?.overview?.tempo ||
+    state.piece?.meta?.tempo ||
+    "";
+  const m = String(raw).match(/(\d{2,3})\s*(?:bpm)?/i);
+  const marked = m ? Number(m[1]) : 80;
+  // Cap for practice: printed allegros still play at a readable pace.
+  return Math.max(60, Math.min(96, marked || 80));
+}
+
 /** Ensure the full-piece timeline is armed so scrub / Play-from-here works. */
 async function ensurePieceTimeline(seekRatio = null) {
   const notes = pieceNotes();
@@ -1586,9 +1599,10 @@ async function ensurePieceTimeline(seekRatio = null) {
   } catch {
     /* ignore */
   }
+  const tempoBpm = practiceTempoBpm();
   if (!LunePiano.hasTimeline() || state.timelineKind !== "piece") {
     state.timelineKind = "piece";
-    LunePiano.arm(notes, { ...playbackHandlers(), from: ratio });
+    LunePiano.arm(notes, { ...playbackHandlers(), from: ratio, tempoBpm });
   } else if (seekRatio != null) {
     LunePiano.seek(ratio, { resumeIfWasPlaying: false });
   }
@@ -2127,6 +2141,7 @@ async function startPiecePlayback(seekRatio = 0) {
   state.timelineKind = "piece";
   await LunePiano.play(notes, {
     from: ratio,
+    tempoBpm: practiceTempoBpm(),
     ...playbackHandlers(),
   });
   renderScrubTicks();
@@ -3305,17 +3320,6 @@ function bind() {
     e.preventDefault();
     search($("q").value, { openBest: true });
   });
-  on("hero-search", "submit", (e) => {
-    e.preventDefault();
-    const v = $("hero-q")?.value || "";
-    if ($("q")) $("q").value = v;
-    search(v, { openBest: true });
-  });
-  on("hero-q", "input", () => {
-    const v = $("hero-q")?.value || "";
-    if ($("q")) $("q").value = v;
-    paintSearch(v);
-  });
   document.getElementById("hero-chips")?.addEventListener("click", (e) => {
     const b = e.target.closest("[data-open-piece]");
     if (!b) return;
@@ -3330,7 +3334,6 @@ function bind() {
   on("q", "input", () => {
     // Sync filter+render (~1–3ms). No debounce, no rAF, no network.
     paintSearch($("q").value || "");
-    if ($("hero-q")) $("hero-q").value = $("q").value;
   });
   on("q", "focus", () => {
     ensureSearchIndex();
