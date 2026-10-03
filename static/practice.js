@@ -196,14 +196,39 @@ window.LunePractice = (function () {
 
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   let activeRec = null;
+  let _voiceSecureToasted = false;
   function canListenForWords() {
-    return !!Recognition;
+    return !!Recognition && !!window.isSecureContext;
+  }
+  /** Open coach note field for the current/selected bar (type fallback). */
+  function focusTypeNote(bar) {
+    const target = bar || state.selected || selectedBarsSorted()[0] || null;
+    if (target != null) {
+      try {
+        setBarSelection([Number(target)], { open: true });
+      } catch {
+        if (!state.coachOpen) openBarCoach();
+      }
+    } else if (!state.coachOpen) {
+      openBarCoach();
+    }
+    setTimeout(() => {
+      const ta = document.getElementById("lp-note-input");
+      if (ta) {
+        ta.focus();
+        ta.placeholder = ta.placeholder || "Type a note for this bar";
+      }
+    }, 40);
   }
   /** One spoken phrase → text. onPartial gets interim words while speaking. */
   function hearPhrase({ onPartial } = {}) {
     return new Promise((resolve, reject) => {
+      if (!window.isSecureContext) {
+        reject(new Error("Voice needs a secure connection (HTTPS) — type your note instead."));
+        return;
+      }
       if (!Recognition) {
-        reject(new Error("Voice notes need Chrome, Edge or Safari — you can type the note instead."));
+        reject(new Error("Voice isn’t available in this browser — type your note instead."));
         return;
       }
       try {
@@ -231,9 +256,9 @@ window.LunePractice = (function () {
         activeRec = null;
         const why =
           e.error === "not-allowed" || e.error === "service-not-allowed"
-            ? "Lune needs microphone permission to hear your note."
+            ? "Lune needs microphone permission — type your note instead."
             : e.error === "no-speech"
-              ? "Didn’t catch that — try again a little closer to the mic."
+              ? "Didn’t catch that — try again, or type the note."
               : "Voice notes aren’t available right now — type the note instead.";
         reject(new Error(why));
       };
@@ -241,7 +266,12 @@ window.LunePractice = (function () {
         activeRec = null;
         resolve(finalText.trim());
       };
-      rec.start();
+      try {
+        rec.start();
+      } catch (err) {
+        activeRec = null;
+        reject(new Error("Voice notes aren’t available right now — type the note instead."));
+      }
     });
   }
   function stopHearing() {
@@ -252,27 +282,44 @@ window.LunePractice = (function () {
     }
   }
 
-  /** "Tell Lune" button on the score: speak a note for any bar, hands free. */
+  /** "Tell Lune" button on the score: speak a note for any bar, hands free.
+   * Always falls back to the type-note field when speech isn’t available. */
   async function tellLune(btn) {
     if (activeRec) {
       stopHearing();
       return;
     }
     if (!state.piece) return;
+    const sel = state.selected || selectedBarsSorted()[0] || null;
+    if (!canListenForWords()) {
+      if (!window.isSecureContext && !_voiceSecureToasted) {
+        _voiceSecureToasted = true;
+        toast("Voice needs HTTPS — type your note instead.");
+      } else {
+        toast("Type your note for this bar.");
+      }
+      focusTypeNote(sel);
+      return;
+    }
     btn?.classList.add("on");
     btn?.setAttribute("aria-pressed", "true");
     toast("Listening — say “bar 12, play faster here”");
     try {
       const said = await hearPhrase({ onPartial: (t) => t && toast(`“${t}”`) });
-      if (!said) return;
-      const sel = state.selected || selectedBarsSorted()[0] || null;
+      if (!said) {
+        toast("Nothing heard — type the note instead.");
+        focusTypeNote(sel);
+        return;
+      }
       const { bar, body } = parseSpoken(said, sel);
       if (!body) {
-        toast("Heard a bar number but no note — try again.");
+        toast("Heard a bar number but no note — type it instead.");
+        focusTypeNote(bar || sel);
         return;
       }
       if (!bar) {
-        toast("Which bar? Say “bar” and its number, or tap a bar first.");
+        toast("Which bar? Tap one, then type or say the note.");
+        focusTypeNote(sel);
         return;
       }
       if (!debriefFor(bar)) {
@@ -283,7 +330,8 @@ window.LunePractice = (function () {
       toast(`Noted on bar ${bar}: ${body}`);
       if (state.coachOpen && selectedBarsSorted().includes(bar)) openBarCoach();
     } catch (err) {
-      toast(err.message);
+      toast(err.message || "Type your note instead.");
+      focusTypeNote(sel);
     } finally {
       btn?.classList.remove("on");
       btn?.setAttribute("aria-pressed", "false");
@@ -361,9 +409,9 @@ window.LunePractice = (function () {
         <label class="visually-hidden" for="lp-note-input">Note for bar ${primary}</label>
         <div class="lp-note-grow">
           <textarea id="lp-note-input" rows="1" maxlength="500" placeholder="Note for bar ${primary}, or say it"></textarea>
-          <button type="button" class="icon-btn lp-mic" data-lp="mic" aria-label="Tell Lune" aria-pressed="false" ${canListenForWords() ? "" : "hidden"}>
+          <button type="button" class="icon-btn lp-mic" data-lp="mic" aria-label="${canListenForWords() ? "Speak a note" : "Focus note field"}" aria-pressed="false" title="${canListenForWords() ? "Speak a note" : "Type a note for this bar"}">
             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-            <span class="visually-hidden">Speak</span>
+            <span class="visually-hidden">${canListenForWords() ? "Speak" : "Type"}</span>
           </button>
         </div>
         <button type="submit" class="lp-save primary">Save</button>
@@ -433,25 +481,36 @@ window.LunePractice = (function () {
         });
       }
       else if (btn.dataset.lp === "mic") {
-        if (activeRec) return stopHearing();
         const ta = wrap.querySelector("textarea");
+        if (!canListenForWords()) {
+          toast("Type your note for this bar.");
+          ta?.focus();
+          return;
+        }
+        if (activeRec) return stopHearing();
         btn.classList.add("on");
         btn.setAttribute("aria-pressed", "true");
-        btn.querySelector("span").textContent = "Listening…";
+        const label = btn.querySelector("span");
+        if (label) label.textContent = "Listening…";
         try {
           const said = await hearPhrase({ onPartial: (t) => (ta.value = t) });
           const parsed = parseSpoken(said, primary);
-          if (!parsed.body) return;
+          if (!parsed.body) {
+            toast("Nothing clear — type the note instead.");
+            ta?.focus();
+            return;
+          }
           await saveNote(parsed.bar, parsed.body, "voice");
           ta.value = "";
           toast(parsed.bar === primary ? "Note saved" : `Saved on bar ${parsed.bar}`);
           renderNotes(true);
         } catch (err) {
-          toast(err.message);
+          toast(err.message || "Type your note instead.");
+          ta?.focus();
         } finally {
           btn.classList.remove("on");
           btn.setAttribute("aria-pressed", "false");
-          btn.querySelector("span").textContent = "Speak";
+          if (label) label.textContent = "Speak";
         }
       } else if (btn.dataset.del) {
         await store.deleteNote(btn.dataset.del);
@@ -1302,7 +1361,7 @@ window.LunePractice = (function () {
       <button type="button" class="quiet lp-tool" id="btn-follow" aria-pressed="false" title="Lune listens as you play, follows the score and marks the bars that trip you up">
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 12h2l2-5 3 10 3-7 2 4h4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span class="lp-tool-label">Play along</span></button>
-      <button type="button" class="icon-btn lp-tool" id="btn-tell" aria-label="Tell Lune" aria-pressed="false" title="Say a note for any bar — “bar 12, play faster here”" ${canListenForWords() ? "" : "hidden"}>
+      <button type="button" class="icon-btn lp-tool" id="btn-tell" aria-label="Tell Lune a note" aria-pressed="false" title="${canListenForWords() ? "Say a note for any bar — “bar 12, play faster here”" : "Add a typed note for the selected bar"}">
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
       <button type="button" class="icon-btn" id="btn-score-more" aria-label="More" title="More">
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="6" cy="12" r="1.4" fill="currentColor"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/><circle cx="18" cy="12" r="1.4" fill="currentColor"/></svg>
@@ -1380,12 +1439,16 @@ window.LunePractice = (function () {
       if (a?.href) items.push({ label: "Download Braille (.brf)", href: a.href, download: a.getAttribute("download") || "" });
     }
     if (store.status().signedIn) {
+      items.push({ label: "This week", action: () => window.LuneImpact?.openWeeklyReview?.() });
+      items.push({ label: "Share this week", action: () => window.LuneImpact?.openShareWeek?.() });
+      items.push({ label: "Invite", action: () => window.LuneImpact?.openInvite?.() });
       items.push({ label: "Account", action: () => openAccountDialog() });
     } else {
       items.push({ label: "Sign in", action: () => window.LuneOnboard?.openCreateAccount?.() });
     }
     if (store.isOwner?.()) {
       items.push({ label: "Owner stats", action: () => openOwnerStats() });
+      items.push({ label: "Impact", action: () => window.LuneImpact?.openOwnerImpact?.() });
     }
     items.push({ label: "Reading & access", action: () => openAccessDialog() });
     items.push({ label: "Credits & licenses", action: () => document.querySelector("[data-open-credits]")?.click() });
@@ -1400,8 +1463,13 @@ window.LunePractice = (function () {
     }
     const d = dialog("owner-stats-dialog");
     d.innerHTML = `${closeRow}<h2>Owner stats</h2><p class="dim" id="owner-stats-body">Loading…</p>
-      <p class="dim">Private — only visible when signed in as the owner. No public user list.</p>`;
+      <p class="dim">Private — only visible when signed in as the owner. No public user list.</p>
+      <p><button type="button" class="quiet" id="owner-stats-impact">Open impact</button></p>`;
     if (!d.open) d.showModal();
+    d.querySelector("#owner-stats-impact")?.addEventListener("click", () => {
+      d.close();
+      window.LuneImpact?.openOwnerImpact?.();
+    });
     try {
       const res = await store.ownerUserCount();
       const body = d.querySelector("#owner-stats-body");

@@ -74,18 +74,44 @@ window.LuneFollow = (function () {
 
   async function start() {
     if (run) return;
-    if (!state.piece || !state.osmd) return toast("Open a score first.");
-    if (!navigator.mediaDevices?.getUserMedia) return toast("This browser can’t use the microphone.");
+    if (!state.piece) {
+      toast("Open a score first — then tap Play along.");
+      return;
+    }
+    if (!state.osmd) {
+      toast("Wait for the score to finish loading, then try Play along.");
+      return;
+    }
+    if (!window.isSecureContext) {
+      toast("Play along needs a secure connection (HTTPS).");
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      toast("This browser can’t use the microphone for Play along.");
+      return;
+    }
     const events = buildEvents();
-    if (events.length < 4) return toast("This score has too few notes to follow.");
-    stopAll(); // Lune's own playback would be heard by the mic
+    if (events.length < 4) {
+      toast("This score has too few notes for Play along.");
+      return;
+    }
+    try {
+      stopAll(); // Lune's own playback would be heard by the mic
+    } catch {
+      /* ignore */
+    }
     let stream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
       });
-    } catch {
-      toast("Lune needs microphone permission to listen. Nothing is recorded.");
+    } catch (err) {
+      const denied = /NotAllowed|Permission|denied/i.test(String(err?.name || err?.message || ""));
+      toast(
+        denied
+          ? "Allow the microphone for Play along — nothing is recorded or uploaded."
+          : "Couldn’t open the microphone. Check permissions and try again."
+      );
       return;
     }
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -409,20 +435,37 @@ window.LuneFollow = (function () {
     const first = r.events[r.startPos]?.bar;
     const last = r.events[Math.max(r.startPos, r.pos - 1)]?.bar;
     if (!p) return;
+    const mins = Number(LuneStore.prefs?.()?.practiceMins) || 30;
+    const ranked = bars
+      .sort((a, b) => b[1].wrong + 2 * b[1].hesitations - (a[1].wrong + 2 * a[1].hesitations))
+      .slice(0, 5);
     p.innerHTML = `<span class="lf-text"><strong>${first === last ? `Bar ${first}` : `Bars ${first}–${last}`}</strong> · ${
-      bars.length
-        ? `${bars.length} bar${bars.length === 1 ? "" : "s"} to look at: ${bars
-            .sort((a, b) => b[1].wrong + 2 * b[1].hesitations - (a[1].wrong + 2 * a[1].hesitations))
-            .slice(0, 5)
-            .map(([b]) => b)
-            .join(", ")}`
+      ranked.length
+        ? `${ranked.length} bar${ranked.length === 1 ? "" : "s"} to look at: ${ranked.map(([b]) => b).join(", ")}`
         : "clean run — nothing to flag"
     }</span>
-      ${bars.length ? `<button type="button" class="primary lf-review">Review these bars</button>` : ""}
+      ${ranked.length ? `<button type="button" class="primary lf-tonight">Make tonight’s ${mins} minutes</button>` : ""}
+      ${ranked.length ? `<button type="button" class="quiet ink lf-review">Review these bars</button>` : ""}
       <button type="button" class="quiet ink lf-map" aria-pressed="true">Stumble map</button>
       <button type="button" class="quiet ink lf-close" aria-label="Close">×</button>`;
+    p.querySelector(".lf-tonight")?.addEventListener("click", async (e) => {
+      const piece = state.piece || window.LunePractice?.currentPiece?.() || null;
+      const made = await window.LuneImpact?.buildTonightPlan?.({
+        pieceKey: r.key,
+        title: piece?.overview?.title || piece?.title || r.key,
+        composer: piece?.overview?.composer || piece?.composer || "",
+        stats: r.stats,
+      });
+      if (made) {
+        e.currentTarget.disabled = true;
+        e.currentTarget.textContent = "In your plan";
+        window.LunePractice?.refreshBadge?.();
+        window.toast?.("Tonight’s plan is ready");
+        window.LuneImpact?.paintHomeImpact?.();
+      }
+    });
     p.querySelector(".lf-review")?.addEventListener("click", async (e) => {
-      for (const [b] of bars) await LuneStore.queueBar(r.key, Number(b));
+      for (const [b] of ranked) await LuneStore.queueBar(r.key, Number(b));
       e.currentTarget.disabled = true;
       e.currentTarget.textContent = "In Today’s bars";
       window.LunePractice?.refreshBadge();
@@ -438,9 +481,13 @@ window.LuneFollow = (function () {
     window.LunePractice?.paintScoreMarks();
   }
 
-  function toggle() {
-    if (run) stop();
-    else start();
+  async function toggle() {
+    try {
+      if (run) await stop();
+      else await start();
+    } catch (err) {
+      toast(err?.message || "Play along couldn’t start. Open a score and allow the microphone.");
+    }
   }
 
   return { start, stop, toggle, isOn: () => !!run, __buildEvents: buildEvents, __template: template };

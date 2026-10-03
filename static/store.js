@@ -33,7 +33,19 @@ window.LuneStore = (function () {
     } catch {
       /* private mode or blocked storage */
     }
-    return { v: 1, repertoire: [], notes: [], cards: [], stumbles: [], scores: {}, prefs: {}, tasks: [], localAccount: null };
+    return {
+      v: 1,
+      repertoire: [],
+      notes: [],
+      cards: [],
+      stumbles: [],
+      scores: {},
+      prefs: {},
+      tasks: [],
+      activity: [],
+      shareLinks: [],
+      localAccount: null,
+    };
   }
   function writeLocal(data) {
     try {
@@ -168,6 +180,104 @@ window.LuneStore = (function () {
    * `owner_user_count` (see supabase/schema.sql); falls back to a documented
    * dashboard query if the RPC isn't installed yet.
    */
+  async function ownerImpactStats() {
+    if (!isOwner()) throw new Error("Owner sign-in required.");
+    const users = await ownerUserCount().catch(() => ({ users: null }));
+    const local = readLocal();
+    const rollups = Array.isArray(prefs().weekRollups) ? prefs().weekRollups : [];
+    let stumbles = (local.stumbles || []).length;
+    let shares = (local.shareLinks || []).filter((s) => !s.revoked).length;
+    let plans = (local.tasks || []).length;
+    if (remote() && client) {
+      try {
+        const { data, error } = await client.rpc("owner_impact_stats");
+        if (!error && data) {
+          return {
+            users: users.users,
+            weeks: data.weeks ?? rollups.length,
+            plans: data.plans ?? plans,
+            stumbles: data.stumbles ?? stumbles,
+            shares: data.shares ?? shares,
+            mode: "cloud",
+          };
+        }
+      } catch {
+        /* fall through */
+      }
+    }
+    return {
+      users: users.users,
+      weeks: rollups.length,
+      plans,
+      stumbles,
+      shares,
+      mode: remote() ? "mixed" : "local",
+    };
+  }
+
+  async function createShareLink(payload) {
+    const token = uuid().replace(/-/g, "").slice(0, 22);
+    const row = {
+      id: uuid(),
+      token,
+      payload: payload || {},
+      revoked: false,
+      created_at: nowIso(),
+    };
+    mutateLocal((d) => {
+      d.shareLinks = d.shareLinks || [];
+      d.shareLinks.unshift(row);
+    });
+    if (remote() && client) {
+      try {
+        await client.from("share_links").insert({
+          token,
+          user_id: session?.user?.id || null,
+          payload: row.payload,
+          revoked: false,
+        });
+      } catch (err) {
+        console.warn("[lune] share_links cloud insert skipped", err);
+      }
+    }
+    emit();
+    return row;
+  }
+  async function revokeShareLink(token) {
+    mutateLocal((d) => {
+      const row = (d.shareLinks || []).find((s) => s.token === token);
+      if (row) row.revoked = true;
+    });
+    if (remote() && client) {
+      try {
+        await client.from("share_links").update({ revoked: true }).eq("token", token);
+      } catch {
+        /* optional */
+      }
+    }
+    emit();
+  }
+  function listShareLinks() {
+    return [...(readLocal().shareLinks || [])];
+  }
+  async function fetchShareByToken(token) {
+    const local = (readLocal().shareLinks || []).find((s) => s.token === token && !s.revoked);
+    if (local) return local;
+    if (configured() && client) {
+      try {
+        const { data, error } = await client
+          .from("share_links")
+          .select("token,payload,revoked,created_at")
+          .eq("token", token)
+          .maybeSingle();
+        if (!error && data && !data.revoked) return data;
+      } catch {
+        /* ignore */
+      }
+    }
+    return null;
+  }
+
   async function ownerUserCount() {
     if (!isOwner()) throw new Error("Owner sign-in required.");
     if (!configured() || !client) {
@@ -333,16 +443,23 @@ window.LuneStore = (function () {
     return row;
   }
   function updateTask(id, patch) {
+    let becameDone = false;
+    let pieceKey = "";
     mutateLocal((d) => {
       const row = (d.tasks || []).find((t) => t.id === id);
       if (!row) return;
-      if ("done" in patch) row.done = !!patch.done;
+      if ("done" in patch) {
+        becameDone = !!patch.done && !row.done;
+        row.done = !!patch.done;
+      }
       if ("plan" in patch) row.plan = patch.plan;
       if ("notes" in patch) row.notes = String(patch.notes || "").slice(0, 800);
       if ("bars" in patch) {
         row.bars = [...new Set((patch.bars || []).map(Number).filter((n) => n > 0))].sort((a, b) => a - b).slice(0, 64);
       }
+      pieceKey = row.piece_key || "";
     });
+    if (becameDone) logActivity({ kind: "task", piece_key: pieceKey });
     emit();
   }
   function removeTask(id) {
@@ -458,6 +575,79 @@ window.LuneStore = (function () {
   async function markPractised(pieceKey) {
     if (!(await getPiece(pieceKey))) return;
     await updatePiece(pieceKey, { last_practised_at: nowIso() });
+    logActivity({ kind: "practice", piece_key: pieceKey });
+  }
+
+  /* ---------------- practice activity (honest local evidence) ---------------- */
+
+  function dayKey(d = new Date()) {
+    const x = d instanceof Date ? d : new Date(d);
+    return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+  }
+  function weekStartKey(d = new Date()) {
+    const x = new Date(d);
+    const day = (x.getDay() + 6) % 7; // Monday = 0
+    x.setHours(0, 0, 0, 0);
+    x.setDate(x.getDate() - day);
+    return dayKey(x);
+  }
+  function logActivity({ kind = "practice", piece_key = "", bar = null, grade = null, mins = 0 } = {}) {
+    const row = {
+      id: uuid(),
+      kind: String(kind || "practice").slice(0, 40),
+      piece_key: String(piece_key || "").slice(0, 120),
+      bar: bar == null ? null : Number(bar),
+      grade: grade ? String(grade).slice(0, 16) : null,
+      mins: Math.max(0, Number(mins) || 0),
+      day: dayKey(),
+      week: weekStartKey(),
+      created_at: nowIso(),
+    };
+    mutateLocal((d) => {
+      d.activity = d.activity || [];
+      d.activity.push(row);
+      // keep ~180 days
+      if (d.activity.length > 4000) d.activity = d.activity.slice(-4000);
+    });
+    // Mirror a compact week rollup into prefs for cloud sync / owner trends.
+    try {
+      const snap = weekSnapshot();
+      const rolls = Array.isArray(prefs().weekRollups) ? [...prefs().weekRollups] : [];
+      const i = rolls.findIndex((r) => r.week === snap.week);
+      if (i >= 0) rolls[i] = snap;
+      else rolls.unshift(snap);
+      setPref("weekRollups", rolls.slice(0, 26));
+    } catch {
+      /* non-fatal */
+    }
+    return row;
+  }
+  function listActivity({ week = null, sinceDays = 30 } = {}) {
+    const rows = readLocal().activity || [];
+    if (week) return rows.filter((r) => r.week === week);
+    const since = dayKey(new Date(Date.now() - sinceDays * DAY));
+    return rows.filter((r) => r.day >= since);
+  }
+  function weekSnapshot(week = weekStartKey()) {
+    const rows = listActivity({ week });
+    const days = new Set(rows.map((r) => r.day));
+    const sessions = rows.filter((r) => r.kind === "practice" || r.kind === "follow" || r.kind === "review").length;
+    const mins = rows.reduce((n, r) => n + (Number(r.mins) || 0), 0);
+    const good = rows.filter((r) => r.kind === "review" && (r.grade === "good" || r.grade === "easy")).length;
+    const hard = rows.filter((r) => r.kind === "review" && (r.grade === "again" || r.grade === "hard")).length;
+    const goalDays = Number(prefs().practiceDays) || 4;
+    const goalMins = Number(prefs().practiceMins) || 30;
+    return {
+      week,
+      days: days.size,
+      goalDays,
+      sessions,
+      mins,
+      goalMinsPerSession: goalMins,
+      good,
+      hard,
+      updated_at: nowIso(),
+    };
   }
 
   /* ---------------- bar notes ---------------- */
@@ -558,6 +748,7 @@ window.LuneStore = (function () {
       });
     }
     await markPractised(pieceKey);
+    logActivity({ kind: "review", piece_key: pieceKey, bar: Number(bar), grade });
     return row;
   }
   /** Put a bar in the review queue without grading it (e.g. from a stumble). */
@@ -579,6 +770,7 @@ window.LuneStore = (function () {
     if (!rows.length) return 0;
     if (remote()) check(await client.from("stumbles").insert(rows));
     else mutateLocal((d) => d.stumbles.push(...rows.map((r) => ({ id: uuid(), created_at: nowIso(), ...r }))));
+    logActivity({ kind: "follow", piece_key: pieceKey, mins: 0 });
     return rows.length;
   }
   /** bar → { wrong, hesitations, sessions } over the last 30 days. */
@@ -642,6 +834,9 @@ window.LuneStore = (function () {
       "seenWelcome",
       "signedWelcomeVersion",
       "seenSignedWelcome",
+      "weekRollups",
+      "displayName",
+      "impactPublic",
     ];
     const out = {};
     for (const k of keys) if (p[k] !== undefined) out[k] = p[k];
@@ -742,6 +937,7 @@ window.LuneStore = (function () {
     deleteAccount,
     isOwner,
     ownerUserCount,
+    ownerImpactStats,
     importLocalIntoAccount,
     hasLocalData,
     listPieces,
@@ -751,6 +947,15 @@ window.LuneStore = (function () {
     removePiece,
     loadUploadedScore,
     markPractised,
+    logActivity,
+    listActivity,
+    weekSnapshot,
+    weekStartKey,
+    dayKey,
+    createShareLink,
+    revokeShareLink,
+    listShareLinks,
+    fetchShareByToken,
     listNotes,
     countNotesByPiece,
     addNote,

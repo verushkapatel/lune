@@ -18,6 +18,10 @@ window.LunePiano = (function () {
   let rate = 1;
   let lastActiveKey = "";
   let warmed = false;
+  /** both | rh | lh — filters schedule + keyboard highlight. */
+  let handFilter = "both";
+  /** Keyboard UI: only light notes that attacked recently (not full sustain). */
+  const KEY_ATTACK_WINDOW = 0.15;
   /** Bumped on stop/pause so look-ahead notes scheduled earlier are ignored. */
   let audioEpoch = 0;
   /** Event indices already queued for the current audioEpoch. */
@@ -268,12 +272,24 @@ window.LunePiano = (function () {
       .map(([bar, t]) => ({ bar, t, ratio: duration() ? t / duration() : 0 }));
   }
 
-  /** Notes sounding at timeline time `at` (seconds). */
+  function passesHand(e) {
+    if (handFilter === "both") return true;
+    const h = String(e.hand || "").toLowerCase();
+    const isLh = h === "lh" || h === "l" || h === "left";
+    if (handFilter === "rh") return !isLh;
+    if (handFilter === "lh") return isLh;
+    return true;
+  }
+
+  /** Notes for keyboard highlight at timeline time `at` (seconds).
+   * Cap to recent attacks so sustained chords don’t light the whole board. */
   function activeAt(at) {
     const active = [];
     for (const e of events) {
       if (e.t > at + 0.01) break;
-      if (e.t <= at + 0.01 && e.t + e.dur > at) {
+      if (!passesHand(e)) continue;
+      const onset = e.t <= at + 0.01 && at - e.t <= KEY_ATTACK_WINDOW;
+      if (onset) {
         active.push({
           midi: e.midi,
           finger: e.finger,
@@ -327,6 +343,7 @@ window.LunePiano = (function () {
       const e = events[i];
       if (e.t > horizon) break;
       if (e.t + e.dur <= at) continue;
+      if (!passesHand(e)) continue;
       const key = `${epoch}:${i}`;
       if (scheduled.has(key)) continue;
       scheduled.add(key);
@@ -341,6 +358,27 @@ window.LunePiano = (function () {
         /* ignore sample glitches */
       }
     }
+  }
+
+  function setHandFilter(mode) {
+    const next = ["both", "rh", "lh"].includes(mode) ? mode : "both";
+    if (next === handFilter) return handFilter;
+    handFilter = next;
+    lastActiveKey = "";
+    if (playing) {
+      pauseAt = progress();
+      startMs = performance.now() + SCHEDULE_PAD * 1000;
+      clearAudio();
+      playing = true;
+      scheduleFrom(pauseAt);
+      raf = requestAnimationFrame(tick);
+    }
+    emitKeys(playing ? progress() : pauseAt);
+    return handFilter;
+  }
+
+  function getHandFilter() {
+    return handFilter;
   }
 
   function scheduleFrom(at) {
@@ -703,6 +741,8 @@ window.LunePiano = (function () {
     isMetronomeOn,
     setKeysHandler,
     activeAt,
+    setHandFilter,
+    getHandFilter,
     isReady,
     rates: RATES,
     beat,

@@ -1347,6 +1347,7 @@ window.LuneOnboard = (function () {
       guestCont.hidden = true;
       guestCont.innerHTML = "";
     }
+    window.LuneImpact?.paintHomeImpact?.();
   }
 
   function applyGateChrome() {

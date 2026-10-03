@@ -1749,13 +1749,25 @@ function barLengthQuarters(barNum, pack) {
   return Math.max(fromTs, fromNotes, 1);
 }
 
+function normalizeNoteHand(h, fallback = null) {
+  const s = String(h || "").toLowerCase();
+  if (s === "lh" || s === "l" || s === "left") return "lh";
+  if (s === "rh" || s === "r" || s === "right") return "rh";
+  return fallback;
+}
+
 function collectNotes(fromBar, toBar) {
   const notes = [];
   const debriefs = state.piece?.debriefs || {};
   let barCursor = 0;
   for (let b = fromBar; b <= toBar; b++) {
     const d = debriefFor(b) || debriefs[String(b)];
-    const pack = d?.playback || [...(d?.rh || []), ...(d?.lh || [])];
+    const pack = d?.playback?.length
+      ? d.playback.map((n) => ({ ...n, hand: normalizeNoteHand(n.hand) }))
+      : [
+          ...(d?.rh || []).map((n) => ({ ...n, hand: normalizeNoteHand(n.hand, "rh") })),
+          ...(d?.lh || []).map((n) => ({ ...n, hand: normalizeNoteHand(n.hand, "lh") })),
+        ];
     const seen = new Set();
     for (const n of pack) {
       if (!n.midi) continue;
@@ -2073,43 +2085,54 @@ function placePlayhead(bar, progress = 0, total = 0) {
       hilite.style.height = `${bounds.height}px`;
     }
 
-    // Auto-follow when the sounding measure leaves the viewport (throttled)
-    const now = performance.now();
+    // Follow the sounding measure without smooth-scroll rocking.
+    // During playback: instant scroll, only on bar change, and only when
+    // the measure is substantially out of view. Prefer vertical; skip tiny
+    // horizontal nudges so we don’t fight the reader.
+    const playing = !!LunePiano.isPlaying?.();
     const barChanged = _playheadLastBar !== Number(bar);
     _playheadLastBar = Number(bar);
-    if (barChanged || now - _playheadScrollAt > 280) {
-      const pad = 56;
+    if (barChanged || (!playing && state.scrubbing)) {
+      const pad = 72;
       const viewTop = scroll.scrollTop;
       const viewBottom = viewTop + scroll.clientHeight;
       const mTop = bounds.top;
       const mBottom = bounds.top + bounds.height;
+      const substantiallyOut =
+        mTop < viewTop + pad * 0.35 || mBottom > viewBottom - pad * 0.35;
       let nextTop = scroll.scrollTop;
       let nextLeft = scroll.scrollLeft;
       let moved = false;
-      if (mTop < viewTop + pad) {
-        nextTop = Math.max(0, mTop - pad);
-        moved = true;
-      } else if (mBottom > viewBottom - pad) {
-        nextTop = Math.max(0, mBottom - scroll.clientHeight + pad);
-        moved = true;
+      if (substantiallyOut) {
+        if (mTop < viewTop + pad) {
+          nextTop = Math.max(0, mTop - pad);
+          moved = true;
+        } else if (mBottom > viewBottom - pad) {
+          nextTop = Math.max(0, mBottom - scroll.clientHeight + pad);
+          moved = true;
+        }
       }
+      // Horizontal: only when the playhead is well off-screen (not every tick).
       const viewLeft = scroll.scrollLeft;
       const viewRight = viewLeft + scroll.clientWidth;
-      if (x < viewLeft + pad) {
-        nextLeft = Math.max(0, x - pad);
-        moved = true;
-      } else if (x > viewRight - pad) {
-        nextLeft = Math.max(0, x - scroll.clientWidth + pad);
-        moved = true;
+      const hPad = Math.max(96, scroll.clientWidth * 0.18);
+      if (x < viewLeft + 24 || x > viewRight - 24) {
+        if (x < viewLeft + hPad) {
+          nextLeft = Math.max(0, x - hPad);
+          moved = true;
+        } else if (x > viewRight - hPad) {
+          nextLeft = Math.max(0, x - scroll.clientWidth + hPad);
+          moved = true;
+        }
       }
       if (moved) {
-        _playheadScrollAt = now;
-        // Cinematic follow: always glide, never jump (unless the user asked for calm).
+        _playheadScrollAt = performance.now();
         const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
         scroll.scrollTo({
           top: nextTop,
           left: nextLeft,
-          behavior: reduced ? "auto" : "smooth",
+          // Instant during playback — smooth + frequent updates rocks the page.
+          behavior: playing || reduced ? "auto" : "smooth",
         });
       }
     }
@@ -3787,14 +3810,24 @@ function bind() {
     }
     applyRoute().catch((err) => toast(err.message));
   });
-  // Landing / chapter CTAs that open catalogue pieces by id
+  // Member recs / chapter CTAs that open catalogue pieces by id
   document.getElementById("home")?.addEventListener("click", (e) => {
     const b = e.target.closest("[data-open-piece]");
     if (!b || b.closest("#hero-chips")) return;
     if (window.LuneOnboard && !LuneOnboard.requirePieceAccess?.(b.dataset.openPiece)) {
       e.preventDefault();
       e.stopPropagation();
+      return;
     }
+    e.preventDefault();
+    const id = b.dataset.openPiece;
+    try {
+      history.pushState({ lune: id }, "", `${location.pathname}${location.search}#/${id}/explain`);
+    } catch {
+      location.hash = `#/${id}/explain`;
+      return;
+    }
+    applyRoute().catch((err) => toast(err.message));
   });
   on("q", "input", () => {
     // Sync filter+render (~1–3ms). No debounce, no rAF, no network.
@@ -4183,9 +4216,10 @@ function bind() {
     if (f) openFile(f).catch((e) => toast(e.message));
   });
 
-  // Piano tutorial hand filter
+  // Piano tutorial + audio/keyboard hand filter
   const setTutHand = (mode) => {
     window.LuneTutorial?.setHandFilter?.(mode);
+    window.LunePiano?.setHandFilter?.(mode);
     ["both", "rh", "lh"].forEach((m) => {
       const el = $(`tut-hand-${m}`);
       if (!el) return;
@@ -4215,16 +4249,19 @@ try {
       console.warn("[lune] store init", e);
     }
     window.LuneOnboard?.init?.();
+    window.LuneImpact?.init?.();
     const gate = window.LuneOnboard?.route?.() || "app";
     window.LunePractice?.init().catch((e) => console.warn("[lune] practice init", e));
     if (gate === "hello") {
       // Post-sign-in welcome is already showing — don't overwrite with guest home.
       return;
     }
+    if (window.LuneImpact?.handleRoute?.()) return;
     if (gate === "app") {
       showView("home");
       window.LuneOnboard?.paintHomeRecs?.();
       window.LuneOnboard?.applyGateChrome?.();
+      window.LuneImpact?.paintHomeImpact?.();
       if (parseRoute()) applyRoute().catch(() => {});
     }
   };

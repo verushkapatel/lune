@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- go01 -->
-  <!-- deploy-1791030782 -->
+  <!-- impact01 -->
     <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Lune — so practice feels right again</title>
@@ -26,12 +25,12 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Lune">
-  <link rel="icon" href="static/assets/favicon.svg?v=go01" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=go01">
-  <link rel="manifest" href="static/manifest.json?v=go01">
-  <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2?v=go01" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="static/styles.css?v=go01">
-  <link rel="preload" href="static/search-index.json?v=go01" as="fetch" crossorigin>
+  <link rel="icon" href="static/assets/favicon.svg?v=fixux01" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=fixux01">
+  <link rel="manifest" href="static/manifest.json?v=fixux01">
+  <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2?v=fixux01" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="static/styles.css?v=fixux01">
+  <link rel="preload" href="static/search-index.json?v=fixux01" as="fetch" crossorigin>
 </head>
 <body>
   <div id="app">
@@ -117,12 +116,26 @@
           </div>
           <p class="member-kicker">Your studio</p>
           <h1 class="member-title">So practice feels right again.</h1>
+          <p class="member-streak" id="member-streak" aria-live="polite"></p>
           <p class="member-lead" id="member-lead">Named for Clair de lune — a night studio shaped around the pieces you chose.</p>
           <div class="home-continue member-continue" id="member-continue" hidden></div>
           <div class="member-cta-row">
             <button type="button" class="primary" id="btn-member-search">Search the catalogue</button>
-            <button type="button" class="quiet" data-open-piece="debussy-clair-de-lune">Open Clair de lune</button>
           </div>
+        </section>
+
+        <section class="member-tonight" id="member-tonight" aria-labelledby="member-tonight-h">
+          <p class="about-kicker">Tonight</p>
+          <h2 id="member-tonight-h">When practice feels lost</h2>
+          <p class="member-section-lead" id="member-tonight-body">Use Play along — Lune marks the bars that trip you, then builds a short plan.</p>
+          <button type="button" class="primary" id="btn-member-tonight">Make tonight’s plan</button>
+        </section>
+
+        <section class="member-week" id="member-week" aria-labelledby="member-week-h">
+          <p class="about-kicker">Evidence</p>
+          <h2 id="member-week-h">This week</h2>
+          <p class="member-section-lead">A calm review of days, sessions, and the bars that asked for you.</p>
+          <button type="button" class="quiet" id="btn-member-week">This week</button>
         </section>
 
         <section class="member-recs" id="member-recs" aria-labelledby="member-recs-h">
@@ -135,33 +148,88 @@
         <section class="member-features" aria-labelledby="member-feat-h">
           <p class="about-kicker">Inside Lune</p>
           <h2 id="member-feat-h">What you have</h2>
-          <p class="member-section-lead">A concise tour of the studio — the same tools, ready when you are.</p>
-          <ul class="member-feat-list">
-            <li>
-              <strong>Annotate</strong>
-              <span>Letter names and fingerings under the staff — never painted on the heads.</span>
-            </li>
-            <li>
-              <strong>Hear</strong>
-              <span>Play at your tempo; the original bpm stays marked beside the slider.</span>
-            </li>
-            <li>
-              <strong>Piano</strong>
-              <span>Falling notes onto real keys — filter right, left, or both.</span>
-            </li>
-            <li>
-              <strong>Ask</strong>
-              <span>Tap a stubborn bar for notes, suggested fingers, and a quiet way to work it.</span>
-            </li>
-            <li>
-              <strong>Notes &amp; Repertoire</strong>
-              <span>Speak or jot what you’d forget; plans sync when you’re signed in.</span>
-            </li>
-            <li>
-              <strong>Easy read &amp; Braille</strong>
-              <span>Atkinson Hyperlegible letters, and .brf when a score has one.</span>
-            </li>
-          </ul>
+          <p class="member-section-lead">The studio tools — open a piece and they’re waiting under the score.</p>
+          <div class="member-feat-stack">
+            <article class="member-feat-chapter">
+              <div class="member-feat-copy">
+                <p class="about-kicker">01 · Annotate</p>
+                <h3>Every note, named.</h3>
+                <p>Letter names and fingerings sit under the staff in their own lane — never painted on the heads — so the page stays readable while you learn.</p>
+              </div>
+              <figure class="member-feat-frame" aria-hidden="true">
+                <div class="mf-staffs"><i></i><i></i><i></i><i></i></div>
+                <div class="mf-labels"><span>G♯</span><span>C♯</span><span>E</span><span>B♭</span></div>
+              </figure>
+            </article>
+            <article class="member-feat-chapter member-feat-flip">
+              <div class="member-feat-copy">
+                <p class="about-kicker">02 · Hear</p>
+                <h3>Your tempo. The original marked.</h3>
+                <p>Play at a calm practice pace. The slider keeps the score’s bpm visible so you always know where “real” sits. The playhead follows the bar.</p>
+              </div>
+              <figure class="member-feat-frame mf-hear" aria-hidden="true">
+                <div class="mf-staffs"><i></i><i></i><i></i><i></i></div>
+                <div class="mf-playhead"></div>
+                <p class="mf-tempo">72 bpm · practising at 54</p>
+              </figure>
+            </article>
+            <article class="member-feat-chapter">
+              <div class="member-feat-copy">
+                <p class="about-kicker">03 · Piano</p>
+                <h3>Falling notes onto real keys.</h3>
+                <p>Hard bars make more sense under the hands. Filter right, left, or both — only the notes that just attacked light the keyboard.</p>
+              </div>
+              <figure class="member-feat-frame mf-piano" aria-hidden="true">
+                <div class="mf-fall"><b></b><b class="lh"></b><b></b><b class="lh"></b></div>
+                <div class="mf-keys"><i class="on"></i><i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i></div>
+              </figure>
+            </article>
+            <article class="member-feat-chapter member-feat-flip">
+              <div class="member-feat-copy">
+                <p class="about-kicker">04 · Play along</p>
+                <h3>Lune listens while you play.</h3>
+                <p>Use the microphone on a real piano or keyboard. Lune follows the score, marks the bars that trip you, then builds tonight’s short plan from that map.</p>
+              </div>
+              <figure class="member-feat-frame mf-follow" aria-hidden="true">
+                <div class="mf-mic-wave"><span></span><span></span><span></span><span></span><span></span></div>
+                <div class="mf-stumble"><em>Bar 12</em><em>Bar 24</em></div>
+                <p class="mf-tempo">Listening · nothing recorded</p>
+              </figure>
+            </article>
+            <article class="member-feat-chapter">
+              <div class="member-feat-copy">
+                <p class="about-kicker">05 · Ask</p>
+                <h3>Tap the bar that won’t sit.</h3>
+                <p>Help opens beside the page you tapped — what’s in the bar, suggested fingers, and a quiet way to work it. Speak or type a note for later.</p>
+              </div>
+              <figure class="member-feat-frame mf-ask" aria-hidden="true">
+                <div class="mf-staffs"><i></i><i></i><i></i></div>
+                <aside class="mf-coach"><strong>Bar 15</strong><span>LH quiet under the melody</span></aside>
+              </figure>
+            </article>
+            <article class="member-feat-chapter member-feat-flip">
+              <div class="member-feat-copy">
+                <p class="about-kicker">06 · Notes &amp; Repertoire</p>
+                <h3>What you’d forget, kept.</h3>
+                <p>Speak or jot thoughts on a bar. Plans and Today’s bars sync when you’re signed in — no ads, no payments.</p>
+              </div>
+              <figure class="member-feat-frame mf-rep" aria-hidden="true">
+                <p class="mf-tempo">Tonight’s 30 minutes</p>
+                <div class="mf-stumble"><em>Bars 7 · 12 · 24</em></div>
+              </figure>
+            </article>
+            <article class="member-feat-chapter">
+              <div class="member-feat-copy">
+                <p class="about-kicker">07 · Easy read &amp; Braille</p>
+                <h3>Letters that refuse to blur.</h3>
+                <p>Atkinson Hyperlegible under the staff when names mix up. When a library piece has a braille file, download is one quiet chip away.</p>
+              </div>
+              <figure class="member-feat-frame mf-easy" aria-hidden="true">
+                <p class="mf-easy-sample">G♯ · C♯ · E · B♭</p>
+                <p class="mf-tempo">Aa · Braille · .brf</p>
+              </figure>
+            </article>
+          </div>
         </section>
 
         <footer class="home-footer member-footer">
@@ -341,9 +409,37 @@
         </figure>
       </section>
 
-      <section class="home-feat home-feat-flip" id="feat-ask" data-reveal>
+      <section class="home-feat home-feat-flip" id="feat-follow" data-reveal>
         <div class="home-feat-copy">
-          <p class="about-kicker">04 · Ask</p>
+          <p class="about-kicker">04 · Play along</p>
+          <h2>Lune listens while you play.</h2>
+          <p class="home-feat-why"><strong>Why:</strong> Wrong notes and hesitations should become a map you can practise from — not a vague feeling that something went wrong.</p>
+          <p>Tap <strong>Play along</strong> under the score. Lune uses the microphone in the browser only, marks the bars that trip you, then offers tonight’s short plan. Nothing is recorded or uploaded.</p>
+        </div>
+        <figure class="home-feat-device" aria-hidden="true">
+          <div class="fx-chrome">
+            <span class="fx-brand">Lune</span>
+            <span class="fx-piece">Clair de lune</span>
+            <div class="fx-tabs"><span class="on">Score</span><span>Explain</span><span>Piano</span></div>
+          </div>
+          <div class="fx-follow-ui">
+            <div class="fx-follow-score">
+              <div class="fx-staff"></div><div class="fx-staff"></div><div class="fx-staff"></div>
+              <div class="fx-follow-bar on"></div>
+              <div class="fx-follow-bar stumble"></div>
+            </div>
+            <div class="fx-follow-side">
+              <p class="fx-follow-listen">Listening</p>
+              <div class="fx-follow-wave"><span></span><span></span><span></span><span></span><span></span></div>
+              <p class="fx-follow-map">Stumble map · bars 12, 24</p>
+            </div>
+          </div>
+        </figure>
+      </section>
+
+      <section class="home-feat" id="feat-ask" data-reveal>
+        <div class="home-feat-copy">
+          <p class="about-kicker">05 · Ask</p>
           <h2>Tap the bar that won’t sit.</h2>
           <p class="home-feat-why"><strong>Why:</strong> Help should open beside the page you tapped — notes, suggested fingers, and a quiet way to practise — not a wall of chrome.</p>
           <p>Click a stubborn bar. The coach panel lists what’s in it and how to work it.</p>
@@ -371,9 +467,9 @@
         </figure>
       </section>
 
-      <section class="home-feat" id="easy-read" data-reveal>
+      <section class="home-feat home-feat-flip" id="easy-read" data-reveal>
         <div class="home-feat-copy">
-          <p class="about-kicker">05 · Easy read</p>
+          <p class="about-kicker">06 · Easy read</p>
           <h2>Letters that refuse to blur.</h2>
           <p class="home-feat-why"><strong>Why:</strong> Similar note names mix up under fatigue. Atkinson Hyperlegible keeps every letter shape distinct under the staff.</p>
           <p>Tap <strong>Aa</strong> on Score or Overview. Large print and high contrast live in Reading &amp; access.</p>
@@ -399,7 +495,7 @@
 
       <section class="home-feat home-feat-flip" id="braille" data-reveal>
         <div class="home-feat-copy">
-          <p class="about-kicker">06 · Braille</p>
+          <p class="about-kicker">07 · Braille</p>
           <h2>Music you can feel.</h2>
           <p class="home-feat-why"><strong>Why:</strong> When a library piece has a braille file, download should be one quiet chip away — for an embosser or refreshable display.</p>
           <p>Not every score has one yet. Clair de lune and several others do.</p>
@@ -424,7 +520,7 @@
 
       <section class="home-feat" id="feat-notes" data-reveal>
         <div class="home-feat-copy">
-          <p class="about-kicker">07 · Notes</p>
+          <p class="about-kicker">08 · Notes</p>
           <h2>Speak or jot what you’d forget.</h2>
           <p class="home-feat-why"><strong>Why:</strong> Practice thoughts vanish between sessions. Put them on the bar — typed or spoken — and rate it after you work it.</p>
           <p>Markers sit on the score. Hard bars come back as Today’s work.</p>
@@ -451,7 +547,7 @@
 
       <section class="home-feat home-feat-flip" id="feat-repertoire" data-reveal>
         <div class="home-feat-copy">
-          <p class="about-kicker">08 · Repertoire</p>
+          <p class="about-kicker">09 · Repertoire</p>
           <h2>Plans that stay with you.</h2>
           <p class="home-feat-why"><strong>Why:</strong> Select bars, speak or jot a note, save a plan into Repertoire. Sign in and it syncs — no ads, no payments.</p>
           <p>Today’s bars bring back what you’d forget. Clair de lune opens after you make Lune yours.</p>
@@ -828,17 +924,18 @@
   <script src="static/vendor/opensheetmusicdisplay.min.js"></script>
   <script src="static/vendor/pdf.min.js"></script>
   <script src="static/vendor/Tone.js"></script>
-  <script src="static/piano.js?v=go01"></script>
-  <script src="static/annotate.js?v=go01"></script>
-  <script src="static/lite-analyze.js?v=go01"></script>
-  <script src="static/lyric-lane.js?v=go01"></script>
-  <script src="static/menu.js?v=go01"></script>
-  <script src="static/lune-config.js?v=go01"></script>
-  <script src="static/store.js?v=go01"></script>
-  <script src="static/onboard.js?v=go01"></script>
-  <script src="static/app.js?v=go01"></script>
-  <script src="static/practice.js?v=go01"></script>
-  <script src="static/follow.js?v=go01"></script>
-  <script src="static/study.js?v=go01"></script>
+  <script src="static/piano.js?v=fixux01"></script>
+  <script src="static/annotate.js?v=fixux01"></script>
+  <script src="static/lite-analyze.js?v=fixux01"></script>
+  <script src="static/lyric-lane.js?v=fixux01"></script>
+  <script src="static/menu.js?v=fixux01"></script>
+  <script src="static/lune-config.js?v=fixux01"></script>
+  <script src="static/store.js?v=fixux01"></script>
+  <script src="static/onboard.js?v=fixux01"></script>
+  <script src="static/impact.js?v=fixux01"></script>
+  <script src="static/app.js?v=fixux01"></script>
+  <script src="static/practice.js?v=fixux01"></script>
+  <script src="static/follow.js?v=fixux01"></script>
+  <script src="static/study.js?v=fixux01"></script>
 </body>
 </html>
