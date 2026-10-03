@@ -12,11 +12,13 @@ window.LunePractice = (function () {
     ["polishing", "Polishing"],
     ["ready", "Ready"],
   ];
+  // weakest to strongest; store.js schedules each one (Strong was called Easy until lune04)
   const GRADES = [
-    ["again", "Again", "Still falling apart — bring it back in 10 minutes"],
-    ["hard", "Hard", "Got through it, with effort"],
-    ["good", "Good", "Solid at this tempo"],
-    ["easy", "Easy", "Effortless — leave it for a while"],
+    ["again", "Again", "Still falling apart. Bring it back in 10 minutes."],
+    ["hard", "Hard", "Got through it, with real effort."],
+    ["okay", "Okay", "Mostly there, with a slip or two."],
+    ["good", "Good", "Solid at this tempo."],
+    ["strong", "Strong", "Secure. Leave it for a while."],
   ];
 
   let notesCache = { key: "", rows: [] };
@@ -517,7 +519,7 @@ window.LunePractice = (function () {
     wrap.className = "lp-coach";
     wrap.innerHTML = `
       <div class="lp-teacher" hidden></div>
-      <h4 class="lp-h lp-h-remarks" hidden>Remarks</h4>
+      <h3 class="lp-h lp-h-remarks" hidden>Remarks</h3>
       <ul class="lp-notes" aria-live="polite" hidden></ul>
       <form class="lp-note-form" autocomplete="off">
         <label class="visually-hidden" for="lp-note-input">Note for bar ${primary}</label>
@@ -544,7 +546,7 @@ window.LunePractice = (function () {
         <button type="button" class="quiet ink" data-lp="plan">Add to my plan</button>
         <button type="button" class="quiet ink" data-lp="share" title="A link that opens this piece at these bars with your instructions">Share ${bars.length > 1 ? "these bars" : "this bar"}</button>
       </div>
-      <h4 class="lp-h">Practice · how did it go?</h4>
+      <h3 class="lp-h">Practice · how did it go?</h3>
       <div class="lp-grades" role="group" aria-label="Rate this practice">
         ${GRADES.map(([g, label, hint]) => `<button type="button" class="lp-grade lp-${g}" data-grade="${g}" title="${esc(hint)}">${label}</button>`).join("")}
       </div>
@@ -593,7 +595,7 @@ window.LunePractice = (function () {
     const askedEl = wrap.querySelector(".lp-asked");
     if (asked.length && askedEl) {
       askedEl.hidden = false;
-      askedEl.innerHTML = `<h4 class="lp-h">Questions</h4>${asked
+      askedEl.innerHTML = `<h3 class="lp-h">Questions</h3>${asked
         .map((h) => `<p class="lp-asked-q">${esc(h.q)}</p><p class="lp-asked-a">${esc(h.a)}</p>`)
         .join("")}`;
     }
@@ -1101,7 +1103,7 @@ window.LunePractice = (function () {
         toast("Select bars or write a note first");
         return;
       }
-      const plan = summarisePlan({ title: title || titleFor(state.piece), bars: rawBars, notes: noteBody });
+      const plan = { source: "self", ...summarisePlan({ title: title || titleFor(state.piece), bars: rawBars, notes: noteBody }) };
       const row = store.addTask({
         piece_key: pieceKey || keyFor(state.piece),
         title: title || titleFor(state.piece),
@@ -1936,7 +1938,6 @@ window.LunePractice = (function () {
       return;
     }
     box.innerHTML = `${window.LuneAsk.deviceOfferHtml(plan).replace("data-ai-on", 'data-device-ai="on"')}
-      <p class="settings-note">Lune AI is a general open-weight model given Lune’s reading of your score. It was not trained for Lune, and it can still be wrong; the facts it is given are shown on each bar.</p>
       ${message ? `<p class="settings-note" role="status">${esc(message)}</p>` : ""}`;
   }
 
@@ -2447,17 +2448,37 @@ window.LunePractice = (function () {
     document.addEventListener(
       "keydown",
       (e) => {
-        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+        if (!["ArrowLeft", "ArrowRight", "Home", "End", "Enter"].includes(e.key)) return;
         if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest?.("input, textarea, select, [contenteditable], dialog")) return;
         if (state.panel !== "score" || $("studio")?.hidden || LunePiano.isPlaying?.()) return;
+        const onScore = e.target === $("score-scroll");
         const sel = selectedBarsSorted();
-        if (!sel.length || !state.piece?.debriefs) return;
-        const bars = Object.keys(state.piece.debriefs).map(Number).filter((n) => Number.isFinite(n)).sort((a, b) => a - b);
-        const i = bars.indexOf(e.key === "ArrowRight" ? sel[sel.length - 1] : sel[0]);
-        const next = bars[Math.max(0, Math.min(bars.length - 1, i + (e.key === "ArrowRight" ? 1 : -1)))];
+        if (!state.piece?.debriefs) return;
+        // with nothing selected, the keys work once the score itself has focus (Tab to it)
+        if (!sel.length && !onScore) return;
+        if (e.key === "Enter" && !onScore) return;
+        // bar 0 (a pickup) cannot be selected, so the keys skip it as the mouse does
+        const bars = Object.keys(state.piece.debriefs).map(Number).filter((n) => Number.isFinite(n) && n > 0).sort((a, b) => a - b);
+        if (!bars.length) return;
+        let next;
+        if (e.key === "Home") next = bars[0];
+        else if (e.key === "End") next = bars[bars.length - 1];
+        else if (!sel.length) next = bars[0];
+        else if (e.key === "Enter") next = sel[0];
+        else {
+          const i = bars.indexOf(e.key === "ArrowRight" ? sel[sel.length - 1] : sel[0]);
+          next = bars[Math.max(0, Math.min(bars.length - 1, i + (e.key === "ArrowRight" ? 1 : -1)))];
+        }
         if (next == null) return;
+        e.preventDefault();
+        e.stopPropagation(); // the playback position stays where it is
         setBarSelection([next], { open: true });
         scrollToBar(next);
+        const live = $("score-live");
+        if (live) {
+          const d = debriefFor(next);
+          live.textContent = `Bar ${next} of ${bars[bars.length - 1]}${d?.difficulty?.isHard ? ", one of the harder bars" : ""}.`;
+        }
       },
       true
     );

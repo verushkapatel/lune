@@ -680,6 +680,7 @@
     </main>
 
     <main class="studio" id="studio" hidden>
+        <h1 class="visually-hidden" id="studio-h1"></h1>
       <section class="studio-panel score-pane" id="panel-score" data-panel="score">
         <div class="piece-head slim score-tools-head">
           <div class="companion-tools studio-toggles" id="score-toggles" aria-label="Score annotations">
@@ -714,7 +715,8 @@
           <span id="stage-label" class="visually-hidden">Score</span>
         </div>
 
-        <div class="score-scroll" id="score-scroll">
+        <div class="score-scroll" id="score-scroll" tabindex="0" role="region" aria-label="Score. Arrow keys move bar by bar, Home and End go to the first and last bar, Enter opens the bar, Escape closes it.">
+          <p class="visually-hidden" id="score-live" aria-live="polite"></p>
           <div class="selection-hilites" id="selection-hilites" aria-hidden="true"></div>
           <div class="hover-hilite" id="hover-hilite" hidden aria-hidden="true"></div>
           <div class="measure-hilite" id="measure-hilite" hidden></div>
@@ -769,7 +771,7 @@
               <button type="button" class="access-chip" id="tut-hand-lh" aria-pressed="false">LH</button>
             </div>
           </div>
-          <div class="piano-roll" id="piano-roll" aria-label="Falling-note piano tutorial">
+          <div class="piano-roll" id="piano-roll" role="img" aria-label="Falling-note piano tutorial">
             <canvas id="piano-roll-canvas" aria-hidden="true"></canvas>
             <div class="piano-roll-hit" aria-hidden="true"></div>
           </div>

@@ -239,9 +239,237 @@ def section_tabs(browser):
     check("tabs: no page errors", not pg.errors, pg.errors[:3])
 
 
+# ---------------------------------------------------------------- a11y
+
+
+def section_a11y(browser):
+    pg = new_page(browser)
+    open_piece(pg)
+    # the score is reachable by keyboard and the arrow keys pick bars from nothing selected
+    pg.focus("#score-scroll")
+    pg.keyboard.press("ArrowRight")
+    pg.wait_for_timeout(500)
+    sel = pg.evaluate("() => selectedBarsSorted()")
+    check("a11y: with the score focused, an arrow key selects the first bar", sel[:1] == [1], sel)
+    live = pg.inner_text("#score-live")
+    check("a11y: the selected bar is announced", live.startswith("Bar "), live)
+    pg.keyboard.press("ArrowRight")
+    pg.wait_for_timeout(300)
+    two = pg.evaluate("() => selectedBarsSorted()")
+    check("a11y: ArrowRight moves to the next bar", two and sel and two[0] == sel[0] + 1, two)
+    pg.keyboard.press("End")
+    pg.wait_for_timeout(300)
+    last = pg.evaluate("() => [selectedBarsSorted()[0], Math.max(...Object.keys(state.piece.debriefs).map(Number))]")
+    sel = sel or [1]
+    check("a11y: End goes to the last bar", last[0] == last[1], last)
+    pg.keyboard.press("Home")
+    pg.wait_for_timeout(300)
+    check("a11y: Home goes to the first bar", pg.evaluate("() => selectedBarsSorted()[0]") == sel[0])
+    check("a11y: the bar panel opened", pg.evaluate("() => state.coachOpen"))
+    pg.keyboard.press("Escape")
+    pg.wait_for_timeout(300)
+    check("a11y: Escape closes the bar panel and focus is back on the score", pg.evaluate("() => !state.coachOpen && document.activeElement.id === 'score-scroll'"))
+    check("a11y: Score tab has an h1", pg.evaluate("() => { const h = [...document.querySelectorAll('h1')].filter(h => !h.closest('[hidden]') && !h.hidden); return h.length === 1 && /score/.test(h[0].textContent); }"))
+
+    # Ask Lune: focus goes in, answers go to a polite log, Escape returns focus to the opener
+    pg.focus("#btn-tell")
+    pg.keyboard.press("Enter")
+    pg.wait_for_timeout(500)
+    check("a11y: opening Ask Lune puts focus in its text box", pg.evaluate("() => document.activeElement.id === 'ask-input'"))
+    log = pg.evaluate("() => [document.getElementById('ask-log').getAttribute('role'), document.getElementById('ask-log').getAttribute('aria-live')]")
+    check("a11y: Ask Lune answers are in a polite live log", log == ["log", "polite"], log)
+    pg.keyboard.press("Escape")
+    pg.wait_for_timeout(300)
+    check("a11y: closing Ask Lune returns focus to the button that opened it", pg.evaluate("() => document.activeElement.id === 'btn-tell'"))
+
+    # dialogs: focus moves in, Escape closes, focus comes back
+    pg.goto(BASE, wait_until="networkidle")
+    for opener, dialog in (("#btn-settings", "#settings-dialog"), ("#btn-install", "#install-dialog"), ("#footer-feedback", "dialog[open]")):
+        pg.focus(opener)
+        pg.keyboard.press("Enter")
+        pg.wait_for_timeout(500)
+        inside = pg.evaluate(f"() => !!document.querySelector('{dialog}[open], dialog[open]')?.contains(document.activeElement)")
+        pg.keyboard.press("Escape")
+        pg.wait_for_timeout(300)
+        back = pg.evaluate(f"() => document.activeElement === document.querySelector('{opener}') && !document.querySelector('dialog[open]')")
+        check(f"a11y: {opener} dialog takes focus and gives it back on Escape", inside and back, (inside, back))
+    lm = pg.evaluate("() => ({banner: document.querySelectorAll('body > header, header.bar').length, main: [...document.querySelectorAll('main')].filter(m => !m.hidden).length})")
+    check("a11y: one banner and one visible main landmark", lm["banner"] >= 1 and lm["main"] == 1, lm)
+    check("a11y: no page errors", not pg.errors, pg.errors[:3])
+
+
+# ---------------------------------------------------------------- ratings
+
+
+def section_ratings(browser):
+    # a browser that rated bars before the rename, with the old "easy"
+    old = {
+        "v": 1, "repertoire": [], "notes": [], "tasks": [], "stumbles": [],
+        "cards": [{"piece_key": "k", "bar": 3, "ease": 2.65, "interval_days": 4.2, "reps": 3, "lapses": 0,
+                   "due_at": "2030-01-01T00:00:00.000Z", "last_grade": "easy", "updated_at": "2026-09-01T00:00:00.000Z"}],
+        "activity": [],
+    }
+    pg = new_page(browser, storage={"lune.local.v1": json.dumps(old)})
+    pg.goto(BASE, wait_until="networkidle")
+    week = pg.evaluate("() => LuneStore.weekSnapshot().week")
+    pg.evaluate("""(week) => { const d = JSON.parse(localStorage.getItem('lune.local.v1'));
+      d.activity.push({id: 'a1', kind: 'review', piece_key: 'k', bar: 3, grade: 'easy', mins: 0, day: new Date().toISOString().slice(0, 10), week, created_at: new Date().toISOString()});
+      localStorage.setItem('lune.local.v1', JSON.stringify(d)); }""", week)
+    pg.reload(wait_until="networkidle")
+    cards = pg.evaluate("() => LuneStore.listCards('k')")
+    check("ratings: a stored Easy rating is migrated to Strong", cards and cards[0]["last_grade"] == "strong", cards)
+    raw = pg.evaluate("() => localStorage.getItem('lune.local.v1')")
+    check("ratings: nothing in storage still says easy", '"easy"' not in raw)
+    snap = pg.evaluate("() => LuneStore.weekSnapshot()")
+    check("ratings: a migrated Strong counts with Good in This week", snap["good"] == 1 and snap["hard"] == 0, snap)
+
+    # the five ratings keep the spaced-repetition order: a stronger rating never comes back sooner
+    order = pg.evaluate("""() => {
+      const out = {};
+      for (const card of [{}, {reps: 2, interval_days: 3, ease: 2.5}, {reps: 5, interval_days: 20, ease: 2.2}]) {
+        const key = 'reps' + (card.reps || 0);
+        out[key] = LuneStore.GRADES.map(g => [g, new Date(LuneStore.schedule(card, g).due_at).getTime()]);
+      }
+      return out;
+    }""")
+    mono = all(all(a[1] <= b[1] for a, b in zip(v, v[1:])) for v in order.values())
+    strict = all(a[1] < b[1] for a, b in zip(order["reps2"], order["reps2"][1:]))
+    check("ratings: Again < Hard ≤ Okay ≤ Good ≤ Strong for new and seasoned bars", mono, order)
+    check("ratings: on a bar with history each rating gives a different, later review", strict, order["reps2"])
+    eased = pg.evaluate("() => [LuneStore.schedule({reps: 2, interval_days: 3, ease: 2.5}, 'easy').due_at === LuneStore.schedule({reps: 2, interval_days: 3, ease: 2.5}, 'strong').due_at, LuneStore.schedule({}, 'again').lapses]")
+    check("ratings: the old name schedules exactly like Strong, and Again is a lapse", eased == [True, 1], eased)
+
+    # the bar panel offers the five, and a press is saved with its name
+    open_piece(pg)
+    select_bar(pg, 4)
+    labels = pg.eval_on_selector_all(".lp-grades .lp-grade", "els => els.map(e => e.textContent)")
+    check("ratings: the bar panel offers Again, Hard, Okay, Good, Strong", labels == ["Again", "Hard", "Okay", "Good", "Strong"], labels)
+    pg.click(".lp-grades .lp-okay")
+    pg.wait_for_timeout(600)
+    card = pg.evaluate("async () => (await LuneStore.listCards(LunePractice.keyFor(state.piece))).find(c => c.bar === 4)")
+    check("ratings: pressing Okay saves an okay rating with a review date", card and card["last_grade"] == "okay" and card["due_at"] > "2026", card)
+    fits = pg.evaluate("() => [...document.querySelectorAll('.lp-grades .lp-grade')].every(b => b.scrollWidth <= b.clientWidth + 1)")
+    check("ratings: the five labels fit their buttons", fits)
+
+    # Ask Lune understands the new words
+    select_bar(pg, 6)
+    pg.evaluate("() => LuneAsk.ask('bar 6 went okay')")
+    pg.wait_for_timeout(800)
+    card = pg.evaluate("async () => (await LuneStore.listCards(LunePractice.keyFor(state.piece))).find(c => c.bar === 6)")
+    check("ratings: “bar 6 went okay” in Ask Lune logs Okay", card and card["last_grade"] == "okay", card)
+    pg.evaluate("() => LuneAsk.ask('bar 6 felt strong')")
+    pg.wait_for_timeout(800)
+    card = pg.evaluate("async () => (await LuneStore.listCards(LunePractice.keyFor(state.piece))).find(c => c.bar === 6)")
+    check("ratings: “bar 6 felt strong” logs Strong", card and card["last_grade"] == "strong", card)
+
+    # at 390 px the five fit too
+    q = new_page(browser, width=390, height=844)
+    open_piece(q)
+    select_bar(q, 4)
+    fits = q.evaluate("() => [...document.querySelectorAll('.lp-grades .lp-grade')].every(b => b.scrollWidth <= b.clientWidth + 1 && b.getBoundingClientRect().width >= 44)")
+    check("ratings: at 390 px each rating button is at least 44 px wide and its label fits", fits)
+    check("ratings: no page errors", not pg.errors and not q.errors, (pg.errors + q.errors)[:3])
+
+
+# ---------------------------------------------------------------- week
+
+
+SEED_WEEK = """(nowIso) => {
+  const now = new Date(nowIso);
+  const ago = (days) => new Date(now.getTime() - days * 864e5).toISOString();
+  const ahead = (days) => new Date(now.getTime() + days * 864e5).toISOString();
+  const week = LuneStore.weekSnapshot().week;
+  const today = now.toISOString().slice(0, 10);
+  const d = JSON.parse(localStorage.getItem('lune.local.v1') || '{"v":1}');
+  d.v = 1;
+  d.repertoire = [{piece_key: 'fe', title: 'Für Elise', composer: 'Beethoven', status: 'learning', created_at: ago(30)},
+                  {piece_key: 'cl', title: 'Clair de lune', composer: 'Debussy', status: 'learning', created_at: ago(30)}];
+  d.notes = []; d.stumbles = [];
+  d.tasks = [
+    {id: 't1', piece_key: 'fe', title: 'Für Elise', bars: [3, 4, 5], notes: 'private words', done: false, created_at: ago(0), plan: {source: 'ask', summary: '20 minutes on bars 3, 4, 5.'}},
+    {id: 't2', piece_key: 'cl', title: 'Clair de lune', bars: [12], notes: '', done: true, done_at: ago(0), created_at: ago(0), plan: {source: 'self'}},
+    {id: 't3', piece_key: 'fe', title: 'Für Elise', bars: [20], notes: '', done: false, created_at: ago(15), plan: {source: 'repertoire'}},
+    {id: 't4', piece_key: 'cl', title: 'Clair de lune', bars: [1], notes: '', done: true, done_at: ago(20), created_at: ago(25), plan: {source: 'self'}},
+  ];
+  d.cards = [
+    {piece_key: 'fe', bar: 7, ease: 2.3, interval_days: 0, reps: 0, lapses: 1, due_at: ago(0.01), last_grade: 'hard', updated_at: ago(0.02)},
+    {piece_key: 'cl', bar: 9, ease: 2.5, interval_days: 8, reps: 3, lapses: 0, due_at: ahead(8), last_grade: 'good', updated_at: ago(0)},
+    {piece_key: 'cl', bar: 30, ease: 2.5, interval_days: 30, reps: 5, lapses: 0, due_at: ahead(30), last_grade: 'strong', updated_at: ago(40)},
+  ];
+  d.activity = [
+    {id: 'a1', kind: 'review', piece_key: 'fe', bar: 7, grade: 'hard', mins: 0, day: today, week, created_at: ago(0)},
+    {id: 'a2', kind: 'review', piece_key: 'fe', bar: 7, grade: 'again', mins: 0, day: today, week, created_at: ago(0)},
+    {id: 'a3', kind: 'review', piece_key: 'cl', bar: 9, grade: 'good', mins: 0, day: today, week, created_at: ago(0)},
+  ];
+  localStorage.setItem('lune.local.v1', JSON.stringify(d));
+}"""
+
+
+def section_week(browser):
+    ctx = browser.new_context(viewport={"width": 1280, "height": 900})
+    ctx.grant_permissions(["clipboard-read", "clipboard-write"], origin=BASE.rstrip("/").rsplit("/", 1)[0])
+    pg = ctx.new_page()
+    pg.errors = []
+    pg.on("pageerror", lambda e: pg.errors.append(str(e)[:200]))
+    pg.goto(BASE, wait_until="networkidle")
+    now = pg.evaluate("() => new Date().toISOString()")
+    pg.evaluate(SEED_WEEK, now)
+    pg.reload(wait_until="networkidle")
+    plan = pg.evaluate("async () => LuneImpact.weekPlan(LuneStore.weekSnapshot().week)")
+    items = {(x["title"], tuple(x["bars"]), x["kind"]): x for x in plan["items"]}
+    check("week: holds this week's tasks, an open task carried over, and due reviews",
+          ("Für Elise", (3, 4, 5), "task") in items and ("Für Elise", (20,), "task") in items and ("Für Elise", (7,), "review") in items, list(items))
+    check("week: a task finished in an earlier week is not listed", ("Clair de lune", (1,), "task") not in items)
+    check("week: a bar not due this week and not rated this week is not listed", ("Clair de lune", (30,), "review") not in items)
+    check("week: done and left are counted", plan["done"] == 2 and plan["left"] == 3, (plan["done"], plan["left"]))
+    why = {k: v["why"] for k, v in items.items()}
+    check("week: an Ask Lune plan says where it came from", why[("Für Elise", (3, 4, 5), "task")].startswith("You asked Lune for a plan"), why)
+    check("week: a carried-over task says so", "Carried over" in why[("Für Elise", (20,), "task")], why)
+    check("week: a due review says how it was rated", "rated it Hard" in why[("Für Elise", (7,), "review")] and "due again" in why[("Für Elise", (7,), "review")], why)
+
+    pg.evaluate("() => LuneImpact.openWeeklyReview()")
+    pg.wait_for_selector("#weekly-review-dialog[open] .week-items")
+    progress = pg.inner_text("#week-progress")
+    check("week: the review shows how much is done", progress == "2 of 5 done · 3 left", progress)
+    first = pg.evaluate("() => [...document.querySelectorAll('#weekly-review-dialog .week-item')].map(li => [li.querySelector('.week-status').textContent, li.querySelector('.week-why')?.textContent || ''])")
+    check("week: what is left comes first, and every item says why it is there", first[0][0] == "To do" and first[-1][0] == "Done" and all(w for _, w in first), first)
+    hard = pg.inner_text("#weekly-review-dialog .impact-list")
+    check("week: bars rated Again or Hard this week are listed", "bar 7" in hard and "2 times" in hard, hard)
+    check("week: private task notes are not shown", "private words" not in pg.inner_text("#weekly-review-dialog"))
+
+    # Share this week: a summary someone can read without opening Lune
+    pg.click("#weekly-review-dialog [data-impact-share]")
+    pg.wait_for_selector("#share-week-dialog[open]")
+    pg.fill("#share-display-name", "Test pianist")
+    pg.check("#share-include-bars")
+    pg.click("[data-share-copy]")
+    pg.wait_for_timeout(600)
+    text = pg.evaluate("() => navigator.clipboard.readText()")
+    lines = text.split("\n")
+    check("share: the summary opens with who and which week", lines[0].startswith("Test pianist: practice week "), lines[0])
+    check("share: the summary says days, sessions and progress in sentences",
+          lines[1].startswith("Practised on 1 of the ") and "2 of 5 planned things done." in text, lines[:3])
+    check("share: done and still-to-do are listed by piece and bars",
+          "Done: Clair de lune, bar 12" in text and "Still to do: Für Elise, bars 3–5" in text, text)
+    check("share: hard bars are included when asked", "Hard bars: Für Elise, bar 7" in text, text)
+    check("share: no private note text is in the summary", "private words" not in text)
+
+    # the page a teacher opens shows the same plan, done or not
+    payload = pg.evaluate("""async () => { const s = LuneStore.weekSnapshot(); const p = await LuneImpact.weekPlan(s.week);
+      return {displayName: 'Test pianist', week: s.week, weekLabel: 'this week', days: s.days, goalDays: s.goalDays, sessions: s.sessions,
+              items: p.items.map(x => ({title: x.title, bars: x.bars, done: x.done, kind: x.kind})), pieces: [], hardBars: []}; }""")
+    pg.goto(BASE + "#share/test", wait_until="networkidle")
+    pg.evaluate("async (p) => { LuneStore.fetchShareByToken = async () => ({payload: p}); await LuneImpact.handleRoute(); }", payload)
+    pg.wait_for_timeout(500)
+    page = pg.inner_text("#share-page")
+    check("share page: shows the week's plan with done and to do", "This week’s plan: 2 of 5 done" in page and "To do" in page, page[:300])
+    check("week: no page errors", not pg.errors, pg.errors[:3])
+    ctx.close()
+
+
 # ---------------------------------------------------------------- main
 
-SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs}
+SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week}
 
 if __name__ == "__main__":
     want = sys.argv[1:] or list(SECTIONS)

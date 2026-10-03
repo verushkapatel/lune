@@ -94,7 +94,7 @@
     if (!d) {
       d = document.createElement("dialog");
       d.id = "install-dialog";
-      d.className = "lp-dialog install-dialog";
+      d.className = "credits-dialog lp-dialog install-dialog";
       d.setAttribute("aria-labelledby", "install-h");
       document.body.appendChild(d);
     }

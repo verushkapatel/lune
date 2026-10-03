@@ -1,0 +1,1532 @@
+# Every selector in styles.css at lune04. The light theme for these was settled then
+# (base.css, or left as drawn), so the generator only handles selectors not listed here.
+#app
+#btn-open
+#create-code
+#help-body h3
+#help-body h4
+#help-body li
+#help-body p
+#help-body ul
+#member-feedback
+#member-feedback h2
+#osmd
+#osmd svg
+#osmd svg .lune-hilite
+#osmd svg .lune-leader-layer line
+#osmd svg .lune-playhead
+#osmd svg .vf-fingering
+#osmd svg g.lyrics text
+#osmd svg line.lune-leader
+#osmd svg rect.lune-sel
+#osmd svg text.lane-finger
+#osmd svg text.lane-letter
+#osmd svg text.lune-finger
+#osmd svg text.lune-letter
+#osmd svg text.vf-fingering
+#osmd.lane-hidden svg g.lyrics text
+#osmd.score-interactive
+#osmd.score-interactive svg
+#q
+#q:focus
+#q:focus-visible
+#scrub-bar
+#scrub-time
+#search-results
+#tempo-control
+*
+*::after
+*::before
+.about-columns
+.about-kicker
+.about-maker
+.about-maker h2
+.about-maker p
+.about-maker strong
+.about-maker-cinema
+.about-maker-cinema h2
+.about-maker-cinema p
+.about-maker-cinema.is-in
+.about-maker-inner
+.about-maker-visual
+.about-maker.is-in
+.about-maker::before
+.about-name-story
+.about-name-story em
+.access-chip
+.access-chip.on
+.access-chip:hover
+.access-demo
+.access-demo-chip
+.access-demo-cinema
+.access-demo-cinema .access-demo-sample
+.access-demo-k
+.access-demo-note
+.access-demo-sample
+.access-strip
+.access-strip-label
+.account-owner-users
+.account-owner-users .owner-stats-num
+.anno-control
+.anno-control-label
+.anno-opt
+.anno-opt input
+.anno-opt span
+.anno-opt.on span
+.anno-opt:has(input:checked) span
+.anno-opt:has(input:focus-visible) span
+.anno-opt:hover span
+.anno-opt:last-child span
+.anno-seg
+.ask-chips
+.ask-chips button
+.ask-chips button:hover
+.ask-fine
+.ask-form
+.ask-form input
+.ask-form input:focus
+.ask-from-lune
+.ask-from-you
+.ask-head
+.ask-log
+.ask-lune
+.ask-mic.on
+.ask-msg
+.ask-note
+.ask-send
+.ask-title
+.ask-where
+.auth-alt
+.auth-alt .quiet
+.auth-code-hint
+.auth-code-hint strong
+.auth-dialog
+.auth-dialog h2
+.auth-foot
+.auth-form
+.auth-form input
+.auth-form input::placeholder
+.auth-form input:focus
+.auth-form label
+.auth-inline-hint
+.auth-keep-nav
+.auth-keep-nav .primary
+.auth-keep-nav .quiet
+.auth-kicker
+.auth-msg
+.auth-step
+.auth-step[hidden]
+.auth-submit
+.bar
+.bar-auth
+.bar-auth-rest
+.bar-auth:focus-visible
+.bar-auth:hover
+.bar-auth[hidden]
+.bar-headline
+.bar-tool
+.bar-tool-label
+.bar:focus-within
+.bookmark-btn
+.bookmark-btn .bookmark-filled
+.bookmark-btn .lp-add-label
+.bookmark-btn .lp-add-label::after
+.bookmark-btn.in
+.bookmark-btn.in .bookmark-filled
+.bookmark-btn.in .bookmark-outline
+.bookmark-btn.in::before
+.bpm-meta
+.bpm-meter
+.bpm-orig-mark
+.bpm-orig-mark::after
+.bpm-readout
+.bpm-unit
+.bpm-wrap
+.bpm-wrap input[type="range"]
+.bpm-wrap input[type="range"]::-moz-range-thumb
+.bpm-wrap input[type="range"]::-webkit-slider-thumb
+.brand
+.brand .lune-mark
+.brand-name
+.brand:hover
+.btn-search
+.btn-search:hover
+.chapter
+.chapter + .chapter
+.chapter-body
+.chapter-body li
+.chapter-body p
+.chapter-body p:last-child
+.chapter-body ul
+.chapter-label
+.chapter-title
+.chip
+.chip .tone-finger
+.chip i
+.chip.finger-only
+.chip.finger-only b
+.chip.finger-only.chord
+.chip.finger-only.chord .chord-tone
+.chip.finger-only.chord .chord-tone .tone-finger
+.chip.finger-only.chord .chord-tone .tone-letter
+.chip.letter
+.chip.letter.chord
+.chip.letter.chord .chord-tone
+.chip.letter.chord .chord-tone .tone-finger
+.chip.letter.chord .chord-tone .tone-letter
+.chip:hover
+.chunk
+.chunk .label
+.chunk p
+.coach
+.coach .chip
+.coach .chip .tone-finger
+.coach .chip .tone-letter
+.coach .chip b
+.coach .chip i
+.coach .chip.finger-only b
+.coach .chip.letter i
+.coach .hand-label
+.coach .help-actions
+.coach .help-actions .quiet
+.coach .help-actions .quiet:hover
+.coach .help-actions button
+.coach .help-actions button:disabled
+.coach .help-actions button:focus-visible
+.coach .icon-btn
+.coach .icon-btn:hover
+.coach-advice
+.coach-advice p
+.coach-advice-more
+.coach-bar-block + .coach-bar-block
+.coach-bar-block > h4
+.coach-bar-block > h4:first-child
+.coach-body
+.coach-clear
+.coach-close
+.coach-close:hover
+.coach-diff
+.coach-handle
+.coach-head
+.coach-head-actions
+.coach-kicker
+.coach-lead
+.coach-line-block
+.coach-listen
+.coach-more-btn
+.coach-more-btn:hover
+.coach-sheet
+.coach-title
+.companion-bar
+.companion-hint
+.companion-play
+.companion-play .scrubber
+.companion-tools
+.composer-fallback
+.composer-hero
+.composer-hero:hover .composer-photo img
+.composer-intro h1
+.composer-photo
+.composer-photo img
+.create-account-story
+.credits-close-row
+.credits-dialog
+.credits-dialog .icon-btn
+.credits-dialog .icon-btn:hover
+.credits-dialog a
+.credits-dialog h2
+.credits-dialog h3
+.credits-dialog li + li
+.credits-dialog ul
+.credits-dialog::backdrop
+.cta-note
+.dim
+.discover
+.discover-by
+.discover-chapters
+.discover-cta
+.discover-stage
+.example-flag
+.example-share
+.example-share p
+.explain-access
+.explain-access .access-chip
+.explain-access .access-chip.on
+.explain-access .access-chip.on:hover
+.explain-access .access-chip:hover
+.explain-access .access-none
+.explain-cta-row
+.explain-hero
+.explain-pane
+.explain-pane .access-chip
+.explain-pane .access-chip.on
+.explain-pane .lp-add
+.explain-pane .lp-braille
+.explain-stage
+.eyebrow
+.feedback-dialog .impact-fieldset
+.feedback-dialog input:focus
+.feedback-dialog input[type="number"]
+.feedback-dialog input[type="text"]
+.feedback-dialog label[for]
+.feedback-dialog select
+.feedback-dialog select:focus
+.feedback-dialog textarea
+.feedback-dialog textarea:focus
+.feedback-hint
+.feedback-list
+.feedback-list li
+.feedback-list p
+.feedback-meta
+.feedback-pair
+.feedback-quote
+.feedback-thanks
+.fine-print
+.fine-print .link-btn
+.fine-print a
+.focus-list
+.focus-list li
+.fx-ask
+.fx-ask-bars
+.fx-ask-bars button
+.fx-ask-bars button:hover
+.fx-ask-hilite
+.fx-ask-hilite span
+.fx-ask-panel
+.fx-ask-panel em
+.fx-ask-panel span
+.fx-ask-panel span.dim
+.fx-ask-panel strong
+.fx-ask-score
+.fx-bar-mark
+.fx-bar-mark span
+.fx-bar-mark.is-note
+.fx-bar-mark.is-note span
+.fx-bar-mark.is-selected
+.fx-bar-mark.is-stumble
+.fx-bpm
+.fx-braille
+.fx-braille-chip
+.fx-brand
+.fx-chip
+.fx-chip.on
+.fx-chrome
+.fx-device-piano
+.fx-device-piano .sim-piano
+.fx-easy
+.fx-easy-k
+.fx-easy-note
+.fx-easy-sample
+.fx-follow-bar
+.fx-follow-bar.on
+.fx-follow-bar.stumble
+.fx-follow-listen
+.fx-follow-map
+.fx-follow-score
+.fx-follow-side
+.fx-follow-ui
+.fx-follow-wave
+.fx-follow-wave span
+.fx-follow-wave span:nth-child(1)
+.fx-follow-wave span:nth-child(2)
+.fx-follow-wave span:nth-child(3)
+.fx-follow-wave span:nth-child(4)
+.fx-follow-wave span:nth-child(5)
+.fx-labels
+.fx-live-playhead
+.fx-marker
+.fx-metro
+.fx-metro.on
+.fx-note-panel
+.fx-note-panel p
+.fx-note-panel strong
+.fx-note-score
+.fx-note-ui
+.fx-orig
+.fx-paper
+.fx-piece
+.fx-play
+.fx-play.on
+.fx-playhead
+.fx-playhead em
+.fx-rate
+.fx-rate span
+.fx-rate span.on
+.fx-readable .fx-score svg text.lane-letter
+.fx-rep
+.fx-score
+.fx-score svg
+.fx-score svg text.lane-finger
+.fx-score svg text.lane-letter
+.fx-score.is-tappable
+.fx-seg
+.fx-seg button
+.fx-seg button.on
+.fx-seg button.on:hover
+.fx-seg button:hover
+.fx-seg em
+.fx-seg em.on
+.fx-staff
+.fx-stage
+.fx-sync
+.fx-tabs
+.fx-tabs span
+.fx-tabs span.on
+.fx-tempo
+.fx-tools
+.fx-tools .fx-easy-k
+.fx-transport
+.hand-label
+.hello
+.hello-back .hello-cta
+.hello-back .hello-hero h1
+.hello-back .hello-kicker
+.hello-back .hello-lead
+.hello-back .hello-lockup
+.hello-back .hello-moon
+.hello-back .hello-story
+.hello-brand
+.hello-cta
+.hello-hero
+.hello-hero h1
+.hello-hero-inner
+.hello-hero::before
+.hello-kicker
+.hello-lead
+.hello-lockup
+.hello-mark
+.hello-moon
+.hello-story
+.help-actions
+.help-actions #btn-hear
+.help-actions button
+.hero-chip
+.hero-chip:hover
+.hero-chips
+.home
+.home h1
+.home-access-chapter .home-chapter-copy code
+.home-access-line
+.home-access-line a
+.home-access-line a:hover
+.home-billboard
+.home-billboard-kicker
+.home-billboard-line
+.home-billboard-soft
+.home-billboard.is-in
+.home-brand
+.home-brand::after
+.home-chapter
+.home-chapter + .home-chapter
+.home-chapter .about-kicker
+.home-chapter h2
+.home-chapter p
+.home-chapter-copy
+.home-chapter-flip .home-chapter-copy
+.home-chapter-flip .home-chapter-visual
+.home-chapter-sticky
+.home-chapter-visual
+.home-chapter.is-in
+.home-chapter::before
+.home-close
+.home-close .home-cta-row
+.home-close > p
+.home-close h2
+.home-close-cinema
+.home-close-cinema .home-cta-row
+.home-close-cinema > p
+.home-close-cinema h2
+.home-close-cinema.is-in
+.home-close.is-in
+.home-continue
+.home-continue-actions
+.home-continue-k
+.home-continue-t
+.home-cta-hero
+.home-cta-note
+.home-cta-row
+.home-cue
+.home-cue::before
+.home-feat
+.home-feat-copy > p
+.home-feat-copy h2
+.home-feat-device
+.home-feat-device > .fx-ask-panel
+.home-feat-device > .fx-follow-side
+.home-feat-device > .fx-follow-side p
+.home-feat-device > .fx-note-panel
+.home-feat-flip .home-feat-copy
+.home-feat-flip .home-feat-device
+.home-feat-intro
+.home-feat-intro > p
+.home-feat-intro h2
+.home-feat-intro.is-in
+.home-feat-stack
+.home-feat-why
+.home-feat-why strong
+.home-feat.is-in
+.home-feature-list
+.home-feature-list li
+.home-feature-list li:last-child
+.home-feature-list span
+.home-feature-list strong
+.home-feature-list-slim
+.home-feature-list-slim li
+.home-features
+.home-features h2
+.home-features-inner
+.home-features-keys
+.home-features-lead
+.home-features.is-in
+.home-features::before
+.home-feedback
+.home-feedback > p:not(.about-kicker)
+.home-feedback h2
+.home-feedback.is-in
+.home-feedback[data-reveal]
+.home-fine-line
+.home-footer
+.home-footer-keys
+.home-footer-legal
+.home-footer-line
+.home-footer-mark
+.home-for
+.home-for h2
+.home-for-ask
+.home-for-grid
+.home-for-grid article
+.home-for-grid h3
+.home-for-grid p
+.home-for.is-in
+.home-guest[hidden]
+.home-hero
+.home-hero-cinema
+.home-hero-cinema .home-brand
+.home-hero-cinema .home-hero-inner
+.home-hero-cinema .home-hero-motif
+.home-hero-cinema .home-mark
+.home-hero-cinema .home-motif-mark
+.home-hero-cinema .lead
+.home-hero-cinema h1
+.home-hero-inner
+.home-hero-motif
+.home-hero::after
+.home-hero::before
+.home-lockup
+.home-mark
+.home-mark path
+.home-meet-by
+.home-meet-copy
+.home-meet-face
+.home-meet-frame
+.home-meet-kicker
+.home-meet-note
+.home-meet-title
+.home-member
+.home-member[hidden]
+.home-motif-mark
+.home-pin-cinema
+.home-pin-frame
+.home-pin-frame .home-today-mock
+.home-pin-frame .home-viz
+.home-pin-frame.is-on
+.home-pin-rail
+.home-pin-stage
+.home-pin-step
+.home-pin-step .about-kicker
+.home-pin-step h2
+.home-pin-step p
+.home-pin-step.is-active
+.home-pin-step.is-in
+.home-pin-sticky
+.home-rec-row
+.home-screen
+.home-screen-copy h2
+.home-screen-copy p
+.home-screen-flip .home-screen-copy
+.home-screen-flip .home-screen-frame
+.home-screen-frame
+.home-screen.is-in
+.home-scroll-cue
+.home-scroll-cue:hover
+.home-sim
+.home-sim-cinema
+.home-sim-cinema .home-sim-head
+.home-sim-cinema .home-sim-head h2
+.home-sim-cinema .home-sim-lead
+.home-sim-cinema .sim-caption h3
+.home-sim-cinema .sim-frame
+.home-sim-head
+.home-sim-head h2
+.home-sim-inner
+.home-sim-lead
+.home-sim.is-in
+.home-statement
+.home-statement-line
+.home-statement.is-in
+.home-today-bars
+.home-today-bars span
+.home-today-card
+.home-today-k
+.home-today-mock
+.home-today-title
+.home-upload-cta
+.home-upload-cta:active
+.home-upload-cta:hover
+.home-viz
+.home-viz line
+.home-viz-bar-hilite
+.home-viz-finger
+.home-viz-key-lit
+.home-viz-playhead
+.home-viz-scrub
+.home-viz-scrub-knob
+.home.is-scrolled .home-hero-motif
+.hover-hilite
+.icon-btn
+.icon-btn svg
+.icon-btn:focus-visible
+.icon-btn:hover
+.impact-active-links
+.impact-chapter
+.impact-chapter .impact-stats
+.impact-chapter h2
+.impact-chapter-block
+.impact-chapter-head
+.impact-chapter-inner
+.impact-chapter-nav
+.impact-chapter::backdrop
+.impact-check
+.impact-dialog .impact-stats
+.impact-empty
+.impact-fieldset
+.impact-fieldset legend
+.impact-h3
+.impact-kicker
+.impact-link code
+.impact-list
+.impact-list em
+.impact-list li
+.impact-list li:last-child
+.impact-mark
+.impact-mins
+.impact-num
+.impact-range
+.impact-stats-chapter
+.impact-stats-owner
+.impact-users-hero
+.impact-users-hero .dim
+.impact-users-hero .impact-num
+.impact-voice
+.invite-soft-banner
+.keep-account-banner
+.keep-account-banner .primary
+.keep-account-banner p
+.keep-account-banner strong
+.lead
+.lf-dot
+.lf-hilite
+.lf-meter
+.lf-meter i
+.lf-panel
+.lf-panel .quiet.ink
+.lf-panel.lf-wrong
+.line-summary
+.line-summary li
+.link-btn
+.link-btn:hover
+.listen-bar
+.listen-bar button
+.loader-piano
+.loader-piano .lk.b
+.loader-piano .lk.b1
+.loader-piano .lk.b2
+.loader-piano .lk.b3
+.loader-piano .lk.b4
+.loader-piano .lk.b5
+.loader-piano .lk.w
+.loader-piano .lk.w:nth-child(1)
+.loader-piano .lk.w:nth-child(2)
+.loader-piano .lk.w:nth-child(3)
+.loader-piano .lk.w:nth-child(4)
+.loader-piano .lk.w:nth-child(5)
+.loader-piano .lk.w:nth-child(6)
+.loader-piano .lk.w:nth-child(7)
+.lp-add.in
+.lp-add.in::before
+.lp-ask-row
+.lp-asked-a
+.lp-asked-q
+.lp-assign-out input
+.lp-banner
+.lp-banner .lp-banner-more
+.lp-banner .lp-banner-more:hover
+.lp-banner-actions
+.lp-banner-bars
+.lp-banner-hide
+.lp-banner-k
+.lp-banner-more
+.lp-banner-more:hover
+.lp-banner-text
+.lp-banner-text p
+.lp-banner.is-open .lp-banner-text p
+.lp-callout
+.lp-chip
+.lp-chip:hover
+.lp-coach
+.lp-del
+.lp-del:hover
+.lp-dialog .icon-btn
+.lp-dialog .primary
+.lp-dialog input
+.lp-dialog input:focus
+.lp-dialog label
+.lp-dialog textarea
+.lp-dialog textarea:focus
+.lp-due
+.lp-empty
+.lp-grade
+.lp-grade.lp-again.picked
+.lp-grade.lp-easy.picked
+.lp-grade.lp-good.picked
+.lp-grade.lp-hard.picked
+.lp-grade:hover
+.lp-grades
+.lp-h
+.lp-heat
+.lp-mark
+.lp-mark-assigned
+.lp-mark:hover
+.lp-marks
+.lp-meta
+.lp-mic
+.lp-mic.on
+.lp-mic:disabled
+.lp-note
+.lp-note p
+.lp-note-form
+.lp-note-form .lp-mic
+.lp-note-form .lp-mic span
+.lp-note-form .lp-row
+.lp-note-form textarea
+.lp-note-form textarea:focus
+.lp-note-grow
+.lp-note.lp-src-teacher
+.lp-notes
+.lp-row
+.lp-save
+.lp-save:hover
+.lp-switch
+.lp-switch input
+.lp-switch small
+.lp-switch strong
+.lp-teacher
+.lp-teacher p
+.lp-to-plan
+.lp-tool
+.lp-tool-label
+.lp-tool.on
+.lp-tool.on svg
+.lp-tool:hover
+.lp-tools
+.lp-tools-bar
+.lp-tools-bar .lp-add .lp-add-label
+.lune-kbd-blacks
+.lune-kbd-host
+.lune-kbd-track
+.lune-kbd-whites
+.lune-key
+.lune-key-finger
+.lune-key-notch
+.lune-key.black
+.lune-key.black .lune-key-finger
+.lune-key.black.on
+.lune-key.black.on .lune-key-finger
+.lune-key.white
+.lune-key.white.on
+.lune-key.white.on .lune-key-finger
+.lune-key.white.on .lune-key-notch
+.lune-key.white:first-child
+.lune-loader
+.lune-loader-box
+.lune-loader-text
+.lune-loader-text::after
+.lune-mark
+.lune-mark g
+.lune-mark path
+.lune-menu
+.lune-menu-check
+.lune-menu-hint
+.lune-menu-icon
+.lune-menu-icon svg
+.lune-menu-item
+.lune-menu-item:focus-visible
+.lune-menu-item:hover
+.lune-menu-item[aria-disabled="true"]
+.lune-menu-label
+.lune-menu.is-open
+.lune-menu.is-paper
+.lune-menu.is-paper .lune-menu-hint
+.lune-menu.is-paper .lune-menu-item:focus-visible
+.lune-menu.is-paper .lune-menu-item:hover
+.lune-tour
+.lune-tour h2
+.lune-tour p
+.lune-tour-kicker
+.lune-tour-nav
+.lune-tour-nav #lune-tour-skip
+.measure-hilite
+.member-brand
+.member-continue
+.member-cta-row
+.member-cta-row .primary
+.member-cta-row .quiet
+.member-feat-chapter
+.member-feat-copy h3
+.member-feat-copy p:last-child
+.member-feat-flip
+.member-feat-flip .member-feat-copy
+.member-feat-flip .member-feat-frame
+.member-feat-frame
+.member-feat-stack
+.member-features
+.member-features h2
+.member-footer
+.member-footer-actions
+.member-hero
+.member-kicker
+.member-lead
+.member-lockup
+.member-mark
+.member-mark path
+.member-rec
+.member-rec-by
+.member-rec-featured
+.member-rec-grid
+.member-rec-role
+.member-rec-title
+.member-rec:focus-visible
+.member-rec:hover
+.member-recs
+.member-recs h2
+.member-section-lead
+.member-streak
+.member-title
+.member-tonight
+.member-tonight #member-tonight-body em
+.member-tonight .primary
+.member-tonight h2
+.member-week
+.member-week .quiet
+.member-week h2
+.metro-btn
+.metro-btn.on
+.metro-btn:hover
+.mf-ask
+.mf-coach
+.mf-coach strong
+.mf-easy-sample
+.mf-follow
+.mf-keys
+.mf-keys i
+.mf-keys i.on
+.mf-labels
+.mf-mic-wave
+.mf-mic-wave span
+.mf-mic-wave span:nth-child(1)
+.mf-mic-wave span:nth-child(2)
+.mf-mic-wave span:nth-child(3)
+.mf-mic-wave span:nth-child(4)
+.mf-mic-wave span:nth-child(5)
+.mf-piano .mf-fall
+.mf-piano .mf-fall b
+.mf-piano .mf-fall b.lh
+.mf-playhead
+.mf-staffs
+.mf-staffs i
+.mf-stumble
+.mf-stumble em
+.mf-tempo
+.mode-tab
+.mode-tab.on
+.mode-tab:hover
+.mode-tabs
+.nav-arrows
+.notes
+.onboard
+.onboard .invite-soft-banner
+.onboard-already
+.onboard-already .quiet
+.onboard-auth
+.onboard-auth .auth-alt
+.onboard-auth .auth-submit
+.onboard-auth input
+.onboard-auth input:focus
+.onboard-auth label
+.onboard-cadence
+.onboard-cadence p:last-child
+.onboard-cadence-k
+.onboard-chip
+.onboard-chip.on
+.onboard-chip:hover
+.onboard-chips
+.onboard-code
+.onboard-code:focus
+.onboard-composer
+.onboard-composer-chip
+.onboard-composer-chip-face
+.onboard-composer-chip:hover
+.onboard-composer-chips
+.onboard-composer-empty
+.onboard-composer-face
+.onboard-composer-grid
+.onboard-composer-name
+.onboard-composer-q
+.onboard-composer-search
+.onboard-composer-search-icon
+.onboard-composer.on
+.onboard-composer.on .onboard-composer-face
+.onboard-composer.on .onboard-composer-name
+.onboard-composer:hover
+.onboard-composer:hover .onboard-composer-face
+.onboard-diff
+.onboard-dream
+.onboard-dream span
+.onboard-dream strong
+.onboard-dream-custom
+.onboard-dream.on
+.onboard-dream.on span
+.onboard-dream:hover
+.onboard-dreams
+.onboard-grade
+.onboard-grade.on
+.onboard-grade:hover
+.onboard-grades
+.onboard-help
+.onboard-help em
+.onboard-help strong
+.onboard-level
+.onboard-level span
+.onboard-level strong
+.onboard-level.dim
+.onboard-level.on
+.onboard-level.on span
+.onboard-level:hover
+.onboard-levels
+.onboard-nav
+.onboard-need
+.onboard-need span
+.onboard-need strong
+.onboard-need.on
+.onboard-need:hover
+.onboard-needs
+.onboard-path-card
+.onboard-path-card span
+.onboard-path-card strong
+.onboard-path-card:hover
+.onboard-path-list
+.onboard-path-n
+.onboard-path-step
+.onboard-practice
+.onboard-practice-label
+.onboard-practice-sum
+.onboard-practice-sum strong
+.onboard-progress
+.onboard-progress li
+.onboard-progress li em
+.onboard-progress li span
+.onboard-progress li.done
+.onboard-progress li.done span
+.onboard-progress li.on
+.onboard-progress li.on span
+.onboard-rec
+.onboard-rec span
+.onboard-rec strong
+.onboard-rec-featured
+.onboard-rec-tag
+.onboard-rec:hover
+.onboard-recs
+.onboard-search
+.onboard-search-label
+.onboard-search:focus
+.onboard-stage
+.onboard-stage .eyebrow
+.onboard-stage h1
+.onboard-stage-wide
+.onboard-voice
+.onboard-voice-status
+.owner-stats-hero
+.owner-stats-label
+.owner-stats-num
+.piano-dock
+.piano-dock .piano-dock-hide
+.piano-dock .piano-dock-hide:hover
+.piano-dock .speed-btn
+.piano-dock .speed-btn.on
+.piano-dock .speed-btn:hover
+.piano-dock-head
+.piano-dock-hide
+.piano-dock-label
+.piano-dock.collapsed
+.piano-dock.is-focus
+.piano-dock.is-focus .lune-kbd-host
+.piano-dock.is-focus .piano-dock-head
+.piano-dock.is-focus .piano-dock-hide
+.piano-dock.is-focus .piano-dock-label
+.piano-dock.is-focus .piano-panel
+.piano-dock.is-slim
+.piano-dock.is-slim .lune-kbd-host
+.piano-dock.is-slim .lune-kbd-track
+.piano-dock[hidden]
+.piano-focus-note
+.piano-pane
+.piano-panel
+.piano-roll
+.piano-roll canvas
+.piano-roll-hit
+.piano-speed
+.piano-stage
+.piano-tut-hands
+.piano-tut-head
+.piano-tut-kicker
+.piano-tut-legend
+.piano-tut-legend .tut-lh::before
+.piano-tut-legend .tut-rh::before
+.piano-tut-meta
+.piece-head
+.piece-head h2
+.piece-head p
+.piece-head-actions
+.piece-head-main
+.piece-head.score-tools-head
+.piece-head.slim
+.piece-tab
+.piece-tab-add
+.piece-tab-add:focus-visible
+.piece-tab-add:hover
+.piece-tab-close
+.piece-tab-close:focus-visible
+.piece-tab-close:hover
+.piece-tab-face
+.piece-tab-label
+.piece-tab-label:focus-visible
+.piece-tab-new
+.piece-tab-new:hover
+.piece-tab.on
+.piece-tab.on .piece-tab-face
+.piece-tab:hover
+.piece-tabs
+.piece-tabs.piece-tabs-solo
+.piece-titles
+.playhead-line
+.playhead-line.on
+.playhead-line.playing
+.playhead-line.scrubbing
+.playhead-line::after
+.playhead-line::before
+.primary
+.primary.big
+.primary:active
+.primary:hover
+.primary:not(.danger):hover
+.quiet
+.quiet-chip
+.quiet.danger
+.quiet.ink
+.quiet.ink.danger
+.quiet.ink:hover
+.quiet:hover
+.rep-account
+.rep-account .link-btn
+.rep-account strong
+.rep-acct-dot
+.rep-acct-dot.on
+.rep-acct-text
+.rep-add
+.rep-add input
+.rep-add input:focus
+.rep-badge
+.rep-bar
+.rep-bar:hover
+.rep-btn
+.rep-btn-label
+.rep-btn:hover
+.rep-card
+.rep-card h3
+.rep-card select
+.rep-card-actions
+.rep-card-by
+.rep-card-main
+.rep-card-meta
+.rep-card-meta strong
+.rep-empty
+.rep-empty em
+.rep-foot
+.rep-foot .link-btn
+.rep-foot .link-btn:hover
+.rep-foot a
+.rep-foot a:hover
+.rep-hero h1
+.rep-inner
+.rep-lead
+.rep-list
+.rep-plan-actions
+.rep-plan-card
+.rep-plan-steps
+.rep-plan-summary
+.rep-plan-top h3
+.rep-remove
+.rep-remove.danger
+.rep-section
+.rep-section h2
+.rep-study-link
+.rep-sug
+.rep-sug-c
+.rep-sug-go
+.rep-sug-t
+.rep-sug-typed
+.rep-sug:hover
+.rep-suggest
+.rep-today
+.rep-today-bars
+.rep-today-head
+.rep-today-head h2
+.rep-today-row
+.rep-today-t
+.repertoire
+.result
+.result small
+.result-empty
+.result-empty-link
+.result-empty-link:hover
+.result-empty-msg
+.result-empty-sub
+.result-empty-upload
+.result-empty-upload:active
+.result-empty-upload:hover
+.result-empty:hover
+.result.is-active
+.result:focus-visible
+.result:hover
+.result:last-child
+.results
+.score-kbd-toggle
+.score-kbd-toggle.on
+.score-kbd-toggle:hover
+.score-page
+.score-page:has(#osmd:empty)
+.score-pane
+.score-pane .primary
+.score-pane .primary:hover
+.score-scroll
+.score-scroll .fine-print
+.score-tools-head
+.score-tools-head .access-chip
+.score-tools-head .access-chip.on
+.score-tools-head .access-chip:hover
+.score-tools-head .studio-toggles
+.score-tools-head .tog.pill
+.score-tools-head .xor-group
+.score-tools-head .xor-group .tog.pill
+.score-tools-head .xor-group .tog.pill.on
+.score-tools-head .xor-group .tog.pill:has(input:checked)
+.score-tools-head .xor-group .tog.pill:hover
+.score.scan
+.score.scan canvas
+.score.scan img
+.scrub-keys
+.scrub-meta
+.scrub-tick
+.scrub-tick::after
+.scrub-ticks
+.scrub-track-wrap
+.scrubber input[type="range"]
+.scrubber input[type="range"].scrubbing
+.scrubber input[type="range"].scrubbing::-webkit-slider-thumb
+.scrubber input[type="range"]::-moz-range-progress
+.scrubber input[type="range"]::-moz-range-thumb
+.scrubber input[type="range"]::-moz-range-track
+.scrubber input[type="range"]::-webkit-slider-runnable-track
+.scrubber input[type="range"]::-webkit-slider-thumb
+.scrubber input[type="range"]:active
+.scrubber input[type="range"]:hover::-webkit-slider-thumb
+.search-results
+.selection-hilite
+.selection-hilites
+.settings-ai
+.settings-ai input
+.settings-ai label
+.settings-ai-actions
+.settings-dialog h3
+.settings-dialog textarea
+.settings-goal
+.settings-goal select
+.settings-note
+.settings-note strong
+.settings-privacy li
+.settings-privacy ul
+.settings-row
+.settings-row span
+.settings-row strong
+.settings-row:disabled
+.settings-row:hover:not(:disabled)
+.settings-steps
+.settings-steps code
+.settings-theme
+.settings-theme button
+.settings-theme button[aria-pressed="true"]
+.share-brand
+.share-cta-note
+.share-cta-row
+.share-foot
+.share-foot a
+.share-inner
+.share-inner .impact-stats
+.share-inner h1
+.share-kicker
+.share-lead
+.share-lockup
+.share-page
+.share-range
+.sim-access-row
+.sim-access-row .sim-pill.on
+.sim-access-sample
+.sim-ask
+.sim-ask-hilite
+.sim-ask-panel
+.sim-ask-panel span
+.sim-ask-panel strong
+.sim-ask-score
+.sim-caption
+.sim-caption > p:not(.sim-kicker)
+.sim-caption h3
+.sim-card
+.sim-controls
+.sim-dot
+.sim-dot.on
+.sim-dots
+.sim-fall
+.sim-fall b
+.sim-fall b.black-note
+.sim-fall b.lh
+.sim-fall b.rh
+.sim-fall-hit
+.sim-frame
+.sim-kicker
+.sim-notes
+.sim-notes i
+.sim-notes span
+.sim-piano
+.sim-piano-blacks
+.sim-piano-blacks .bk
+.sim-piano-blacks .bk.on
+.sim-piano-board
+.sim-piano-chrome
+.sim-piano-felt
+.sim-piano-meta
+.sim-piano-rail
+.sim-piano-whites
+.sim-piano-whites .w
+.sim-piano-whites .w.on
+.sim-piano-whites .w:first-child
+.sim-pill
+.sim-pill.on
+.sim-plan
+.sim-plan span
+.sim-plan strong
+.sim-playhead
+.sim-playhead em
+.sim-scene
+.sim-scene-full
+.sim-scene.on
+.sim-staff
+.sim-staff-line
+.sim-stage
+.sim-try
+.sim-try .home-cta-row
+.sim-try > p
+.sim-try h3
+.sim-ui-bar
+.sim-viewport
+.sim-viewport-cinema
+.speed-btn
+.speed-btn.on
+.speed-btn:hover
+.story-hook
+.studio
+.studio-dock
+.studio-dock #scrub-bar
+.studio-dock .companion-bar
+.studio-dock .piano-speed
+.studio-dock .quiet.ink
+.studio-dock .quiet.ink:hover
+.studio-dock .scrub-meta
+.studio-dock .scrub-tick
+.studio-dock .scrub-tick::after
+.studio-dock .speed-btn
+.studio-dock .speed-btn.on
+.studio-dock .speed-btn:hover
+.studio-dock .transport-play
+.studio-dock .transport-play:hover
+.studio-dock .transport-stop
+.studio-dock .transport-stop:disabled
+.studio-nav
+.studio-nav-btn
+.studio-nav-btn.is-dim
+.studio-nav-btn:disabled
+.studio-nav-btn:hover:not(:disabled)
+.studio-panel
+.studio-panel.panel-in
+.studio-panel[hidden]
+.studio-piece-quiet
+.studio-seg
+.studio-tab
+.studio-tab.on
+.studio-tab:active
+.studio-tab:focus
+.studio-tab:focus-visible
+.studio-tab:hover
+.studio-toggles
+.studio-toggles .tog-group
+.studio-toggles .tog.pill
+.studio-toggles .tog.pill input
+.studio-toggles .tog.pill.on
+.studio-toggles .tog.pill:has(input:checked)
+.study
+.study-about
+.study-about summary
+.study-feedback
+.study-inner
+.study-inner h1
+.study-key
+.study-key.right
+.study-key.wrong
+.study-key:hover:not(:disabled)
+.study-keys
+.study-progress
+.study-progress i
+.study-result
+.study-result div
+.study-result small
+.study-result span
+.study-result strong
+.study-staff
+.study-staff > div
+.study-staff svg text.lane-letter
+.study-start
+.study-start .primary
+.study-start input
+.study-start input:focus
+.study-start label
+.task-origin
+.task-origin-you
+.tempo-control
+.toast
+.tog-group
+.tog-group + .tog-group
+.tog-group + .tog.pill
+.tog.pill
+.tog.pill input
+.tog.pill.on
+.tog.pill:focus-within
+.tog.pill:has(input:checked)
+.tog.pill:has(input:focus-visible)
+.tog.pill:hover
+.top-search
+.top-search .search-go
+.top-search .search-go:hover
+.top-search button
+.top-search button.search-go
+.top-search button.search-go:hover
+.top-search button:hover
+.top-search input
+.top-search input::placeholder
+.top-search input:focus
+.tour-pulse
+.transport
+.transport .transport-scrub
+.transport-play
+.transport-play:active
+.transport-play:hover
+.transport-scrub
+.transport-stop
+.transport-stop .stop-label
+.transport-stop-icon
+.upload-btn
+.upload-icon
+.upload-label
+.visually-hidden
+.welcome
+.welcome-brand
+.welcome-brand::after
+.welcome-chapter
+.welcome-chapter-copy h3
+.welcome-chapter-copy p:last-child
+.welcome-chapter-flip
+.welcome-chapter-flip > *
+.welcome-chapter-visual
+.welcome-close
+.welcome-close > p
+.welcome-close h2
+.welcome-close-brand
+.welcome-cta
+.welcome-diff
+.welcome-diff h2
+.welcome-diff-list
+.welcome-diff-list li
+.welcome-diff-list span
+.welcome-diff-list strong
+.welcome-fine
+.welcome-hero
+.welcome-hero h1
+.welcome-hero-inner
+.welcome-hero-motif
+.welcome-hero::after
+.welcome-hero::before
+.welcome-key-lit
+.welcome-lead
+.welcome-lockup
+.welcome-mark
+.welcome-motif-mark
+.welcome-scroll
+.welcome-scroll svg
+.welcome-scroll:hover
+.welcome-step
+.welcome-story
+.welcome-story-head
+.welcome-story-head h2
+.welcome-story-lead
+.welcome-viz
+.work-steps
+.work-steps strong
+0%
+10%
+100%
+25%
+4%
+45%
+50%
+60%
+70%
+75%
+::selection
+:root
+[hidden]
+[tabindex]:focus-visible
+a.link-btn
+a.link-btn:hover
+a:focus-visible
+body
+body.coach-open.is-panel-score .score-pane
+body.coach-open.is-panel-score .score-scroll
+body.coach-open.is-panel-score .studio-dock
+body.is-discover .bar
+body.is-hello
+body.is-hello #keep-account-banner
+body.is-hello .results
+body.is-hello header.bar
+body.is-hello-back .hello-moon
+body.is-home .bookmark-btn
+body.is-home .piece-tabs:not([hidden])
+body.is-home .top-search
+body.is-home .top-search .search-go
+body.is-home .top-search .search-go:hover
+body.is-home .top-search input
+body.is-home .top-search input:focus
+body.is-home .upload-btn
+body.is-home.is-signed-in #btn-search
+body.is-home.is-signed-in .top-search
+body.is-home.is-signed-in .top-search .search-go
+body.is-home.is-signed-in .top-search input
+body.is-home.is-signed-in .top-search input:focus
+body.is-home.is-signed-in.phone-search-open .top-search
+body.is-home:not(.is-signed-in) #btn-search
+body.is-home:not(.is-signed-in) .top-search
+body.is-onboard
+body.is-onboard #keep-account-banner
+body.is-onboard .results
+body.is-onboard header.bar
+body.is-panel-piano .piano-dock-hide
+body.is-panel-piano .piano-dock-label
+body.is-panel-piano .piano-pane
+body.is-panel-piano .piano-roll
+body.is-panel-piano .piano-stage
+body.is-panel-piano .studio > .piano-dock.is-focus
+body.is-panel-piano .studio-dock .tempo-control
+body.is-panel-piano .studio-panel.piano-pane
+body.is-panel-score .studio > .piano-dock.is-slim
+body.is-panel-score .studio-dock .piano-speed
+body.is-panel-score .studio-dock .tempo-control
+body.is-repertoire .bookmark-btn
+body.is-repertoire .rep-btn
+body.is-share #keep-account-banner
+body.is-share .bar
+body.is-signed-in .bar-auth
+body.is-signed-in .home-guest
+body.is-studio #btn-open
+body.is-studio #btn-search
+body.is-studio .bar
+body.is-studio .bar-auth
+body.is-studio .bookmark-btn
+body.is-studio .brand
+body.is-studio .brand .lune-mark
+body.is-studio .brand-name
+body.is-studio .brand:hover
+body.is-studio .btn-search
+body.is-studio .piece-tab.on
+body.is-studio .piece-tabs
+body.is-studio .piece-tabs.piece-tabs-solo
+body.is-studio .piece-tabs:not([hidden])
+body.is-studio .rep-btn
+body.is-studio .rep-btn-label
+body.is-studio .studio-piece-quiet
+body.is-studio .studio-seg
+body.is-studio .studio-tab
+body.is-studio .top-search
+body.is-studio.studio-search-open .results
+body.is-studio.studio-search-open .top-search
+body.is-study #btn-repertoire
+body.is-study #btn-search
+body.is-study .bookmark-btn
+body.is-study .top-search
+body.is-welcome
+body.is-welcome #keep-account-banner
+body.is-welcome .results
+body.is-welcome header.bar
+body.lp-contrast #osmd svg text.lane-finger
+body.lp-contrast #osmd svg text.lane-letter
+body.lp-contrast .coach-sheet
+body.lp-large
+body.lp-large #osmd svg text.lane-finger
+body.lp-large #osmd svg text.lane-letter
+body.lp-large .coach-body
+body.lp-large .lp-note p
+body.lp-large button
+body.lp-readable
+body.lp-readable #osmd svg text.lane-finger
+body.lp-readable #osmd svg text.lane-letter
+body.lp-readable .fx-score svg text.lane-letter
+body.lp-readable .study-staff svg text.lane-letter
+body.lp-readable button
+body.lp-readable input
+body.lp-readable textarea
+body.needs-onboard .top-search
+body.phone-search-open .btn-search
+body.phone-search-open .results
+body.phone-search-open .top-search
+body:not(.is-signed-in) #btn-search
+body:not(.is-signed-in) .home-member
+body:not(.is-signed-in) .top-search
+body:not(.is-studio) .bar
+button
+button.fx-chip
+button.fx-play
+button.fx-play:disabled
+button.quiet
+button:focus-visible
+from
+html
+input:focus-visible
+input[type="range"]
+input[type="range"]:focus-visible
+to

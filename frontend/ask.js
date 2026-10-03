@@ -329,7 +329,7 @@ Rules:
     await P()?.addCurrentToRepertoire?.({ quiet: true }).catch(() => {});
     for (const b of bars) await store().reviewBar(key, b, grade);
     P()?.refreshBadge?.();
-    const word = { again: "to do again tomorrow", hard: "as hard", good: "as good", easy: "as easy" }[grade];
+    const word = { again: "to do again soon", hard: "as hard", okay: "as okay", good: "as good", strong: "as strong" }[grade];
     return `Logged bar${bars.length === 1 ? "" : "s"} ${bars.join(", ")} ${word}. Lune will bring ${bars.length === 1 ? "it" : "them"} back at the right time.`;
   }
 
@@ -355,11 +355,13 @@ Rules:
       ? "again"
       : /\b(hard|tricky|difficult|struggl)/.test(t)
         ? "hard"
-        : /\b(easy|effortless|no problem)\b/.test(t)
-          ? "easy"
-          : /\b(good|fine|better|okay|ok|clean|went well)\b/.test(t)
-            ? "good"
-            : null;
+        : /\b(strong|easy|effortless|secure|no problem)\b/.test(t)
+          ? "strong"
+          : /\b(okay|ok|so-so|mostly|alright)\b/.test(t)
+            ? "okay"
+            : /\b(good|fine|better|clean|went well|solid)\b/.test(t)
+              ? "good"
+              : null;
     if (grade && !isQuestion && bars.length && /\b(was|went|felt|is|that|it)\b/.test(t)) {
       return { bar: bars[0], a: await rate(bars, grade), saved: "review" };
     }
@@ -600,14 +602,15 @@ Rules:
   }
 
   function deviceOfferHtml(plan) {
+    const size = esc(D().sizeText(plan.bytes));
     const slow =
-      plan.device === "wasm"
-        ? " This browser has no WebGPU, so it runs on the processor and each answer takes noticeably longer."
-        : "";
-    return `<p><strong>Lune AI</strong> can answer here with a language model that runs in this browser.
-      Turning it on downloads ${esc(D().sizeText(plan.bytes))} once (${esc(plan.name)}, ${esc(plan.licence)} licence, from Hugging Face).
-      After that it works offline and nothing you ask leaves this device.${slow}</p>
-      <button type="button" class="quiet" data-ai-on>Download ${esc(D().sizeText(plan.bytes))} and turn on</button>`;
+      plan.device === "wasm" ? " This browser has no WebGPU, so it runs on the processor and each answer takes noticeably longer." : "";
+    return `<p><strong>Lune AI</strong> answers with a language model that runs in this browser. It downloads ${size} once.</p>
+      <details class="ask-ai-more"><summary>What this means</summary>
+        <p>The model is ${esc(plan.name)} (${esc(plan.licence)} licence), fetched from Hugging Face and kept in this browser.
+        After that it works offline and nothing you ask leaves this device. It answers from Lune’s reading of the score and your remarks.${slow}
+        It is a general model, not one trained for Lune, and it can be wrong.</p></details>
+      <button type="button" class="quiet" data-ai-on>Download ${size} and turn on</button>`;
   }
 
   /** Download the model with a progress bar; used by Ask Lune and Settings. */
@@ -732,7 +735,10 @@ Rules:
     }
   }
 
+  let opener = null;
   function open({ bar = null } = {}) {
+    const from = document.activeElement;
+    if (from && from !== document.body && !$("ask-lune")?.contains(from)) opener = from;
     if (!state.piece) {
       toast("Open a score first — then ask Lune about any bar.");
       return;
@@ -754,9 +760,13 @@ Rules:
 
   function close() {
     const p = $("ask-lune");
+    const had = p && !p.hidden && p.contains(document.activeElement);
     if (p) p.hidden = true;
     document.body.classList.remove("ask-open");
     P()?.stopHearing?.();
+    // focus goes back to what opened the panel
+    if (had && opener?.isConnected) opener.focus({ preventScroll: true });
+    opener = null;
   }
 
   /** Keep the panel pointed at the bar that is selected while it is open. */

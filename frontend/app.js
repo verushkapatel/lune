@@ -1516,6 +1516,13 @@ function setStudioPanel(panel, { skipScore = false } = {}) {
   state.mode = next === "explain" ? "ask" : next === "score" ? "listen" : "piano";
   const s = activeSession();
   if (s) s.panel = next;
+  // Explain has the piece title as its own h1; Score and Piano get one for screen readers
+  const h1 = $("studio-h1");
+  if (h1) {
+    const t = state.piece?.overview?.title || state.piece?.title || "Score";
+    h1.textContent = `${t}: ${next === "score" ? "score" : next === "piano" ? "piano" : "overview"}`;
+    h1.hidden = next === "explain";
+  }
 
   ["score", "explain", "piano"].forEach((name) => {
     const el = $(`panel-${name}`);
@@ -4526,7 +4533,10 @@ function bind() {
     if (e.key === "Escape") {
       if (document.querySelector(".lune-menu.is-open")) return;
       if (state.coachOpen) {
+        const inPanel = $("coach")?.contains(document.activeElement) || document.activeElement === document.body;
         closeCoach();
+        // keyboard users land back on the score, where the arrow keys pick the next bar
+        if (inPanel || document.activeElement === $("score-scroll")) $("score-scroll")?.focus({ preventScroll: true });
         e.preventDefault();
         return;
       }

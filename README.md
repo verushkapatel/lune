@@ -44,7 +44,7 @@ the full note breakdown.
   here", or press **Tell Lune** and say "bar 12, keep the left hand quiet".
   Notes show as markers on the score and are tagged (tempo, dynamics,
   fingering, memory, pedal…).
-- **Today's bars** — rate a bar Again / Hard / Good / Easy after practising it
+- **Today's bars** — rate a bar Again, Hard, Okay, Good or Strong after practising it
   and Lune schedules it again just before you'd forget (spaced repetition).
 - **Play along** — Lune listens through the microphone, follows your place in
   the score, flags wrong notes and hesitations, and draws a stumble map; the
