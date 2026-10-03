@@ -170,8 +170,21 @@ def main() -> None:
             shutil.copytree(entry, dest, dirs_exist_ok=True)
         else:
             shutil.copy2(entry, dest)
-    shutil.copy2(frontend / "index.html", SITE / "index.html")
+    # Mark the export as static (no Python server): the app reads uploads,
+    # practice notes and links in the browser.
+    index_html = (frontend / "index.html").read_text(encoding="utf-8")
+    if 'name="lune-static"' not in index_html:
+        index_html = index_html.replace("<head>", '<head>\n  <meta name="lune-static" content="1">', 1)
+    (SITE / "index.html").write_text(index_html, encoding="utf-8")
     (SITE / ".nojekyll").write_text("", encoding="utf-8")
+
+    # Only list scores that are really there, once each, with credits.
+    import importlib.util  # noqa: E402
+
+    spec = importlib.util.spec_from_file_location("pages_catalog", ROOT / "scripts" / "pages_catalog.py")
+    catalog = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(catalog)
+    catalog.build(SITE, reanalyze=False)
     print(f"site: {SITE}  opens: {len(opens)}", flush=True)
 
 

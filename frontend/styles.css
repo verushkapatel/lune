@@ -1,3 +1,23 @@
+/* Fraunces (SIL Open Font License 1.1), served with the site — no third-party font request. */
+@font-face {
+  font-family: "Fraunces";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("assets/fonts/fraunces-latin-standard-normal.woff2") format("woff2-variations"),
+       url("assets/fonts/fraunces-latin-standard-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Fraunces";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("assets/fonts/fraunces-latin-ext-standard-normal.woff2") format("woff2-variations"),
+       url("assets/fonts/fraunces-latin-ext-standard-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
 :root {
   --bg: #0a0a0a;
   --bg-2: #121212;
@@ -3393,4 +3413,171 @@ input[type="range"] {
 ::selection {
   background: rgba(44, 74, 138, 0.55);
   color: #fff;
+}
+
+/* ===================================================================
+   Launch review fixes
+   =================================================================== */
+
+/* Speed lives on the Score tab too, and the chosen speed is obvious. */
+body.is-panel-score .studio-dock .piano-speed {
+  display: inline-flex;
+}
+.speed-btn.on,
+.studio-dock .speed-btn.on,
+.piano-dock .speed-btn.on {
+  color: #fff !important;
+  background: var(--navy-ink, #2c4a8a) !important;
+  border-bottom-color: transparent !important;
+  font-weight: 600;
+}
+
+/* Bar panel is light paper: chips need ink, not the night-theme white. */
+.coach .chip,
+.coach .chip .tone-letter,
+.coach .chip b,
+.coach .chip i {
+  color: #111;
+}
+.coach .chip.finger-only b,
+.coach .chip .tone-finger,
+.coach .chip.letter i {
+  color: #13244d; /* deep navy digits, ~13:1 on white */
+  font-weight: 700;
+  opacity: 1;
+}
+/* Secondary bar-panel actions read as buttons, not disabled text. */
+.coach .help-actions .quiet {
+  color: #111 !important;
+  background: #fff !important;
+  border: 1px solid #8a8a8a !important;
+  opacity: 1 !important;
+}
+.coach .help-actions .quiet:hover {
+  border-color: #13244d !important;
+  color: #13244d !important;
+}
+.coach .help-actions button {
+  min-height: 44px;
+}
+
+/* Touch screens: every control is at least 44px. */
+@media (pointer: coarse), (max-width: 760px) {
+  .speed-btn,
+  .studio-tab,
+  .anno-opt span,
+  .coach-close,
+  .coach-clear,
+  .piece-tab-add,
+  .piece-tab-close,
+  .transport-play,
+  .transport-stop,
+  .quiet,
+  .primary,
+  .link-btn {
+    min-height: 44px;
+  }
+  .coach-close,
+  .piece-tab-add,
+  .piece-tab-close {
+    min-width: 44px;
+  }
+}
+
+/* Phone: the bar sheet stays short and the score scrolls above it. */
+@media (max-width: 760px) {
+  .coach {
+    max-height: min(46vh, 420px) !important;
+  }
+  body.coach-open.is-panel-score .score-scroll {
+    padding-bottom: calc(min(46vh, 420px) + 24px);
+  }
+}
+
+/* Fine print: sources and licenses, present but out of the way. */
+.fine-print {
+  font-size: 11px;
+  line-height: 1.6;
+  color: #8b93a7;
+  letter-spacing: 0.01em;
+  margin: 18px auto 6px;
+  max-width: 760px;
+  text-align: center;
+}
+.fine-print a,
+.fine-print .link-btn {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: rgba(139, 147, 167, 0.5);
+  text-underline-offset: 2px;
+}
+.score-scroll .fine-print {
+  margin-top: 14px;
+}
+.link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 0;
+}
+.home-footer-legal {
+  margin-top: 10px;
+}
+
+.credits-dialog {
+  max-width: min(640px, calc(100vw - 32px));
+  max-height: min(82vh, 760px);
+  overflow: auto;
+  padding: 22px 26px 26px;
+  border: 1px solid var(--navy-line, #1d3366);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #0b1430, #0a0d16);
+  color: var(--text);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.credits-dialog::backdrop {
+  background: rgba(3, 6, 15, 0.72);
+}
+.credits-dialog h2 {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 26px;
+  margin: 0 0 8px;
+}
+.credits-dialog h3 {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 18px 0 6px;
+}
+.credits-dialog ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.credits-dialog li + li {
+  margin-top: 4px;
+}
+.credits-dialog a {
+  color: #c9d6f5;
+}
+.credits-close-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 4px;
+}
+
+/* Engraved letter / finger lane (lyric line under each staff). */
+#osmd svg text.lane-letter,
+#osmd svg text.lane-finger {
+  font-family: var(--serif) !important;
+  font-weight: 600 !important;
+  fill: #1c2b52 !important; /* deep navy: guidance, distinct from the black engraving */
+}
+#osmd svg text.lane-finger {
+  font-variant-numeric: tabular-nums;
 }
