@@ -259,7 +259,7 @@ body.is-studio .studio-seg {
   border: none;
   border-bottom: none;
   background: transparent;
-  color: #5e5e5e;
+  color: #8c8c8c;
   font: inherit;
   font-size: 11px;
   font-weight: 500;
@@ -9007,9 +9007,12 @@ body.is-home .piece-tabs:not([hidden]) { display: flex; }
   padding: 0 16px;
   font-size: 14px;
   color: #d6d6d6;
+  background: transparent;
   border-color: var(--line-strong);
 }
-.explain-access .access-chip.on { color: #0a0a0a; }
+.explain-access .access-chip:hover { color: #f5f5f5; border-color: #777; background: transparent; }
+.explain-access .access-chip.on,
+.explain-access .access-chip.on:hover { color: #0a0a0a; background: #f2f2f2; border-color: #f2f2f2; }
 .explain-access .access-none { color: var(--dim); border-style: dashed; cursor: default; }
 
 /* ---------- setup: reading help, only for those who ask ---------- */
@@ -9046,26 +9049,23 @@ body.is-home .piece-tabs:not([hidden]) { display: flex; }
 }
 
 /* ---------- light and dark ----------
- * Lune is drawn for the dark. Light mode turns the whole app over (dark
- * surfaces become light, light ink becomes dark) and then turns back the
- * things that must keep their own colours: pictures, the piano, the logo art.
- * The score follows the theme: a white page in light mode, and in dark mode
- * a dark page with light notes. */
+ * styles.css is the dark theme. The light theme is theme-light.css, generated
+ * from this file by scripts/build_light_theme.py (real colours, no filter). */
 :root { --flip: invert(1) hue-rotate(180deg); }
+/* Dark mode: the score is a dark page with light notes. The page and the
+ * marks drawn over it are flipped together so they stay in step. Light mode
+ * (theme-light.css) switches the flip off and the page is white paper. */
 .score-page,
 .fx-paper,
-.study-staff { filter: var(--flip); }
-html[data-theme="light"] { filter: var(--flip); background: #0a0a0a; }
-/* (the page keeps its own flip in light mode too: flipped twice, it is white again) */
+.study-staff,
+.selection-hilites,
+.hover-hilite,
+.measure-hilite,
+.playhead-line,
+.lp-marks,
+.coach { filter: var(--flip); }
 .score-page,
 .fx-paper { box-shadow: none; border-color: #cfcfcf; }
-html[data-theme="light"] img,
-html[data-theme="light"] video,
-html[data-theme="light"] canvas,
-html[data-theme="light"] .lune-kbd,
-html[data-theme="light"] .sim-piano,
-html[data-theme="light"] .onboard-composer-face,
-html[data-theme="light"] .onboard-composer-chip-face { filter: var(--flip); }
 .settings-theme {
   display: inline-flex;
   gap: 2px;
@@ -9096,3 +9096,64 @@ html[data-theme="light"] .onboard-composer-chip-face { filter: var(--flip); }
   gap: 6px;
 }
 .example-share p { margin: 0; }
+
+/* ---------- tasks: who wrote it; settings: model connection ---------- */
+.task-origin { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+.task-origin-you { color: var(--text); }
+.settings-ai { display: grid; gap: 6px; margin: 10px 0; }
+.settings-ai label { font-size: 13px; color: var(--muted); margin-top: 6px; }
+.settings-ai input {
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: #0e0e0e;
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+}
+.settings-ai-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.ask-note { font-size: 12px; color: var(--dim); }
+/* narrower headers use the short form of the same words */
+@media (max-width: 1180px) {
+  .bookmark-btn .lp-add-label { font-size: 0; }
+  .bookmark-btn .lp-add-label::after { content: attr(data-short); font-size: 13px; }
+}
+.listen-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 75;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px 8px 16px;
+  background: #0e0e0e;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  font-size: 13px;
+  color: var(--muted);
+}
+.listen-bar button { min-height: 34px; padding: 0 14px; font-size: 13px; }
+.example-flag { font-size: 12px; letter-spacing: 0.04em; color: var(--dim); }
+.piece-tab-new {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  margin-left: 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.piece-tab-new:hover { color: var(--text); border-color: var(--line-strong); }
+.settings-steps { margin: 8px 0 12px; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; line-height: 1.5; color: var(--muted); }
+.settings-steps code { font-size: 13px; color: var(--text); word-break: break-all; }
+/* sliders get the same focus ring as everything else */
+input[type="range"]:focus-visible { outline: 2px solid var(--text); outline-offset: 4px; border-radius: 4px; }

@@ -421,7 +421,53 @@ window.LunePractice = (function () {
     }
     u.rate = Number(store.prefs().speechRate) || 1;
     u.pitch = 1;
+    lastSpoken = text;
+    u.onend = u.onerror = () => {
+      // a newer utterance may already be speaking (Replay)
+      if (!speechSynthesis.speaking && !speechSynthesis.pending) listenBar(false);
+    };
     speechSynthesis.speak(u);
+    listenBar(true);
+  }
+  let lastSpoken = "";
+  /** Pause, Stop and Replay for whatever Lune is reading aloud. */
+  function listenBar(on) {
+    let bar = $("listen-bar");
+    if (!on) {
+      if (bar) bar.hidden = true;
+      return;
+    }
+    if (!bar) {
+      bar = document.createElement("div");
+      bar.id = "listen-bar";
+      bar.className = "listen-bar";
+      bar.setAttribute("role", "group");
+      bar.setAttribute("aria-label", "Reading aloud");
+      bar.innerHTML = `<span class="listen-bar-label">Reading aloud</span>
+        <button type="button" class="quiet" data-listen="pause">Pause</button>
+        <button type="button" class="quiet" data-listen="replay">Replay</button>
+        <button type="button" class="quiet" data-listen="stop">Stop</button>`;
+      document.body.appendChild(bar);
+      bar.addEventListener("click", (e) => {
+        const b = e.target.closest("[data-listen]");
+        if (!b) return;
+        const act = b.dataset.listen;
+        if (act === "stop") {
+          speechSynthesis.cancel();
+          listenBar(false);
+        } else if (act === "replay") {
+          if (lastSpoken) speak(lastSpoken);
+        } else if (speechSynthesis.paused) {
+          speechSynthesis.resume();
+          b.textContent = "Pause";
+        } else {
+          speechSynthesis.pause();
+          b.textContent = "Play";
+        }
+      });
+    }
+    bar.querySelector('[data-listen="pause"]').textContent = "Pause";
+    bar.hidden = false;
   }
   /**
    * The most natural English voice this device has. The default voice is
@@ -471,8 +517,8 @@ window.LunePractice = (function () {
     wrap.className = "lp-coach";
     wrap.innerHTML = `
       <div class="lp-teacher" hidden></div>
-      <h4 class="lp-h">Your notes</h4>
-      <ul class="lp-notes" aria-live="polite"><li class="lp-empty">Nothing yet.</li></ul>
+      <h4 class="lp-h lp-h-remarks" hidden>Remarks</h4>
+      <ul class="lp-notes" aria-live="polite" hidden></ul>
       <form class="lp-note-form" autocomplete="off">
         <label class="visually-hidden" for="lp-note-input">Note for bar ${primary}</label>
         <div class="lp-note-grow">
@@ -486,11 +532,11 @@ window.LunePractice = (function () {
       </form>
       <div class="lp-asked" hidden></div>
       <div class="lp-ask-row">
-        <button type="button" class="quiet" data-lp="ask">Ask Lune about bar ${primary}</button>
-        <button type="button" class="quiet" data-lp="plan">Add to my plan</button>
-        <button type="button" class="quiet" data-lp="share" title="A link that opens this piece at these bars with your instructions">Share ${bars.length > 1 ? "these bars" : "this bar"}</button>
+        <button type="button" class="quiet ink" data-lp="ask">Ask Lune about bar ${primary}</button>
+        <button type="button" class="quiet ink" data-lp="plan">Add to my plan</button>
+        <button type="button" class="quiet ink" data-lp="share" title="A link that opens this piece at these bars with your instructions">Share ${bars.length > 1 ? "these bars" : "this bar"}</button>
       </div>
-      <h4 class="lp-h">How did it go?</h4>
+      <h4 class="lp-h">Practice · how did it go?</h4>
       <div class="lp-grades" role="group" aria-label="Rate this practice">
         ${GRADES.map(([g, label, hint]) => `<button type="button" class="lp-grade lp-${g}" data-grade="${g}" title="${esc(hint)}">${label}</button>`).join("")}
       </div>
@@ -512,7 +558,11 @@ window.LunePractice = (function () {
               </li>`
             )
             .join("")
-        : `<li class="lp-empty">Nothing yet.</li>`;
+        : "";
+      // a section with nothing in it is not shown
+      list.hidden = !rows.length;
+      const head = wrap.querySelector(".lp-h-remarks");
+      if (head) head.hidden = !rows.length;
     };
     const renderDue = async () => {
       try {
@@ -535,7 +585,7 @@ window.LunePractice = (function () {
     const askedEl = wrap.querySelector(".lp-asked");
     if (asked.length && askedEl) {
       askedEl.hidden = false;
-      askedEl.innerHTML = `<h4 class="lp-h">You asked</h4>${asked
+      askedEl.innerHTML = `<h4 class="lp-h">Questions</h4>${asked
         .map((h) => `<p class="lp-asked-q">${esc(h.q)}</p><p class="lp-asked-a">${esc(h.a)}</p>`)
         .join("")}`;
     }
@@ -726,11 +776,14 @@ window.LunePractice = (function () {
       const inRep = key && repertoireKeys.has(key);
       b.classList.toggle("in", !!inRep);
       b.setAttribute("aria-pressed", inRep ? "true" : "false");
-      const label = inRep ? "In Repertoire" : "Add to Repertoire";
+      const label = inRep ? "This piece is in your Repertoire" : "Add this piece to my Repertoire";
       b.setAttribute("aria-label", label);
       b.title = label;
       const el = b.querySelector(".lp-add-label");
-      if (el) el.textContent = label;
+      if (el) {
+        el.textContent = label;
+        el.dataset.short = inRep ? "In your Repertoire" : "Add to Repertoire";
+      }
     }
   }
 
@@ -1087,7 +1140,7 @@ window.LunePractice = (function () {
             return `<article class="rep-plan-card" data-task="${esc(t.id)}">
               <div class="rep-plan-top">
                 <h3>${esc(t.title)}</h3>
-                <p class="rep-card-meta">${t.bars?.length ? esc(barsText(t.bars)) : "Notes only"}${t.composer ? ` · ${esc(t.composer)}` : ""}</p>
+                <p class="rep-card-meta"><span class="task-origin task-origin-${t.plan?.source ? "lune" : "you"}">${t.plan?.source ? "Suggested by Lune" : "Written by you"}</span> · ${t.bars?.length ? esc(barsText(t.bars)) : "Notes only"}${t.composer ? ` · ${esc(t.composer)}` : ""}</p>
               </div>
               <p class="rep-plan-summary">${esc(t.plan?.summary || t.notes || "")}</p>
               ${steps ? `<ol class="rep-plan-steps">${steps}</ol>` : ""}
@@ -1117,7 +1170,7 @@ window.LunePractice = (function () {
                   ${STATUS.map(([v, l]) => `<option value="${v}" ${p.status === v ? "selected" : ""}>${l}</option>`).join("")}
                 </select>
                 <button type="button" class="primary" data-open="${esc(p.piece_key)}">Open</button>
-                <button type="button" class="quiet" data-work="${esc(p.piece_key)}" title="See what to work on in this piece and add it to your plan">What to work on</button>
+                <button type="button" class="quiet" data-work="${esc(p.piece_key)}" title="See what needs work in this piece and add it to your plan">Work on this piece</button>
                 <button type="button" class="quiet rep-remove" hidden data-remove="${esc(p.piece_key)}" aria-label="Remove ${esc(p.title)}">Remove</button>
               </div>
             </article>`;
@@ -1556,7 +1609,7 @@ window.LunePractice = (function () {
     // The bar panel's third button says what it does instead of hiding it behind dots.
     const listen = $("btn-coach-more");
     if (listen) {
-      listen.className = "quiet coach-listen";
+      listen.className = "quiet ink coach-listen";
       listen.textContent = "Listen";
       listen.title = "Hear this bar described: notes, fingers and a tip";
       listen.setAttribute("aria-label", "Hear this bar described");
@@ -1703,8 +1756,32 @@ window.LunePractice = (function () {
       ${install}
       ${row("upload", "Upload a score", "MusicXML, PDF or a photo. It stays on this device unless you add it to your Repertoire while signed in.")}
       ${row("feedback", "Send feedback", "Tell Verushka what changed or what is missing. It goes straight to her.")}
+      <h3>Ask Lune</h3>
+      <p class="settings-note">Lune AI can run locally on your computer using an open-weight model. No paid API is required, there is no key, and what you ask stays on your machine.</p>
+      <p class="settings-note" id="set-ai-status" role="status"><strong>${window.LuneAIProvider?.connected?.() ? "Local model set" : "Local model not connected"}</strong>${window.LuneAIProvider?.connected?.() ? `Ask Lune sends questions to ${esc(window.LuneAsk.aiSettings().model)} at the address below. Press Test to check it is running.` : "Ask Lune is using its built-in answers, worked out from the score and your remarks. They are not from a language model."}</p>
+      <ol class="settings-steps">
+        <li>Install Ollama from ollama.com (free) and open it.</li>
+        <li>In Terminal, fetch a model: <code>ollama pull llama3.2</code> (about 2 GB; <code>qwen2.5:7b</code> is slower and more careful).</li>
+        <li>Allow this site to reach it: quit Ollama, then run <code>OLLAMA_ORIGINS=${esc(location.origin)} ollama serve</code>.</li>
+        <li>Press “Use Ollama on this computer”, then Test.</li>
+      </ol>
+      <div class="settings-ai">
+        <button type="button" class="quiet" data-ai="ollama">Use Ollama on this computer</button>
+        <label for="set-ai-url">Model address</label>
+        <input id="set-ai-url" type="url" inputmode="url" placeholder="http://localhost:11434/v1/chat/completions" value="${esc(window.LuneAsk?.aiSettings?.().endpoint || "")}">
+        <label for="set-ai-model">Model name</label>
+        <input id="set-ai-model" type="text" placeholder="llama3.2" value="${esc((() => { try { return localStorage.getItem("lune.ai.model") || ""; } catch { return ""; } })())}">
+        <div class="settings-ai-actions">
+          <button type="button" class="quiet" data-ai="save">Save</button>
+          <button type="button" class="quiet" data-ai="test">Test</button>
+          <button type="button" class="quiet" data-ai="off">Disconnect</button>
+        </div>
+        <p class="settings-note" id="set-ai-msg" role="status" aria-live="polite"></p>
+      </div>
       <h3>Privacy</h3>
       <div class="settings-privacy">${privacy}</div>
+      <h3>About Lune</h3>
+      <p class="settings-note">Lune is a free piano practice studio made by Verushka Patel. No ads, no payments. It installs from the browser; it is not an App Store or Play Store app.</p>
       ${row("credits", "Credits and licences", "The scores, sounds and software Lune is built on.")}
       ${
         store.isOwner?.()
@@ -1750,6 +1827,55 @@ window.LunePractice = (function () {
         d.querySelectorAll("[data-theme-set]").forEach((x) => x.setAttribute("aria-pressed", String(x === th)));
         return;
       }
+      const ai = e.target.closest("[data-ai]");
+      if (ai) {
+        const msg = d.querySelector("#set-ai-msg");
+        const url = d.querySelector("#set-ai-url").value.trim();
+        const model = d.querySelector("#set-ai-model").value.trim();
+        const put = (k, v) => {
+          try {
+            if (v) localStorage.setItem(k, v);
+            else localStorage.removeItem(k);
+          } catch {
+            /* private mode */
+          }
+        };
+        if (ai.dataset.ai === "ollama") {
+          d.querySelector("#set-ai-url").value = "http://localhost:11434/v1/chat/completions";
+          if (!d.querySelector("#set-ai-model").value.trim()) d.querySelector("#set-ai-model").value = "llama3.2";
+          put("lune.ai.endpoint", d.querySelector("#set-ai-url").value);
+          put("lune.ai.model", d.querySelector("#set-ai-model").value.trim());
+          msg.textContent = "Set to Ollama’s address on this computer. Press Test to check it is running.";
+          return;
+        }
+        if (ai.dataset.ai === "off") {
+          put("lune.ai.endpoint", "");
+          put("lune.ai.model", "");
+          d.querySelector("#set-ai-url").value = "";
+          d.querySelector("#set-ai-model").value = "";
+          msg.textContent = "Disconnected. Ask Lune uses its built-in answers.";
+          return;
+        }
+        if (url && !/^https?:\/\//i.test(url)) {
+          msg.textContent = "The address should start with http:// or https://";
+          return;
+        }
+        put("lune.ai.endpoint", url);
+        put("lune.ai.model", model);
+        if (ai.dataset.ai === "save") {
+          msg.textContent = url ? "Saved. Questions in Ask Lune now go to this model." : "Nothing to connect: the address is empty.";
+          return;
+        }
+        if (!url) {
+          msg.textContent = "Enter the model address first.";
+          return;
+        }
+        msg.textContent = "Asking the model…";
+        window.LuneAsk.testModel()
+          .then((t) => (msg.textContent = `Connected. The model replied: “${String(t).slice(0, 80)}”`))
+          .catch((err) => (msg.textContent = `No reply from that address (${err.message || "network error"}). Check that Ollama is running and was started with OLLAMA_ORIGINS set to this site. Ask Lune keeps using its built-in answers meanwhile.`));
+        return;
+      }
       const b = e.target.closest("[data-set]");
       if (!b) return;
       const act = b.dataset.set;
@@ -1774,29 +1900,21 @@ window.LunePractice = (function () {
     const d = dialog("example-week-dialog");
     d.classList.add("settings-dialog");
     const days = Number(store.prefs().practiceDays) || 4;
+    const mins = Number(store.prefs().practiceMins) || 30;
+    const ex = (n, title, h, body) => ({ k: `Example · ${n} of 7 · ${title}`, h, body: `${body}<p class="settings-note example-flag">Example data. Nothing here is saved or added to your account.</p>` });
     const steps = [
-      {
-        k: "Example · 1 of 3 · This week",
-        h: "A week, at a glance",
-        body: `<div class="impact-stats impact-stats-owner">
+      ex(1, "Create your week", "Start with a goal", `<p class="settings-note">Your week is the days and minutes you intend to practise. This example uses <strong>${days} days of ${mins} minutes</strong>, the goal you have now. Change it in Settings under Your week.</p>`),
+      ex(2, "Add practice goals", "Say what the week is for", `<div class="example-share"><p><strong>Goal</strong> Clair de lune, bars 1 to 14, hands together at a slow tempo.</p></div><p class="settings-note">A goal is a plan task. Write one from Repertoire with New task, or ask Lune to make a plan for a piece.</p>`),
+      ex(3, "Add pieces and bars", "Point at the bars", `<div class="example-share"><p><strong>Clair de lune</strong> bars 3, 7, 12</p><p><strong>Für Elise</strong> bars 13, 32</p></div><p class="settings-note">On a score, tap a bar and choose Add to my plan, or leave a remark. Those bars become this week’s work.</p>`),
+      ex(4, "See tasks", "One list, in Repertoire", `<div class="example-share"><p><span class="task-origin">Suggested by Lune</span> · bars 3, 7, 12</p><p>1. Hear it once. 2. Bar 3, slowly. 3. Bar 7, hands separately. 4. Play it through.</p><p><span class="task-origin task-origin-you">Written by you</span> · Memorise the first page</p></div>`),
+      ex(5, "Mark progress", "Rate a bar after you play it", `<div class="impact-stats impact-stats-owner">
             <div><span class="impact-num">3</span><span class="dim">days practised · goal ${days}</span></div>
             <div><span class="impact-num">5</span><span class="dim">bars rated Good or Easy</span></div>
             <div><span class="impact-num">2</span><span class="dim">bars still Hard</span></div>
-            <div><span class="impact-num">1</span><span class="dim">plan finished</span></div>
-          </div>
-          <p class="settings-note">These numbers are invented. Yours fill in as you practise: a day counts when you rate a bar, finish a plan task or open a piece to practise. Change your goal in Settings under Your week.</p>`,
-      },
-      {
-        k: "Example · 2 of 3 · Share this week",
-        h: "What a teacher or parent sees",
-        body: `<div class="example-share"><p class="auth-kicker">A Lune pianist · this week</p><p><strong>3 days practised</strong>, goal ${days}</p><p>Clair de lune · Für Elise</p><p class="dim">No email. No remark text. Hard bar numbers only if you tick the box.</p></div>
-          <p class="settings-note">Share, then This week, makes a read-only page like this with its own link. You choose the name and the pieces, and you can switch the link off whenever you like. It needs an account so that you can switch it off later.</p>`,
-      },
-      {
-        k: "Example · 3 of 3 · Invite",
-        h: "Bring someone with you",
-        body: `<p class="settings-note">Invite sends the same week page with one extra line: “Invited by a pianist on Lune”. If they make an account they start with their own empty studio. There are no points, no leaderboards and no friend lists.</p>`,
-      },
+            <div><span class="impact-num">1</span><span class="dim">task finished</span></div>
+          </div><p class="settings-note">A day counts when you rate a bar, finish a task or open a piece to practise. Again and Hard bars come back sooner.</p>`),
+      ex(6, "Share the week", "What a teacher or parent sees", `<div class="example-share"><p class="auth-kicker">A Lune pianist · this week</p><p><strong>3 days practised</strong>, goal ${days}</p><p>Clair de lune · Für Elise</p><p class="dim">No email. No remark text. Hard bar numbers only if you tick the box.</p></div><p class="settings-note">Share, then This week, makes a read-only page with its own link. You pick the name and the pieces and can switch the link off whenever you like. It needs an account so you can switch it off later.</p>`),
+      ex(7, "Invite another person", "Bring someone with you", `<p class="settings-note">Invite sends the same week page with one extra line: “Invited by a pianist on Lune”. If they make an account they start with their own empty studio. There are no points, no leaderboards and no friend lists.</p>`),
     ];
     let i = 0;
     const paint = () => {
@@ -1821,21 +1939,45 @@ window.LunePractice = (function () {
 
   /* ---------------- share ---------------- */
 
-  async function shareText(title, text) {
-    try {
-      if (navigator.share) {
-        await navigator.share({ title, text });
+  /** Show exactly what will leave the device, then Share, Copy or Cancel. */
+  function shareText(title, text) {
+    const d = dialog("share-preview-dialog");
+    d.classList.add("settings-dialog");
+    d.innerHTML = `${closeRow}
+      <p class="auth-kicker">What will be shared</p>
+      <h2>${esc(title)}</h2>
+      <p class="settings-note">Only the text below. Nothing else from your account goes with it, and you can edit it first.</p>
+      <label class="visually-hidden" for="share-preview-text">Text to share</label>
+      <textarea id="share-preview-text" rows="9">${esc(text)}</textarea>
+      <div class="onboard-nav auth-keep-nav">
+        <button type="button" class="quiet" data-sp="cancel">Cancel</button>
+        <button type="button" class="quiet" data-sp="copy">Copy</button>
+        ${navigator.share ? `<button type="button" class="primary" data-sp="share">Share</button>` : ""}
+      </div>`;
+    d.onclick = async (e) => {
+      const b = e.target.closest("[data-sp]");
+      if (!b) return;
+      const out = d.querySelector("#share-preview-text").value;
+      if (b.dataset.sp === "cancel") return d.close();
+      if (b.dataset.sp === "share") {
+        try {
+          await navigator.share({ title, text: out });
+          d.close();
+        } catch (err) {
+          if (err?.name !== "AbortError") toast("Sharing isn’t available here — use Copy");
+        }
         return;
       }
-    } catch (err) {
-      if (err?.name === "AbortError") return; // closed the share sheet
-    }
-    try {
-      await navigator.clipboard.writeText(text);
-      toast("Copied — paste it into a message or email");
-    } catch {
-      toast("Couldn’t copy on this browser");
-    }
+      try {
+        await navigator.clipboard.writeText(out);
+        toast("Copied — paste it into a message or email");
+        d.close();
+      } catch {
+        d.querySelector("#share-preview-text").select();
+        toast("Select the text and copy it");
+      }
+    };
+    if (!d.open) d.showModal();
   }
 
   async function repertoireSummary() {

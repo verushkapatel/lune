@@ -1164,6 +1164,17 @@ function renderPieceTabs() {
     }
     frag.appendChild(tab);
   }
+  const add = document.createElement("button");
+  add.type = "button";
+  add.className = "piece-tab-new";
+  add.setAttribute("aria-label", "Open another piece in a new tab");
+  add.title = "Open another piece";
+  add.textContent = "+";
+  add.addEventListener("click", () => {
+    if (document.body.classList.contains("is-studio")) openStudioSearch();
+    else $("q")?.focus();
+  });
+  frag.appendChild(add);
   host.appendChild(frag);
   host.classList.toggle("piece-tabs-solo", n < 2);
 }
@@ -1499,6 +1510,9 @@ function setStudioPanel(panel, { skipScore = false } = {}) {
     });
   } else {
     window.LuneFollow?.stop?.({ quiet: true });
+    // the bar panel belongs to the score; it must not cover the Overview or the Piano
+    if (state.coachOpen) closeCoach();
+    window.LuneAsk?.close?.();
   }
 
   syncTempoUi();
@@ -1605,6 +1619,13 @@ async function ensureScoreReady() {
             id: state.piece.id || "",
             credit: state.piece.credit || null,
             openQuery: state.piece.openQuery || "",
+            // Analysing in the browser must not turn a library piece into an
+            // "uploaded" one: it keeps its catalogue identity, link and source.
+            local: !!state.piece.local,
+            source: state.piece.source || local.source,
+            epoch: state.piece.epoch || local.epoch || "",
+            era: state.piece.era || local.era || "",
+            repKey: state.piece.repKey,
           };
         } catch (err) {
           console.warn("[lune] local analysis failed", err);
@@ -1673,9 +1694,26 @@ function extractTempoMap(xml) {
   for (const chunk of chunks) {
     const nm = chunk.match(/<measure[^>]*\bnumber\s*=\s*["'](-?\d+)/i);
     if (nm) bar = Number(nm[1]);
+    let found = false;
     for (const m of chunk.matchAll(/<sound\b[^>]*\btempo\s*=\s*["'](\d+(?:\.\d+)?)["'][^>]*>/gi)) {
       const bpm = Number(m[1]);
-      if (Number.isFinite(bpm) && bpm > 0) map.push({ bar, bpm });
+      if (Number.isFinite(bpm) && bpm > 0) {
+        map.push({ bar, bpm });
+        found = true;
+      }
+    }
+    if (found) continue;
+    // Some editions print a metronome mark without the playback tempo: read the
+    // mark itself (♩ = 72, ♪ = 120, ♩. = 50) and convert it to crotchets a minute.
+    const mm = chunk.match(/<metronome\b[^>]*>([\s\S]*?)<\/metronome>/i);
+    if (mm) {
+      const unit = (mm[1].match(/<beat-unit>\s*([a-z0-9]+)\s*<\/beat-unit>/i) || [])[1];
+      const per = Number((mm[1].match(/<per-minute>\s*[^\d]*(\d+(?:\.\d+)?)/i) || [])[1]);
+      const crotchets = { whole: 4, half: 2, quarter: 1, eighth: 0.5, "16th": 0.25 }[String(unit || "").toLowerCase()];
+      if (crotchets && per > 0) {
+        const dotted = /<beat-unit-dot\s*\/?>/i.test(mm[1]) ? 1.5 : 1;
+        map.push({ bar, bpm: per * crotchets * dotted });
+      }
     }
   }
   return map;
@@ -1741,6 +1779,7 @@ async function openPieceSession(piece, { panel = "explain" } = {}) {
   if (q) q.value = "";
   closeSearchResults();
   showView("studio");
+  renderPieceTabs(); // now that the studio is on screen, mark this piece's tab as current
   setStudioPanel(panel, { skipScore: true });
   renderExplainPanel(piece);
   syncOpenButtons(piece);

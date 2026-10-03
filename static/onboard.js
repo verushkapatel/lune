@@ -389,6 +389,7 @@ window.LuneOnboard = (function () {
   /** Reading help chosen during setup: nothing is switched on for people who don't ask. */
   function needOn(kind) {
     const p = store()?.prefs?.() || {};
+    if (kind === "none") return p.accessAsked === true && !p.readableFont && !(p.largePrint && p.autoRead);
     return kind === "dyslexia" ? !!p.readableFont : !!(p.largePrint && p.autoRead);
   }
   function setNeed(kind, on) {
@@ -1042,12 +1043,13 @@ window.LuneOnboard = (function () {
           <p class="onboard-practice-sum">${practiceDays} days · ${practiceMins} min · about <strong>${practiceDays * practiceMins} minutes</strong> a week</p>
         </div>
         <div class="onboard-needs" role="group" aria-label="Reading help">
-          <p class="onboard-practice-label">Would either of these help you read? Skip if not.</p>
+          <p class="onboard-practice-label">Do you need accessibility support?</p>
           <button type="button" class="quiet onboard-voice" data-voice-setup>Answer by listening and speaking instead</button>
           <p class="onboard-voice-status dim" id="onboard-voice-status" role="status" aria-live="assertive"></p>
           ${[
-            ["dyslexia", "I have dyslexia", "Letter names in a typeface where every letter shape is distinct."],
-            ["vision", "I’m blind or have low vision", "Large print, high contrast, and every bar described aloud. Lune also works with your device’s own screen reader."],
+            ["vision", "Visual accessibility", "Large print, high contrast, and every bar described aloud. Lune also works with your device’s own screen reader."],
+            ["dyslexia", "Dyslexia or reading support", "Letter names in a typeface where every letter shape is distinct, and dictation for remarks."],
+            ["none", "Neither", "Nothing is switched on. You can change this in Settings at any time."],
           ]
             .map(([k, label, hint]) => {
               const on = needOn(k);
@@ -1192,10 +1194,18 @@ window.LuneOnboard = (function () {
     });
     stage.querySelectorAll("[data-need]").forEach((b) =>
       b.addEventListener("click", () => {
-        const on = b.getAttribute("aria-pressed") !== "true";
-        setNeed(b.dataset.need, on);
-        b.setAttribute("aria-pressed", String(on));
-        b.classList.toggle("on", on);
+        store()?.setPref?.("accessAsked", true);
+        if (b.dataset.need === "none") {
+          setNeed("vision", false);
+          setNeed("dyslexia", false);
+        } else {
+          setNeed(b.dataset.need, b.getAttribute("aria-pressed") !== "true");
+        }
+        stage.querySelectorAll("[data-need]").forEach((x) => {
+          const on = needOn(x.dataset.need);
+          x.setAttribute("aria-pressed", String(on));
+          x.classList.toggle("on", on);
+        });
       })
     );
     stage.querySelector("[data-next]")?.addEventListener("click", () => {

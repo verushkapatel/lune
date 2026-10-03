@@ -952,10 +952,34 @@ window.LunePiano = (function () {
 window.LuneTutorial = (function () {
   const WHITE_PC = new Set([0, 2, 4, 5, 7, 9, 11]);
   const LOOK_AHEAD = 3.4; // seconds of music visible above the keys
-  const COLORS = {
+  const DARK = {
+    bg: "#050505",
+    lane: "rgba(255,255,255,0.022)",
+    c: "rgba(255,255,255,0.09)",
+    f: "rgba(255,255,255,0.04)",
+    barLine: "rgba(255,255,255,0.13)",
+    barText: "rgba(255,255,255,0.38)",
+    idle: "#7a7a7a",
+    hit: "rgba(245,245,245,0.7)",
+    bed: "#0a0a0a",
     rh: { note: "#f2f2f2", noteBlack: "#c4c4c4", key: "#bdbdbd", keyBlack: "#8f8f8f", ink: "#0a0a0a" },
     lh: { note: "#8fa0c0", noteBlack: "#6b7fa3", key: "#8799bb", keyBlack: "#4a6aa3", ink: "#0a0f1c" },
   };
+  // In the light the roll is paper-coloured and the right hand is drawn in ink.
+  const LIGHT = {
+    bg: "#f4f4f2",
+    lane: "rgba(0,0,0,0.035)",
+    c: "rgba(0,0,0,0.14)",
+    f: "rgba(0,0,0,0.06)",
+    barLine: "rgba(0,0,0,0.16)",
+    barText: "rgba(0,0,0,0.5)",
+    idle: "#6a6a6a",
+    hit: "rgba(20,20,20,0.75)",
+    bed: "#dcdcdc",
+    rh: { note: "#1c1c1c", noteBlack: "#454545", key: "#9a9a9a", keyBlack: "#6e6e6e", ink: "#fafafa" },
+    lh: { note: "#4a6aa3", noteBlack: "#35507f", key: "#8799bb", keyBlack: "#4a6aa3", ink: "#fafafa" },
+  };
+  let COLORS = DARK;
 
   let canvas = null;
   let ctx = null;
@@ -1092,24 +1116,25 @@ window.LuneTutorial = (function () {
     const L = layout;
     const { rollH, kbH, pps, keys } = L;
 
+    COLORS = document.documentElement.dataset.theme === "light" ? LIGHT : DARK;
     ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = "#050505";
+    ctx.fillStyle = COLORS.bg;
     ctx.fillRect(0, 0, w, rollH);
 
     // lanes: a faint column under every black key, a line at each C
     for (let m = L.lo; m <= L.hi; m++) {
       const k = keys.get(m);
       if (k.black) {
-        ctx.fillStyle = "rgba(255,255,255,0.022)";
+        ctx.fillStyle = COLORS.lane;
         ctx.fillRect(k.x, 0, k.w, rollH);
       } else if (m % 12 === 0 || m % 12 === 5) {
-        ctx.fillStyle = m % 12 === 0 ? "rgba(255,255,255,0.09)" : "rgba(255,255,255,0.04)";
+        ctx.fillStyle = m % 12 === 0 ? COLORS.c : COLORS.f;
         ctx.fillRect(Math.round(k.x), 0, 1, rollH);
       }
     }
 
     if (!events.length) {
-      ctx.fillStyle = "#7a7a7a";
+      ctx.fillStyle = COLORS.idle;
       ctx.font = "15px Fraunces, Georgia, serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -1124,13 +1149,13 @@ window.LuneTutorial = (function () {
       if (b.t < at - 0.05) continue;
       if (b.t > at + LOOK_AHEAD) break;
       const y = Math.round(rollH - (b.t - at) * pps) + 0.5;
-      ctx.strokeStyle = "rgba(255,255,255,0.13)";
+      ctx.strokeStyle = COLORS.barLine;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(w, y);
       ctx.stroke();
-      ctx.fillStyle = "rgba(255,255,255,0.38)";
+      ctx.fillStyle = COLORS.barText;
       ctx.fillText(String(b.bar), 6, y - 3);
     }
 
@@ -1189,7 +1214,7 @@ window.LuneTutorial = (function () {
 
     // keyboard
     const ky = rollH;
-    ctx.fillStyle = "#0a0a0a";
+    ctx.fillStyle = COLORS.bed;
     ctx.fillRect(0, ky, w, kbH);
     for (let m = L.lo; m <= L.hi; m++) {
       const k = keys.get(m);
@@ -1241,7 +1266,7 @@ window.LuneTutorial = (function () {
     }
 
     // where the notes land
-    ctx.fillStyle = "rgba(245,245,245,0.7)";
+    ctx.fillStyle = COLORS.hit;
     ctx.fillRect(0, ky - 1, w, 2);
     for (const [m, e] of pressed) {
       const k = keys.get(m);
@@ -1260,13 +1285,16 @@ window.LuneTutorial = (function () {
     cancelAnimationFrame(raf);
     let lastAt = -1;
     let lastRef = null;
+    let lastTheme = "";
     const loop = () => {
       raf = requestAnimationFrame(loop);
       if (!host || !host.offsetParent) return; // panel not on screen
       const at = window.LunePiano?.progress?.() || 0;
       const ref = window.LunePiano?.eventsRef?.() || null;
       // nothing moved: leave the last frame up
-      if (at === lastAt && ref === lastRef && layout) return;
+      const theme = document.documentElement.dataset.theme || "dark";
+      if (at === lastAt && ref === lastRef && layout && theme === lastTheme) return;
+      lastTheme = theme;
       lastAt = at;
       lastRef = ref;
       paint(at);
