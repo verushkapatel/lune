@@ -3083,9 +3083,6 @@ function openBarCoach() {
     const d = debriefFor(num);
     html += barSectionHtml(num, d);
   }
-  if (bars.length === 1) {
-    html += lineSummaryHtml(bars[0]);
-  }
   body.innerHTML = html;
   body.querySelector("[data-coach-more]")?.addEventListener("click", (e) => {
     window._luneAdviceOpen = !window._luneAdviceOpen;
