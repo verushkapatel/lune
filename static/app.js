@@ -3,7 +3,11 @@
 const $ = (id) => document.getElementById(id);
 
 // Project Pages live at /lune/. Absolute /static and /api URLs would miss that prefix.
-const LUNE_ON_PAGES = location.hostname.endsWith(".github.io");
+// Static export (GitHub Pages, or any host serving the export flagged with
+// <meta name="lune-static">): no Python server, everything runs in the browser.
+const LUNE_ON_PAGES =
+  location.hostname.endsWith(".github.io") ||
+  !!document.querySelector('meta[name="lune-static"][content="1"]');
 const LUNE_ROOT = LUNE_ON_PAGES
   ? location.pathname.replace(/\/static(?:\/.*)?$/, "").replace(/\/index\.html$/, "").replace(/\/$/, "")
   : "";
@@ -135,6 +139,12 @@ function showView(name) {
   if (home) home.hidden = name !== "home";
   if (discover) discover.hidden = name !== "discover";
   if (studio) studio.hidden = name !== "studio";
+  const rep = $("repertoire");
+  if (rep) rep.hidden = name !== "repertoire";
+  const study = $("study");
+  if (study) study.hidden = name !== "study";
+  document.body.classList.toggle("is-repertoire", name === "repertoire");
+  document.body.classList.toggle("is-study", name === "study");
   document.body.classList.toggle("is-home", name === "home");
   document.body.classList.toggle("is-discover", name === "discover");
   document.body.classList.toggle("is-studio", name === "studio");
@@ -174,7 +184,7 @@ function closeSearchResults({ blur = false } = {}) {
 const SEARCH_LIMIT = 8;
 // Paint on the next frame only — coalesces burst keystrokes, ~0–16ms feel (no 100ms lag).
 const SEARCH_DEBOUNCE_MS = 0;
-const SEARCH_INDEX_URL = luneUrl("/static/search-index.json?v=fix67");
+const SEARCH_INDEX_URL = luneUrl("/static/search-index.json?v=fix80");
 /** Composers whose piano works are typically still under copyright — honest empty state. */
 const COPYRIGHT_ERA_COMPOSERS = [
   "ginastera", "prokofiev", "shostakovich", "khachaturian", "kabalevsky",
@@ -337,64 +347,107 @@ function ensureSearchIndex() {
   return searchIndexPromise;
 }
 
-function scoreIndexEntry(q, entry) {
-  // Scoring must stay cheap on broad queries (bach/chopin match hundreds of rows).
-  // Never re-run unicode normalize here — `hay` is already normalized server-side.
+// Words that carry no meaning in a title search ("river flows in you" must
+// not match every title containing "in").
+const SEARCH_STOPWORDS = new Set([
+  "a", "an", "the", "in", "of", "and", "for", "to", "by", "on", "at", "my", "you", "your",
+  "de", "la", "le", "les", "du", "des", "von", "van", "der", "die", "das", "und", "piece", "music",
+  "score", "sheet", "piano", "free", "musicxml",
+]);
+
+/** Rough phonetic folding so "moonlite"/"moonlight", "gymnopedy"/"gymnopedie" meet. */
+function foldWord(w) {
+  return w
+    .replace(/ght/g, "t")
+    .replace(/ph/g, "f")
+    .replace(/ck/g, "k")
+    .replace(/qu/g, "k")
+    .replace(/y$/g, "ie")
+    .replace(/(.)\1+/g, "$1")
+    .replace(/e$/g, "");
+}
+
+function editDistanceWithin(a, b, max) {
+  if (Math.abs(a.length - b.length) > max) return false;
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    let rowMin = i;
+    for (let j = 1; j <= b.length; j++) {
+      const v = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      cur.push(v);
+      if (v < rowMin) rowMin = v;
+    }
+    if (rowMin > max) return false;
+    prev = cur;
+  }
+  return prev[b.length] <= max;
+}
+
+const hayWordCache = new WeakMap();
+function hayWords(entry) {
+  let w = hayWordCache.get(entry);
+  if (!w) {
+    const words = [...new Set(String(entry.hay || "").split(" ").filter(Boolean))];
+    w = { words, folded: words.map(foldWord) };
+    hayWordCache.set(entry, w);
+  }
+  return w;
+}
+
+/** 3 exact word · 2.4 prefix · 1.6 typo/phonetic · 0 no match. */
+function tokenMatch(token, entry) {
+  const { words, folded } = hayWords(entry);
+  const isNum = /^\d+$/.test(token);
+  let best = 0;
+  const ft = foldWord(token);
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i];
+    if (w === token) return 3;
+    if (isNum) continue; // numbers must match exactly (op 10 ≠ op 1)
+    if (token.length >= 2 && w.startsWith(token)) best = Math.max(best, 2.4);
+    else if (token.length >= 4) {
+      const max = token.length >= 7 ? 2 : 1;
+      if (folded[i] === ft || editDistanceWithin(ft, folded[i], max)) best = Math.max(best, 1.6);
+    }
+  }
+  return best;
+}
+
+function scoreIndexEntry(q, entry, tokens) {
   const hay = entry.hay || "";
   let score = 0;
-  const queryRaw = String(entry.query || "").toLowerCase();
+  for (const t of tokens) {
+    const m = tokenMatch(t, entry);
+    if (!m) return 0; // every meaningful word must match something
+    score += m;
+  }
+  if (hay.includes(q)) score += 6; // whole phrase in order
+  const title = normSearch(entry.title || "");
+  if (title.startsWith(q)) score += 4;
+  else if (title.includes(q)) score += 2;
   const group = entry.group || "";
-
-  if (queryRaw) {
-    if (queryRaw === q) score += 22;
-    else if (queryRaw.includes(q) || q.includes(queryRaw)) score += 12;
-  }
-  if (hay.includes(q)) {
-    score = Math.max(score, 8);
-    // Prefer title-ish hits: query appears early in hay (title is first).
-    if (hay.startsWith(q) || hay.indexOf(q) < 48) score += 10;
-  }
-  for (const t of q.split(" ")) {
-    if (t.length > 1 && hay.includes(t)) score += 3;
-  }
-  if (group.startsWith("Featured") || group.startsWith("Open MusicXML")) score += 12;
-  else if (
-    group.startsWith("Beethoven piano") ||
-    group.startsWith("Mozart piano") ||
-    group.startsWith("Chopin") ||
-    group.startsWith("Haydn piano")
-  ) {
-    score += 8;
-  } else if (group.startsWith("Bach chorales") || group.startsWith("music21")) {
-    score -= 3;
-  }
+  if (group.startsWith("Featured") || group.startsWith("Open MusicXML")) score += 1.5;
+  else if (group.startsWith("Bach chorales") || group.startsWith("music21")) score -= 1;
   return score;
 }
 
 function filterSearchIndex(query, limit = SEARCH_LIMIT, index = activeSearchIndex()) {
   const q = normSearch(query);
   if (q.length < 2 || !index || !index.length) return [];
-  const tokens = q.split(" ").filter((t) => t.length > 1);
-  // Keep only a small top band while scanning — avoid sorting hundreds of chorale hits.
-  const band = limit * 4;
+  let tokens = q.split(" ").filter((t) => t && !SEARCH_STOPWORDS.has(t));
+  if (!tokens.length) tokens = q.split(" ").filter(Boolean);
   const scored = [];
   for (const entry of index) {
-    const hay = entry.hay || "";
-    if (!(hay.includes(q) || tokens.some((t) => hay.includes(t)))) continue;
-    const score = scoreIndexEntry(q, entry);
-    if (score < 6) continue;
-    scored.push({ score, entry });
-    if (scored.length > band * 3) {
-      // Occasional trim so broad queries (bach) don't accumulate 400+ rows.
-      scored.sort((a, b) => b.score - a.score);
-      scored.length = band;
-    }
+    const score = scoreIndexEntry(q, entry, tokens);
+    if (score > 0) scored.push({ score, entry });
   }
-  scored.sort((a, b) => b.score - a.score);
+  scored.sort((a, b) => b.score - a.score || String(a.entry.title).localeCompare(String(b.entry.title)));
   const seen = new Set();
   const results = [];
   for (const { entry } of scored) {
-    const key = `${entry.title}\0${entry.composer}`;
+    // one row per piece, even if the index lists it under several names
+    const key = `${normSearch(entry.title)}\0${normSearch(entry.composer)}`;
     if (seen.has(key)) continue;
     seen.add(key);
     results.push({
@@ -402,7 +455,7 @@ function filterSearchIndex(query, limit = SEARCH_LIMIT, index = activeSearchInde
       id: `free-${entry.query}`,
       title: entry.title,
       composer: entry.composer,
-      subtitle: `Free score · ${entry.group || ""}`,
+      subtitle: LUNE_ON_PAGES ? `Free score · ${entry.group || entry.composer || ""}` : `Free score · ${entry.group || ""}`,
       epoch: "",
       portrait: "",
       openable: true,
@@ -592,23 +645,21 @@ async function loadStaticXml(file) {
 
 async function tryOpenStatic(body) {
   const rows = await loadStaticOpens();
-  let best = null;
-  let bestScore = 0;
-  for (const row of rows) {
-    const score = scoreStaticOpen(body, row);
-    if (score > bestScore) {
-      best = row;
-      bestScore = score;
-    }
+  // 1) exact catalogue id / query (typeahead picks and shared links)
+  let best = rows.find((r) => (body.query && (r.id === body.query || r.query === body.query)));
+  // 2) typed text → the same strict search the typeahead uses
+  if (!best) {
+    const typed = body.query || body.title || "";
+    const hit = filterSearchIndex(typed, 1, rows)[0];
+    if (hit) best = rows.find((r) => r.query === hit.query) || null;
   }
-  if (!best || bestScore < 18) {
+  if (!best) {
     return {
       kind: "catalogue",
       opened: false,
       title: body.title || body.query || "",
-      composer: body.composer || "",
-      message:
-        "No free MusicXML for this exact title yet. Search for a known free piece, or open your own MusicXML.",
+      composer: "",
+      message: "No free score for that yet.",
     };
   }
   const musicxml = await loadStaticXml(best.file);
@@ -621,6 +672,8 @@ async function tryOpenStatic(body) {
       full.kind = "score";
       full.needsAnalysis = false;
       full.openQuery = body.query || "";
+      full.id = best.id || full.id || "";
+      if (best.credit && !full.credit) full.credit = best.credit;
       if (best.fallbackNote) full.fallbackNote = best.fallbackNote;
       return full;
     }
@@ -639,6 +692,8 @@ async function tryOpenStatic(body) {
     debriefs: {},
     source: best.source || "library",
     downloadName: best.downloadName || "score.musicxml",
+    id: best.id || "",
+    credit: best.credit || null,
     openQuery: body.query || "",
     fallbackNote: best.fallbackNote || "",
   };
@@ -782,10 +837,21 @@ function applyComposerFace(img, fallbackEl, composer, remoteUrl) {
 
 /* ---------- piece sessions (browser-like tabs) ---------- */
 
+/** Tab label: the name a pianist would say ("Moonlight · I", "Für Elise"). */
 function shortPieceTitle(title) {
   const t = String(title || "Untitled").trim();
   if (t.length <= 28) return t;
-  return `${t.slice(0, 26).trim()}…`;
+  const nick = t.match(/[“"]([^”"]+)[”"]/);
+  const mvt = t.match(/Movement\s+(\d+)/i);
+  const roman = ["", "I", "II", "III", "IV", "V", "VI"];
+  if (nick) return mvt ? `${nick[1]} · ${roman[+mvt[1]] || mvt[1]}` : nick[1];
+  const dash = t.split(/\s+—\s+/);
+  if (dash.length > 1 && !/^Movement/i.test(dash[1]) && dash[1].length <= 28) return dash[1];
+  const lead = dash[0].replace(/,\s*(op\.|BWV|K\.|Hob\.|WoO|S\.|L\.).*$/i, "");
+  let base = lead;
+  if ((mvt ? base.length + 5 : base.length) > 28) base = base.replace(/\s+in\s+[A-G](-sharp|-flat)?\s+(major|minor)/i, "");
+  const short = mvt ? `${base} · ${roman[+mvt[1]] || mvt[1]}` : base;
+  return short.length <= 28 ? short : `${short.slice(0, 26).trim()}…`;
 }
 
 function activeSession() {
@@ -998,7 +1064,25 @@ function fillPieceChrome(piece) {
   if ($("btn-download")) $("btn-download").hidden = !piece.musicxml;
 }
 
-function buildExplainChapters(piece, { canOpen }) {
+function buildExplainChapters(piece, opts) {
+  // Never show the same sentence twice on one page (prose + highlight list).
+  const chapters = buildExplainChaptersRaw(piece, opts);
+  const seen = new Set();
+  const key = (t) => String(t || "").trim().toLowerCase();
+  for (const ch of chapters) {
+    const body = key(ch.body);
+    ch.extras = (ch.extras || []).filter((x) => {
+      const k = key(x);
+      if (!k || seen.has(k) || body.includes(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    for (const part of body.split(/(?<=[.!?])\s+/)) if (part) seen.add(part);
+  }
+  return chapters;
+}
+
+function buildExplainChaptersRaw(piece, { canOpen }) {
   const o = piece.overview || {};
   const composer = o.composer || piece.composer || "";
   const era = o.era || o.epoch || "";
@@ -1007,7 +1091,7 @@ function buildExplainChapters(piece, { canOpen }) {
     {
       label: "Composer",
       title: `About ${ci.name || composer || "the composer"}`,
-      body: ci.full || ci.bio || ci.hook || "Composer story loading…",
+      body: ci.full || ci.bio || ci.hook || (composer ? `${composer}’s story isn’t in Lune’s notes yet.` : "Add a composer to this score’s details to see their story here."),
       extras: ci.highlights || [],
     },
     {
@@ -1091,12 +1175,50 @@ function renderExplainPanel(piece) {
       host.appendChild(article);
     });
   }
+  renderPieceCredit(piece);
+  window.LunePractice?.decorateExplain(piece);
+}
 
+/** Fine-print source line for the open piece (overview + under the score). */
+function renderPieceCredit(piece) {
+  const c = piece?.credit || null;
+  const o = piece?.overview || {};
+  const link = (text, href) =>
+    href ? `<a href="${escapeHtml(href)}" target="_blank" rel="noopener">${escapeHtml(text)}</a>` : escapeHtml(text);
+  const bits = [];
+  if (piece?.local) bits.push("Your own score — read in this browser only");
+  else if (c?.source) {
+    bits.push(`Score: ${link(c.source, c.sourceUrl)}${c.license ? ` · ${link(c.license, c.licenseUrl)}` : ""}`);
+  }
+  if (!piece?.local) {
+    bits.push(
+      `Notes adapted in part from ${link("Wikipedia", o.historyUrl || "https://en.wikipedia.org/")} (${link("CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/")})`
+    );
+  }
+  bits.push(`Piano: ${link("Salamander Grand", "https://sfzinstruments.github.io/pianos/salamander")} (CC BY 3.0)`);
+  const html = `${bits.join(" · ")} · <button type="button" class="link-btn" data-open-credits>All credits</button>`;
+  for (const id of ["explain-credit", "score-credit"]) {
+    const el = $(id);
+    if (el) el.innerHTML = html;
+  }
+}
+
+function openCredits(section) {
+  const dlg = $("credits-dialog");
+  if (!dlg) return;
+  if (typeof dlg.showModal === "function") dlg.showModal();
+  else dlg.setAttribute("open", "");
+  if (section === "privacy") $("credits-privacy")?.scrollIntoView({ block: "start" });
+  else dlg.scrollTop = 0;
 }
 
 function setStudioPanel(panel, { skipScore = false } = {}) {
   const next = ["score", "explain", "piano"].includes(panel) ? panel : "explain";
   state.panel = next;
+  // Same piece, new tab → update the link in place (opening a piece pushes).
+  if (state.piece && parseRoute()?.id === pieceRouteId(state.piece)) {
+    setRoute(state.piece, next, { replace: true });
+  }
   state.mode = next === "explain" ? "ask" : next === "score" ? "listen" : "piano";
   const s = activeSession();
   if (s) s.panel = next;
@@ -1150,7 +1272,10 @@ function setStudioPanel(panel, { skipScore = false } = {}) {
   if (next === "score") {
     requestAnimationFrame(() => {
       paintSelectionHilites();
+      window.LunePractice?.afterScoreRender();
     });
+  } else {
+    window.LuneFollow?.stop?.({ quiet: true });
   }
 
   if (next === "score" && !skipScore && state.piece?.musicxml) {
@@ -1182,6 +1307,22 @@ function prefetchAnalysis(piece) {
   });
   analysisPrefetch.set(key, p);
   return p;
+}
+
+/** Arm the full-piece timeline (no audio needed) so the clock shows the real length. */
+function primeTimeline() {
+  try {
+    if (LunePiano.isPlaying()) return;
+    const notes = pieceNotes();
+    if (!notes.length) return;
+    LunePiano.setRate?.(state.playRate || 1);
+    state.timelineKind = "piece";
+    LunePiano.arm(notes, { ...playbackHandlers(), from: 0 });
+    renderScrubTicks();
+    syncPlayButton();
+  } catch {
+    /* the clock fills in on first play instead */
+  }
 }
 
 async function ensureScoreReady() {
@@ -1233,6 +1374,7 @@ async function ensureScoreReady() {
     const s = activeSession();
     if (s) s.scoreReady = true;
     updateScrub({ progress: 0, total: 0, bar: null });
+    primeTimeline(); // after the reset: the clock shows the real length
     return true;
   });
 }
@@ -1251,6 +1393,7 @@ async function openPieceSession(piece, { panel = "explain" } = {}) {
   setStudioPanel(panel, { skipScore: true });
   renderExplainPanel(piece);
   syncOpenButtons(piece);
+  setRoute(piece, panel);
   // Warm everything the Score tab needs while the pianist reads the overview.
   prefetchAnalysis(piece);
   try {
@@ -1281,8 +1424,10 @@ async function activateSession(id) {
   syncOpenButtons(s.piece);
   showView("studio");
   setStudioPanel(s.panel || "explain", { skipScore: true });
+  setRoute(s.piece, s.panel || "explain");
   if ((s.panel || "explain") === "score" && s.piece?.musicxml) {
     await renderScore();
+    primeTimeline();
   } else if ((s.panel || "explain") === "explain") {
     renderExplainPanel(s.piece);
   } else if ((s.panel || "explain") === "piano") {
@@ -1569,7 +1714,8 @@ function placePlayhead(bar, progress = 0, total = 0) {
     _playheadLastBar = null;
   };
 
-  if (!bar && !(total > 0)) {
+  // Before the first play the clock is armed at 0:00 — no marker on bar 1 yet.
+  if ((!bar && !(total > 0)) || (!LunePiano.isPlaying() && !(progress > 0.05) && !state.scrubbing)) {
     hide();
     return;
   }
@@ -2113,9 +2259,27 @@ function applyVoiceSpacing(osmd, pass) {
 
 const ALLOW_SPACING_RERENDER = false;
 
+const LUNE_LYRIC_LANE = true;
+
+/** Give engraved lane text our label styling (OSMD draws plain <text>). */
+function styleLaneText(host) {
+  const mode = state.renderedLaneMode || "off";
+  if (mode === "off") return;
+  const cls = mode === "letters" ? "lane-letter" : "lane-finger";
+  for (const t of host.querySelectorAll("svg g.lyrics text")) t.classList.add(cls);
+}
+
 function applyScoreOverlays() {
   const host = $("osmd");
   if (!host || !state.osmd) return;
+  if (LUNE_LYRIC_LANE) {
+    // Labels are part of the engraving; just style them and drop any overlay.
+    LuneAnnotate.clearLetterOverlays(host);
+    styleLaneText(host);
+    state.laneStaggered = staggerLaneLabels(host);
+    window.LunePractice?.afterScoreRender();
+    return;
+  }
   const wantLetters = !!state.scoreLetters;
   const wantFingers = !!state.scoreFingers;
   if (!wantLetters && !wantFingers) {
@@ -2233,6 +2397,7 @@ function watchScoreWidth() {
       try {
         state.osmd.zoom = w >= 720 ? 1.18 : 1.08;
         state.osmd.render();
+        fitScoreToWidth(state.osmd);
       } catch {
         /* keep the last good engraving */
       }
@@ -2241,17 +2406,233 @@ function watchScoreWidth() {
   state.__scoreWidthObserver.observe(host);
 }
 
+/** Neighbouring lane labels (same row) whose ink touches. */
+function laneTouches(svg) {
+  const rows = new Map();
+  for (const el of svg.querySelectorAll("g.lyrics text")) {
+    if ((el.textContent || "").trim() === (window.LuneLane?.SPARE || "~")) continue;
+    const b = el.getBBox();
+    // group by baseline, not box top: "B♭" has a taller box than "F" on the
+    // same line, and must still be checked against it
+    const key = Math.round(Number(el.getAttribute("y")) || b.y);
+    if (!rows.has(key)) rows.set(key, []);
+    rows.get(key).push(b);
+  }
+  let n = 0;
+  for (const row of rows.values()) {
+    row.sort((a, b) => a.x - b.x);
+    for (let i = 1; i < row.length; i++) if (row[i].x < row[i - 1].x + row[i - 1].width + 1) n++;
+  }
+  return n;
+}
+
+/**
+ * Space for labels comes from the layout, not from nudging: while labels in a
+ * row touch, widen note spacing and re-engrave (fewer bars per line), then
+ * re-fit to the page width. Spacing grows relative to the notes, so the fit
+ * holds even when a dense bar has to be drawn smaller on a phone.
+ */
+function widenUntilLabelsFit(osmd) {
+  const host = $("osmd");
+  const svg0 = host?.querySelector("svg");
+  if (!svg0) return;
+  let touches = laneTouches(svg0);
+  const R = osmd.EngravingRules;
+  for (let pass = 0; pass < 3 && touches > 0; pass++) {
+    const mul = (R.VoiceSpacingMultiplierVexflow || 1) * 1.3;
+    R.VoiceSpacingMultiplierVexflow = mul;
+    R.VoiceSpacingMultiplierVexFlow = mul;
+    R.VoiceSpacingAddendVexflow = (R.VoiceSpacingAddendVexflow || 3) + 2;
+    R.VoiceSpacingAddendVexFlow = R.VoiceSpacingAddendVexflow;
+    R.MinNoteDistance = (R.MinNoteDistance || 2) + 1.5;
+    osmd.render();
+    fitScoreToWidth(osmd);
+    touches = laneTouches(host.querySelector("svg"));
+  }
+  state.laneTouchesLeft = touches;
+}
+
+/**
+ * A bar can't be split across lines, so a very dense bar on a phone can be
+ * wider than the page. If anything sticks out past the right edge, scale the
+ * whole engraving down just enough and re-engrave (at most twice).
+ */
+const fitZoomCache = new Map(); // piece|width → zoom that fits
+
+function scoreOverflowRatio(host, svg) {
+  // Compare the music's right edge with where the staff lines end (and the
+  // screen edge): notes drawn past the final barline mean the bar lacks room.
+  const hostBox = host.getBoundingClientRect();
+  let staffRight = 0;
+  for (const m of svg.querySelectorAll("g.vf-measure")) {
+    for (const c of m.children) {
+      if (c.tagName.toLowerCase() !== "path") continue;
+      const r = c.getBoundingClientRect();
+      if (r.height < 2 && r.width > 10 && r.right > staffRight) staffRight = r.right;
+    }
+  }
+  let right = 0;
+  for (const g of svg.querySelectorAll("g.vf-stavenote, g.vf-beam, g.lyrics text")) {
+    const r = g.getBoundingClientRect();
+    if (r.width && r.right > right) right = r.right;
+  }
+  const limit = Math.min(hostBox.right, staffRight || hostBox.right);
+  const used = right - hostBox.left;
+  const room = limit - hostBox.left;
+  return used > room + 1.5 ? room / used : 1;
+}
+
+function fitScoreToWidth(osmd) {
+  const host = $("osmd");
+  let svg = host?.querySelector("svg");
+  if (!svg || !osmd) return;
+  const key = fitZoomKey();
+  let ratio = scoreOverflowRatio(host, svg);
+  // small overflows: scale the drawing (instant); big ones: re-engrave smaller
+  for (let pass = 0; pass < 2 && ratio < 0.97; pass++) {
+    // A bar that can't fit its line draws past the barline: engrave again,
+    // smaller by the overflow, so every bar has room.
+    osmd.zoom = Math.max(0.45, osmd.zoom * ratio * 0.96);
+    osmd.render();
+    svg = host.querySelector("svg");
+    ratio = scoreOverflowRatio(host, svg);
+  }
+  fitZoomCache.set(key, osmd.zoom);
+  if (ratio < 1 && svg) {
+    // last few pixels: scale the finished drawing (instant, same layout)
+    const w = Number(svg.getAttribute("width")) || svg.getBoundingClientRect().width;
+    const h = Number(svg.getAttribute("height")) || svg.getBoundingClientRect().height;
+    if (!svg.getAttribute("viewBox")) svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+    svg.setAttribute("width", String(w * ratio * 0.985));
+    svg.setAttribute("height", String(h * ratio * 0.985));
+  }
+}
+
+function fitZoomKey() {
+  const host = $("osmd");
+  const boost = window.LunePractice?.zoomBoost?.() || 1;
+  return `${state.piece?.id || state.piece?.title || ""}|${Math.round((host?.clientWidth || 0) / 20)}|${boost}`;
+}
+function cachedFitZoom(defaultZoom) {
+  const boost = window.LunePractice?.zoomBoost?.() || 1;
+  return fitZoomCache.get(fitZoomKey()) ?? defaultZoom * boost;
+}
+
+/**
+ * Last line of defence for the label lane: if two labels in the same row
+ * still touch (a bar so dense the engraver ran out of room), drop every
+ * other one onto a second line — the zig-zag used in beginner editions.
+ * A dropped label never lands on notation; if it would, it shrinks instead.
+ */
+function staggerLaneLabels(host) {
+  const svg = host?.querySelector("svg");
+  if (!svg) return 0;
+  const all = [...svg.querySelectorAll("g.lyrics text")];
+  if (!all.length) return 0;
+  const SPARE = window.LuneLane?.SPARE || "~";
+  // spare-line placeholders: hide them, remember where the empty line is
+  const spares = [];
+  const labels = [];
+  for (const el of all) {
+    if ((el.textContent || "").trim() === SPARE) {
+      el.setAttribute("visibility", "hidden");
+      el.classList.add("lane-spare");
+      const b = el.getBBox();
+      spares.push({ x: b.x, y: b.y, h: b.height, cy: Number(el.getAttribute("y")) });
+    } else labels.push(el);
+  }
+  // the spare line below a label: nearest placeholder underneath, same system
+  const spareBelow = (b) => {
+    let best = null;
+    for (const sp of spares) {
+      const dy = sp.y - b.y;
+      if (dy <= b.height * 0.5 || dy > b.height * 6) continue;
+      if (!best || dy < best.y - b.y) best = sp;
+    }
+    return best;
+  };
+  // notation that can hang into the lane (low stems, ledger notes, flags)
+  const CELL = 48;
+  const inkGrid = new Map();
+  for (const g of svg.querySelectorAll("g.vf-notehead, g.vf-stem, g.vf-flag, g.vf-beam, g.vf-modifiers")) {
+    let r;
+    try {
+      r = g.getBBox();
+    } catch {
+      continue;
+    }
+    if (!r.width && !r.height) continue;
+    for (let gx = Math.floor(r.x / CELL); gx <= Math.floor((r.x + r.width) / CELL); gx++)
+      for (let gy = Math.floor(r.y / CELL); gy <= Math.floor((r.y + r.height) / CELL); gy++) {
+        const k = gx * 100003 + gy;
+        if (!inkGrid.has(k)) inkGrid.set(k, []);
+        inkGrid.get(k).push(r);
+      }
+  }
+  const touchesInk = (b) => {
+    const t = b.y + b.height * 0.15;
+    const bot = b.y + b.height * 0.85;
+    for (let gx = Math.floor(b.x / CELL); gx <= Math.floor((b.x + b.width) / CELL); gx++)
+      for (let gy = Math.floor(t / CELL); gy <= Math.floor(bot / CELL); gy++)
+        for (const r of inkGrid.get(gx * 100003 + gy) || [])
+          if (b.x < r.x + r.width + 0.8 && b.x + b.width > r.x - 0.8 && t < r.y + r.height + 0.8 && bot > r.y - 0.8) return true;
+    return false;
+  };
+  const rows = new Map();
+  for (const el of labels) {
+    const b = el.getBBox();
+    // group by baseline, not box top: "B♭" has a taller box than "F" on the
+    // same line, and must still be checked against it
+    const key = Math.round(Number(el.getAttribute("y")) || b.y);
+    if (!rows.has(key)) rows.set(key, []);
+    rows.get(key).push({ el, b });
+  }
+  const dropped = new Map(); // spare-line y → right edge used so far
+  let moved = 0;
+  for (const row of rows.values()) {
+    row.sort((p, q) => p.b.x - q.b.x);
+    let lastRight = -Infinity;
+    for (const { el, b } of row) {
+      // labels for different notes need a visible gap, not just no overlap,
+      // or "E G♯" reads as one word
+      const gap = Math.max(2.5, b.height * 0.3);
+      if (b.x >= lastRight + gap && !touchesInk(b)) {
+        lastRight = b.x + b.width;
+        continue;
+      }
+      const sp = spareBelow(b);
+      const key = sp ? Math.round(sp.y) : null;
+      const used = key != null ? dropped.get(key) ?? -Infinity : Infinity;
+      if (sp && b.x >= used + gap) {
+        el.setAttribute("y", String(sp.cy));
+        dropped.set(key, b.x + b.width);
+        moved++;
+        continue;
+      }
+      // still no room: shrink beside its neighbour (never below 65%)
+      const fs = parseFloat(getComputedStyle(el).fontSize) || 12;
+      const scale = Math.max(0.65, Math.min(0.92, (b.x + b.width - lastRight - gap) / b.width));
+      el.style.fontSize = `${fs * scale}px`;
+      const nb = el.getBBox();
+      const shift = Math.max(0, lastRight + gap - nb.x);
+      if (shift) el.setAttribute("x", String(Number(el.getAttribute("x")) + shift));
+      lastRight = nb.x + shift + nb.width;
+      moved++;
+    }
+  }
+  return moved;
+}
+
 async function renderScore() {
   const base = state.rawMusicxml || state.piece?.musicxml || "";
   if (!base) return;
   const wantLetters = !!state.scoreLetters;
   const wantFingers = !!state.scoreFingers;
-  // MusicXML fingers unused for display (drawFingerings:false); keep annotate
-  // path for compatibility. Letters are always SVG overlays.
-  const xml = LuneAnnotate.annotate(base, state.piece.debriefs || {}, {
-    fingers: wantFingers,
-    letters: false,
-  });
+  // Letters / finger numbers are engraved as a lyric lane under each staff:
+  // the engraver reserves the space and spaces bars so labels never collide.
+  const laneMode = wantFingers ? "fingers" : wantLetters ? "letters" : "off";
+  state.renderedLaneMode = laneMode;
+  const xml = LuneLane.build(base, { mode: laneMode, debriefs: state.piece.debriefs || {} });
   $("osmd").hidden = false;
   $("osmd").innerHTML = "";
   const osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay($("osmd"), {
@@ -2265,24 +2646,27 @@ async function renderScore() {
     drawCredits: false,
     drawPartNames: false,
     drawMeasureNumbers: true,
-    drawLyrics: false,
-    drawFingerings: false, // custom SVG fingers — OSMD piles chord digits
+    drawLyrics: true, // the letter / finger lane
+    drawFingerings: false,
   });
   try {
     const roomy = scoreNeedsRoom();
     osmd.EngravingRules.BetweenStaffDistance = roomy ? 9.5 : 3.5;
     osmd.EngravingRules.StaffDistance = roomy ? 18 : 7.5;
-    const wide = ($("osmd")?.clientWidth || 900) >= 720;
-    osmd.zoom = wide ? 1.18 : 1.08;
     state.overlaySpacePass = 0;
     state.overlaySpaceKey = overlaySpaceKey();
     state.overlaySpacingLock = false;
     if (roomy) applyVoiceSpacing(osmd, 0);
-    if (wantFingers) {
-      osmd.EngravingRules.FingeringPaddingY = 0.85;
-      osmd.EngravingRules.FingeringOffsetY = 0.35;
-      osmd.EngravingRules.FingeringTextSize = 1.55;
-    }
+    const R = osmd.EngravingRules;
+    R.LyricsHeight = 2.15; // label size (staff-space units)
+    R.LyricsYOffsetToStaffHeight = 0.9; // gap between staff and the lane
+    R.VerticalBetweenLyricsDistance = 0.35; // stacked chord tones
+    // Engraver defaults for label padding: extra padding pushed dense bars
+    // past their barlines; crowded labels use the reserved spare line instead.
+    R.LyricsUseXPaddingForLongLyrics = true;
+    R.HorizontalBetweenLyricsDistance = 0.45;
+    R.BetweenSyllableMinimumDistance = 0.6;
+    R.RenderLyricist = false;
   } catch {
     /* older OSMD */
   }
@@ -2290,7 +2674,11 @@ async function renderScore() {
   state.scoreWasRoomy = scoreNeedsRoom();
   bindOsmdRenderOverlays(osmd);
   await osmd.load(xml);
+  // load() resets zoom, so set it afterwards: 1 (the size the label lane is
+  // tuned for), larger in large-print mode, or the cached fit for this width.
+  osmd.zoom = cachedFitZoom(1);
   osmd.render();
+  fitScoreToWidth(osmd);
   state.osmdRenderedWidth = Math.round($("osmd")?.clientWidth || 0);
   watchScoreWidth();
   wireScoreMeasureClicks();
@@ -2463,6 +2851,16 @@ function paintSelectionHilites() {
 
 async function refreshScoreAnnotations() {
   if (!state.piece?.musicxml) return;
+  if (LUNE_LYRIC_LANE) {
+    const want = state.scoreFingers ? "fingers" : state.scoreLetters ? "letters" : "off";
+    if (want !== state.renderedLaneMode) {
+      const keepScroll = $("score-scroll")?.scrollTop || 0;
+      await renderScore();
+      primeTimeline();
+      if ($("score-scroll")) $("score-scroll").scrollTop = keepScroll;
+    }
+    return;
+  }
   const roomy = scoreNeedsRoom();
   // Seamless: if OSMD is up and staff spacing need is unchanged, only re-paint
   // SVG overlays — no full MusicXML reload flash.
@@ -2488,6 +2886,11 @@ function groupByOffset(arr) {
   return groups;
 }
 
+/** "D#5" → "D♯5", "Bb3" → "B♭3" for display. */
+function prettyPitch(text) {
+  return String(text || "").replace(/^([A-G])(##|#|bb|b)?/, (_, l, a) => l + ({ "##": "♯♯", "#": "♯", bb: "♭♭", b: "♭" }[a || ""] || ""));
+}
+
 function lettersBlock(d) {
   const fmt = (arr) =>
     groupByOffset(arr)
@@ -2496,13 +2899,13 @@ function lettersBlock(d) {
         if (sorted.length === 1) {
           const n = sorted[0];
           const finger = n.fingering ? `<i>${n.fingering}</i>` : "";
-          return `<span class="chip letter">${escapeHtml(n.letter)}${finger}</span>`;
+          return `<span class="chip letter">${escapeHtml(prettyPitch(n.letter))}${finger}</span>`;
         }
         const inner = sorted
           .map((n) => {
             const finger = n.fingering ? `<i>${n.fingering}</i>` : "";
             return `<span class="chord-tone"><b class="tone-letter">${escapeHtml(
-              n.letter
+              prettyPitch(n.letter)
             )}</b>${finger ? `<i class="tone-finger">${n.fingering}</i>` : ""}</span>`;
           })
           .join("");
@@ -2567,13 +2970,13 @@ function barSectionHtml(num, d) {
           if (sorted.length === 1) {
             const n = sorted[0];
             const finger = n.finger ?? n.fingering;
-            return `<span class="chip finger-only"><b>${finger}</b>${escapeHtml(n.letter || "")}</span>`;
+            return `<span class="chip finger-only"><b>${finger}</b>${escapeHtml(prettyPitch(n.letter || ""))}</span>`;
           }
           const inner = sorted
             .map((n) => {
               const finger = n.finger ?? n.fingering;
               return `<span class="chord-tone"><b class="tone-finger">${finger}</b><i class="tone-letter">${escapeHtml(
-                n.letter || ""
+                prettyPitch(n.letter || "")
               )}</i></span>`;
             })
             .join("");
@@ -2726,6 +3129,29 @@ function openBarCoach() {
     html += lineSummaryHtml(bars[0]);
   }
   body.innerHTML = html;
+  keepBarVisible(bars[0]);
+  window.LunePractice?.decorateCoach(bars);
+}
+
+/** Phone: the bar sheet covers the lower half — scroll the tapped bar above it. */
+function keepBarVisible(num) {
+  if (!num || window.innerWidth > 760) return;
+  requestAnimationFrame(() => {
+    try {
+      const scroller = $("score-scroll");
+      const b = LuneAnnotate.measureBoundsInHost?.(state.osmd, $("osmd"), num);
+      if (!scroller || !b) return;
+      const sheet = $("coach")?.getBoundingClientRect();
+      const visibleBottom = sheet ? sheet.top : window.innerHeight * 0.54;
+      const sr = scroller.getBoundingClientRect();
+      const top = b.screenTop;
+      const bottom = b.screenBottom;
+      if (top >= sr.top + 8 && bottom <= visibleBottom - 8) return;
+      scroller.scrollBy({ top: top - sr.top - 16, behavior: "smooth" });
+    } catch {
+      /* keep the current scroll */
+    }
+  });
 }
 
 function openCoach() {
@@ -2749,13 +3175,8 @@ async function askPlan() {
     toast("Pick a bar first");
     return;
   }
-  const res = await fetch(luneUrl("/api/piece/practice"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ musicxml: state.piece.musicxml, bars }),
-  });
-  if (!res.ok) return toast("Could not build practice notes");
-  const plan = await res.json();
+  // Built locally from the bar data already loaded (same steps the server used).
+  const plan = LuneLite.practicePlan(state.piece, bars);
   openCoach();
   refreshCoachChrome();
   let html = `<h3>Practice · ${escapeHtml(selectionTitle(bars))}</h3>`;
@@ -2782,13 +3203,114 @@ function downloadScore() {
 }
 
 async function openFile(file) {
+  if (!file) return;
   await withLoader(`Opening ${file.name}`, async () => {
-    const form = new FormData();
-    form.append("file", file, file.name);
-    const res = await fetch(luneUrl("/api/piece"), { method: "POST", body: form });
-    if (!res.ok) throw new Error("Could not open file");
-    await landOnDiscover(await res.json());
+    const isNotation = /\.(musicxml|xml|mxl)$/i.test(file.name || "");
+    // With a server (desktop app / local run), PDFs and photos still go to it.
+    if (!LUNE_ON_PAGES && !isNotation) {
+      try {
+        const form = new FormData();
+        form.append("file", file, file.name);
+        const res = await fetch(luneUrl("/api/piece"), { method: "POST", body: form });
+        if (res.ok) {
+          await landOnDiscover(await res.json());
+          return;
+        }
+      } catch {
+        /* fall through to the in-browser reader and its explanation */
+      }
+    }
+    try {
+      const xml = await LuneLite.readScoreFile(file);
+      const piece = LuneLite.analyze(xml, { filename: file.name });
+      await window.LunePractice?.onUploadOpened(piece, xml);
+      await openPieceSession(piece, { panel: "score" });
+      setRoute(piece, "score");
+    } catch (err) {
+      const friendly =
+        err instanceof LuneLite.LiteError
+          ? err.message
+          : "Couldn’t open this file. Export it again as MusicXML (.musicxml) and try once more.";
+      toast(friendly);
+    }
   });
+}
+
+/* ---------- shareable links: #/<piece-id>/<tab> ---------- */
+
+function pieceRouteId(piece) {
+  if (!piece || piece.local) return "";
+  if (piece.id) return piece.id;
+  const q = piece.openQuery || piece.title || "";
+  return normSearch(q).replace(/\s+/g, "-").slice(0, 80);
+}
+
+let routeApplying = false;
+function setRoute(piece, panel, { replace = false } = {}) {
+  if (routeApplying) return;
+  const id = pieceRouteId(piece);
+  const hash = piece?.local ? "#/your-score" : id ? `#/${id}/${panel || "explain"}` : "";
+  const title = piece ? `${piece.overview?.title || piece.title || "Score"} — Lune` : "Lune — quiet piano practice";
+  document.title = title;
+  if (location.hash === hash) return;
+  const url = `${location.pathname}${location.search}${hash}`;
+  try {
+    if (replace) history.replaceState({ lune: hash }, title, url);
+    else history.pushState({ lune: hash }, title, url);
+  } catch {
+    /* file:// or sandboxed — links just don't update */
+  }
+}
+
+function parseRoute() {
+  const m = (location.hash || "").match(/^#\/([^/]+)(?:\/(score|explain|piano))?/);
+  if (!m) return null;
+  return { id: decodeURIComponent(m[1]), panel: m[2] || "explain" };
+}
+
+async function applyRoute() {
+  if (window.LunePractice?.handleRoute(location.hash)) return;
+  const r = parseRoute();
+  routeApplying = true;
+  try {
+    if (!r) {
+      if (!$("home") || $("home").hidden) goHome({ keepTabs: true });
+      document.title = "Lune — quiet piano practice";
+      return;
+    }
+    if (r.id === "your-score") {
+      const s = state.sessions.find((x) => x.piece?.local);
+      if (s) await activateSession(s.id);
+      else {
+        goHome({ keepTabs: true });
+        toast("Uploaded scores stay on the device they were opened on — upload it again here.");
+      }
+      return;
+    }
+    const open = state.sessions.find((x) => pieceRouteId(x.piece) === r.id);
+    if (open) {
+      if (open.id !== state.activeSessionId) await activateSession(open.id);
+      else showView("studio");
+      if (r.panel === "score") await switchToScorePanel();
+      else setStudioPanel(r.panel);
+      return;
+    }
+    // static site: exact catalogue id; local server: let it resolve the words
+    const piece = await withLoader("Finding the score", () =>
+      tryOpen(LUNE_ON_PAGES ? { query: r.id } : { query: r.id.replace(/-/g, " "), title: "" })
+    );
+    if (!piece || piece.kind !== "score") {
+      goHome({ keepTabs: true });
+      toast("That link points to a score Lune doesn’t have any more — search for it instead.");
+      return;
+    }
+    await openPieceSession(piece, { panel: r.panel === "score" ? "explain" : r.panel });
+    if (r.panel === "score") await switchToScorePanel();
+  } finally {
+    routeApplying = false;
+    const active = activeSession();
+    if (active && r) document.title = `${active.piece?.overview?.title || active.piece?.title || "Score"} — Lune`;
+  }
 }
 
 function goHome({ keepTabs = false } = {}) {
@@ -2798,6 +3320,14 @@ function goHome({ keepTabs = false } = {}) {
   state.mode = "home";
   showView("home");
   if (!keepTabs) renderPieceTabs();
+  if (!routeApplying && location.hash) {
+    try {
+      history.pushState({ lune: "" }, "Lune", `${location.pathname}${location.search}`);
+    } catch {
+      /* ignore */
+    }
+    document.title = "Lune — quiet piano practice";
+  }
 }
 
 function bind() {
@@ -3162,6 +3692,13 @@ function bind() {
   on("btn-line", "click", () => playSelectedLine().catch((e) => toast(e.message)));
   on("btn-plan", "click", () => askPlan().catch((e) => toast(e.message)));
   on("btn-download", "click", downloadScore);
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest?.("[data-open-credits]");
+    if (b) openCredits(b.getAttribute("data-open-credits"));
+  });
+  $("credits-dialog")?.addEventListener("click", (e) => {
+    if (e.target === $("credits-dialog")) $("credits-dialog").close();
+  });
   on("coach-close", "click", closeCoach);
   on("coach-clear", "click", () => clearBarSelection({ close: true }));
   on("file", "change", () => {
@@ -3174,6 +3711,14 @@ function bind() {
 try {
   bind();
   showView("home");
+  window.addEventListener("popstate", () => applyRoute().catch(() => {}));
+  // Repertoire / study / assignment modules load after this file.
+  const boot = () => {
+    window.LunePractice?.init().catch((e) => console.warn("[lune] practice init", e));
+    if (parseRoute()) applyRoute().catch(() => {});
+  };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, { once: true });
+  else boot();
 } catch (err) {
   console.error("Lune bind failed", err);
   const t = document.getElementById("toast");

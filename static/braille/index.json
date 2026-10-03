@@ -1,0 +1,140 @@
+{
+ "bach-chorale-1": {
+  "file": "bach-chorale-1.brf",
+  "text": "bach-chorale-1.txt",
+  "lines": 20,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "bach-chorale-40": {
+  "file": "bach-chorale-40.brf",
+  "text": "bach-chorale-40.txt",
+  "lines": 15,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "bach-invention-1": {
+  "file": "bach-invention-1.brf",
+  "text": "bach-invention-1.txt",
+  "lines": 25,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "bach-wtc1-prelude-c": {
+  "file": "bach-wtc1-prelude-c.brf",
+  "text": "bach-wtc1-prelude-c.txt",
+  "lines": 66,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "bach-wtc1-fugue-c-minor": {
+  "file": "bach-wtc1-fugue-c-minor.brf",
+  "text": "bach-wtc1-fugue-c-minor.txt",
+  "lines": 43,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "beethoven-fur-elise": {
+  "file": "beethoven-fur-elise.brf",
+  "text": "beethoven-fur-elise.txt",
+  "lines": 69,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "beethoven-moonlight-2": {
+  "file": "beethoven-moonlight-2.brf",
+  "text": "beethoven-moonlight-2.txt",
+  "lines": 39,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "chopin-mazurka-6-2": {
+  "file": "chopin-mazurka-6-2.brf",
+  "text": "chopin-mazurka-6-2.txt",
+  "lines": 52,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "chopin-prelude-28-1": {
+  "file": "chopin-prelude-28-1.brf",
+  "text": "chopin-prelude-28-1.txt",
+  "lines": 32,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "chopin-prelude-28-2": {
+  "file": "chopin-prelude-28-2.brf",
+  "text": "chopin-prelude-28-2.txt",
+  "lines": 24,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "chopin-prelude-28-15": {
+  "file": "chopin-prelude-28-15.brf",
+  "text": "chopin-prelude-28-15.txt",
+  "lines": 73,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "clementi-sonatinas-op36": {
+  "file": "clementi-sonatinas-op36.brf",
+  "text": "clementi-sonatinas-op36.txt",
+  "lines": 1145,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "joplin-maple-leaf": {
+  "file": "joplin-maple-leaf.brf",
+  "text": "joplin-maple-leaf.txt",
+  "lines": 84,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "mozart-k545-1": {
+  "file": "mozart-k545-1.brf",
+  "text": "mozart-k545-1.txt",
+  "lines": 124,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "mozart-k545-2": {
+  "file": "mozart-k545-2.brf",
+  "text": "mozart-k545-2.txt",
+  "lines": 137,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "mozart-k545-3": {
+  "file": "mozart-k545-3.brf",
+  "text": "mozart-k545-3.txt",
+  "lines": 14,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "satie-gymnopedie-1": {
+  "file": "satie-gymnopedie-1.brf",
+  "text": "satie-gymnopedie-1.txt",
+  "lines": 41,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "bach-minuet-g": {
+  "file": "bach-minuet-g.brf",
+  "text": "bach-minuet-g.txt",
+  "lines": 14,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scarlatti-k1": {
+  "file": "scarlatti-k1.brf",
+  "text": "scarlatti-k1.txt",
+  "lines": 47,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scriabin-impromptu-10-1": {
+  "file": "scriabin-impromptu-10-1.brf",
+  "text": "scriabin-impromptu-10-1.txt",
+  "lines": 103,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scriabin-prelude-11-1": {
+  "file": "scriabin-prelude-11-1.brf",
+  "text": "scriabin-prelude-11-1.txt",
+  "lines": 32,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "scriabin-prelude-11-10": {
+  "file": "scriabin-prelude-11-10.brf",
+  "text": "scriabin-prelude-11-10.txt",
+  "lines": 27,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ },
+ "twinkle": {
+  "file": "twinkle.brf",
+  "text": "twinkle.txt",
+  "lines": 8,
+  "note": "Braille music made automatically with music21 \u2014 check with a braille music reader before relying on it."
+ }
+}
