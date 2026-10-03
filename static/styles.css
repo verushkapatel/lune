@@ -1567,11 +1567,13 @@ body.is-panel-piano .piano-pane {
 .piano-roll {
   position: relative;
   flex: 1 1 auto;
-  min-height: 160px;
-  border: 1px solid #1c1c1c;
-  background:
-    linear-gradient(180deg, #101010 0%, #0a0a0a 100%);
+  min-height: 280px;
+  border: 1px solid #1a1a1a;
+  background: #050505;
   overflow: hidden;
+}
+body.is-panel-piano .piano-roll {
+  min-height: min(52vh, 420px);
 }
 .piano-roll canvas {
   display: block;
@@ -1583,8 +1585,9 @@ body.is-panel-piano .piano-pane {
   left: 0;
   right: 0;
   bottom: 8px;
-  height: 1px;
-  background: rgba(245, 245, 245, 0.28);
+  height: 2px;
+  background: rgba(245, 245, 245, 0.5);
+  box-shadow: 0 0 12px rgba(245, 245, 245, 0.25);
   pointer-events: none;
 }
 .piano-focus-note {
@@ -3598,112 +3601,96 @@ body.coach-open.is-panel-score .studio-dock {
 }
 
 /* ===================================================================
-   Night-navy accents — a very deep navy woven into the black so the
-   studio has a little texture and a sense of a night sky. Kept low in
-   contrast: the music and the white paper stay the brightest things.
+   Navy as a quiet accent only — never a wash over the whole UI.
    =================================================================== */
 :root {
-  --navy-abyss: #050b1c;   /* deepest wash */
-  --navy-deep: #0a1530;    /* surfaces, glows */
-  --navy: #13244d;         /* borders, active edges */
-  --navy-line: #1d3366;    /* hairlines, staff lines in the logo */
-  --navy-ink: #2c4a8a;     /* the only "visible" navy: focus + highlights */
+  --navy-abyss: #0a0a0a;
+  --navy-deep: #121212;
+  --navy: #2a2a2a;
+  --navy-line: #333;
+  --navy-ink: #6b7fa3; /* soft accent: LH keys, rare highlights */
 }
 
-/* sky: a navy wash rising from the top-left corner */
 body,
 #app {
-  background:
-    radial-gradient(1200px 700px at 8% -10%, rgba(19, 36, 77, 0.55), transparent 62%),
-    radial-gradient(900px 600px at 105% 110%, rgba(10, 21, 48, 0.7), transparent 60%),
-    var(--bg);
-  background-attachment: fixed;
+  background: var(--bg);
 }
 
-/* the logo: white moon over navy staff lines, with a faint navy halo */
+/* logo staff lines: one place navy is allowed to show */
 .lune-mark g {
   stroke: var(--navy-ink);
-  opacity: 0.95;
+  opacity: 0.55;
 }
 .lune-mark path {
-  filter: drop-shadow(0 0 5px rgba(44, 74, 138, 0.55));
+  filter: none;
 }
 .home-mark path {
-  filter: drop-shadow(0 0 18px rgba(44, 74, 138, 0.6));
+  filter: none;
 }
 
-/* header bar picks up the sky */
 .bar {
-  background: linear-gradient(180deg, rgba(10, 21, 48, 0.55), rgba(10, 10, 10, 0.0)) , rgba(10, 10, 10, 0.72);
-  border-bottom-color: rgba(29, 51, 102, 0.55) !important;
+  background: rgba(10, 10, 10, 0.88);
+  border-bottom-color: #1c1c1c !important;
 }
 
-/* search + inputs: navy edge, navy-ink focus */
 #q {
-  border-color: var(--navy) !important;
-  background-color: rgba(5, 11, 28, 0.6) !important;
+  border-color: #2a2a2a !important;
+  background-color: #0e0e0e !important;
 }
 #q:focus,
 #q:focus-visible {
-  border-color: var(--navy-ink) !important;
-  box-shadow: 0 0 0 3px rgba(44, 74, 138, 0.28) !important;
+  border-color: #666 !important;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08) !important;
   outline: none;
 }
 button:focus-visible,
 input:focus-visible,
 a:focus-visible,
 [tabindex]:focus-visible {
-  outline-color: var(--navy-ink);
+  outline-color: #c8c8c8;
 }
 
-/* segmented controls / tabs: navy rails */
 .studio-seg,
 .anno-seg,
 .piece-tabs {
-  border-color: var(--navy) !important;
-  background-color: rgba(5, 11, 28, 0.55) !important;
+  border-color: #2a2a2a !important;
+  background-color: #101010 !important;
 }
 
-/* quiet buttons + cards get a navy edge instead of grey */
 .quiet,
 button.quiet,
 .result,
 .search-results,
 #search-results {
-  border-color: var(--navy) !important;
+  border-color: #2a2a2a !important;
 }
 .search-results,
 #search-results {
-  background: linear-gradient(180deg, rgba(10, 21, 48, 0.92), rgba(8, 10, 18, 0.96)) !important;
+  background: #0e0e0e !important;
 }
 
-/* the paper sits on a navy shadow, like a page under lamplight at night */
 .score-page {
-  box-shadow: 0 24px 60px rgba(5, 11, 28, 0.85), 0 0 0 1px rgba(29, 51, 102, 0.45);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55), 0 0 0 1px #222;
 }
 
-/* bar selection / playhead highlights on the score use navy-ink */
 #osmd svg .lune-hilite,
 #osmd svg rect.lune-sel,
 #osmd svg .lune-playhead {
-  fill: rgba(44, 74, 138, 0.14) !important;
-  stroke: rgba(44, 74, 138, 0.55) !important;
+  fill: rgba(255, 255, 255, 0.1) !important;
+  stroke: rgba(255, 255, 255, 0.35) !important;
 }
 
-/* scrub bar thumb + fill */
 input[type="range"] {
-  accent-color: var(--navy-ink);
+  accent-color: #d0d0d0;
 }
 
-/* toast: a navy-edged note */
 .toast {
-  border: 1px solid var(--navy-line);
-  box-shadow: 0 12px 34px rgba(5, 11, 28, 0.7);
+  border: 1px solid #2a2a2a;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.55);
 }
 
-/* text selection */
 ::selection {
-  background: rgba(44, 74, 138, 0.55);
+  background: rgba(255, 255, 255, 0.22);
   color: #fff;
 }
 
@@ -3718,8 +3705,8 @@ body.is-panel-score .studio-dock .piano-speed {
 .speed-btn.on,
 .studio-dock .speed-btn.on,
 .piano-dock .speed-btn.on {
-  color: #fff !important;
-  background: var(--navy-ink, #2c4a8a) !important;
+  color: #0a0a0a !important;
+  background: #f2f2f2 !important;
   border-bottom-color: transparent !important;
   font-weight: 600;
 }
@@ -3734,7 +3721,7 @@ body.is-panel-score .studio-dock .piano-speed {
 .coach .chip.finger-only b,
 .coach .chip .tone-finger,
 .coach .chip.letter i {
-  color: #13244d; /* deep navy digits, ~13:1 on white */
+  color: #1a1a1a;
   font-weight: 700;
   opacity: 1;
 }
@@ -3904,16 +3891,16 @@ body.is-panel-score .studio-dock .piano-speed {
 }
 .rep-btn:hover,
 body.is-repertoire .rep-btn {
-  border-color: var(--navy-ink, #2c4a8a);
-  background: var(--navy-deep, #0a1530);
+  border-color: #555;
+  background: #161616;
 }
 .rep-badge {
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
   border-radius: 9px;
-  background: #c9d6f5;
-  color: var(--navy-abyss, #050b1c);
+  background: #f0f0f0;
+  color: #0a0a0a;
   font-size: 11px;
   font-weight: 700;
   line-height: 18px;
@@ -5569,4 +5556,232 @@ body.needs-onboard .top-search { opacity: 0.45; pointer-events: none; }
   .piano-tut-hands { margin-left: 0; width: 100%; }
   .keep-account-banner { padding: 12px 14px; }
   .onboard-progress li em { display: none; }
+}
+
+/* —— Landing: walkthrough · piano demo · access · live tour —— */
+.home-cta-hero { margin: 0 0 22px; gap: 12px; }
+.home-walkthrough {
+  padding: 72px 28px;
+  border-top: 1px solid #1a1a1a;
+  background: #090909;
+}
+.home-walkthrough-inner { max-width: 920px; margin: 0 auto; }
+.home-walkthrough-inner h2 {
+  margin: 8px 0 12px;
+  font-family: var(--serif);
+  font-size: clamp(28px, 4vw, 42px);
+  font-weight: 500;
+}
+.home-walkthrough-lead {
+  margin: 0 0 32px;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.55;
+  max-width: 48ch;
+}
+.home-tour-steps {
+  list-style: none;
+  margin: 0 0 32px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 28px;
+}
+.home-tour-steps li {
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  column-gap: 12px;
+  row-gap: 4px;
+  padding-top: 14px;
+  border-top: 1px solid #222;
+}
+.home-tour-steps span {
+  grid-row: 1 / span 2;
+  font-family: var(--serif);
+  font-size: 14px;
+  color: #666;
+  padding-top: 3px;
+}
+.home-tour-steps strong {
+  font-family: var(--serif);
+  font-size: 18px;
+  font-weight: 500;
+}
+.home-tour-steps em {
+  font-style: normal;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.home-chapter-piano { align-items: center; }
+.home-piano-demo-stage {
+  border: 1px solid #222;
+  background: #050505;
+  padding: 16px 16px 12px;
+}
+.home-piano-fall {
+  position: relative;
+  height: 160px;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(245, 245, 245, 0.2);
+}
+.fall-note {
+  position: absolute;
+  bottom: 0;
+  left: var(--x);
+  width: 18px;
+  height: var(--h);
+  border-radius: 3px 3px 1px 1px;
+  transform: translateY(-120%);
+  animation: fall-note 2.4s ease-in infinite;
+  animation-delay: var(--delay);
+}
+.fall-note.rh { background: #ececec; }
+.fall-note.lh { background: #6b7fa3; }
+.home-piano-hit {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: rgba(245, 245, 245, 0.55);
+}
+.home-piano-kbd {
+  position: relative;
+  display: flex;
+  height: 72px;
+  margin-top: 0;
+  background: #161616;
+  padding: 0 4px;
+}
+.home-piano-kbd i {
+  flex: 1;
+  background: #f4f3ef;
+  border-right: 1px solid #c8c6c0;
+  position: relative;
+}
+.home-piano-kbd i.on { background: #d8d8d8; }
+.home-piano-kbd b {
+  position: absolute;
+  top: 0;
+  width: 7%;
+  height: 58%;
+  background: #111;
+  border-radius: 0 0 2px 2px;
+}
+.home-piano-demo-cap {
+  display: flex;
+  gap: 16px;
+  margin: 10px 0 0;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #666;
+}
+.home-piano-demo-cap .tut-rh::before,
+.home-piano-demo-cap .tut-lh::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.home-piano-demo-cap .tut-rh::before { background: #ececec; }
+.home-piano-demo-cap .tut-lh::before { background: #6b7fa3; }
+@keyframes fall-note {
+  0% { transform: translateY(-130%); opacity: 0.3; }
+  70% { opacity: 1; }
+  100% { transform: translateY(0); opacity: 0.95; }
+}
+
+.home-access {
+  padding: 72px 28px;
+  border-top: 1px solid #1a1a1a;
+}
+.home-access-inner { max-width: 920px; margin: 0 auto; }
+.home-access-inner h2 {
+  margin: 8px 0 28px;
+  font-family: var(--serif);
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 500;
+  max-width: 20ch;
+}
+.home-access-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px 40px;
+}
+.home-access-grid h3 {
+  margin: 0 0 10px;
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 500;
+}
+.home-access-grid p {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.55;
+  max-width: 40ch;
+}
+.home-access-grid code {
+  font-size: 0.92em;
+  color: #d0d0d0;
+}
+
+.lune-tour {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 80;
+  width: min(360px, calc(100vw - 32px));
+  padding: 20px 20px 16px;
+  background: #111;
+  border: 1px solid #333;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+  color: #f0f0f0;
+}
+.lune-tour-kicker {
+  margin: 0 0 8px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #7a7a7a;
+}
+.lune-tour h2 {
+  margin: 0 0 8px;
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 500;
+}
+.lune-tour p {
+  margin: 0 0 16px;
+  color: #b0b0b0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.lune-tour-nav {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+.lune-tour-nav #lune-tour-skip { margin-right: auto; }
+.tour-pulse {
+  animation: tour-pulse 1.2s ease-in-out infinite;
+  outline: 1px solid #f0f0f0 !important;
+}
+@keyframes tour-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 245, 245, 0.35); }
+  50% { box-shadow: 0 0 0 6px rgba(245, 245, 245, 0); }
+}
+
+@media (max-width: 720px) {
+  .home-tour-steps,
+  .home-access-grid { grid-template-columns: 1fr; }
+  .home-walkthrough,
+  .home-access { padding: 48px 18px; }
+  .lune-tour { right: 12px; bottom: 12px; }
 }

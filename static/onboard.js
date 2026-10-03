@@ -669,15 +669,20 @@ window.LuneOnboard = (function () {
     paintKeepBanner();
   }
 
-  /** Call before studio / repertoire actions. Returns false if still in welcome/onboard. */
+  /** Admit guests into the studio from the landing — no wall, no redirect. */
+  function admitGuest() {
+    if (onboarded()) return;
+    store()?.setPref?.("onboarded", true);
+    store()?.setPref?.("seenWelcome", true);
+    store()?.setPref?.("welcomeVersion", WELCOME_VERSION);
+    if (store()?.prefs?.()?.grade == null) store()?.setPref?.("grade", selectedGrade || 5);
+    applyGateChrome();
+    paintKeepBanner();
+  }
+
   function requireUnlock() {
     ensureDom();
-    if (!onboarded()) {
-      if (!seenWelcome()) showWelcome();
-      else showOnboard(0);
-      window.toast?.("Finish the short intro to open the studio");
-      return false;
-    }
+    admitGuest();
     return true;
   }
 
@@ -689,32 +694,184 @@ window.LuneOnboard = (function () {
     return false;
   }
 
+  /** Landing page first. Optional personalise / account — never a gate wall. */
   function route() {
     ensureDom();
+    store()?.setPref?.("seenWelcome", true);
+    store()?.setPref?.("welcomeVersion", WELCOME_VERSION);
+    const w = $("welcome");
+    const o = $("onboard");
+    if (w) w.hidden = true;
+    if (o) o.hidden = true;
+    document.body.classList.remove("is-welcome", "is-onboard");
     applyGateChrome();
-    if (!seenWelcome() && !onboarded() && !signedIn()) {
-      showWelcome();
-      return "welcome";
-    }
-    if (!onboarded()) {
-      const p = store().prefs();
-      selectedGrade = Number(p.grade) || 5;
-      selectedComposers = new Set(Array.isArray(p.composers) ? p.composers : []);
-      showOnboard(0);
-      return "onboard";
-    }
     return "app";
+  }
+
+  const TOUR_STEPS = [
+    {
+      id: "letters",
+      title: "Letter names under the staff",
+      body: "Open the score. Toggle Letters — names sit in their own lane under every note, never painted on the heads.",
+      panel: "score",
+      action: "letters",
+    },
+    {
+      id: "play",
+      title: "Hear it at your tempo",
+      body: "Press Play. Drag the tempo slider — the marker shows the original bpm. Turn the metronome on if you want the pulse.",
+      panel: "score",
+      action: "play",
+    },
+    {
+      id: "piano",
+      title: "Piano mode — falling keys",
+      body: "Open Piano. Notes fall onto the keyboard like MuseScore’s tutorial view. Filter Right / Left hand. Same tempo as the score.",
+      panel: "piano",
+      action: "piano",
+    },
+    {
+      id: "ask",
+      title: "Tap a hard bar",
+      body: "Back on Score, click a bar. The coach lists the notes, suggested fingers, and a quiet way to practise it.",
+      panel: "score",
+      action: "ask",
+    },
+    {
+      id: "access",
+      title: "Dyslexia type & braille",
+      body: "Tap Aa for dyslexia-friendly letters (Atkinson Hyperlegible). When this piece has braille, the Braille chip downloads a .brf for an embosser or display.",
+      panel: "explain",
+      action: "access",
+    },
+    {
+      id: "plan",
+      title: "Your practice plan",
+      body: "Select bars, speak or jot a note, save a plan into Repertoire. Sign in later if you want it on every device.",
+      panel: "score",
+      action: "plan",
+    },
+  ];
+
+  let tourStep = 0;
+  let tourActive = false;
+
+  function ensureTourDom() {
+    if ($("lune-tour")) return;
+    const tip = document.createElement("aside");
+    tip.id = "lune-tour";
+    tip.className = "lune-tour";
+    tip.hidden = true;
+    tip.innerHTML = `
+      <p class="lune-tour-kicker" id="lune-tour-kicker">Walkthrough</p>
+      <h2 id="lune-tour-title"></h2>
+      <p id="lune-tour-body"></p>
+      <div class="lune-tour-nav">
+        <button type="button" class="quiet" id="lune-tour-skip">Skip</button>
+        <button type="button" class="quiet" id="lune-tour-back">Back</button>
+        <button type="button" class="primary" id="lune-tour-next">Next</button>
+      </div>`;
+    document.body.appendChild(tip);
+    tip.querySelector("#lune-tour-skip")?.addEventListener("click", endTour);
+    tip.querySelector("#lune-tour-back")?.addEventListener("click", () => paintTour(Math.max(0, tourStep - 1)));
+    tip.querySelector("#lune-tour-next")?.addEventListener("click", () => {
+      if (tourStep >= TOUR_STEPS.length - 1) endTour({ done: true });
+      else paintTour(tourStep + 1);
+    });
+  }
+
+  function applyTourAction(step) {
+    const tab =
+      document.querySelector(`.studio-tab[data-panel="${step.panel}"]`) ||
+      document.querySelector(`button[data-panel="${step.panel}"]`);
+    if (tab) tab.click();
+    if (step.action === "letters") {
+      document.getElementById("anno-notes")?.click?.();
+    }
+    if (step.action === "play") {
+      setTimeout(() => {
+        const play = document.getElementById("btn-play-range");
+        if (play && play.getAttribute("aria-pressed") !== "true") play.click();
+      }, 500);
+    }
+    if (step.action === "piano") {
+      document.querySelector('.studio-tab[data-panel="piano"]')?.click?.();
+      setTimeout(() => {
+        const play = document.getElementById("btn-play-range");
+        if (play && play.getAttribute("aria-pressed") !== "true") play.click();
+      }, 700);
+    }
+    if (step.action === "access") {
+      document.querySelector('.studio-tab[data-panel="explain"]')?.click?.();
+      document.getElementById("btn-dyslexia-explain")?.classList.add("tour-pulse");
+      document.getElementById("btn-braille-explain")?.classList.add("tour-pulse");
+      document.getElementById("btn-dyslexia-score")?.classList.add("tour-pulse");
+      document.getElementById("btn-braille-score")?.classList.add("tour-pulse");
+    } else {
+      document.querySelectorAll(".tour-pulse").forEach((el) => el.classList.remove("tour-pulse"));
+    }
+  }
+
+  function paintTour(n) {
+    ensureTourDom();
+    tourStep = n;
+    tourActive = true;
+    const step = TOUR_STEPS[n];
+    const tip = $("lune-tour");
+    if (!tip || !step) return;
+    tip.hidden = false;
+    const k = $("lune-tour-kicker");
+    const t = $("lune-tour-title");
+    const b = $("lune-tour-body");
+    const next = $("lune-tour-next");
+    const back = $("lune-tour-back");
+    if (k) k.textContent = `Clair de lune · ${n + 1} / ${TOUR_STEPS.length}`;
+    if (t) t.textContent = step.title;
+    if (b) b.textContent = step.body;
+    if (next) next.textContent = n >= TOUR_STEPS.length - 1 ? "Start practising" : "Next";
+    if (back) back.hidden = n === 0;
+    applyTourAction(step);
+  }
+
+  function endTour({ done = false } = {}) {
+    tourActive = false;
+    const tip = $("lune-tour");
+    if (tip) tip.hidden = true;
+    document.querySelectorAll(".tour-pulse").forEach((el) => el.classList.remove("tour-pulse"));
+    if (done) {
+      window.toast?.("Studio’s yours — sign in anytime to keep plans");
+      if (!signedIn()) setTimeout(() => promptKeepAccount(), 1600);
+    }
+  }
+
+  function startPieceWalkthrough(pieceId = "debussy-clair-de-lune") {
+    requireUnlock();
+    const open = () => {
+      const chip =
+        document.querySelector(`[data-open-piece="${pieceId}"]`) ||
+        document.querySelector(`#hero-chips [data-open-piece="${pieceId}"]`);
+      if (chip) chip.click();
+      else {
+        const q = $("q");
+        if (q) {
+          q.value = pieceId.includes("clair") ? "clair de lune" : pieceId;
+          q.form?.requestSubmit?.();
+        }
+      }
+      setTimeout(() => paintTour(0), 900);
+    };
+    open();
   }
 
   function init() {
     ensureDom();
+    ensureTourDom();
     store()?.onChange?.(() => {
       applyGateChrome();
       if (signedIn()) {
         $("keep-lune-dialog")?.close?.();
         $("create-account-dialog")?.close?.();
-        if (!onboarded() && $("welcome") && !$("welcome").hidden) afterAuth();
-        else if (onboarded()) paintKeepBanner();
+        if (onboarded()) paintKeepBanner();
       }
     });
     document.addEventListener("click", (e) => {
@@ -722,6 +879,16 @@ window.LuneOnboard = (function () {
       if (b) {
         e.preventDefault();
         openCreateAccount();
+      }
+      const walk = e.target.closest?.("[data-lp-walkthrough]");
+      if (walk) {
+        e.preventDefault();
+        startPieceWalkthrough(walk.dataset.lpWalkthrough || "debussy-clair-de-lune");
+      }
+      const personalise = e.target.closest?.("[data-lp-personalise]");
+      if (personalise) {
+        e.preventDefault();
+        showOnboard(1);
       }
     });
   }
@@ -741,5 +908,7 @@ window.LuneOnboard = (function () {
     applyGateChrome,
     paintHomeRecs,
     recommendations,
+    startPieceWalkthrough,
+    endTour,
   };
 })();

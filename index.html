@@ -24,12 +24,12 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Lune">
-  <link rel="icon" href="static/assets/favicon.svg?v=fix99" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=fix99">
-  <link rel="manifest" href="static/manifest.json?v=fix99">
+  <link rel="icon" href="static/assets/favicon.svg?v=launch00" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=launch00">
+  <link rel="manifest" href="static/manifest.json?v=launch00">
   <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="static/styles.css?v=fix99">
-  <link rel="preload" href="static/search-index.json?v=fix99" as="fetch" crossorigin>
+  <link rel="stylesheet" href="static/styles.css?v=launch00">
+  <link rel="preload" href="static/search-index.json?v=launch00" as="fetch" crossorigin>
 </head>
 <body>
   <div id="app">
@@ -130,8 +130,12 @@
           <div class="home-continue" id="home-continue" hidden></div>
           <h1>Quiet practice. Clear notes.</h1>
           <p class="lead">
-            Free piano scores with letter names or finger numbers under every note, a coach for the bars that feel hard, and a memory for the ones you keep missing.
+            Free piano scores you can hear, name, and learn on the keys — then a plan for the bars that won’t sit.
           </p>
+          <div class="home-cta-row home-cta-hero">
+            <button type="button" class="primary big" data-lp-walkthrough="debussy-clair-de-lune">Walk through Clair de lune</button>
+            <button type="button" class="quiet" data-lp-create-account>Sign in</button>
+          </div>
           <div class="hero-chips" id="hero-chips">
             <button type="button" class="hero-chip" data-open-piece="beethoven-fur-elise">Für Elise</button>
             <button type="button" class="hero-chip" data-open-piece="debussy-clair-de-lune">Clair de lune</button>
@@ -139,12 +143,73 @@
           </div>
           <p class="home-access-line">
             Built for every reader —
-            <button type="button" class="link-btn" data-lp-access>dyslexia-friendly type</button>
-            and braille downloads where a score has one.
+            <a class="link-btn" href="#access">dyslexia-friendly type &amp; braille</a>.
+            Free. No ads. Sign in later to keep your studio.
           </p>
-          <div class="home-cta-row">
-            <button type="button" class="quiet" id="btn-home-upload">Upload your MusicXML</button>
-            <span class="home-cta-note">Your plan. Your bars. Your tempo.</span>
+        </div>
+      </section>
+
+      <section class="home-walkthrough" id="tour" aria-labelledby="tour-h">
+        <div class="home-walkthrough-inner">
+          <p class="about-kicker">Guided tour</p>
+          <h2 id="tour-h">One piece. Everything Lune can do.</h2>
+          <p class="home-walkthrough-lead">We’ll open Clair de lune and walk the studio step by step — letters, play, falling-key piano, hard bars, dyslexia type, braille, and your plan.</p>
+          <ol class="home-tour-steps">
+            <li><span>01</span><strong>Letters under the staff</strong><em>Names in their own lane — never on the note heads.</em></li>
+            <li><span>02</span><strong>Play &amp; tempo</strong><em>Hear it. Slider marked at the original bpm. Metronome in the piece’s meter.</em></li>
+            <li><span>03</span><strong>Piano mode</strong><em>Falling notes onto a real keyboard — MuseScore-style tutorial, RH / LH filter.</em></li>
+            <li><span>04</span><strong>Ask a bar</strong><em>Tap what won’t sit. Notes, fingers, a quiet way to practise.</em></li>
+            <li><span>05</span><strong>Dyslexia &amp; braille</strong><em>Aa switches type. Braille downloads a .brf when the score has one.</em></li>
+            <li><span>06</span><strong>Your plan</strong><em>Select bars, speak or jot a note — saved into Repertoire.</em></li>
+          </ol>
+          <button type="button" class="primary big" data-lp-walkthrough="debussy-clair-de-lune">Start the walkthrough</button>
+        </div>
+      </section>
+
+      <section class="home-chapter home-chapter-piano" id="piano-mode" aria-labelledby="piano-mode-h">
+        <div class="home-chapter-copy">
+          <p class="about-kicker">Piano mode</p>
+          <h2 id="piano-mode-h">Falling notes onto the keys.</h2>
+          <p>
+            Same idea as MuseScore’s piano tutorial: notes drop toward the keyboard, light the key, and show the finger.
+            Filter right hand, left hand, or both — tempo stays locked to the score.
+          </p>
+          <button type="button" class="primary" data-lp-walkthrough="debussy-clair-de-lune">Try it on Clair de lune</button>
+        </div>
+        <figure class="home-chapter-visual home-piano-demo" aria-hidden="true">
+          <div class="home-piano-demo-stage">
+            <div class="home-piano-fall">
+              <span class="fall-note rh" style="--x:18%;--delay:0s;--h:42%"></span>
+              <span class="fall-note lh" style="--x:34%;--delay:0.4s;--h:28%"></span>
+              <span class="fall-note rh" style="--x:48%;--delay:0.8s;--h:56%"></span>
+              <span class="fall-note rh" style="--x:62%;--delay:1.2s;--h:34%"></span>
+              <span class="fall-note lh" style="--x:76%;--delay:1.6s;--h:40%"></span>
+              <div class="home-piano-hit"></div>
+            </div>
+            <div class="home-piano-kbd">
+              <i></i><i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              <b style="left:9%"></b><b style="left:17%"></b><b style="left:34%"></b><b style="left:42%"></b><b style="left:50%"></b><b style="left:67%"></b><b style="left:75%"></b>
+            </div>
+            <p class="home-piano-demo-cap"><span class="tut-rh">Right</span><span class="tut-lh">Left</span></p>
+          </div>
+        </figure>
+      </section>
+
+      <section class="home-access" id="access" aria-labelledby="access-h">
+        <div class="home-access-inner">
+          <p class="about-kicker">Reading &amp; access</p>
+          <h2 id="access-h">Dyslexia-friendly type. Braille when you need it.</h2>
+          <div class="home-access-grid">
+            <article>
+              <h3>Dyslexia-friendly letters</h3>
+              <p>On Overview or Score, tap <strong>Aa</strong>. Lune switches letter names to Atkinson Hyperlegible — clearer shapes, less confusion between similar letters. Tap again to turn it off.</p>
+              <button type="button" class="quiet" data-lp-access>Open reading settings</button>
+            </article>
+            <article>
+              <h3>Braille music</h3>
+              <p>When a library piece has a braille file, a <strong>Braille</strong> chip appears. Download the <code>.brf</code> for a refreshable display or embosser. Not every score has one yet — Clair de lune and several others do.</p>
+              <button type="button" class="quiet" data-lp-walkthrough="debussy-clair-de-lune">See it on Clair de lune</button>
+            </article>
           </div>
         </div>
       </section>
@@ -164,7 +229,7 @@
             </li>
             <li>
               <strong>See the keys</strong>
-              <span>Falling-note piano tutorial, or a slim keyboard under the score — same tempo control either way.</span>
+              <span>Falling-note piano tutorial — notes drop onto the keyboard, finger on the key.</span>
             </li>
             <li>
               <strong>Your practice plan</strong>
@@ -659,17 +724,17 @@
   <script src="static/vendor/opensheetmusicdisplay.min.js"></script>
   <script src="static/vendor/pdf.min.js"></script>
   <script src="static/vendor/Tone.js"></script>
-  <script src="static/piano.js?v=fix99"></script>
-  <script src="static/annotate.js?v=fix99"></script>
-  <script src="static/lite-analyze.js?v=fix99"></script>
-  <script src="static/lyric-lane.js?v=fix99"></script>
-  <script src="static/menu.js?v=fix99"></script>
-  <script src="static/lune-config.js?v=fix99"></script>
-  <script src="static/store.js?v=fix99"></script>
-  <script src="static/onboard.js?v=fix99"></script>
-  <script src="static/app.js?v=fix99"></script>
-  <script src="static/practice.js?v=fix99"></script>
-  <script src="static/follow.js?v=fix99"></script>
-  <script src="static/study.js?v=fix99"></script>
+  <script src="static/piano.js?v=launch00"></script>
+  <script src="static/annotate.js?v=launch00"></script>
+  <script src="static/lite-analyze.js?v=launch00"></script>
+  <script src="static/lyric-lane.js?v=launch00"></script>
+  <script src="static/menu.js?v=launch00"></script>
+  <script src="static/lune-config.js?v=launch00"></script>
+  <script src="static/store.js?v=launch00"></script>
+  <script src="static/onboard.js?v=launch00"></script>
+  <script src="static/app.js?v=launch00"></script>
+  <script src="static/practice.js?v=launch00"></script>
+  <script src="static/follow.js?v=launch00"></script>
+  <script src="static/study.js?v=launch00"></script>
 </body>
 </html>

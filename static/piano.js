@@ -786,42 +786,51 @@ window.LuneTutorial = (function () {
     });
 
     ctx.clearRect(0, 0, w, h);
-    // subtle lane grid on C keys
-    ctx.fillStyle = "rgba(255,255,255,0.03)";
+    // MuseScore-style lane guides on white-key columns
     for (let m = MIDI_LO; m <= MIDI_HI; m++) {
-      if (m % 12 !== 0 || isBlack(m)) continue;
+      if (isBlack(m)) continue;
       const x = midiX(m, w, whites);
-      ctx.fillRect(x, 0, midiW(m, w, whites), h);
+      const kw = midiW(m, w, whites);
+      ctx.fillStyle = m % 12 === 0 ? "rgba(255,255,255,0.045)" : "rgba(255,255,255,0.018)";
+      ctx.fillRect(x, 0, kw, h);
+      ctx.strokeStyle = "rgba(255,255,255,0.04)";
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+      ctx.stroke();
     }
     // hit line
-    ctx.strokeStyle = "rgba(245,245,245,0.45)";
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "rgba(245,245,245,0.65)";
+    ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(0, hitY);
     ctx.lineTo(w, hitY);
     ctx.stroke();
+    ctx.fillStyle = "rgba(245,245,245,0.08)";
+    ctx.fillRect(0, hitY - 10, w, 20);
 
     for (const e of events) {
       const x = midiX(e.midi, w, whites);
-      const bw = Math.max(4, midiW(e.midi, w, whites));
+      const bw = Math.max(5, midiW(e.midi, w, whites));
       const top = hitY - (e.t - at) * pps - e.dur * pps;
-      const bh = Math.max(6, e.dur * pps);
+      const bh = Math.max(8, e.dur * pps);
       const active = e.t <= at && e.t + e.dur > at;
       const rh = e.hand !== "lh" && e.hand !== "L";
+      // RH: bright white bars · LH: soft steel accent (navy only here)
       if (active) {
-        ctx.fillStyle = rh ? "rgba(245,245,245,0.95)" : "rgba(160,175,205,0.95)";
+        ctx.fillStyle = rh ? "#f5f5f5" : "#8fa0c0";
       } else {
-        ctx.fillStyle = rh ? "rgba(230,230,230,0.62)" : "rgba(120,140,175,0.55)";
+        ctx.fillStyle = rh ? "rgba(235,235,235,0.72)" : "rgba(107,127,163,0.7)";
       }
-      const r = Math.min(5, bw / 2);
+      const r = Math.min(4, bw / 2);
       roundRect(ctx, x, top, bw, bh, r);
       ctx.fill();
-      if (e.finger && bh > 14 && bw > 10) {
-        ctx.fillStyle = active ? "#0a0a0a" : "rgba(10,10,10,0.75)";
-        ctx.font = "600 11px Fraunces, Georgia, serif";
+      if (e.finger && bh > 16 && bw > 11) {
+        ctx.fillStyle = active ? "#0a0a0a" : "rgba(10,10,10,0.8)";
+        ctx.font = "600 12px Fraunces, Georgia, serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText(String(e.finger), x + bw / 2, top + Math.min(bh / 2, 12));
+        ctx.fillText(String(e.finger), x + bw / 2, top + Math.min(bh / 2, 14));
       }
     }
   }
