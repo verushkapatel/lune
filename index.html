@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- playsync01 -->
-  <!-- deploy-1791031826 -->
+  <!-- impact02 -->
+  <!-- deploy-impact02 -->
         <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Lune — so practice feels right again</title>
@@ -26,12 +26,12 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Lune">
-  <link rel="icon" href="static/assets/favicon.svg?v=playsync01" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=playsync01">
-  <link rel="manifest" href="static/manifest.json?v=playsync01">
-  <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2?v=playsync01" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="static/styles.css?v=playsync01">
-  <link rel="preload" href="static/search-index.json?v=playsync01" as="fetch" crossorigin>
+  <link rel="icon" href="static/assets/favicon.svg?v=impact02" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=impact02">
+  <link rel="manifest" href="static/manifest.json?v=impact02">
+  <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2?v=impact02" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="static/styles.css?v=impact02">
+  <link rel="preload" href="static/search-index.json?v=impact02" as="fetch" crossorigin>
 </head>
 <body>
   <div id="app">
@@ -128,22 +128,22 @@
         <section class="member-tonight" id="member-tonight" aria-labelledby="member-tonight-h">
           <p class="about-kicker">Tonight</p>
           <h2 id="member-tonight-h">When practice feels lost</h2>
-          <p class="member-section-lead" id="member-tonight-body">Use Play along — Lune marks the bars that trip you, then builds a short plan.</p>
+          <p class="member-section-lead" id="member-tonight-body">Use Play along on a score — Lune marks the bars that trip you, then builds a short plan.</p>
           <button type="button" class="primary" id="btn-member-tonight">Make tonight’s plan</button>
         </section>
 
         <section class="member-recs" id="member-recs" aria-labelledby="member-recs-h">
           <p class="about-kicker">For you</p>
-          <h2 id="member-recs-h">Recommended pieces</h2>
+          <h2 id="member-recs-h">Recommended for you</h2>
           <p class="member-section-lead" id="member-recs-lead">From the composers, level, and dream piece you shared.</p>
           <div class="member-rec-grid" id="member-rec-grid"></div>
         </section>
 
         <section class="member-week" id="member-week" aria-labelledby="member-week-h">
-          <p class="about-kicker">Evidence</p>
-          <h2 id="member-week-h">This week</h2>
-          <p class="member-section-lead">A calm review of days, sessions, and the bars that asked for you.</p>
-          <button type="button" class="quiet" id="btn-member-week">This week</button>
+          <p class="about-kicker">This week</p>
+          <h2 id="member-week-h">A quiet review</h2>
+          <p class="member-section-lead">Days against your goal, honest sessions, and the bars that asked for you.</p>
+          <button type="button" class="quiet" id="btn-member-week">Open this week</button>
         </section>
 
         <section class="member-features" aria-labelledby="member-feat-h">
@@ -238,6 +238,10 @@
             <path fill="currentColor" d="M26.2 7.2c-5.9.9-10.4 6-10.4 12.1 0 6.1 4.5 11.2 10.4 12.1A12.2 12.2 0 0 1 14 19.3c0-6.6 5.2-12 11.8-12.2.1 0 .3 0 .4 0z"/>
           </svg>
           <p class="home-footer-line">Lune · so practice feels right again</p>
+          <p class="fine-print home-footer-legal member-footer-actions">
+            <button type="button" class="link-btn" id="btn-footer-share">Share this week</button> ·
+            <button type="button" class="link-btn" id="btn-footer-invite">Invite</button>
+          </p>
           <p class="fine-print home-footer-legal">
             <button type="button" class="link-btn" data-open-credits>Credits &amp; licenses</button> ·
             <button type="button" class="link-btn" data-open-credits="privacy">Privacy</button> ·
@@ -815,7 +819,7 @@
                   </svg>
                 </button>
                 <div class="bpm-wrap">
-                  <input type="range" id="bpm-slider" min="40" max="120" value="72" step="1" aria-label="Beats per minute">
+                  <input type="range" id="bpm-slider" min="40" max="160" value="72" step="1" aria-label="Beats per minute">
                   <span class="bpm-orig-mark" id="bpm-orig-mark" title="Original tempo" aria-hidden="true"></span>
                 </div>
                 <div class="bpm-meta">
@@ -925,18 +929,18 @@
   <script src="static/vendor/opensheetmusicdisplay.min.js"></script>
   <script src="static/vendor/pdf.min.js"></script>
   <script src="static/vendor/Tone.js"></script>
-  <script src="static/piano.js?v=playsync01"></script>
-  <script src="static/annotate.js?v=playsync01"></script>
-  <script src="static/lite-analyze.js?v=playsync01"></script>
-  <script src="static/lyric-lane.js?v=playsync01"></script>
-  <script src="static/menu.js?v=playsync01"></script>
-  <script src="static/lune-config.js?v=playsync01"></script>
-  <script src="static/store.js?v=playsync01"></script>
-  <script src="static/onboard.js?v=playsync01"></script>
-  <script src="static/impact.js?v=playsync01"></script>
-  <script src="static/app.js?v=playsync01"></script>
-  <script src="static/practice.js?v=playsync01"></script>
-  <script src="static/follow.js?v=playsync01"></script>
-  <script src="static/study.js?v=playsync01"></script>
+  <script src="static/piano.js?v=impact02"></script>
+  <script src="static/annotate.js?v=impact02"></script>
+  <script src="static/lite-analyze.js?v=impact02"></script>
+  <script src="static/lyric-lane.js?v=impact02"></script>
+  <script src="static/menu.js?v=impact02"></script>
+  <script src="static/lune-config.js?v=impact02"></script>
+  <script src="static/store.js?v=impact02"></script>
+  <script src="static/onboard.js?v=impact02"></script>
+  <script src="static/impact.js?v=impact02"></script>
+  <script src="static/app.js?v=impact02"></script>
+  <script src="static/practice.js?v=impact02"></script>
+  <script src="static/follow.js?v=impact02"></script>
+  <script src="static/study.js?v=impact02"></script>
 </body>
 </html>

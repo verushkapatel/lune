@@ -82,6 +82,78 @@ const COMPOSER_FACE_FILES = {
 const COMPOSER_FACE_V = "faces01";
 const COMPOSER_SILHOUETTE = luneUrl(`/static/assets/composers/silhouette.svg?v=${COMPOSER_FACE_V}`);
 
+/** Last-name / alias → era when search-index or overview lacks one. */
+const COMPOSER_ERA_FALLBACK = {
+  bach: "Baroque",
+  handel: "Baroque",
+  scarlatti: "Baroque",
+  pachelbel: "Baroque",
+  purcell: "Baroque",
+  vivaldi: "Baroque",
+  telemann: "Baroque",
+  mozart: "Classical",
+  haydn: "Classical",
+  clementi: "Classical",
+  czerny: "Classical",
+  hummel: "Classical",
+  gluck: "Classical",
+  beethoven: "Early Romantic",
+  schubert: "Early Romantic",
+  field: "Early Romantic",
+  weber: "Early Romantic",
+  chopin: "Romantic",
+  schumann: "Romantic",
+  liszt: "Romantic",
+  brahms: "Romantic",
+  mendelssohn: "Romantic",
+  grieg: "Romantic",
+  tchaikovsky: "Romantic",
+  mussorgsky: "Romantic",
+  rimsky: "Romantic",
+  korsakov: "Romantic",
+  dvorak: "Romantic",
+  franck: "Romantic",
+  faure: "Romantic",
+  "saint-saens": "Romantic",
+  gottschalk: "Romantic",
+  moszkowski: "Romantic",
+  paderewski: "Romantic",
+  macdowell: "Romantic",
+  burgmuller: "Romantic",
+  albeniz: "Romantic",
+  granados: "Romantic",
+  scriabin: "Late Romantic",
+  rachmaninoff: "Late Romantic",
+  rachmaninov: "Late Romantic",
+  sibelius: "Late Romantic",
+  busoni: "Late Romantic",
+  leontovych: "Romantic",
+  debussy: "Impressionist",
+  ravel: "Impressionist",
+  satie: "Impressionist",
+  joplin: "Modern",
+  bartok: "Modern",
+  gershwin: "Modern",
+  poulenc: "Modern",
+  traditional: "Folk",
+};
+
+function composerEraFallback(name) {
+  const key = composerFaceKey(name);
+  if (key && COMPOSER_ERA_FALLBACK[key]) return COMPOSER_ERA_FALLBACK[key];
+  const n = String(name || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\([^)]*\)/g, " ");
+  if (n.includes("rimsky") || n.includes("korsakov")) return "Romantic";
+  if (n.includes("saint") && n.includes("saen")) return "Romantic";
+  for (const k of Object.keys(COMPOSER_ERA_FALLBACK).sort((a, b) => b.length - a.length)) {
+    if (n.includes(k)) return COMPOSER_ERA_FALLBACK[k];
+  }
+  return "";
+}
+
 const state = {
   piece: null,
   selected: null,
@@ -246,7 +318,7 @@ function closeSearchResults({ blur = false } = {}) {
 const SEARCH_LIMIT = 8;
 // Paint on the next frame only — coalesces burst keystrokes, ~0–16ms feel (no 100ms lag).
 const SEARCH_DEBOUNCE_MS = 0;
-const SEARCH_INDEX_URL = luneUrl("/static/search-index.json?v=fix97");
+const SEARCH_INDEX_URL = luneUrl("/static/search-index.json?v=catalog01");
 /** Composers whose piano works are typically still under copyright — honest empty state. */
 const COPYRIGHT_ERA_COMPOSERS = [
   "ginastera", "prokofiev", "shostakovich", "khachaturian", "kabalevsky",
@@ -518,8 +590,8 @@ function filterSearchIndex(query, limit = SEARCH_LIMIT, index = activeSearchInde
       title: entry.title,
       composer: entry.composer,
       subtitle: LUNE_ON_PAGES ? `Free score · ${entry.group || entry.composer || ""}` : `Free score · ${entry.group || ""}`,
-      epoch: "",
-      portrait: "",
+      epoch: entry.epoch || entry.era || composerEraFallback(entry.composer) || "",
+      portrait: localComposerFaceUrl(entry.composer) || "",
       openable: true,
       query: entry.query,
     });
@@ -836,9 +908,15 @@ function composerFaceKey(name) {
   const n = String(name || "")
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/\d{3,4}\s*[-–—]\s*\d{3,4}/g, " ")
+    .replace(/[^a-z0-9\s\-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!n) return "";
-  if (n.includes("rimsky")) return "rimsky";
+  if (n.includes("rimsky") || n.includes("korsakov")) return "rimsky";
+  if (n.includes("saint") && n.includes("saen")) return "saint-saens";
   const keys = Object.keys(COMPOSER_FACE_FILES).sort((a, b) => b.length - a.length);
   for (const key of keys) {
     if (n.includes(key)) return key;
@@ -1147,7 +1225,11 @@ function buildExplainChapters(piece, opts) {
 function buildExplainChaptersRaw(piece, { canOpen }) {
   const o = piece.overview || {};
   const composer = o.composer || piece.composer || "";
-  const era = o.era || o.epoch || "";
+  const era = o.era || o.epoch || composerEraFallback(composer) || "";
+  const eraLabel =
+    (o.eraInfo && o.eraInfo.label && o.eraInfo.label !== "Unknown era" && o.eraInfo.label) ||
+    era ||
+    "Style";
   const ci = o.composerInfo || {};
   return [
     {
@@ -1164,7 +1246,7 @@ function buildExplainChaptersRaw(piece, { canOpen }) {
     },
     {
       label: "World",
-      title: `Era · ${(o.eraInfo && o.eraInfo.label) || era || "Style"}`,
+      title: `Era · ${eraLabel}`,
       body: (o.eraInfo && o.eraInfo.story) || "",
       extras: (o.eraInfo && o.eraInfo.tips) || [],
     },
@@ -1183,7 +1265,7 @@ function renderExplainPanel(piece) {
   const o = piece?.overview || {};
   const title = o.title || piece?.title || "Untitled";
   const composer = o.composer || piece?.composer || "";
-  const era = o.era || o.epoch || "";
+  const era = o.era || o.epoch || composerEraFallback(composer) || "";
   const ci = o.composerInfo || {};
   const canOpen = piece?.kind === "score" && !!piece?.musicxml;
 
