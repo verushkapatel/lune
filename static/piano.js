@@ -819,9 +819,10 @@ window.LuneTutorial = (function () {
     const pps = (hitY - 24) / lookAhead;
     const events = (window.LunePiano?.getEvents?.() || []).filter((e) => {
       if (e.t + e.dur < at - 0.05 || e.t > at + lookAhead) return false;
-      const rh = e.hand !== "lh" && e.hand !== "L";
-      if (handFilter === "rh") return rh;
-      if (handFilter === "lh") return !rh;
+      const h = String(e.hand || "").toLowerCase();
+      const isLh = h === "lh" || h === "l" || h === "left";
+      if (handFilter === "rh") return !isLh;
+      if (handFilter === "lh") return isLh;
       return true;
     });
 
@@ -855,7 +856,8 @@ window.LuneTutorial = (function () {
       const top = hitY - (e.t - at) * pps - e.dur * pps;
       const bh = Math.max(8, e.dur * pps);
       const active = e.t <= at && e.t + e.dur > at;
-      const rh = e.hand !== "lh" && e.hand !== "L";
+      const h = String(e.hand || "").toLowerCase();
+      const rh = !(h === "lh" || h === "l" || h === "left");
       // RH: bright white bars · LH: soft steel accent (navy only here)
       if (active) {
         ctx.fillStyle = rh ? "#f5f5f5" : "#8fa0c0";
