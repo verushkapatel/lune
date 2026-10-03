@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Lune — quiet piano practice</title>
   <meta name="description" content="Lune — a night-studio companion for pianists. Find a public-domain score, hear it, then read the bars that feel hard.">
+  <meta name="lune-static" content="1">
   <meta name="theme-color" content="#0a0a0a">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Lune">
@@ -23,12 +24,12 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Lune">
-  <link rel="icon" href="static/assets/favicon.svg?v=fix94" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=fix94">
-  <link rel="manifest" href="static/manifest.json?v=fix94">
+  <link rel="icon" href="static/assets/favicon.svg?v=fix96" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=fix96">
+  <link rel="manifest" href="static/manifest.json?v=fix96">
   <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="static/styles.css?v=fix94">
-  <link rel="preload" href="static/search-index.json?v=fix94" as="fetch" crossorigin>
+  <link rel="stylesheet" href="static/styles.css?v=fix96">
+  <link rel="preload" href="static/search-index.json?v=fix96" as="fetch" crossorigin>
 </head>
 <body>
   <div id="app">
@@ -136,6 +137,11 @@
             <button type="button" class="hero-chip" data-open-piece="debussy-clair-de-lune">Clair de lune</button>
             <button type="button" class="hero-chip" data-open-piece="satie-gymnopedie-1">Gymnopédie No. 1</button>
           </div>
+          <p class="home-access-line">
+            Built for every reader —
+            <button type="button" class="link-btn" data-lp-access>dyslexia-friendly type</button>
+            and braille downloads where a score has one.
+          </p>
           <div class="home-cta-row">
             <button type="button" class="quiet" id="btn-home-upload">Upload your MusicXML</button>
             <span class="home-cta-note">Files stay in your browser.</span>
@@ -146,47 +152,25 @@
       <section class="home-features" id="features" aria-labelledby="features-h">
         <div class="home-features-inner">
           <p class="about-kicker">In the studio</p>
-          <h2 id="features-h">Everything you can do with a score.</h2>
-          <p class="home-features-lead">Open any piece and these tools are ready — no guessing, no sign-up.</p>
-          <ul class="home-feature-list">
+          <h2 id="features-h">One quiet toolkit.</h2>
+          <ul class="home-feature-list home-feature-list-slim">
             <li>
-              <strong>Letter names or finger numbers</strong>
-              <span>Toggle Notes · Fingers · Off. Labels sit in their own lane under the staff, never on the notes.</span>
+              <strong>Read</strong>
+              <span>Letter names or fingers under the staff. Dyslexia-friendly type and braille when you need them.</span>
             </li>
             <li>
-              <strong>Hear it</strong>
-              <span>Play, pause, scrub the timeline, change speed from 0.5× to 1.5×. A playhead follows the bar.</span>
+              <strong>Hear</strong>
+              <span>Play with a metronome in the piece’s meter, and a tempo slider marked at the original bpm.</span>
             </li>
             <li>
-              <strong>Watch the keys</strong>
-              <span>Show the on-screen keyboard under the score so pressed keys light as the music plays.</span>
+              <strong>See the keys</strong>
+              <span>Falling-note piano tutorial, or a slim keyboard under the score — same tempo control either way.</span>
             </li>
             <li>
-              <strong>Coach for any bar</strong>
-              <span>Tap a bar for its notes, suggested fingers, and how to practise it. Play that bar or its line.</span>
-            </li>
-            <li>
-              <strong>Your notes</strong>
-              <span>Type or say a note on a bar (“bar 12, play faster here”). Markers stay on the score.</span>
-            </li>
-            <li>
-              <strong>Today’s bars</strong>
-              <span>Rate a bar After · Hard · Good · Easy. Lune brings the hard ones back on a schedule in Repertoire.</span>
-            </li>
-            <li>
-              <strong>Play along</strong>
-              <span>Lune listens through the microphone, follows your place, and marks wrong notes and hesitations.</span>
-            </li>
-            <li>
-              <strong>Assign to a student</strong>
-              <span>Select bars, make a link with instructions. The student opens it and saves it to their Repertoire.</span>
-            </li>
-            <li>
-              <strong>Reading &amp; access</strong>
-              <span>Large print, Atkinson Hyperlegible, high contrast, bars read aloud, arrow-key navigation, braille (.brf) downloads.</span>
+              <strong>Work the hard bars</strong>
+              <span>Tap a bar for coach notes, rate it, and Lune brings the sticky ones back.</span>
             </li>
           </ul>
-          <p class="home-features-keys">Shortcuts: Space play · ← → move bar · R read aloud · N note · Esc close</p>
         </div>
       </section>
 
@@ -452,6 +436,10 @@
                 </label>
               </div>
             </div>
+            <div class="access-strip" id="score-access" aria-label="Reading options">
+              <button type="button" class="access-chip" id="btn-dyslexia-score" aria-pressed="false" title="Dyslexia-friendly letters (Atkinson Hyperlegible)">Aa</button>
+              <a class="access-chip access-braille" id="btn-braille-score" hidden href="#" download>Braille</a>
+            </div>
             <!-- Legacy XOR hooks kept for session restore / tests -->
             <span class="tog-group xor-group" hidden aria-hidden="true">
               <label class="tog pill"><input type="checkbox" id="tog-letters" checked> Letters</label>
@@ -491,6 +479,11 @@
                 <button type="button" class="primary" id="btn-explain-score">Open score</button>
                 <button type="button" class="quiet" id="btn-download" hidden>Download</button>
               </div>
+              <div class="access-strip explain-access" id="explain-access" aria-label="Reading options">
+                <button type="button" class="access-chip" id="btn-dyslexia-explain" aria-pressed="false" title="Dyslexia-friendly letters">Aa Dyslexia</button>
+                <a class="access-chip access-braille" id="btn-braille-explain" hidden href="#" download>Braille</a>
+                <button type="button" class="access-chip quiet-chip" id="btn-access-more" title="More reading options">Access</button>
+              </div>
             </div>
           </header>
           <div class="discover-chapters" id="explain-chapters"></div>
@@ -499,7 +492,16 @@
       </section>
 
       <section class="studio-panel piano-pane" id="panel-piano" data-panel="piano" hidden>
-        <div class="piano-stage" aria-hidden="true"></div>
+        <div class="piano-stage">
+          <div class="piano-tut-head">
+            <p class="piano-tut-kicker">Piano tutorial</p>
+            <p class="piano-tut-meta" id="piano-tut-meta">Notes fall to the keys — same tempo as the score.</p>
+          </div>
+          <div class="piano-roll" id="piano-roll" aria-label="Falling-note piano tutorial">
+            <canvas id="piano-roll-canvas" aria-hidden="true"></canvas>
+            <div class="piano-roll-hit" aria-hidden="true"></div>
+          </div>
+        </div>
       </section>
 
       <!-- Shared keyboard dock: slim under Score, tall on Piano tab -->
@@ -534,8 +536,23 @@
                   <span id="scrub-time">0:00 / 0:00</span>
                 </div>
               </div>
-              <div class="piano-speed" id="piano-speed" role="group" aria-label="Playback speed">
-                <button type="button" class="quiet" id="btn-speed" aria-haspopup="menu" aria-expanded="false" title="Playback speed">1×</button>
+              <div class="tempo-control" id="tempo-control" role="group" aria-label="Practice tempo">
+                <button type="button" class="icon-btn metro-btn" id="btn-metro" aria-pressed="false" title="Metronome" aria-label="Metronome">
+                  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+                    <path d="M8 20h8l-3.2-14h-1.6L8 20z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                    <path d="M10.2 11.5l5.2-3.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                  </svg>
+                </button>
+                <div class="bpm-wrap">
+                  <input type="range" id="bpm-slider" min="40" max="120" value="72" step="1" aria-label="Beats per minute">
+                  <span class="bpm-orig-mark" id="bpm-orig-mark" title="Original tempo" aria-hidden="true"></span>
+                </div>
+                <div class="bpm-meta">
+                  <span class="bpm-readout" id="bpm-readout">72</span>
+                  <span class="bpm-unit">bpm</span>
+                  <span class="bpm-meter" id="bpm-meter">4/4</span>
+                </div>
+                <button type="button" class="quiet visually-hidden" id="btn-speed" aria-hidden="true" tabindex="-1">1×</button>
               </div>
             </div>
           </div>
@@ -636,16 +653,16 @@
   <script src="static/vendor/opensheetmusicdisplay.min.js"></script>
   <script src="static/vendor/pdf.min.js"></script>
   <script src="static/vendor/Tone.js"></script>
-  <script src="static/piano.js?v=fix94"></script>
-  <script src="static/annotate.js?v=fix94"></script>
-  <script src="static/lite-analyze.js?v=fix94"></script>
-  <script src="static/lyric-lane.js?v=fix94"></script>
-  <script src="static/menu.js?v=fix94"></script>
-  <script src="static/app.js?v=fix94"></script>
-  <script src="static/lune-config.js?v=fix94"></script>
-  <script src="static/store.js?v=fix94"></script>
-  <script src="static/practice.js?v=fix94"></script>
-  <script src="static/follow.js?v=fix94"></script>
-  <script src="static/study.js?v=fix94"></script>
+  <script src="static/piano.js?v=fix96"></script>
+  <script src="static/annotate.js?v=fix96"></script>
+  <script src="static/lite-analyze.js?v=fix96"></script>
+  <script src="static/lyric-lane.js?v=fix96"></script>
+  <script src="static/menu.js?v=fix96"></script>
+  <script src="static/app.js?v=fix96"></script>
+  <script src="static/lune-config.js?v=fix96"></script>
+  <script src="static/store.js?v=fix96"></script>
+  <script src="static/practice.js?v=fix96"></script>
+  <script src="static/follow.js?v=fix96"></script>
+  <script src="static/study.js?v=fix96"></script>
 </body>
 </html>

@@ -1350,11 +1350,13 @@ body.is-panel-score .studio > .piano-dock.is-slim {
   order: 0;
 }
 body.is-panel-piano .studio-panel.piano-pane {
-  flex: 0 0 auto;
-}
-body.is-panel-piano .studio > .piano-dock.is-focus {
   flex: 1 1 auto;
-  min-height: 180px;
+  min-height: 0;
+}
+/* Keyboard stays a fixed strip so the tempo dock never falls off-screen */
+body.is-panel-piano .studio > .piano-dock.is-focus {
+  flex: 0 0 auto;
+  min-height: 0;
 }
 .piece-head.score-tools-head {
   justify-content: space-between;
@@ -1518,24 +1520,72 @@ body.is-panel-piano .studio > .piano-dock.is-focus {
   margin-top: 22px;
   align-items: center;
 }
-/* Piano panel — focus mode chrome; keyboard lives in shared dock */
+/* Piano panel — falling-note tutorial + shared keyboard dock */
 .piano-pane {
   background: #0a0a0a;
   color: var(--text);
-  overflow: auto;
+  overflow: hidden;
   flex: 0 0 auto;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 body.is-panel-piano .piano-pane {
-  flex: 0 0 auto;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 .piano-stage {
   max-width: none;
   margin: 0;
-  padding: 10px 20px 4px;
+  padding: 10px 16px 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.piano-tut-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.piano-tut-kicker {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #7a7a7a;
+}
+.piano-tut-meta {
+  margin: 0;
+  font-size: 12px;
+  color: #6a6a6a;
+  text-align: right;
+}
+.piano-roll {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 160px;
+  border: 1px solid #1c1c1c;
+  background:
+    linear-gradient(180deg, #101010 0%, #0a0a0a 100%);
+  overflow: hidden;
+}
+.piano-roll canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.piano-roll-hit {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 8px;
+  height: 1px;
+  background: rgba(245, 245, 245, 0.28);
+  pointer-events: none;
 }
 .piano-focus-note {
   margin: 0;
@@ -1543,6 +1593,195 @@ body.is-panel-piano .piano-pane {
   letter-spacing: 0.04em;
   color: #7a7a7a;
   text-align: center;
+}
+
+/* Practice tempo: slider with original-bpm marker + metronome */
+.tempo-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-left: 1px solid #2a2a2a;
+  padding-left: 10px;
+  margin-left: 4px;
+  min-width: 0;
+  flex: 0 1 240px;
+  max-width: 260px;
+}
+.metro-btn {
+  color: #8a8a8a;
+  flex-shrink: 0;
+}
+.metro-btn:hover,
+.metro-btn.on {
+  color: #f2f2f2;
+}
+.metro-btn.on {
+  background: rgba(255, 255, 255, 0.08);
+}
+.bpm-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 90px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+}
+.bpm-wrap input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 2px;
+  background: #3a3a3a;
+  border-radius: 999px;
+  outline: none;
+  margin: 0;
+}
+.bpm-wrap input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #f2f2f2;
+  border: none;
+  cursor: pointer;
+}
+.bpm-wrap input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #f2f2f2;
+  border: none;
+  cursor: pointer;
+}
+.bpm-orig-mark {
+  position: absolute;
+  top: 2px;
+  width: 2px;
+  height: 8px;
+  margin-left: -1px;
+  background: #a8a8a8;
+  border-radius: 1px;
+  pointer-events: none;
+}
+.bpm-orig-mark::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: -2px;
+  width: 6px;
+  height: 6px;
+  border: 1px solid #a8a8a8;
+  border-radius: 50%;
+  background: #0a0a0a;
+}
+.bpm-meta {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  color: #d0d0d0;
+  min-width: 4.8em;
+}
+.bpm-readout {
+  font-family: var(--serif);
+  font-size: 16px;
+  font-weight: 500;
+}
+.bpm-unit {
+  font-size: 11px;
+  color: #7a7a7a;
+  letter-spacing: 0.04em;
+}
+.bpm-meter {
+  margin-left: 4px;
+  padding-left: 6px;
+  border-left: 1px solid #2a2a2a;
+  font-size: 11px;
+  color: #8a8a8a;
+  letter-spacing: 0.04em;
+}
+
+/* Quiet access chips — overview + score */
+.access-strip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+}
+.access-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid #2a2a2a;
+  border-radius: 999px;
+  background: transparent;
+  color: #8a8a8a;
+  font-family: var(--serif);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease),
+    background var(--t-fast) var(--ease);
+}
+.access-chip:hover {
+  color: #f0f0f0;
+  border-color: #4a4a4a;
+}
+.access-chip.on {
+  color: #0a0a0a;
+  background: #f2f2f2;
+  border-color: #f2f2f2;
+}
+.score-tools-head .access-chip {
+  border-color: #d8d8d8;
+  color: #555;
+  background: #fff;
+}
+.score-tools-head .access-chip:hover {
+  color: #111;
+  border-color: #111;
+}
+.score-tools-head .access-chip.on {
+  color: #fff;
+  background: #111;
+  border-color: #111;
+}
+.explain-access {
+  margin-top: 14px;
+  margin-left: 0;
+}
+.explain-pane .access-chip {
+  border-color: #d0d0d0;
+  color: #444;
+  background: #fff;
+}
+.explain-pane .access-chip.on {
+  color: #fff;
+  background: #111;
+  border-color: #111;
+}
+.quiet-chip {
+  opacity: 0.75;
+}
+.home-access-line {
+  margin: 18px 0 0;
+  max-width: 36ch;
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.home-feature-list-slim {
+  display: grid;
+  gap: 18px;
+  margin-top: 28px;
+}
+.home-feature-list-slim li {
+  max-width: 48ch;
 }
 
 /* Shared slim transport under Score / Piano */
@@ -1614,10 +1853,7 @@ body.is-panel-piano .piano-pane {
   color: #f2f2f2;
   border-bottom-color: #f2f2f2;
 }
-/* Score transport stays quiet — speed lives on Piano */
-body.is-panel-score .studio-dock .piano-speed {
-  display: none;
-}
+/* Tempo + metronome stay on Score and Piano */
 /* Piano tab: keyboard is the stage — no Hide chrome */
 body.is-panel-piano .piano-dock-hide {
   display: none;
@@ -1880,7 +2116,7 @@ body.is-panel-piano .piano-dock-label {
   background: #0c0c0c;
   border-top: 1px solid #1c1c1c;
   color: #f0f0f0;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -1895,10 +2131,10 @@ body.is-panel-piano .piano-dock-label {
   color: #8a8a8a;
 }
 .piano-dock.is-focus .piano-panel {
-  flex: 1;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
-  padding: 8px 12px 16px;
+  padding: 6px 12px 10px;
 }
 .piano-dock-head {
   display: flex;
@@ -1981,10 +2217,10 @@ body.is-panel-piano .piano-dock-label {
   --kbd-h: 78px;
 }
 .piano-dock.is-focus .lune-kbd-host {
-  --key-w: 24px;
-  --black-w: 15px;
-  --kbd-h: min(42vh, 260px);
-  min-height: min(42vh, 260px);
+  --key-w: 22px;
+  --black-w: 14px;
+  --kbd-h: 120px;
+  min-height: 120px;
 }
 .lune-kbd-track {
   position: relative;
@@ -2159,8 +2395,13 @@ body.is-panel-piano .piano-dock-label {
 .transport {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   width: 100%;
+  flex-wrap: wrap;
+}
+.transport .transport-scrub {
+  flex: 1 1 160px;
+  min-width: 120px;
 }
 .transport-play {
   flex: 0 0 auto;
@@ -4537,16 +4778,26 @@ body.is-home #btn-search { display: none; }
   min-height: 44px;
   border-radius: 999px;
 }
-#piano-speed {
-  border-left: 1px solid var(--line);
-  padding-left: 8px;
-  margin-left: 4px;
+#tempo-control {
   display: inline-flex;
 }
-body.is-panel-score .studio-dock .piano-speed { display: inline-flex; }
-#btn-speed {
-  min-width: 56px;
-  min-height: 44px;
+body.is-panel-score .studio-dock .tempo-control,
+body.is-panel-piano .studio-dock .tempo-control {
+  display: inline-flex;
+}
+@media (max-width: 720px) {
+  .tempo-control {
+    max-width: none;
+    flex: 1 1 100%;
+    border-left: none;
+    padding-left: 0;
+    margin-left: 0;
+    margin-top: 4px;
+  }
+  .bpm-meter { display: none; }
+  .piano-tut-meta { display: none; }
+  .access-strip { margin-left: 4px; }
+  .access-chip { min-height: 36px; padding: 0 9px; }
 }
 .transport-stop-icon { display: none; }
 .coach-handle {

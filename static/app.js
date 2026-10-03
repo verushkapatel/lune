@@ -66,6 +66,8 @@ const state = {
   keyboard: null,
   keyboardVisible: false,
   playRate: 1,
+  practiceBpm: 72,
+  markedBpm: 72,
   sessions: [],
   activeSessionId: null,
   sessionSeq: 0,
@@ -187,7 +189,7 @@ function closeSearchResults({ blur = false } = {}) {
 const SEARCH_LIMIT = 8;
 // Paint on the next frame only — coalesces burst keystrokes, ~0–16ms feel (no 100ms lag).
 const SEARCH_DEBOUNCE_MS = 0;
-const SEARCH_INDEX_URL = luneUrl("/static/search-index.json?v=fix94");
+const SEARCH_INDEX_URL = luneUrl("/static/search-index.json?v=fix96");
 /** Composers whose piano works are typically still under copyright — honest empty state. */
 const COPYRIGHT_ERA_COMPOSERS = [
   "ginastera", "prokofiev", "shostakovich", "khachaturian", "kabalevsky",
@@ -872,6 +874,8 @@ function snapshotActiveSession() {
   s.showTips = !!state.showTips;
   s.showLines = !!state.showLines;
   s.playRate = state.playRate || 1;
+  s.practiceBpm = state.practiceBpm || 72;
+  s.markedBpm = state.markedBpm || state.practiceBpm || 72;
   s.keyboardVisible = !!state.keyboardVisible;
   s.selected = state.selected;
   s.selectedBars = [...(state.selectedBars || [])];
@@ -1034,6 +1038,9 @@ function applySessionToState(s) {
   state.showTips = s.showTips !== false;
   state.showLines = s.showLines !== false;
   state.playRate = s.playRate || 1;
+  state.practiceBpm = s.practiceBpm || markedTempoBpm();
+  state.markedBpm = s.markedBpm || state.practiceBpm;
+  state._tempoSeedKey = s.piece?.id || s.piece?.title || "";
   state.keyboardVisible = !!s.keyboardVisible || (s.panel || "") === "piano";
   state.selected = s.selected;
   state.selectedBars = Array.isArray(s.selectedBars)
@@ -1046,6 +1053,8 @@ function applySessionToState(s) {
   state.mode = "studio";
   syncTogglesFromState();
   setPlayRate(state.playRate);
+  applyPieceMeter();
+  syncTempoUi();
 }
 
 function fillPieceChrome(piece) {
@@ -1283,10 +1292,13 @@ function setStudioPanel(panel, { skipScore = false } = {}) {
   if (next === "piano") {
     state.keyboardVisible = true;
     applyKeyboardVisibility(true);
+    mountPianoTutorial();
   } else if (next === "score") {
     applyKeyboardVisibility(!!state.keyboardVisible);
+    window.LuneTutorial?.stop?.();
   } else {
     applyKeyboardVisibility(false);
+    window.LuneTutorial?.stop?.();
   }
 
   if (next === "explain") {
@@ -1301,6 +1313,8 @@ function setStudioPanel(panel, { skipScore = false } = {}) {
   } else {
     window.LuneFollow?.stop?.({ quiet: true });
   }
+
+  syncTempoUi();
 
   if (next === "score" && !skipScore && state.piece?.musicxml) {
     // fire-and-forget; caller may await ensureScoreReady separately
@@ -1339,14 +1353,24 @@ function primeTimeline() {
     if (LunePiano.isPlaying()) return;
     const notes = pieceNotes();
     if (!notes.length) return;
+    seedTempoFromPiece();
     LunePiano.setRate?.(state.playRate || 1);
     state.timelineKind = "piece";
     LunePiano.arm(notes, { ...playbackHandlers(), from: 0, tempoBpm: practiceTempoBpm() });
     renderScrubTicks();
     syncPlayButton();
+    if (state.panel === "piano") mountPianoTutorial();
   } catch {
     /* the clock fills in on first play instead */
   }
+}
+
+function mountPianoTutorial() {
+  const roll = $("piano-roll");
+  if (!roll || !window.LuneTutorial) return;
+  LuneTutorial.mount(roll);
+  LuneTutorial.start();
+  applyPieceMeter();
 }
 
 async function ensureScoreReady() {
@@ -1408,6 +1432,7 @@ async function ensureScoreReady() {
           s.rawMusicxml = full.musicxml || "";
           s.shortTitle = shortPieceTitle(full.title || full.overview?.title);
         }
+        seedTempoFromPiece({ force: true });
         renderPieceTabs();
         fillPieceChrome(full);
         renderExplainPanel(full);
@@ -1431,15 +1456,56 @@ async function ensureScoreReady() {
   });
 }
 
+/** Light MusicXML peek for meter/tempo — no full fingering pass. */
+function peekScoreMeta(xml) {
+  const src = String(xml || "");
+  let timeSignature = "";
+  let tempo = "";
+  const beats = src.match(/<beats>\s*(\d+)\s*<\/beats>/i);
+  const beatType = src.match(/<beat-type>\s*(\d+)\s*<\/beat-type>/i);
+  if (beats && beatType) timeSignature = `${beats[1]}/${beatType[1]}`;
+  const sound = src.match(/<sound[^>]*\btempo\s*=\s*["'](\d+(?:\.\d+)?)["']/i);
+  if (sound) tempo = `${Math.round(Number(sound[1]))} bpm`;
+  if (!tempo) {
+    const perMin = src.match(/per-minute[^>]*>\s*(\d+(?:\.\d+)?)\s*</i);
+    if (perMin) tempo = `${Math.round(Number(perMin[1]))} bpm`;
+  }
+  return { timeSignature, tempo };
+}
+
+/** Pull time signature / tempo from MusicXML when the catalogue overview lacks them. */
+function enrichPieceMeta(piece) {
+  if (!piece?.musicxml) return piece;
+  const hasTs = !!(piece.timeSignature || piece.overview?.timeSignature);
+  const hasTempo = !!(piece.tempo || piece.overview?.tempo);
+  if (hasTs && hasTempo) return piece;
+  try {
+    const local = peekScoreMeta(piece.musicxml);
+    if (!hasTs && local.timeSignature) {
+      piece.timeSignature = local.timeSignature;
+      if (piece.overview) piece.overview.timeSignature = local.timeSignature;
+    }
+    if (!hasTempo && local.tempo) {
+      piece.tempo = local.tempo;
+      if (piece.overview) piece.overview.tempo = local.tempo;
+    }
+  } catch {
+    /* keep catalogue meta */
+  }
+  return piece;
+}
+
 async function openPieceSession(piece, { panel = "explain" } = {}) {
   snapshotActiveSession();
   stopAll();
   closeCoach();
+  enrichPieceMeta(piece);
   const session = createSession(piece, panel);
   state.sessions.push(session);
   state.activeSessionId = session.id;
   applySessionToState(session);
   fillPieceChrome(piece);
+  seedTempoFromPiece({ force: true });
   renderPieceTabs();
   showView("studio");
   setStudioPanel(panel, { skipScore: true });
@@ -1651,8 +1717,8 @@ function playbackHandlers() {
   };
 }
 
-/** Practice tempo from the score marking, clamped so pieces never race. */
-function practiceTempoBpm() {
+/** Original tempo from the score marking (unclamped parse, sensible default). */
+function markedTempoBpm() {
   const raw =
     state.piece?.tempo ||
     state.piece?.overview?.tempo ||
@@ -1660,8 +1726,109 @@ function practiceTempoBpm() {
     "";
   const m = String(raw).match(/(\d{2,3})\s*(?:bpm)?/i);
   const marked = m ? Number(m[1]) : 72;
-  // Honour slow markings (Andante 50); still soft-cap allegros for practice.
-  return Math.max(40, Math.min(96, marked || 72));
+  return Math.max(40, Math.min(200, marked || 72));
+}
+
+/** Practice tempo — user slider, seeded from the marking. */
+function practiceTempoBpm() {
+  if (Number.isFinite(state.practiceBpm) && state.practiceBpm > 0) {
+    return Math.max(40, Math.min(120, state.practiceBpm));
+  }
+  return Math.max(40, Math.min(96, markedTempoBpm()));
+}
+
+function pieceTimeSignature() {
+  return state.piece?.timeSignature || state.piece?.overview?.timeSignature || "4/4";
+}
+
+function applyPieceMeter() {
+  const ts = pieceTimeSignature();
+  const [b, bt] = String(ts).split("/").map(Number);
+  try {
+    LunePiano.setMeter?.(b || 4, bt || 4);
+  } catch {
+    /* ignore */
+  }
+  const meterEl = $("bpm-meter");
+  if (meterEl) meterEl.textContent = ts;
+  const meta = $("piano-tut-meta");
+  if (meta) {
+    const title = state.piece?.overview?.title || state.piece?.title || "This piece";
+    meta.textContent = `${title} · ${ts} · drag tempo below — original marked`;
+  }
+}
+
+function syncTempoUi() {
+  const marked = state.markedBpm || markedTempoBpm();
+  const bpm = practiceTempoBpm();
+  const slider = $("bpm-slider");
+  const readout = $("bpm-readout");
+  const mark = $("bpm-orig-mark");
+  if (slider && document.activeElement !== slider) slider.value = String(bpm);
+  if (readout) readout.textContent = String(bpm);
+  if (mark && slider) {
+    const min = Number(slider.min) || 40;
+    const max = Number(slider.max) || 120;
+    const pct = ((Math.max(min, Math.min(max, marked)) - min) / (max - min)) * 100;
+    mark.style.left = `${pct}%`;
+    mark.title = `Original · ${marked} bpm`;
+  }
+  const meterEl = $("bpm-meter");
+  if (meterEl) meterEl.textContent = pieceTimeSignature();
+}
+
+function setPracticeBpm(bpm, { rebuild = true } = {}) {
+  const next = Math.max(40, Math.min(120, Number(bpm) || 72));
+  state.practiceBpm = next;
+  try {
+    if (rebuild && LunePiano.hasTimeline?.()) {
+      LunePiano.setTempoBpm(next, { rebuild: true });
+    } else {
+      LunePiano.setTempoBpm?.(next, { rebuild: false });
+    }
+  } catch {
+    /* ignore */
+  }
+  syncTempoUi();
+  if (rebuild) {
+    renderScrubTicks();
+    syncPlayButton();
+  }
+}
+
+function seedTempoFromPiece({ force = false } = {}) {
+  const pieceKey = state.piece?.id || state.piece?.title || "";
+  if (!force && state._tempoSeedKey === pieceKey && pieceKey) {
+    applyPieceMeter();
+    syncTempoUi();
+    return;
+  }
+  state._tempoSeedKey = pieceKey;
+  const marked = markedTempoBpm();
+  state.markedBpm = marked;
+  // Soft practice seed — allegros start calmer; user can raise the slider.
+  state.practiceBpm = Math.max(40, Math.min(96, marked));
+  applyPieceMeter();
+  try {
+    LunePiano.setTempoBpm?.(state.practiceBpm, { rebuild: false });
+  } catch {
+    /* ignore */
+  }
+  syncTempoUi();
+}
+
+async function toggleMetronome() {
+  const btn = $("btn-metro");
+  const want = !(LunePiano.isMetronomeOn?.() || false);
+  applyPieceMeter();
+  try {
+    await LunePiano.setMetronome?.(want);
+  } catch (err) {
+    toast(err.message || "Metronome needs a quick tap first");
+    return;
+  }
+  btn?.setAttribute("aria-pressed", want ? "true" : "false");
+  btn?.classList.toggle("on", want);
 }
 
 /** Ensure the full-piece timeline is armed so scrub / Play-from-here works. */
@@ -3729,19 +3896,23 @@ function bind() {
 
   bindPlayheadScrub();
 
-  const speedBtn = $("btn-speed");
-  if (speedBtn && window.LuneMenu) {
-    const rates = [0.5, 0.75, 1, 1.25, 1.5];
-    window.LuneMenu.attach(speedBtn, () =>
-      rates.map((r) => ({
-        label: `${r}×`,
-        className: "speed-btn",
-        checked: Number(state.playRate) === r,
-        action: () => setPlayRate(r),
-      }))
-    );
-  }
   setPlayRate(1);
+  syncTempoUi();
+  on("btn-metro", "click", () => {
+    toggleMetronome().catch((e) => toast(e.message || String(e)));
+  });
+  const bpmSlider = $("bpm-slider");
+  if (bpmSlider) {
+    bpmSlider.addEventListener("input", () => {
+      setPracticeBpm(Number(bpmSlider.value), { rebuild: true });
+    });
+    bpmSlider.addEventListener("change", () => {
+      setPracticeBpm(Number(bpmSlider.value), { rebuild: true });
+    });
+  }
+  window.addEventListener("resize", () => {
+    if (state.panel === "piano") window.LuneTutorial?.resize?.();
+  });
   syncPlayButton();
   try {
     LunePiano.setKeysHandler?.(onPianoKeys);

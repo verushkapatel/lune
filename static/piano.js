@@ -24,12 +24,24 @@ window.LunePiano = (function () {
   const scheduled = new Set();
   // Seconds per quarter note. Default ≈ 72 bpm — calm practice pace (was 0.42 ≈ 143 bpm).
   let beat = 60 / 72;
+  /** Original note list so tempo changes can rebuild the timeline in place. */
+  let sourceNotes = [];
   /** Schedule a hair ahead of now so the first note never clicks against a cold bus. */
   const SCHEDULE_PAD = 0.055;
   /** Musical-time look-ahead — keeps Stop able to silence (no long Tone queue). */
   const LOOKAHEAD = 0.14;
 
   const RATES = [0.5, 0.75, 1, 1.25, 1.5];
+
+  /* -------- metronome (piece meter + current BPM) -------- */
+  let metroOn = false;
+  let metroBeats = 4;
+  let metroUnit = 4; // bottom of time signature
+  let metroBeat = 0;
+  let metroTimer = 0;
+  let metroClick = null;
+  let metroAccent = null;
+  let metroStartedAt = 0;
 
   const SALAMANDER_URLS = {
     A0: "A0.mp3",
@@ -379,13 +391,125 @@ window.LunePiano = (function () {
     raf = requestAnimationFrame(tick);
   }
 
+  /** Seconds between metronome clicks for the current meter. */
+  function metroInterval() {
+    const bpm = getTempoBpm();
+    // Click on each written beat (numerator), scaled by the beat unit.
+    return (60 / bpm) * (4 / Math.max(1, metroUnit));
+  }
+
+  async function ensureMetroSounds() {
+    await unlockAudio();
+    if (!metroClick) {
+      metroClick = new Tone.MembraneSynth({
+        pitchDecay: 0.008,
+        octaves: 2,
+        oscillator: { type: "sine" },
+        envelope: { attack: 0.001, decay: 0.08, sustain: 0, release: 0.04 },
+      }).toDestination();
+      metroClick.volume.value = -14;
+    }
+    if (!metroAccent) {
+      metroAccent = new Tone.MembraneSynth({
+        pitchDecay: 0.012,
+        octaves: 3,
+        oscillator: { type: "triangle" },
+        envelope: { attack: 0.001, decay: 0.12, sustain: 0, release: 0.06 },
+      }).toDestination();
+      metroAccent.volume.value = -10;
+    }
+  }
+
+  function stopMetroTimer() {
+    if (metroTimer) {
+      clearTimeout(metroTimer);
+      metroTimer = 0;
+    }
+  }
+
+  function fireMetroClick() {
+    if (!metroOn) return;
+    const accent = metroBeat % Math.max(1, metroBeats) === 0;
+    try {
+      const now = Tone.now();
+      if (accent) metroAccent?.triggerAttackRelease("C3", "32n", now, 0.7);
+      else metroClick?.triggerAttackRelease("C2", "32n", now, 0.45);
+    } catch {
+      /* ignore */
+    }
+    metroBeat += 1;
+  }
+
+  function scheduleMetro() {
+    stopMetroTimer();
+    if (!metroOn) return;
+    fireMetroClick();
+    const step = Math.max(0.12, metroInterval()) * 1000;
+    metroTimer = setTimeout(scheduleMetro, step);
+  }
+
+  function setMeter(beats, unit) {
+    const b = Math.max(1, Math.min(16, Number(beats) || 4));
+    const u = [1, 2, 4, 8, 16].includes(Number(unit)) ? Number(unit) : 4;
+    metroBeats = b;
+    metroUnit = u;
+    if (metroOn) {
+      metroBeat = 0;
+      scheduleMetro();
+    }
+  }
+
+  function getMeter() {
+    return { beats: metroBeats, unit: metroUnit };
+  }
+
+  async function setMetronome(on) {
+    metroOn = !!on;
+    if (!metroOn) {
+      stopMetroTimer();
+      metroBeat = 0;
+      return false;
+    }
+    await ensureMetroSounds();
+    metroBeat = 0;
+    metroStartedAt = performance.now();
+    scheduleMetro();
+    return true;
+  }
+
+  function isMetronomeOn() {
+    return metroOn;
+  }
+
   /** Load a timeline without starting audio (for scrub-before-play). */
   /** Set seconds-per-quarter from a BPM (clamped for practice). */
-  function setTempoBpm(bpm) {
+  function setTempoBpm(bpm, { rebuild = true } = {}) {
     const n = Number(bpm);
-    if (!Number.isFinite(n) || n <= 0) return 60 / beat;
-    const clamped = Math.max(40, Math.min(108, n));
+    if (!Number.isFinite(n) || n <= 0) return getTempoBpm();
+    const clamped = Math.max(40, Math.min(120, n));
+    const prevTotal = duration();
+    const ratio = prevTotal > 0 ? progress() / prevTotal : 0;
+    const wasPlaying = playing;
     beat = 60 / clamped;
+    if (rebuild && sourceNotes.length) {
+      clearAudio();
+      playing = false;
+      events = buildEvents(sourceNotes);
+      pauseAt = Math.max(0, Math.min(1, ratio)) * (duration() || 0);
+      lastActiveKey = "";
+      if (onTick) onTick({ progress: pauseAt, total: duration(), bar: currentBar() });
+      emitKeys(pauseAt);
+      if (wasPlaying && events.length) {
+        playing = true;
+        startMs = performance.now() + SCHEDULE_PAD * 1000;
+        scheduleFrom(pauseAt);
+        raf = requestAnimationFrame(tick);
+      }
+    }
+    if (metroOn) {
+      metroBeat = 0;
+      scheduleMetro();
+    }
     return clamped;
   }
 
@@ -393,11 +517,16 @@ window.LunePiano = (function () {
     return Math.round(60 / beat);
   }
 
+  function getEvents() {
+    return events.slice();
+  }
+
   function arm(notes, opts = {}) {
     clearAudio();
     playing = false;
-    if (opts.tempoBpm != null) setTempoBpm(opts.tempoBpm);
-    events = buildEvents(notes);
+    sourceNotes = Array.isArray(notes) ? notes.slice() : [];
+    if (opts.tempoBpm != null) setTempoBpm(opts.tempoBpm, { rebuild: false });
+    events = buildEvents(sourceNotes);
     if (!events.length) return false;
     if (opts.onTick) onTick = opts.onTick;
     if (opts.onEnd !== undefined) onEnd = opts.onEnd;
@@ -418,8 +547,9 @@ window.LunePiano = (function () {
     await ensure();
     clearAudio();
     playing = false;
-    if (opts.tempoBpm != null) setTempoBpm(opts.tempoBpm);
-    events = buildEvents(notes);
+    sourceNotes = Array.isArray(notes) ? notes.slice() : [];
+    if (opts.tempoBpm != null) setTempoBpm(opts.tempoBpm, { rebuild: false });
+    events = buildEvents(sourceNotes);
     if (!events.length) return false;
     onTick = opts.onTick || null;
     onEnd = opts.onEnd || null;
@@ -566,12 +696,163 @@ window.LunePiano = (function () {
     getRate,
     setTempoBpm,
     getTempoBpm,
+    getEvents,
+    setMeter,
+    getMeter,
+    setMetronome,
+    isMetronomeOn,
     setKeysHandler,
     activeAt,
     isReady,
     rates: RATES,
     beat,
   };
+})();
+
+/* Falling-note piano tutorial (MuseScore-style) above the keyboard. */
+window.LuneTutorial = (function () {
+  const WHITE_PC = new Set([0, 2, 4, 5, 7, 9, 11]);
+  const MIDI_LO = 21;
+  const MIDI_HI = 108;
+  let canvas = null;
+  let ctx = null;
+  let host = null;
+  let raf = 0;
+  let lookAhead = 3.2;
+
+  function isBlack(midi) {
+    return !WHITE_PC.has(((midi % 12) + 12) % 12);
+  }
+
+  function whiteIndex(midi) {
+    let n = 0;
+    for (let m = MIDI_LO; m < midi; m++) if (!isBlack(m)) n += 1;
+    return n;
+  }
+
+  function totalWhites() {
+    let n = 0;
+    for (let m = MIDI_LO; m <= MIDI_HI; m++) if (!isBlack(m)) n += 1;
+    return n;
+  }
+
+  function mount(el) {
+    host = el;
+    if (!host) return;
+    canvas = host.querySelector("canvas") || document.createElement("canvas");
+    if (!canvas.parentNode) host.appendChild(canvas);
+    ctx = canvas.getContext("2d");
+    resize();
+  }
+
+  function resize() {
+    if (!host || !canvas) return;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = host.clientWidth || 640;
+    const h = host.clientHeight || 220;
+    canvas.width = Math.max(1, Math.floor(w * dpr));
+    canvas.height = Math.max(1, Math.floor(h * dpr));
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function midiX(midi, width, whites) {
+    const wi = whiteIndex(midi);
+    const keyW = width / whites;
+    if (isBlack(midi)) return wi * keyW;
+    return wi * keyW + keyW * 0.08;
+  }
+
+  function midiW(midi, width, whites) {
+    const keyW = width / whites;
+    return isBlack(midi) ? keyW * 0.55 : keyW * 0.84;
+  }
+
+  function paint(at) {
+    if (!ctx || !canvas) return;
+    const w = host.clientWidth || 640;
+    const h = host.clientHeight || 220;
+    const whites = totalWhites();
+    const hitY = h - 10;
+    const pps = (hitY - 24) / lookAhead;
+    const events = (window.LunePiano?.getEvents?.() || []).filter(
+      (e) => e.t + e.dur >= at - 0.05 && e.t <= at + lookAhead
+    );
+
+    ctx.clearRect(0, 0, w, h);
+    // subtle lane grid on C keys
+    ctx.fillStyle = "rgba(255,255,255,0.03)";
+    for (let m = MIDI_LO; m <= MIDI_HI; m++) {
+      if (m % 12 !== 0 || isBlack(m)) continue;
+      const x = midiX(m, w, whites);
+      ctx.fillRect(x, 0, midiW(m, w, whites), h);
+    }
+    // hit line
+    ctx.strokeStyle = "rgba(245,245,245,0.35)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, hitY);
+    ctx.lineTo(w, hitY);
+    ctx.stroke();
+
+    for (const e of events) {
+      const x = midiX(e.midi, w, whites);
+      const bw = midiW(e.midi, w, whites);
+      const top = hitY - (e.t - at) * pps - e.dur * pps;
+      const bh = Math.max(4, e.dur * pps);
+      const active = e.t <= at && e.t + e.dur > at;
+      const rh = e.hand !== "lh" && e.hand !== "L";
+      if (active) {
+        ctx.fillStyle = rh ? "rgba(245,245,245,0.92)" : "rgba(180,190,210,0.9)";
+      } else {
+        ctx.fillStyle = rh ? "rgba(220,220,220,0.55)" : "rgba(140,155,185,0.5)";
+      }
+      const r = Math.min(4, bw / 2);
+      roundRect(ctx, x, top, bw, bh, r);
+      ctx.fill();
+      if (e.finger && bh > 14 && bw > 10) {
+        ctx.fillStyle = active ? "#0a0a0a" : "rgba(10,10,10,0.7)";
+        ctx.font = "600 11px Fraunces, Georgia, serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(String(e.finger), x + bw / 2, top + Math.min(bh / 2, 12));
+      }
+    }
+  }
+
+  function roundRect(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+
+  function start() {
+    cancelAnimationFrame(raf);
+    const loop = () => {
+      const at = window.LunePiano?.progress?.() || 0;
+      paint(at);
+      raf = requestAnimationFrame(loop);
+    };
+    resize();
+    raf = requestAnimationFrame(loop);
+  }
+
+  function stop() {
+    cancelAnimationFrame(raf);
+    raf = 0;
+  }
+
+  function drawOnce() {
+    resize();
+    paint(window.LunePiano?.progress?.() || 0);
+  }
+
+  return { mount, start, stop, drawOnce, resize };
 })();
 
 /* On-screen digital piano — acoustic B&W geometry, follows active notes. */
