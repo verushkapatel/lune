@@ -475,6 +475,7 @@ window.LuneOnboard = (function () {
     if (title) title.textContent = "Enter your code";
     if (display) display.textContent = email;
     if (msg) msg.textContent = "";
+    paintInviteBanner();
     if (code) {
       code.value = "";
       code.required = true;
