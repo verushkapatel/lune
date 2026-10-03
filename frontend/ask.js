@@ -470,7 +470,7 @@ Rules:
     const said = line("lune", a);
     if (!note) said.dataset.via = "model";
     else line("lune", note).classList.add("ask-note");
-    remember({ bar: act.bar ? bar || selectedBarsSorted()[0] || null : null, q: act.label, a, t: Date.now() });
+    remember({ bar: act.bar ? bar || selectedBarsSorted()[0] || null : null, q: act.label, a, note: note || undefined, via: note ? undefined : "model", t: Date.now() });
   }
 
   /* ---------- the panel ---------- */
@@ -654,7 +654,9 @@ Rules:
     }
     for (const h of rows) {
       line("you", h.q);
-      line("lune", h.a);
+      const a = line("lune", h.a);
+      if (h.via === "model") a.dataset.via = "model";
+      if (h.note) line("lune", h.note).classList.add("ask-note");
     }
   }
 
@@ -691,7 +693,7 @@ Rules:
     const said = line("lune", out.a);
     if (out.via === "model") said.dataset.via = "model";
     if (out.note) line("lune", out.note).classList.add("ask-note");
-    remember({ bar: out.bar || null, q: text, a: out.a, t: Date.now() });
+    remember({ bar: out.bar || null, q: text, a: out.a, note: out.note, via: out.via, t: Date.now() });
     if (out.saved) {
       P()?.paintScoreMarks?.();
       if (state.coachOpen) openBarCoach();
