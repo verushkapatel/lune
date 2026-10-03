@@ -138,22 +138,60 @@ window.LuneStore = (function () {
   async function signIn(email) {
     const clean = String(email || "").trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) throw new Error("That doesn’t look like an email address.");
-    // Cloud OTP when Supabase is wired; otherwise create a local account so the
+    // Cloud email OTP when Supabase is wired; otherwise create a local account so the
     // gate + onboarding work before mail is set up.
     if (configured() && client) {
       const redirect = `${location.origin}${location.pathname}`;
-      check(await client.auth.signInWithOtp({ email: clean, options: { emailRedirectTo: redirect } }));
-      // Keep a local stub so the UI can proceed after they click the email link,
-      // and so a second visit before the link still remembers the address.
+      check(
+        await client.auth.signInWithOtp({
+          email: clean,
+          options: {
+            shouldCreateUser: true,
+            // Redirect kept as a fallback if the mail template still includes a link.
+            emailRedirectTo: redirect,
+          },
+        })
+      );
       mutateLocal((d) => {
-        d.localAccount = { email: clean, id: d.localAccount?.id || uuid(), created_at: nowIso(), awaitingLink: true };
+        d.localAccount = {
+          email: clean,
+          id: d.localAccount?.id || uuid(),
+          created_at: nowIso(),
+          awaitingLink: true,
+          awaitingCode: true,
+        };
       });
       return { mode: "otp", email: clean };
     }
     mutateLocal((d) => {
-      d.localAccount = { email: clean, id: uuid(), created_at: nowIso(), awaitingLink: false };
+      d.localAccount = { email: clean, id: uuid(), created_at: nowIso(), awaitingLink: false, awaitingCode: false };
     });
     emit();
+    return { mode: "local", email: clean };
+  }
+  /** Confirm the 6-digit email OTP from Supabase (`verifyOtp`, type email). */
+  async function verifyOtp(email, token) {
+    const clean = String(email || "").trim().toLowerCase();
+    const code = String(token || "").replace(/\s+/g, "");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) throw new Error("That doesn’t look like an email address.");
+    if (!/^\d{6}$/.test(code)) throw new Error("Enter the 6-digit code from your email.");
+    if (configured() && client) {
+      check(await client.auth.verifyOtp({ email: clean, token: code, type: "email" }));
+      const { data } = await client.auth.getSession();
+      session = data?.session || null;
+      mutateLocal((d) => {
+        d.localAccount = {
+          email: clean,
+          id: d.localAccount?.id || session?.user?.id || uuid(),
+          created_at: d.localAccount?.created_at || nowIso(),
+          awaitingLink: false,
+          awaitingCode: false,
+        };
+      });
+      emit();
+      return { mode: "otp", email: clean };
+    }
+    completeLocalSignIn(clean);
     return { mode: "local", email: clean };
   }
   /** Confirm local signup (used when cloud OTP isn’t available yet). */
@@ -161,7 +199,13 @@ window.LuneStore = (function () {
     const clean = String(email || "").trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) throw new Error("That doesn’t look like an email address.");
     mutateLocal((d) => {
-      d.localAccount = { email: clean, id: d.localAccount?.id || uuid(), created_at: nowIso(), awaitingLink: false };
+      d.localAccount = {
+        email: clean,
+        id: d.localAccount?.id || uuid(),
+        created_at: nowIso(),
+        awaitingLink: false,
+        awaitingCode: false,
+      };
     });
     emit();
     return true;
@@ -545,6 +589,7 @@ window.LuneStore = (function () {
     configured,
     onChange,
     signIn,
+    verifyOtp,
     completeLocalSignIn,
     signOut,
     deleteAccount,
