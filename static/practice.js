@@ -1679,7 +1679,6 @@ window.LunePractice = (function () {
       a.href = href;
       a.download = br.file;
       a.title = br.note || "Braille music (.brf)";
-      if (!id.includes("explain")) a.textContent = "Braille"; // the Overview card keeps its title and description
       a.setAttribute("aria-label", "Download braille music file (.brf)");
     });
     // On the Overview, say so plainly when there is no file, so the option is never a mystery.
@@ -1916,6 +1915,7 @@ window.LunePractice = (function () {
       </section>
       <section class="settings-sec" aria-labelledby="set-h-ai">
         ${accountAISettingsHtml().replace('<h4 class="settings-sub">Lune AI</h4>', '<h3 id="set-h-ai">Lune AI</h3>') || '<h3 id="set-h-ai">Ask Lune</h3><p class="settings-note">Ask Lune answers from Lune’s reading of the score and your remarks.</p>'}
+        ${row("chat", "Chat with Lune", "Ask about your practice, your week, your goal or any piano question. Uses Lune AI, which comes with a free account.")}
       </section>
       <section class="settings-sec" aria-labelledby="set-h-app">
         <h3 id="set-h-app">App</h3>
@@ -2067,6 +2067,7 @@ window.LunePractice = (function () {
       else if (act === "signin") window.LuneOnboard?.openCreateAccount?.();
       else if (act === "week") window.LuneImpact?.openWeeklyReview?.();
       else if (act === "example-week") openExampleWeek();
+      else if (act === "chat") window.LuneAsk?.openChat?.();
       else if (act === "upload") $("file")?.click();
       else if (act === "feedback") window.LuneFeedback?.open?.();
       else if (act === "credits") document.querySelector("[data-open-credits]")?.click();
