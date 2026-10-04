@@ -823,13 +823,46 @@ def section_playback(browser):
         ctx.close()
 
 
-SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week, "catalogue": section_catalogue, "console": section_console, "account": section_account, "latest": section_latest}
+def section_voice(browser):
+    """The microphone: Lune AI listens even where the browser has no speech recognition of its own."""
+    import urllib.request as _u
+    for signed in (True, False):
+        ctx = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True)
+        ctx.grant_permissions(["microphone"], origin=BASE.rsplit("/lune/", 1)[0])
+        ctx.add_init_script(POINT_AT_SERVER)
+        # like Firefox, or Lune installed on an iPhone: no built-in speech recognition
+        ctx.add_init_script("window.SpeechRecognition = undefined; window.webkitSpeechRecognition = undefined;")
+        pg = ctx.new_page()
+        pg.errors = []
+        pg.on("pageerror", lambda e: pg.errors.append(str(e)[:200]))
+        open_piece(pg)
+        if signed:
+            pg.evaluate(SIGN_IN)
+        pg.evaluate("() => LuneAsk.open({bar: 12})")
+        pg.wait_for_timeout(300)
+        pg.click("#ask-mic")
+        pg.wait_for_timeout(2200)
+        pg.click("#ask-mic")
+        pg.wait_for_timeout(2500)
+        said = pg.input_value("#ask-input")
+        if signed:
+            got = json.loads(_u.urlopen(ACCOUNT_SERVER + "/last").read())
+            check("voice: signed in, the microphone works without the browser's speech recognition", said == "Bar 12, keep the thumb light.", said)
+            check("voice: the recording reaches Whisper as WAV, in English", got.get("format") == "RIFF" and got.get("language") == "en" and got.get("bytes", 0) > 8000, got)
+        else:
+            toast = pg.evaluate("() => document.body.innerText")
+            check("voice: a guest in such a browser is told that signing in turns voice on", "Sign in (free) and Lune AI listens for you" in toast)
+        check("voice: no page errors", not pg.errors, pg.errors)
+        ctx.close()
+
+
+SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week, "catalogue": section_catalogue, "console": section_console, "account": section_account, "latest": section_latest, "voice": section_voice}
 
 if __name__ == "__main__":
     want = sys.argv[1:] or list(SECTIONS)
     with sync_playwright() as p:
         PW = p
-        browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])  # headless has no speakers to unlock
+        browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required", "--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"])  # headless has no speakers to unlock
         for name in want:
             try:
                 SECTIONS[name](browser)
