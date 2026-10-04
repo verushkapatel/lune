@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- lune08 -->
-  <!-- deploy-lune08 -->
-  <!-- deploy-lune08 -->
+  <!-- lune09 -->
+  <!-- deploy-lune09 -->
+  <!-- deploy-lune09 -->
 
 <meta charset="UTF-8">
   <script>
@@ -34,13 +34,13 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Lune">
-  <link rel="icon" href="static/assets/favicon.svg?v=lune08" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=lune08">
+  <link rel="icon" href="static/assets/favicon.svg?v=lune09" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=lune09">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2?v=lune08" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="static/styles.css?v=lune08">
-  <link rel="stylesheet" href="static/theme-light.css?v=lune08">
-  <link rel="preload" href="static/search-index.json?v=lune08" as="fetch" crossorigin>
+  <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2?v=lune09" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="static/styles.css?v=lune09">
+  <link rel="stylesheet" href="static/theme-light.css?v=lune09">
+  <link rel="preload" href="static/search-index.json?v=lune09" as="fetch" crossorigin>
 </head>
 <body>
   <div id="app">
@@ -163,7 +163,15 @@
           <p class="about-kicker">This week</p>
           <h2 id="member-week-h">A quiet review</h2>
           <p class="member-section-lead">Days against your goal, honest sessions, and the bars that asked for you.</p>
-          <button type="button" class="quiet" id="btn-member-week">Open this week</button>
+          <ul class="member-week-how">
+            <li>Set the days and minutes you mean to practise in Settings, under Your week.</li>
+            <li>A day counts when you rate a bar, finish a task or open a piece to practise.</li>
+            <li>Share this week makes a read-only page for a teacher or parent. Invite sends the same page to someone who might join.</li>
+          </ul>
+          <div class="member-week-actions">
+            <button type="button" class="quiet" id="btn-member-week">Open this week</button>
+            <button type="button" class="link-btn" id="btn-member-week-example">See an example week</button>
+          </div>
         </section>
 
         <section class="member-features" aria-labelledby="member-feat-h">
@@ -759,13 +767,15 @@
                 <button type="button" class="quiet" id="btn-download" hidden>Download</button>
                 <button type="button" class="quiet" id="btn-share-piece" title="Send this piece’s status, the bars you’re reviewing and your remarks as text">Share progress</button>
               </div>
-              <div class="access-strip explain-access" id="explain-access" role="group" aria-label="Reading and access">
-                <span class="access-strip-label">Reading &amp; access</span>
-                <button type="button" class="access-chip" id="btn-dyslexia-explain" aria-pressed="false" title="Letter names in a typeface where every letter shape is distinct">Easy read letters</button>
-                <a class="access-chip access-braille" id="btn-braille-explain" hidden href="#" download>Download braille music</a>
-                <span class="access-chip access-none" id="braille-none-explain" hidden>No braille file for this piece yet</span>
-                <button type="button" class="access-chip" id="btn-access-more" title="Large print, high contrast, bars read aloud, keyboard shortcuts">Large print, contrast, read aloud</button>
-              </div>
+              <section class="access-card" id="explain-access" aria-labelledby="access-card-h">
+                <h2 class="access-card-h" id="access-card-h">Reading and access</h2>
+                <div class="access-card-grid">
+                  <button type="button" class="access-option" id="btn-dyslexia-explain" aria-pressed="false"><strong>Easy-read letters</strong><span>For dyslexia: note names in a typeface where every letter is distinct.</span></button>
+                  <a class="access-option" id="btn-braille-explain" hidden href="#" download><strong>Braille music</strong><span>Download this piece as a braille music file (.brf) for a braille display or embosser.</span></a>
+                  <span class="access-option is-off" id="braille-none-explain" hidden><strong>Braille music</strong><span>Not available for this piece yet.</span></span>
+                  <button type="button" class="access-option" id="btn-access-more"><strong>Large print, contrast, read aloud</strong><span>Bigger notes, black on white, and each bar described out loud.</span></button>
+                </div>
+              </section>
             </div>
           </header>
           <div class="discover-chapters" id="explain-chapters"></div>
@@ -934,6 +944,7 @@
       <li>Scores you upload are read inside your browser. They leave your device only if you add them to your Repertoire while signed in, and then only into your private storage.</li>
       <li>The microphone (Ask Lune, voice remarks) is used only while you ask Lune to listen. Audio is analysed in the browser and never recorded or uploaded; voice notes may use your browser’s built-in speech recognition, which can be provided by its maker (for example Google in Chrome, Apple in Safari).</li>
       <li>Under 13? Ask a parent or guardian before making an account.</li>
+      <li>Lune AI (for people with an account): when you ask it something, your question, the score facts for that bar or piece, and your remarks, ratings and plans for that piece are sent to Lune’s server on Cloudflare, which passes them to the model and sends back the answer. Lune does not keep them. Signed out, Lune AI is off.</li>
       <li>Ask Lune’s built-in answers are worked out on your device and nothing you ask is sent anywhere. If you connect a local model in Settings (for example Ollama on your own computer), your question, the score facts for that bar, your remarks, ratings and plans for that piece go to the address you entered and nowhere else. With a model on your own computer, that address is your own machine. If you ever enter an address on another computer, that data is sent there.</li>
       <li>Remarks, ratings, plans and your Repertoire stay in this browser unless you sign in; signed in, they are stored under your account. A share only ever contains the text shown in “What will be shared”, which you can edit first.</li>
       <li>The reading study records only a participant code, answers and timings — never names.</li>
@@ -948,24 +959,23 @@
   <script src="static/vendor/opensheetmusicdisplay.min.js"></script>
   <script src="static/vendor/pdf.min.js"></script>
   <script src="static/vendor/Tone.js"></script>
-  <script src="static/piano.js?v=lune08"></script>
-  <script src="static/annotate.js?v=lune08"></script>
-  <script src="static/lite-analyze.js?v=lune08"></script>
-  <script src="static/fetch-score.js?v=lune08"></script>
-  <script src="static/lyric-lane.js?v=lune08"></script>
-  <script src="static/menu.js?v=lune08"></script>
-  <script src="static/lune-config.js?v=lune08"></script>
-  <script src="static/store.js?v=lune08"></script>
-  <script src="static/onboard.js?v=lune08"></script>
-  <script src="static/impact.js?v=lune08"></script>
-  <script src="static/feedback.js?v=lune08"></script>
-  <script src="static/ai-device.js?v=lune08"></script>
-  <script src="static/ask.js?v=lune08"></script>
-  <script src="static/app.js?v=lune08"></script>
-  <script src="static/landing-score.js?v=lune08"></script>
-  <script src="static/practice.js?v=lune08"></script>
-  <script src="static/follow.js?v=lune08"></script>
-  <script src="static/study.js?v=lune08"></script>
-  <script src="static/install.js?v=lune08"></script>
+  <script src="static/piano.js?v=lune09"></script>
+  <script src="static/annotate.js?v=lune09"></script>
+  <script src="static/lite-analyze.js?v=lune09"></script>
+  <script src="static/fetch-score.js?v=lune09"></script>
+  <script src="static/lyric-lane.js?v=lune09"></script>
+  <script src="static/menu.js?v=lune09"></script>
+  <script src="static/lune-config.js?v=lune09"></script>
+  <script src="static/store.js?v=lune09"></script>
+  <script src="static/onboard.js?v=lune09"></script>
+  <script src="static/impact.js?v=lune09"></script>
+  <script src="static/feedback.js?v=lune09"></script>
+  <script src="static/ai-device.js?v=lune09"></script>
+  <script src="static/ask.js?v=lune09"></script>
+  <script src="static/app.js?v=lune09"></script>
+  <script src="static/landing-score.js?v=lune09"></script>
+  <script src="static/practice.js?v=lune09"></script>
+  <script src="static/study.js?v=lune09"></script>
+  <script src="static/install.js?v=lune09"></script>
 </body>
 </html>

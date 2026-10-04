@@ -405,10 +405,28 @@ window.LuneOnboard = (function () {
   }
 
   /**
-   * The two reading questions, asked aloud. Lune reads each one and listens
-   * for yes or no; Y and N on the keyboard work too, and so does silence
-   * (no change). For someone who cannot see the buttons.
+   * The accessibility question, asked aloud: Lune reads the options and
+   * listens for one (visual, dyslexia, both, neither); V, D, B and N on the
+   * keyboard work too, and silence changes nothing. For someone who cannot
+   * see the buttons. Blind pianists' own screen readers (VoiceOver,
+   * TalkBack, Narrator) do the rest of the navigation, so Lune does not add
+   * a second one.
    */
+  /** The setup question's spoken answer: "vision", "dyslexia", "both", "none" or null. */
+  function parseAccessAnswer(t) {
+    let x = String(t || "").toLowerCase().replace(/[’']/g, "'");
+    if (/\bboth\b|\ball of (them|it)\b/.test(x)) return "both";
+    // "no visual impairment", "I'm not dyslexic": drop what is denied before looking
+    const negated = /\b(no|not|don't|do not|without|neither|nor|isn't|aren't)\b/.test(x);
+    x = x.replace(/\b(no|not|don't|do not|without|neither|nor)\b(\s+\w+){0,3}?\s+(visual\w*|vision|sight|blind\w*|dyslexi\w*)/g, " ");
+    const vis = /\b(visual\w*|vision|blind\w*|low vision|sight|see)\b/.test(x);
+    const dys = /\b(dyslexi\w*|reading|letters?)\b/.test(x);
+    if (vis && dys) return "both";
+    if (vis) return "vision";
+    if (dys) return "dyslexia";
+    if (negated || /\b(none|nothing|skip|nope)\b/.test(x)) return "none";
+    return null;
+  }
   async function voiceSetup(stage) {
     const status = stage.querySelector("#onboard-voice-status");
     const P = window.LunePractice;
@@ -423,6 +441,9 @@ window.LuneOnboard = (function () {
         speechSynthesis.speak(u);
         setTimeout(resolve, 15000); // never wait forever on a silent device
       });
+    // one question, the options read out, answered by name (or V, D, B, N on the keyboard)
+    const KEYS = { v: "vision", d: "dyslexia", b: "both", n: "none" };
+    const parse = parseAccessAnswer;
     const hear = () =>
       new Promise((resolve) => {
         let done = false;
@@ -434,32 +455,46 @@ window.LuneOnboard = (function () {
           resolve(v);
         };
         const onKey = (e) => {
-          if (/^y$/i.test(e.key)) finish(true);
-          else if (/^n$/i.test(e.key)) finish(false);
+          const k = KEYS[String(e.key).toLowerCase()];
+          if (k) finish(k);
         };
         document.addEventListener("keydown", onKey);
         if (P?.canListenForWords?.()) {
           P.hearPhrase()
-            .then((t) => finish(/\b(yes|yeah|yep|please|sure|ok|okay|i do|i am)\b/i.test(t) ? true : /\b(no|nope|skip|not)\b/i.test(t) ? false : null))
+            .then((t) => finish(parse(t)))
             .catch(() => {});
         }
-        setTimeout(() => finish(null), 12000);
+        setTimeout(() => finish(null), 15000);
       });
-    const questions = [
-      ["vision", "Are you blind, or do you have low vision? Say yes or no, or press Y or N.", "Large print, high contrast and spoken bars are on."],
-      ["dyslexia", "Do you have dyslexia? Say yes or no, or press Y or N.", "Easy read letters are on."],
-    ];
-    for (const [kind, question, confirm] of questions) {
-      await say(question);
-      const answer = await hear();
-      if (answer === true) {
-        setNeed(kind, true);
-        const b = stage.querySelector(`[data-need="${kind}"]`);
-        b?.setAttribute("aria-pressed", "true");
-        b?.classList.add("on");
-        await say(confirm);
-      } else await say(answer === false ? "Left off." : "No answer heard. Left as it is.");
+    const pick = (kind) => {
+      for (const k of ["vision", "dyslexia", "none"]) {
+        const on = kind === "both" ? k !== "none" : k === kind;
+        if (k !== "none") setNeed(k, on);
+        const b = stage.querySelector(`[data-need="${k}"]`);
+        b?.setAttribute("aria-pressed", String(on));
+        b?.classList.toggle("on", on);
+      }
+    };
+    await say(
+      "Do you need accessibility support? There are four answers. Visual, for blind or low vision: large print, high contrast, and every bar read aloud. Dyslexia: easy-read letters. Both. Or neither. Say one, or press V, D, B or N."
+    );
+    let answer = await hear();
+    if (!answer) {
+      await say("I didn't catch that. Say visual, dyslexia, both, or neither.");
+      answer = await hear();
     }
+    if (answer) {
+      pick(answer);
+      await say(
+        answer === "vision"
+          ? "Visual support is on. Lune also works with VoiceOver, TalkBack and Narrator, the screen readers already on your device."
+          : answer === "dyslexia"
+            ? "Easy-read letters are on."
+            : answer === "both"
+              ? "Visual support and easy-read letters are on."
+              : "Nothing switched on. You can change this in Settings at any time."
+      );
+    } else await say("No answer heard. Nothing was changed.");
     await say("That is everything. Press Next to carry on.");
     stage.querySelector("[data-next]")?.focus();
   }
@@ -1557,6 +1592,15 @@ window.LuneOnboard = (function () {
     paintSignedHome();
     paintKeepBanner();
     applyGateChrome();
+    // the home page starts at its top, not where the welcome page was scrolled to
+    const top = () => {
+      window.scrollTo(0, 0);
+      document.scrollingElement && (document.scrollingElement.scrollTop = 0);
+      const home = $("home");
+      if (home) home.scrollTop = 0;
+    };
+    top();
+    requestAnimationFrame(() => requestAnimationFrame(top));
   }
 
   function paintKeepBanner() {
@@ -2052,6 +2096,7 @@ window.LuneOnboard = (function () {
   }
 
   return {
+    parseAccessAnswer,
     init,
     route,
     requireUnlock,

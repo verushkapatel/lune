@@ -875,6 +875,7 @@ window.LuneImpact = (function () {
 
   function init() {
     $("btn-member-week")?.addEventListener("click", () => openWeeklyReview());
+    $("btn-member-week-example")?.addEventListener("click", () => window.LunePractice?.openExampleWeek?.());
     $("btn-footer-share")?.addEventListener("click", () => openShareWeek());
     $("btn-footer-invite")?.addEventListener("click", () => openInvite());
     window.addEventListener("hashchange", () => handleRoute());

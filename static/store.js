@@ -578,6 +578,7 @@ window.LuneStore = (function () {
         if (becameDone) row.done_at = nowIso();
         else if (!row.done) row.done_at = null;
       }
+      row.updated_at = nowIso();
       if ("plan" in patch) row.plan = patch.plan;
       if ("notes" in patch) row.notes = String(patch.notes || "").slice(0, 800);
       if ("bars" in patch) {
@@ -586,11 +587,13 @@ window.LuneStore = (function () {
       pieceKey = row.piece_key || "";
     });
     if (becameDone) logActivity({ kind: "task", piece_key: pieceKey });
+    if (remote()) syncPrefs().catch(() => false);
     emit();
   }
   function removeTask(id) {
     mutateLocal((d) => {
       d.tasks = (d.tasks || []).filter((t) => t.id !== id);
+      d.removedTaskIds = [...(d.removedTaskIds || []), id].slice(-300);
     });
     syncPlanCountPref();
     if (remote()) syncPrefs().catch(() => false);
@@ -1008,7 +1011,26 @@ window.LuneStore = (function () {
     ];
     const out = {};
     for (const k of keys) if (p[k] !== undefined) out[k] = p[k];
+    // plans travel with the account (and so do the ones deleted, so they stay deleted)
+    const d = readLocal();
+    out.planTasks = (d.tasks || []).slice(0, 150);
+    out.removedTaskIds = (d.removedTaskIds || []).slice(-300);
     return out;
+  }
+  /** Put plans from another device together with this one's: newest state of each plan wins. */
+  function mergePlanTasks(d, remote) {
+    const gone = new Set([...(d.removedTaskIds || []), ...(remote.removedTaskIds || [])]);
+    d.removedTaskIds = [...gone].slice(-300);
+    const byId = new Map();
+    const stamp = (t) => String(t.done_at || t.updated_at || t.created_at || "");
+    for (const t of [...(d.tasks || []), ...(Array.isArray(remote.planTasks) ? remote.planTasks : [])]) {
+      if (!t?.id || gone.has(t.id)) continue;
+      const had = byId.get(t.id);
+      if (!had || stamp(t) > stamp(had) || (t.done && !had.done)) byId.set(t.id, t);
+    }
+    const before = JSON.stringify((d.tasks || []).map((t) => [t.id, t.done]));
+    d.tasks = [...byId.values()].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+    return JSON.stringify(d.tasks.map((t) => [t.id, t.done])) !== before;
   }
   async function syncPrefs() {
     if (!remote()) return false;
@@ -1060,7 +1082,10 @@ window.LuneStore = (function () {
           const remLen = Array.isArray(rem) ? rem.length : rem && typeof rem === "object" ? 1 : 0;
           if (locLen && locLen >= remLen) merged[key] = loc;
         }
-        changed = stable(merged) !== stable(local);
+        const plansChanged = mergePlanTasks(d, remotePrefs);
+        delete merged.planTasks;
+        delete merged.removedTaskIds;
+        changed = plansChanged || stable(merged) !== stable(local);
         d.prefs = merged;
       });
       if (changed) emit();
@@ -1098,6 +1123,8 @@ window.LuneStore = (function () {
   }
 
   return {
+    mergePlanTasks,
+    prefsForCloud,
     accessToken,
     GRADES,
     normGrade,

@@ -110,6 +110,7 @@ You are given CONTEXT as JSON: facts Lune has read from the score (notes, finger
 Rules:
 - Use only the score facts in CONTEXT. Never invent bars, notes, rhythms, fingerings, dynamics, tempo marks, opus numbers or movement names. If CONTEXT does not contain something, say Lune does not have it.
 - Keep facts and suggestions apart: say what the score shows, then what you suggest.
+- Piano finger numbers: 1 thumb, 2 index, 3 middle, 4 ring, 5 little finger. Use the numbers from CONTEXT; name a finger only with this mapping.
 - The pianist's remarks are their own words; treat them as information from the user, not as score facts.
 - You have not heard the pianist play. Never claim to have listened to a recording or a performance.
 - Answer a simple question in one or two sentences. Give detail only when asked for analysis.
@@ -293,6 +294,37 @@ Rules:
       label: () => `your local model (${aiSettings().model})`,
     },
   };
+  /*
+   * Lune AI's voice, for account holders: Whisper writes down what was said
+   * (with punctuation) and a natural voice reads answers. Everyone else, and
+   * anyone whose request fails, gets the browser's own speech.
+   */
+  const voice = {
+    available: () => providers.account.available() && typeof MediaRecorder !== "undefined" && !!navigator.mediaDevices?.getUserMedia,
+    async transcribe(blob) {
+      const token = await store().accessToken();
+      const res = await fetch(`${aiServer()}/transcribe`, {
+        method: "POST",
+        headers: { "Content-Type": blob.type || "audio/webm", Authorization: `Bearer ${token}` },
+        body: blob,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Lune AI could not hear that.");
+      return String(data.text || "");
+    },
+    async speak(text) {
+      if (!providers.account.available()) throw new Error("no account");
+      const token = await store().accessToken();
+      const res = await fetch(`${aiServer()}/speak`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ text: String(text).slice(0, 900) }),
+      });
+      if (!res.ok) throw new Error("voice unavailable");
+      return res.blob();
+    },
+  };
+
   /** A model the pianist set up themselves comes first, then Lune AI (account), then Lune AI on this device. */
   const active = () =>
     providers.endpoint.available()
@@ -346,7 +378,7 @@ Rules:
       goal ? `, on the way to ${goal}` : ""
     }.`;
     await P()?.addCurrentToRepertoire?.({ quiet: true }).catch(() => {});
-    store().addTask({
+    const task = store().addTask({
       piece_key: key,
       title: piece?.overview?.title || piece?.title || "Practice",
       composer: piece?.overview?.composer || piece?.composer || "",
@@ -356,13 +388,20 @@ Rules:
     });
     P()?.refreshBadge?.();
     let out = `Plan saved to your Repertoire. ${summary}\n${steps.map((s, i) => `${i + 1}. ${s.title} — ${s.detail}`).join("\n")}`;
-    // With a local model connected, it writes the minute-by-minute version from the same context.
+    // With a model connected, Lune AI writes the plan from the pianist's goal and their
+    // remarks on these bars, and that plan is saved in Repertoire with a one-line summary.
     if (LuneAIProvider.connected()) {
       try {
         const note = await LuneAIProvider.generatePracticePlan(picked[0], picked, mins);
-        if (note) out += `\n\nFrom ${LuneAIProvider.label()}:\n${note}`;
+        if (note) {
+          out = `Plan saved to your Repertoire, written by ${LuneAIProvider.label()} from your goal and your remarks.\n${note}`;
+          const first = String(note).split("\n").map((l) => l.replace(/^\s*\d+[.)]\s*/, "").trim()).find(Boolean) || summary;
+          store().updateTask(task.id, {
+            plan: { ...task.plan, ai: String(note).slice(0, 2000), aiBy: LuneAIProvider.label(), summary: `${summary} ${first}`.slice(0, 300) },
+          });
+        }
       } catch {
-        out += "\n\nThe model didn’t answer, so this plan is Lune’s built-in one.";
+        out += "\n\nLune AI didn’t answer, so this plan is Lune’s built-in one.";
       }
     }
     return out;
@@ -903,5 +942,5 @@ Rules:
   for (const task of Object.keys(TASKS)) LuneAIProvider[task] = (bar, ...args) => LuneAIProvider.run(task, bar, ...args);
   window.LuneAIProvider = LuneAIProvider;
 
-  return { open, close, ask, historyFor, onSelection, buildContext, aiSettings, SYSTEM_PROMPT, TASKS, MODEL_ACTIONS, runTask, paintNews, modelConnected: () => !!active(), deviceOfferHtml, turnOnDeviceAI, testModel: () => providers.endpoint.answer("Reply with the single word: ready", { test: true }) };
+  return { open, close, ask, historyFor, onSelection, buildContext, aiSettings, SYSTEM_PROMPT, TASKS, MODEL_ACTIONS, runTask, paintNews, voice, modelConnected: () => !!active(), deviceOfferHtml, turnOnDeviceAI, testModel: () => providers.endpoint.answer("Reply with the single word: ready", { test: true }) };
 })();
