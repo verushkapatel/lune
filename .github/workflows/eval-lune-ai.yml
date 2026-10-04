@@ -1,4 +1,6 @@
 # Checks the real Lune AI model answers from the score and only from the score.
+# Deploys a short-lived evaluation Worker (same model, same AI binding),
+# asks it about Für Elise, checks every answer, then deletes it.
 # Uses the same two repository secrets as Deploy Lune AI.
 name: Evaluate Lune AI
 
@@ -16,13 +18,41 @@ permissions:
 jobs:
   evaluate:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: workers/lune-ai/eval
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      - name: Deploy the evaluation Worker
+        id: deploy
+        run: |
+          set -o pipefail
+          key=$(openssl rand -hex 24)
+          echo "::add-mask::$key"
+          echo "key=$key" >> "$GITHUB_OUTPUT"
+          npx -y wrangler@4 deploy -c wrangler-eval.toml 2>&1 | tee deploy.log
+          printf '%s' "$key" | npx -y wrangler@4 secret put EVAL_KEY -c wrangler-eval.toml
+          url=$(grep -Eo 'https://[A-Za-z0-9.-]+\.workers\.dev' deploy.log | head -1)
+          [ -n "$url" ] || { echo "::error::no workers.dev address"; exit 1; }
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          sleep 10
+
       - name: Ask the real model about Für Elise and check every answer
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: node workers/lune-ai/eval/eval.mjs | tee -a "$GITHUB_STEP_SUMMARY"
+          EVAL_URL: ${{ steps.deploy.outputs.url }}
+          EVAL_KEY: ${{ steps.deploy.outputs.key }}
+        run: |
+          set -o pipefail
+          node eval.mjs | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Delete the evaluation Worker
+        if: always()
+        run: npx -y wrangler@4 delete -c wrangler-eval.toml --force || true

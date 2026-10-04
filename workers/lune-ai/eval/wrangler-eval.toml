@@ -1,0 +1,10 @@
+# The evaluation Worker (eval-worker.js). Deployed and deleted by .github/workflows/eval-lune-ai.yml.
+name = "lune-ai-eval"
+main = "eval-worker.js"
+compatibility_date = "2026-09-01"
+
+[ai]
+binding = "AI"
+
+[vars]
+MODEL = "@cf/meta/llama-3.1-8b-instruct-fast"

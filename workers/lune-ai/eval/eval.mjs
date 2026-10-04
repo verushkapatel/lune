@@ -1,37 +1,35 @@
 // Does the real Lune AI model answer from the score, and only from the score?
 //
-// Calls the same model the Worker uses, through Cloudflare's Workers AI REST
-// API, with the Worker's own SYSTEM_PROMPT and the context Ask Lune builds for
+// Calls the same model the Worker uses, through the evaluation Worker
+// (eval-worker.js, deployed for the run by GitHub Actions), with the Worker's own SYSTEM_PROMPT and the context Ask Lune builds for
 // Für Elise (fur-elise-context.json, captured from the site). Each question is
 // asked three times and every answer is checked against that context.
 //
-// Run (needs CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID): node workers/lune-ai/eval/eval.mjs
+// Run: EVAL_URL=… EVAL_KEY=… node workers/lune-ai/eval/eval.mjs
 import { readFileSync } from "node:fs";
 import { SYSTEM_PROMPT } from "../src/index.js";
 
-const ACCOUNT = process.env.CLOUDFLARE_ACCOUNT_ID;
-const TOKEN = process.env.CLOUDFLARE_API_TOKEN;
+const EVAL_URL = process.env.EVAL_URL;
+const EVAL_KEY = process.env.EVAL_KEY;
 const MODEL = /MODEL = "([^"]+)"/.exec(readFileSync(new URL("../wrangler.toml", import.meta.url), "utf8"))[1];
 const ctx = JSON.parse(readFileSync(new URL("./fur-elise-context.json", import.meta.url), "utf8"));
 const REPEATS = 3;
 
 async function ask(question, context) {
   const t0 = Date.now();
-  const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/ai/run/${MODEL}`, {
+  const res = await fetch(EVAL_URL, {
     method: "POST",
-    headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
+    headers: { "X-Eval-Key": EVAL_KEY, "Content-Type": "application/json" },
     body: JSON.stringify({
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: `CONTEXT:\n${JSON.stringify(context)}\n\nQUESTION: ${question}` },
       ],
-      max_tokens: 400,
-      temperature: 0.3,
     }),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok || !data.success) throw new Error(`Workers AI ${res.status}: ${JSON.stringify(data.errors || data).slice(0, 300)}`);
-  return { text: String(data.result?.response || ""), ms: Date.now() - t0 };
+  if (!res.ok) throw new Error(`evaluation Worker ${res.status}: ${JSON.stringify(data).slice(0, 300)}`);
+  return { text: String(data.response || ""), ms: Date.now() - t0 };
 }
 
 const letters = (list) => new Set((list || []).map((n) => String(n.note || "")[0]).filter(Boolean));
