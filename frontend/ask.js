@@ -115,6 +115,8 @@ Rules:
 - You have not heard the pianist play. Never claim to have listened to a recording or a performance.
 - Answer a simple question in one or two sentences. Give detail only when asked for analysis.
 - When asked for a practice plan, give short numbered steps tied to bar numbers from CONTEXT, sized to the minutes available, and keep the pianist's stated goal.
+- CONTEXT.conversation, when present, holds the last turns of this chat; answer the newest question in that light.
+- For a general piano question (technique, practice habits, musical terms) that does not depend on a score, answer from general piano teaching and say it is general advice. Never present general advice as a fact about the pianist's score.
 - Say plainly when you are unsure.
 - Plain text only. No markdown, no headings.`;
 
@@ -923,6 +925,246 @@ Rules:
     paintHistory();
   }
 
+
+  /* ---------- Chat with Lune: practice in general, not one bar ---------- */
+
+  const CHAT_KEY = "lune.chat.v1";
+  const CHAT_STARTERS = [
+    "What should I practise today?",
+    "Summarise my week",
+    "Make me a 20 minute plan",
+    "How do I stop rushing fast notes?",
+    "How do I practise a trill?",
+  ];
+  function chatLog() {
+    try {
+      return JSON.parse(localStorage.getItem(CHAT_KEY) || "[]").slice(-40);
+    } catch {
+      return [];
+    }
+  }
+  function saveChat(log) {
+    try {
+      localStorage.setItem(CHAT_KEY, JSON.stringify(log.slice(-40)));
+    } catch {
+      /* private mode: the chat lasts for this visit */
+    }
+  }
+
+  /** What Chat with Lune knows: the pianist's Repertoire, plans, week and goal, and the open piece. */
+  async function buildChatContext(log) {
+    const prefs = store().prefs?.() || {};
+    const pieces = await store().listPieces?.().catch(() => []) || [];
+    const tasks = (store().listTasks?.() || []).slice(0, 12);
+    const week = store().weekSnapshot?.() || null;
+    const cards = await store().listCards?.().catch(() => []) || [];
+    const hardNow = cards
+      .filter((c) => /again|hard/i.test(String(c.last_grade || c.grade || "")))
+      .slice(0, 12)
+      .map((c) => ({ piece: c.piece_key, bar: c.bar, lastRating: c.last_grade || c.grade, nextReview: c.due_at }));
+    const ctx = {
+      repertoire: pieces.slice(0, 30).map((x) => ({ title: x.title, composer: x.composer || null, status: x.status || null, level: x.level || x.grade || null })),
+      plans: tasks.map((t) => ({ piece: t.piece_title || t.piece_key, bars: t.bars, summary: t.plan?.summary || t.notes || null, done: !!t.done })),
+      thisWeek: week ? { daysPractised: week.days, goalDays: week.goalDays, minutes: week.mins, barsRatedGoodOrStrong: week.good, barsRatedHardOrAgain: week.hard, barsWorked: week.barsWorked } : null,
+      barsStillHard: hardNow,
+      goal: { daysPerWeek: prefs.practiceDays || null, minutesPerSession: prefs.practiceMins || null, workingToward: prefs.dreamPiece?.title || null, level: prefs.grade ?? null },
+      conversation: log.slice(-6).map((m) => ({ from: m.who === "you" ? "pianist" : "lune", text: String(m.text).slice(0, 600) })),
+    };
+    if (state.piece) {
+      const p = state.piece;
+      ctx.openPiece = { title: p.overview?.title || p.title || null, composer: p.overview?.composer || p.composer || null, hardestBars: hardest(5) };
+    }
+    return ctx;
+  }
+
+  function chatLine(who, text, { via } = {}) {
+    const log = $("chat-log");
+    const row = document.createElement("div");
+    row.className = `chat-row chat-from-${who}`;
+    const bubble = document.createElement("p");
+    bubble.className = "chat-bubble";
+    bubble.textContent = text;
+    row.appendChild(bubble);
+    if (who === "lune" && via === "model") {
+      const say = document.createElement("button");
+      say.type = "button";
+      say.className = "chat-say";
+      say.setAttribute("aria-label", "Read this answer aloud");
+      say.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 10v4h3l4 3.5v-11L8 10H5zM15.5 9a4 4 0 0 1 0 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+      say.addEventListener("click", () => P()?.speak?.(text));
+      row.appendChild(say);
+    }
+    log.appendChild(row);
+    requestAnimationFrame(() => row.classList.add("in"));
+    log.scrollTop = log.scrollHeight;
+    return bubble;
+  }
+
+  function ensureChat() {
+    let d = $("lune-chat");
+    if (d) return d;
+    d = document.createElement("dialog");
+    d.id = "lune-chat";
+    d.className = "lune-chat";
+    d.setAttribute("aria-labelledby", "chat-h");
+    d.innerHTML = `
+      <header class="chat-head">
+        <div>
+          <h2 id="chat-h">Chat with Lune</h2>
+          <p class="chat-sub" id="chat-sub"></p>
+        </div>
+        <button type="button" class="quiet chat-clear" id="chat-clear">Clear</button>
+        <button type="button" class="icon-btn" id="chat-close" aria-label="Close the chat">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </button>
+      </header>
+      <div class="chat-log" id="chat-log" role="log" aria-live="polite"></div>
+      <div class="chat-starters" id="chat-starters"></div>
+      <div class="chat-locked" id="chat-locked" hidden>
+        <p>Chat with Lune uses Lune AI, which comes free with a Lune account. Sign in and ask about your practice, your week, or any piano question.</p>
+        <button type="button" class="primary" data-chat-signin>Sign in or create an account</button>
+        <p class="chat-fine">Without an account, Ask Lune on any score still answers from the music with Lune’s built-in rules.</p>
+      </div>
+      <form class="chat-form" id="chat-form" autocomplete="off">
+        <button type="button" class="icon-btn chat-mic" id="chat-mic" aria-pressed="false" aria-label="Speak your question">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </button>
+        <label class="visually-hidden" for="chat-input">Your question</label>
+        <input id="chat-input" type="text" maxlength="600" placeholder="Ask about your practice">
+        <button type="submit" class="primary chat-send">Send</button>
+      </form>
+      <p class="chat-fine" id="chat-fine"></p>`;
+    document.body.appendChild(d);
+    d.querySelector("#chat-close").addEventListener("click", () => d.close());
+    d.querySelector("#chat-clear").addEventListener("click", () => {
+      saveChat([]);
+      paintChat();
+    });
+    d.addEventListener("click", (e) => {
+      if (e.target === d) d.close();
+      const st = e.target.closest?.("[data-starter]");
+      if (st) chatAsk(st.dataset.starter);
+      if (e.target.closest?.("[data-chat-signin]")) {
+        d.close();
+        window.LuneOnboard?.openCreateAccount?.();
+      }
+    });
+    d.querySelector("#chat-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const input = $("chat-input");
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = "";
+      chatAsk(text);
+    });
+    d.querySelector("#chat-mic").addEventListener("click", async () => {
+      const btn = $("chat-mic");
+      const input = $("chat-input");
+      if (btn.classList.contains("on")) return P()?.stopHearing?.();
+      if (!P()?.canListenForWords?.()) {
+        toast("Voice isn’t available in this browser. Type instead.");
+        return input.focus();
+      }
+      btn.classList.add("on");
+      btn.setAttribute("aria-pressed", "true");
+      input.placeholder = "Listening…";
+      try {
+        const said = await P().hearPhrase({ onPartial: (t) => (input.value = t) });
+        input.value = said || "";
+        input.focus();
+      } catch (err) {
+        toast(err.message || "Type instead.");
+      } finally {
+        btn.classList.remove("on");
+        btn.setAttribute("aria-pressed", "false");
+        input.placeholder = "Ask about your practice";
+      }
+    });
+    return d;
+  }
+
+  function paintChat() {
+    const model = active();
+    const log = chatLog();
+    $("chat-log").innerHTML = "";
+    for (const m of log) chatLine(m.who, m.text, { via: m.via });
+    $("chat-locked").hidden = !!model;
+    $("chat-form").hidden = !model;
+    $("chat-clear").hidden = !log.length;
+    $("chat-starters").innerHTML = model && !log.length ? CHAT_STARTERS.map((q) => `<button type="button" data-starter="${esc(q)}">${esc(q)}</button>`).join("") : "";
+    $("chat-sub").textContent = model ? "Your Repertoire, plans and week, with Lune AI" : "Needs a free Lune account";
+    $("chat-fine").textContent = model
+      ? `Answers come from ${model.label()}. Lune sends it your question, this chat’s last few turns, and a summary of your Repertoire, plans and week, and keeps nothing on the server. Answers can be wrong.`
+      : "";
+  }
+
+  async function chatAsk(text) {
+    const model = active();
+    if (!model) return paintChat();
+    const log = chatLog();
+    log.push({ who: "you", text, t: Date.now() });
+    saveChat(log);
+    $("chat-starters").innerHTML = "";
+    $("chat-clear").hidden = false;
+    chatLine("you", text);
+    const wait = chatLine("lune", "Thinking…");
+    wait.classList.add("chat-wait");
+    let answer = "";
+    let via = "model";
+    try {
+      answer = await model.answer(text, await buildChatContext(log.slice(0, -1)), { onToken: (t) => (wait.textContent = (answer += t)) });
+    } catch (err) {
+      via = "note";
+      answer = err?.userMessage || "Lune AI didn’t answer just now. Try again in a minute.";
+    }
+    wait.parentElement.remove();
+    chatLine("lune", answer, { via });
+    log.push({ who: "lune", text: answer, via, t: Date.now() });
+    saveChat(log);
+  }
+
+  function openChat() {
+    const d = ensureChat();
+    paintChat();
+    if (!d.open) d.showModal();
+    setTimeout(() => (active() ? $("chat-input") : d.querySelector("[data-chat-signin]"))?.focus(), 40);
+  }
+
+  /** The Lune AI section on Home: what it does, plainly, and the way in. */
+  function paintAiHome() {
+    const on = !!aiServer() || !!active();
+    const ready = !!active();
+    for (const box of document.querySelectorAll("[data-ai-home]")) {
+      box.hidden = !on;
+      if (!on) continue;
+      box.innerHTML = `
+        <p class="about-kicker">Lune AI</p>
+        <h2>What Lune AI does for you</h2>
+        <ul class="ai-home-list">
+          <li><strong>Explains any bar.</strong> <span>Tap a bar, then Ask Lune: “What’s hard in bar 12?”</span></li>
+          <li><strong>Plans your practice.</strong> <span>“I have 20 minutes.” You get steps tied to bar numbers, saved to Repertoire.</span></li>
+          <li><strong>Helps when a bar falls apart.</strong> <span>Rate a bar Hard and get one thing to try.</span></li>
+          <li><strong>Writes down what you say.</strong> <span>Speak a remark mid-practice and it is flagged on the bar.</span></li>
+          <li><strong>Chats about practice.</strong> <span>Your week, your goal, or any piano question.</span></li>
+        </ul>
+        <div class="ai-home-actions">
+          ${ready ? `<button type="button" class="primary" data-open-chat>Chat with Lune</button>` : `<button type="button" class="primary" data-lp-signin-only>Sign in to use Lune AI</button>`}
+          <button type="button" class="link-btn" data-show-ai>See examples</button>
+        </div>
+        <p class="ai-home-fine">${ready ? `Answers come from ${esc(aiName())}, an open-weight model, using what Lune reads in your score. They can be wrong.` : "Free with a Lune account. Ask Lune’s built-in answers work without one."}</p>`;
+    }
+  }
+  document.addEventListener("click", (e) => {
+    if (e.target.closest?.("[data-open-chat]")) {
+      e.preventDefault();
+      openChat();
+    }
+  });
+  const paintAiHomeSoon = () => setTimeout(paintAiHome, 0);
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", paintAiHomeSoon, { once: true });
+  else paintAiHomeSoon();
+  setTimeout(() => store()?.onChange?.(paintAiHome), 0);
+
   /**
    * LuneAIProvider: the one interface the rest of Lune uses. `connected()` is
    * true only when a local model address is set; every method returns null
@@ -942,5 +1184,5 @@ Rules:
   for (const task of Object.keys(TASKS)) LuneAIProvider[task] = (bar, ...args) => LuneAIProvider.run(task, bar, ...args);
   window.LuneAIProvider = LuneAIProvider;
 
-  return { open, close, ask, historyFor, onSelection, buildContext, aiSettings, SYSTEM_PROMPT, TASKS, MODEL_ACTIONS, runTask, paintNews, voice, modelConnected: () => !!active(), deviceOfferHtml, turnOnDeviceAI, testModel: () => providers.endpoint.answer("Reply with the single word: ready", { test: true }) };
+  return { openChat, paintAiHome, buildChatContext, open, close, ask, historyFor, onSelection, buildContext, aiSettings, SYSTEM_PROMPT, TASKS, MODEL_ACTIONS, runTask, paintNews, voice, modelConnected: () => !!active(), deviceOfferHtml, turnOnDeviceAI, testModel: () => providers.endpoint.answer("Reply with the single word: ready", { test: true }) };
 })();

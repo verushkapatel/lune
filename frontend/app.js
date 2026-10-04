@@ -178,7 +178,7 @@ const state = {
   timelineKind: null, // "piece" | null — transport always plays the whole piece
   snippetEnd: null, // timeline seconds where a bar/line snippet auto-pauses
   keyboard: null,
-  keyboardVisible: false,
+  keyboardVisible: kbdPref(),
   playRate: 1,
   practiceBpm: 72,
   markedBpm: 72,
@@ -1073,7 +1073,7 @@ function createSession(piece, panel = "explain") {
     showTips: true,
     showLines: true,
     playRate: 1,
-    keyboardVisible: false,
+    keyboardVisible: kbdPref(),
     selected: null,
     selectedBars: [],
     scrubRatio: 0,
@@ -2916,6 +2916,15 @@ function bindPlayheadScrub() {
   scroll.addEventListener("pointerdown", startDrag);
 }
 
+/** Show the keyboard under the score? On unless the pianist hid it. */
+function kbdPref() {
+  try {
+    return localStorage.getItem("lune.kbd") !== "0";
+  } catch {
+    return true;
+  }
+}
+
 function ensureKeyboard() {
   if (state.keyboard) return state.keyboard;
   const host = $("lune-keyboard");
@@ -2929,7 +2938,12 @@ function syncKbdToggleUi() {
   if (!btn) return;
   const on = !!state.keyboardVisible && state.panel === "score";
   btn.setAttribute("aria-pressed", on ? "true" : "false");
-  btn.textContent = on ? "Hide piano" : "Show piano";
+  const label = on ? "Hide piano" : "Show piano";
+  if (btn.dataset.label !== label) {
+    btn.dataset.label = label;
+    btn.setAttribute("aria-label", label);
+    btn.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><rect x="3" y="6" width="18" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 6v12M12 6v12M16 6v12" stroke="currentColor" stroke-width="1.2"/><path d="M6.6 6h2.8v6.5H6.6zM10.6 6h2.8v6.5h-2.8zM14.6 6h2.8v6.5h-2.8z" fill="currentColor"/></svg><span class="kbd-tog-label">${label}</span>`;
+  }
   btn.classList.toggle("on", on);
 }
 
@@ -2952,6 +2966,12 @@ function applyKeyboardVisibility(on) {
 }
 
 function setKeyboardVisible(on) {
+  // a choice the pianist makes is remembered for every piece
+  try {
+    localStorage.setItem("lune.kbd", on ? "1" : "0");
+  } catch {
+    /* private mode */
+  }
   if (state.panel === "piano") {
     // Leaving focus mode returns to Score with keyboard preference
     if (!on) {
@@ -3010,7 +3030,7 @@ function setPlayRate(rate) {
 function bindHomeChapters() {
   const home = $("home");
   const chapters = document.querySelectorAll(
-    ".home-chapter, .home-features, .about-maker, .home-sim, .home-statement, .home-billboard, .home-feat, .home-feat-intro, .home-close, .home-screen, [data-reveal]"
+    ".home-chapter, .home-features, .about-maker, .home-sim, .home-statement, .home-billboard, .home-feat, .home-feat-intro, .home-close, .home-screen, .ai-scene, [data-reveal]"
   );
   if (!chapters.length || typeof IntersectionObserver === "undefined") {
     chapters.forEach((el) => el.classList.add("is-in"));
@@ -3103,12 +3123,8 @@ async function startPiecePlayback(seekRatio = 0) {
     await ensureScoreReady();
   }
 
-  // Auto-show slim keyboard under the score during play (user can hide)
-  if (state.panel === "score" && !state.keyboardVisible) {
-    applyKeyboardVisibility(true);
-  } else if (state.panel === "piano") {
-    ensureKeyboard();
-  }
+  // The keyboard stays as the pianist left it: pressing Play never moves the page
+  if (state.panel === "piano") ensureKeyboard();
 
   try {
     await ensureSamplesWithLoader();
@@ -3157,8 +3173,7 @@ async function playSnippet(fromBar, toBar) {
   const startMark = marks.find((m) => Number(m.bar) === Number(fromBar)) || marks[0];
   const after = marks.find((m) => Number(m.bar) > Number(toBar));
   const end = after ? after.t : total;
-  if (state.panel === "score" && !state.keyboardVisible) applyKeyboardVisibility(true);
-  else ensureKeyboard();
+  if (state.panel !== "score" || state.keyboardVisible) ensureKeyboard();
   state.snippetEnd = end;
   LunePiano.seek(startMark.t / total, { resumeIfWasPlaying: false });
   LunePiano.resume();
@@ -3533,7 +3548,7 @@ function watchScoreWidth() {
       if (Math.abs(w - (state.osmdRenderedWidth || 0)) < 8) return;
       state.osmdRenderedWidth = w;
       try {
-        state.osmd.zoom = w >= 720 ? 1.18 : 1.08;
+        state.osmd.zoom = cachedFitZoom(phoneScoreZoom());
         state.osmd.render();
         fitScoreToWidth(state.osmd);
       } catch {
@@ -3644,6 +3659,12 @@ function fitScoreToWidth(osmd) {
     svg.setAttribute("width", String(w * ratio * 0.985));
     svg.setAttribute("height", String(h * ratio * 0.985));
   }
+}
+
+/** On a phone a bar or two per line reads like a real page; full size elsewhere. */
+function phoneScoreZoom() {
+  const w = $("osmd")?.clientWidth || window.innerWidth;
+  return w < 520 ? 0.74 : 1;
 }
 
 function fitZoomKey() {
@@ -3839,7 +3860,7 @@ async function renderScoreNow() {
   await osmd.load(xml);
   // load() resets zoom, so set it afterwards: 1 (the size the label lane is
   // tuned for), larger in large-print mode, or the cached fit for this width.
-  osmd.zoom = cachedFitZoom(1);
+  osmd.zoom = cachedFitZoom(phoneScoreZoom());
   osmd.render();
   fitScoreToWidth(osmd);
   untangleScoreDirections($("osmd"));
@@ -4457,6 +4478,7 @@ async function applyRoute() {
 }
 
 function goHome({ keepTabs = false, forceApp = false } = {}) {
+  document.body.classList.remove("is-story");
   // Signed-in users always get the personal home — never bounce back into the gate.
   const signedIn = !!window.LuneOnboard?.signedIn?.();
   if (!forceApp && window.LuneOnboard && !LuneOnboard.unlocked() && !signedIn) {
@@ -4667,6 +4689,13 @@ function bind() {
   on("btn-stop", "click", (e) => {
     e.preventDefault();
     stopAll();
+  });
+  // phones: the tempo readout opens the slider above the player, and closes it again
+  on("bpm-readout-btn", "click", () => {
+    const tc = $("tempo-control");
+    const open = !tc.classList.contains("open");
+    tc.classList.toggle("open", open);
+    $("bpm-readout-btn").setAttribute("aria-expanded", open ? "true" : "false");
   });
   on("btn-toggle-kbd", "click", () => {
     // go by what is on screen, not a remembered flag that may be stale

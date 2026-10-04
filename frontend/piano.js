@@ -24,6 +24,11 @@ window.LunePiano = (function () {
   const KEY_ATTACK_WINDOW = 0.15;
   /** Bumped on stop/pause so look-ahead notes scheduled earlier are ignored. */
   let audioEpoch = 0;
+  /** Notes handed to Web Audio, sounding or still waiting to start. */
+  const liveSources = new Set();
+  /** One clock for a run of playback: the audio time at which musical time anchorAt sounds. */
+  let anchorAudio = null;
+  let anchorAt = 0;
   /** Event indices already queued for the current audioEpoch. */
   const scheduled = new Set();
   // Seconds per quarter note (fallback when the score has no tempo map).
@@ -38,8 +43,10 @@ window.LunePiano = (function () {
   let sourceNotes = [];
   /** Schedule a hair ahead of now so the first note never clicks against a cold bus. */
   const SCHEDULE_PAD = 0.055;
-  /** Musical-time look-ahead — keeps Stop able to silence (no long Tone queue). */
-  const LOOKAHEAD = 0.4;
+  /** Musical-time look-ahead: long enough that a busy moment (a page turn, a redraw)
+   *  never starves the music. Stop still silences at once: every queued note is
+   *  tracked in liveSources and cut. */
+  const LOOKAHEAD = 1.2;
   /** When the tab is hidden, frames stop and timers slow to about one a second. */
   const LOOKAHEAD_HIDDEN = 2.2;
 
@@ -88,7 +95,15 @@ window.LunePiano = (function () {
     C8: "C8.mp3",
   };
 
-  const SAMPLE_BASES = ["https://tonejs.github.io/audio/salamander/"];
+  // Salamander Grand Piano (Alexander Holm, CC BY 3.0), served with Lune so the first note does not wait on another site
+  const LOCAL_SAMPLES = (() => {
+    try {
+      return new URL("vendor/salamander/", document.currentScript?.src || location.href).href;
+    } catch {
+      return "static/vendor/salamander/";
+    }
+  })();
+  const SAMPLE_BASES = [LOCAL_SAMPLES, "https://tonejs.github.io/audio/salamander/"];
 
   function buildChain() {
     if (output) {
@@ -313,10 +328,25 @@ window.LunePiano = (function () {
     return Math.max(...events.map((e) => e.t + e.dur));
   }
 
+  /** The audio time being heard right now (output latency included), or null. */
+  function heardTime() {
+    try {
+      const ctx = Tone.getContext().rawContext;
+      if (!ctx || ctx.state !== "running") return null;
+      const ts = ctx.getOutputTimestamp?.();
+      if (ts && ts.performanceTime > 0) return ts.contextTime + (performance.now() - ts.performanceTime) / 1000;
+      return ctx.currentTime - (ctx.outputLatency || ctx.baseLatency || 0);
+    } catch {
+      return null;
+    }
+  }
+
   function progress() {
     if (!playing) return pauseAt;
-    const elapsed = Math.max(0, ((performance.now() - startMs) / 1000) * rate);
-    return Math.min(duration(), pauseAt + elapsed);
+    // Follow the sound itself, so keys and the playhead light with the note you hear
+    const heard = anchorAudio == null ? null : heardTime();
+    const elapsed = heard == null ? ((performance.now() - startMs) / 1000) * rate : (heard - anchorAudio) * rate;
+    return Math.min(duration(), anchorAudio == null ? pauseAt + Math.max(0, elapsed) : anchorAt + Math.max(0, elapsed));
   }
 
   function currentBar() {
@@ -432,7 +462,7 @@ window.LunePiano = (function () {
     // Look-ahead is in musical time, so scale it by the rate to keep the same
     // wall-clock margin; hidden tabs get a long one because timers crawl there.
     const horizon = at + (document.hidden ? LOOKAHEAD_HIDDEN : LOOKAHEAD) * r;
-    const now = Tone.now() + SCHEDULE_PAD;
+    const soonest = Tone.now() + 0.01;
     while (pumpCursor < events.length) {
       const i = pumpCursor;
       const e = events[i];
@@ -442,17 +472,55 @@ window.LunePiano = (function () {
       if (!passesHand(e)) continue;
       if (scheduled.has(i)) continue;
       scheduled.add(i);
-      // Wall-clock delay scaled by playback rate (slow-mo stretches attacks)
-      const when = now + Math.max(0, (e.t - at) / r);
+      // Every note is placed on the one audio clock set when playback started, so
+      // the spacing between notes is exact whatever the page is doing meanwhile
+      const due = anchorAudio + (e.t - anchorAt) / r;
+      const when = Math.max(soonest, due);
       // Keep a short release tail in wall time so notes don't chop at any rate
-      const remain = Math.max(0.14, (e.sound - Math.max(0, at - e.t)) / r);
+      const remain = Math.max(0.14, e.sound / r - Math.max(0, when - due));
       const vel = e.vel ?? 0.58;
       try {
-        sampler.triggerAttackRelease(e.name, remain, when, vel);
+        playNote(e.name, remain, when, vel);
       } catch {
         /* ignore sample glitches */
       }
     }
+  }
+
+  /** Start a note and keep hold of it, so Stop can cut it even before it sounds. */
+  function playNote(name, dur, when, vel) {
+    sampler.triggerAttack(name, when, vel);
+    let src = null;
+    try {
+      const list = sampler._activeSources?.get(Math.round(Tone.Frequency(name).toMidi()));
+      src = list?.length ? list.pop() : null;
+    } catch {
+      src = null;
+    }
+    if (!src) {
+      sampler.triggerRelease(name, when + dur);
+      return;
+    }
+    src.stop(when + dur);
+    liveSources.add(src);
+    const done = src.onended;
+    src.onended = (x) => {
+      liveSources.delete(src);
+      if (typeof done === "function") done(x);
+    };
+  }
+
+  function cutLiveSources() {
+    const now = Tone.now();
+    for (const src of liveSources) {
+      try {
+        src.fadeOut = 0.03;
+        src.stop(now);
+      } catch {
+        /* already gone */
+      }
+    }
+    liveSources.clear();
   }
 
   function setHandFilter(mode) {
@@ -477,7 +545,11 @@ window.LunePiano = (function () {
   }
 
   function scheduleFrom(at) {
+    anchorAudio = null;
     if (!sampler) return;
+    cutLiveSources();
+    anchorAudio = Tone.now() + SCHEDULE_PAD;
+    anchorAt = at;
     // Kill anything that may have started while the bus was muted
     try {
       sampler.releaseAll();
@@ -508,6 +580,7 @@ window.LunePiano = (function () {
     pumpTimer = 0;
     audioEpoch += 1;
     scheduled.clear();
+    cutLiveSources();
     try {
       Tone.Transport.cancel();
       if (sampler) sampler.releaseAll();
@@ -1338,7 +1411,9 @@ window.LuneKeyboard = (function () {
     host.classList.add("lune-kbd");
     const track = document.createElement("div");
     track.className = "lune-kbd-track";
-    track.setAttribute("role", "img");
+    track.setAttribute("role", "group");
+    // on a phone the keys scroll sideways; the track takes focus so arrow keys can scroll it too
+    track.tabIndex = 0;
     track.setAttribute("aria-label", "Digital piano keyboard");
 
     const whites = document.createElement("div");
@@ -1439,14 +1514,21 @@ window.LuneKeyboard = (function () {
           if (midi < minM) minM = midi;
           if (midi > maxM) maxM = midi;
         }
-        if (minM <= maxM) {
-          const mid = Math.round((minM + maxM) / 2);
-          const midKey = keyMap.get(mid) || keyMap.get(minM);
-          if (midKey && track) {
-            const kr = midKey.getBoundingClientRect();
+        // The keyboard holds still while the notes are on screen; it glides only
+        // when a note would fall off the edge, and then centres the whole hand
+        if (minM <= maxM && track && track.scrollWidth > track.clientWidth + 2) {
+          const lo = keyMap.get(minM);
+          const hi = keyMap.get(maxM);
+          if (lo && hi) {
             const tr = track.getBoundingClientRect();
-            const delta = kr.left + kr.width / 2 - (tr.left + tr.width / 2);
-            if (Math.abs(delta) > 8) track.scrollLeft += delta;
+            const a = lo.getBoundingClientRect();
+            const z = hi.getBoundingClientRect();
+            const margin = Math.min(36, tr.width * 0.06);
+            if (a.left < tr.left + margin || z.right > tr.right - margin) {
+              const delta = (a.left + z.right) / 2 - (tr.left + tr.width / 2);
+              const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+              track.scrollTo({ left: track.scrollLeft + delta, behavior: reduced ? "auto" : "smooth" });
+            }
           }
         }
       },

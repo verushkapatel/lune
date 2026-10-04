@@ -585,23 +585,49 @@ def section_account(browser):
     downloads = []
     pg.on("request", lambda r: downloads.append(r.url) if "huggingface" in r.url or "jsdelivr" in r.url else None)
 
-    # a guest: the landing card invites an account; nothing to download
+    # a guest: the landing page tells the story first, with Lune AI's examples, then Install
     pg.goto(BASE, wait_until="networkidle")
     pg.wait_for_timeout(300)
-    card = pg.locator("#home-guest [data-ai-news], .home-hero [data-ai-news]").first
-    text = card.inner_text() if card.is_visible() else ""
-    check("account: the landing page says “Now superpowered with Lune AI” with the sub-line",
-          "Now superpowered with Lune AI" in text and "An AI assistant built around your music, your score, your practice and your goals." in text, text)
-    check("account: the same card says it is free with an account, nothing to download, and where answers come from",
-          "Free with a Lune account" in text and "nothing to download" in text and "Lune’s server" in text and "Built with Llama" in text, text)
-    check("account: a guest's button is Create a free account", "Create a free account" in text)
-    check("account: the top of the landing page has the Lune AI badge", pg.locator("[data-ai-news-badge]").is_visible())
-    pg.click("[data-ai-news-badge]")
-    pg.wait_for_timeout(900)
-    check("account: the badge jumps to the card without changing the address",
-          pg.evaluate("() => location.hash === '' && !!document.activeElement.closest('[data-ai-news]')"))
+    hero = pg.evaluate("() => [...document.querySelectorAll('#hero button')].map(b => b.textContent.trim()).filter(t => t && !/scroll/i.test(t))")
+    check("landing: the opening screen has no sign-in or install buttons, only the Lune AI pill", hero == ["New · Lune AI, built into Lune"], hero)
+    order = pg.evaluate("""() => { const ids = [...document.querySelectorAll('#home-guest > section, #home-guest > div')].map(e => e.id).filter(Boolean);
+      return [ids.indexOf('features'), ids.indexOf('ai'), ids.indexOf('get-lune')]; }""")
+    check("landing: features, then Lune AI, then Get Lune", order[0] >= 0 and order[0] < order[1] < order[2], order)
+    scenes = pg.eval_on_selector_all("#ai .ai-scene h3", "els => els.map(e => e.textContent)")
+    check("landing: six Lune AI scenarios, each with an example conversation", len(scenes) == 6 and pg.locator("#ai .ai-scene .ai-you").count() == 6 and pg.locator("#ai .ai-scene .ai-lune").count() == 6, scenes)
+    truth = pg.text_content("#ai .ai-truth")
+    check("landing: Lune AI is named for what it is: Llama 3.1 8B, open-weight, free with an account",
+          "Llama 3.1 8B" in truth and "open-weight" in truth and "free with a Lune account" in truth and "Built with Llama" in truth and "can be wrong" in truth, truth)
+    check("landing: nothing claims a model made or trained for Lune",
+          not pg.evaluate("() => /original (ai|llm|model)|trained (for|on) lune|our own (ai|model)|built (for|by) lune from scratch/i.test(document.getElementById('home-guest').textContent)"))
+    close = pg.eval_on_selector_all("#get-lune button", "els => els.map(e => e.textContent.trim())")
+    check("landing: the end offers Install first, then the browser, and no sign-in", close == ["Install Lune", "Use it in your browser"], close)
+    pg.click("#hero [data-show-ai]")
+    pg.wait_for_timeout(1500)
+    check("landing: the pill scrolls to Lune AI without changing the address",
+          pg.evaluate("() => location.hash === '' && Math.abs(document.getElementById('ai').getBoundingClientRect().top) < 120"),
+          pg.evaluate("() => [location.hash, document.getElementById('ai').getBoundingClientRect().top]"))
     credit = pg.evaluate("() => !document.querySelector('[data-ai-credit]').hidden")
     check("account: the credits name the model and its licence", credit)
+
+    # the app: sign-in lives here, with search and pieces to start with
+    pg.evaluate("() => document.querySelector('[data-enter-app]').click()")
+    pg.wait_for_timeout(500)
+    app = pg.evaluate("""() => ({ on: document.body.classList.contains('is-app'), story: !!document.getElementById('hero').offsetParent,
+      signin: document.querySelector('#home-app [data-lp-signin-only]')?.textContent.trim(), pieces: document.querySelectorAll('#home-app .home-app-pieces button').length,
+      search: !document.getElementById('btn-search').hidden, ai: document.querySelector('#home-app [data-ai-home] [data-lp-signin-only]')?.textContent.trim() })""")
+    check("app: Use it in your browser opens the app home, not the story", app["on"] and not app["story"], app)
+    check("app: sign-in is offered inside the app, with search and pieces to start", app["signin"] == "Sign in or create an account" and app["pieces"] == 4 and app["search"], app)
+    check("app: the Lune AI section says what it does and how to turn it on", app["ai"] == "Sign in to use Lune AI", app)
+    pg.reload(wait_until="networkidle")
+    check("app: the choice is remembered", pg.evaluate("() => document.body.classList.contains('is-app')"))
+    pg.evaluate("() => LuneAsk.openChat()")
+    pg.wait_for_selector("#lune-chat[open]")
+    pg.wait_for_timeout(400)
+    check("chat: without an account, Chat with Lune says it needs one and offers sign-in",
+          pg.locator("#chat-locked").is_visible() and not pg.locator("#chat-form").is_visible() and "free with a Lune account" in pg.inner_text("#chat-locked"))
+    pg.keyboard.press("Escape")
+    pg.evaluate("() => localStorage.removeItem('lune.app')")
 
     open_piece(pg)
     select_bar(pg, 5)
@@ -645,8 +671,29 @@ def section_account(browser):
           any("Sign in to Lune to use Lune AI. This is Lune’s built-in reply." in m for m in msgs), msgs[-2:])
     pg.evaluate("() => { window.__token = null; }")
 
+    # Chat with Lune: Repertoire, plans and week as context, the conversation carried along
+    pg.evaluate("() => { LuneAsk.close(); localStorage.removeItem('lune.chat.v1'); LuneAsk.openChat(); }")
+    pg.wait_for_selector("#lune-chat[open] #chat-form")
+    starters = pg.eval_on_selector_all("#chat-starters button", "els => els.map(e => e.textContent)")
+    check("chat: signed in, the chat opens with starter questions", "Summarise my week" in starters, starters)
+    pg.click("#chat-starters button:has-text('Summarise my week')")
+    pg.wait_for_function("() => document.querySelectorAll('#chat-log .chat-from-lune').length >= 1 && !document.querySelector('.chat-wait')", timeout=15000)
+    sent = json.loads(_u.urlopen(ACCOUNT_SERVER + "/last").read())
+    body = sent["messages"][1]["content"]
+    check("chat: the question goes to Lune AI with the week, plans and Repertoire",
+          body.endswith("QUESTION: Summarise my week") and '"thisWeek"' in body and '"plans"' in body and '"repertoire"' in body, body[-300:])
+    pg.fill("#chat-input", "And next week?")
+    pg.press("#chat-input", "Enter")
+    pg.wait_for_function("() => document.querySelectorAll('#chat-log .chat-from-lune').length >= 2 && !document.querySelector('.chat-wait')", timeout=15000)
+    sent = json.loads(_u.urlopen(ACCOUNT_SERVER + "/last").read())
+    convo = json.loads(sent["messages"][1]["content"].split("CONTEXT:\n", 1)[1].rsplit("\n\nQUESTION:", 1)[0]).get("conversation")
+    check("chat: a follow-up carries the earlier turns", convo and convo[0] == {"from": "pianist", "text": "Summarise my week"} and convo[1]["from"] == "lune", convo)
+    check("chat: answers from the model can be read aloud", pg.locator("#chat-log .chat-say").count() == 2)
+    pg.keyboard.press("Escape")
+
     pg.evaluate("() => document.getElementById('btn-settings').click()")
     pg.wait_for_timeout(500)
+    check("chat: Settings has Chat with Lune", pg.locator("[data-set=chat]").count() == 1)
     st = pg.inner_text("#set-account-ai")
     check("account: Settings says Lune AI is on", st.startswith("Lune AI is on"), st)
     check("account: nothing was downloaded from Hugging Face or a CDN", not downloads, downloads[:3])
@@ -724,6 +771,56 @@ def section_latest(browser):
         st = pg.evaluate("(u) => fetch(u).then(r => r.ok ? r.text() : '').then(t => t.length)", card["brf"])
         check("overview: the braille file downloads and is not empty", st > 200, st)
     check("latest: no page errors", not (errors + pg.errors), errors + pg.errors)
+    section_playback(browser)
+
+
+ONSETS = """() => { window.__on = []; window.__sl = []; window.__dock = [];
+  const S = Tone.Sampler.prototype.triggerAttack;
+  Tone.Sampler.prototype.triggerAttack = function (n, when) { window.__on.push(+when.toFixed(4)); return S.apply(this, arguments); };
+  setInterval(() => { const t = document.querySelector('.lune-kbd-track'); const d = document.getElementById('piano-dock');
+    window.__sl.push(t ? Math.round(t.scrollLeft) : -1); window.__dock.push(d.hidden ? -1 : Math.round(d.getBoundingClientRect().top)); }, 50); }"""
+
+
+def section_playback(browser):
+    """Playback keeps time, the keyboard keeps still, and the phone score is clean."""
+    for width, stall in ((1280, False), (390, True)):
+        ctx = browser.new_context(viewport={"width": width, "height": 844 if width < 600 else 900}, is_mobile=width < 600, has_touch=width < 600)
+        pg = ctx.new_page()
+        samples = []
+        pg.on("request", lambda r: samples.append(r.url) if r.url.endswith(".mp3") else None)
+        open_piece(pg)
+        pg.evaluate(ONSETS)
+        dock_before = pg.evaluate("() => { const d = document.getElementById('piano-dock'); return d.hidden ? -1 : Math.round(d.getBoundingClientRect().top); }")
+        pg.click("#btn-play-range")
+        if stall:
+            for _ in range(3):
+                pg.wait_for_timeout(2300)
+                pg.evaluate("() => { const e = performance.now() + 700; while (performance.now() < e) {} }")
+            pg.wait_for_timeout(2500)
+        else:
+            pg.wait_for_timeout(9000)
+        on = sorted(set(pg.evaluate("() => window.__on")))
+        gaps = [round(b - a, 3) for a, b in zip(on, on[1:])]
+        uneven = [g for g in gaps if abs(g - 0.2083) > 0.003 and abs(g - 0.4167) > 0.003]
+        label = f"{width}px" + (", with the page frozen for 0.7 s three times" if stall else "")
+        check(f"playback ({label}): every note lands on the beat, no gap between lines", len(on) > 30 and not uneven, (len(on), uneven[:6]))
+        dock = set(pg.evaluate("() => window.__dock"))
+        check(f"playback ({label}): pressing Play does not move or reveal the keyboard", dock == {dock_before}, (dock_before, sorted(dock)))
+        if width >= 1280:
+            sl = pg.evaluate("() => window.__sl")
+            check("playback: on a computer the keyboard holds still while Für Elise plays", len(set(sl)) == 1, sorted(set(sl))[:6])
+        check(f"playback ({label}): the piano sound comes from Lune itself", samples and all("/static/vendor/salamander/" in u for u in samples), samples[:3])
+        if width < 600:
+            box = pg.evaluate("""() => { const r = (id) => document.getElementById(id).getBoundingClientRect();
+              const tools = document.querySelector('.score-tools-head').getBoundingClientRect();
+              return { score: Math.round(r('score-scroll').height), tools: Math.round(tools.height), top: Math.round(tools.bottom), vh: innerHeight,
+                player: Math.round(r('studio-dock').height), banner: !!document.querySelector('#keep-account-banner')?.offsetParent }; }""")
+            check("phone: the score takes most of the screen", box["score"] >= box["vh"] * 0.5, box)
+            check("phone: header, tabs and tools fit in about a sixth of the screen, tools on one row", box["top"] <= 150 and box["tools"] <= 50, box)
+            check("phone: the player is one row and the sign-up banner stays off the score", box["player"] <= 80 and not box["banner"], box)
+            pg.click("#bpm-readout-btn")
+            check("phone: the tempo readout opens the tempo slider", pg.locator("#bpm-slider").is_visible())
+        ctx.close()
 
 
 SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week, "catalogue": section_catalogue, "console": section_console, "account": section_account, "latest": section_latest}
@@ -732,7 +829,7 @@ if __name__ == "__main__":
     want = sys.argv[1:] or list(SECTIONS)
     with sync_playwright() as p:
         PW = p
-        browser = p.chromium.launch()
+        browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])  # headless has no speakers to unlock
         for name in want:
             try:
                 SECTIONS[name](browser)

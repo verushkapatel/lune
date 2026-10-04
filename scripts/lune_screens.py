@@ -11,7 +11,9 @@ READY = "() => typeof state !== 'undefined' && state.piece && Object.keys(state.
 SCREENS = {
     "landing": (BASE, "", 800),
     # the "Now superpowered with Lune AI" card, as it shows once Lune AI's server is set
-    "landing-ai": (BASE, "() => { LUNE_CONFIG.aiServer = 'http://127.0.0.1:8140'; LuneAsk.paintNews(); document.querySelector('[data-ai-news]').scrollIntoView({block: 'center'}); }", 500),
+    "landing-ai": (BASE, "() => { document.querySelectorAll('.ai-scene, .ai-intro, .ai-truth').forEach(e => e.classList.add('is-in')); document.getElementById('ai').scrollIntoView({block: 'start'}); }", 1500),
+    "app-home": (BASE, "() => { document.querySelector('[data-enter-app]').click(); }", 900),
+    "chat": (BASE, "() => LuneAsk.openChat()", 700),
     "landing-how": (BASE, "() => document.querySelector('[data-lp-sim]')?.click()", 1200),
     "member-home": (BASE, "() => { document.getElementById('home-guest').hidden = true; document.getElementById('home-member').hidden = false; document.body.classList.add('is-signed-in'); }", 2500),
     "search": (BASE, "() => { const q = document.getElementById('q'); document.body.classList.add('studio-search-open'); q.value = 'chopin'; q.dispatchEvent(new Event('input', {bubbles: true})); }", 900),

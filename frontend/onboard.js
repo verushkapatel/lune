@@ -1632,8 +1632,10 @@ window.LuneOnboard = (function () {
     const authed = signedIn();
     const guest = $("home-guest");
     const member = $("home-member");
-    if (guest) guest.hidden = !!authed;
-    if (member) member.hidden = !authed;
+    // "See examples" from the signed-in home shows the story page in place until Home is pressed
+    const story = document.body.classList.contains("is-story");
+    if (guest) guest.hidden = !!authed && !story;
+    if (member) member.hidden = !authed || story;
     document.body.classList.toggle("is-signed-in", authed);
 
     if (!authed) {
@@ -1756,9 +1758,10 @@ window.LuneOnboard = (function () {
       const el = $(id);
       if (!el) return;
       if (id === "btn-search" || id === "top-search") {
-        el.hidden = !authed;
-        el.classList.toggle("gate-disabled", !authed);
-        if (id === "btn-search") el.disabled = !authed;
+        const may = authed || appMode();
+        el.hidden = !may;
+        el.classList.toggle("gate-disabled", !may);
+        if (id === "btn-search") el.disabled = !may;
         return;
       }
       if (id === "file") {
@@ -1773,7 +1776,8 @@ window.LuneOnboard = (function () {
       barAuth.hidden = !!authed;
       barAuth.setAttribute("aria-hidden", authed ? "true" : "false");
     }
-    if (!authed) {
+    paintAppMode();
+    if (!authed && !appMode()) {
       document.body.classList.remove("phone-search-open", "studio-search-open");
       $("btn-search")?.setAttribute("aria-expanded", "false");
     }
@@ -1781,6 +1785,93 @@ window.LuneOnboard = (function () {
     // Keep guest/member home panes in sync whenever auth chrome updates.
     if ($("home") && !$("home").hidden) paintSignedHome();
   }
+
+
+  /* ---------- app mode: installed Lune, or "Use it in your browser" ----------
+     The landing page tells the story once. In the app, guests get a quiet home
+     with sign-in, search and a few pieces to start with. */
+  let storyView = false;
+  function appMode() {
+    let chosen = false;
+    try {
+      chosen = localStorage.getItem("lune.app") === "1";
+    } catch {
+      /* private mode */
+    }
+    return !!(window.LuneInstall?.installed?.() || chosen);
+  }
+  function paintAppMode() {
+    const on = appMode() && !signedIn() && !storyView;
+    document.body.classList.toggle("is-app", on);
+    const card = $("home-app-signin");
+    if (card) card.hidden = !!store()?.prefs?.()?.appSigninLater;
+  }
+  function scrollHomeTo(el) {
+    const home = $("home");
+    if (!el) {
+      if (home) home.scrollTop = 0;
+      window.scrollTo(0, 0);
+      return;
+    }
+    const behavior = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth";
+    el.scrollIntoView({ behavior, block: "start" });
+    // live demos above the target draw as they pass and push it down: land again once the scroll settles
+    let tries = 0;
+    const settle = () => {
+      const top = el.getBoundingClientRect().top;
+      const bar = document.querySelector("header.bar")?.getBoundingClientRect().bottom || 0;
+      if (Math.abs(top - bar) > 24 && tries++ < 3) {
+        el.scrollIntoView({ behavior, block: "start" });
+        setTimeout(settle, 700);
+      }
+    };
+    setTimeout(settle, 900);
+  }
+  document.addEventListener("click", (e) => {
+    const t = e.target.closest?.("[data-enter-app], [data-show-story], [data-show-ai], [data-app-later], #btn-app-search");
+    if (!t) return;
+    e.preventDefault();
+    if (t.matches("[data-enter-app]")) {
+      try {
+        localStorage.setItem("lune.app", "1");
+      } catch {
+        /* private mode: app mode lasts for this visit */
+        document.body.classList.add("is-app");
+      }
+      storyView = false;
+      if (typeof window.showView === "function" && $("home")?.hidden) window.showView("home");
+      paintAppMode();
+      applyGateChrome();
+      requestAnimationFrame(() => scrollHomeTo(null));
+      return;
+    }
+    if (t.matches("[data-show-story], [data-show-ai]")) {
+      if (typeof window.showView === "function" && $("home")?.hidden) window.showView("home");
+      if (!signedIn()) {
+        storyView = true;
+        paintAppMode();
+        applyGateChrome();
+      } else {
+        // signed in: the story lives on the guest page, shown in place for a moment
+        $("home-guest").hidden = false;
+        $("home-member").hidden = true;
+        document.body.classList.add("is-story");
+      }
+      requestAnimationFrame(() => scrollHomeTo(t.matches("[data-show-ai]") ? $("ai") : null));
+      return;
+    }
+    if (t.matches("[data-app-later]")) {
+      store()?.setPref?.("appSigninLater", true);
+      paintAppMode();
+      return;
+    }
+    if (t.id === "btn-app-search") {
+      const q = $("q");
+      document.body.classList.add("phone-search-open", "studio-search-open");
+      $("btn-search")?.setAttribute("aria-expanded", "true");
+      q?.focus();
+    }
+  });
 
   function admitGuest() {
     if (onboarded()) return;
@@ -2096,6 +2187,8 @@ window.LuneOnboard = (function () {
   }
 
   return {
+    appMode,
+    paintAppMode,
     parseAccessAnswer,
     init,
     route,

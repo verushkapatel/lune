@@ -41,7 +41,7 @@ TEXT_PROPS = {"color", "fill", "stroke", "caret-color", "text-decoration-color",
 SURFACE_PROPS = re.compile(r"^(background(-color)?|border(-[a-z]+)*|outline(-color)?|box-shadow)$")
 
 # selectors that stay as they are in the light (white paper and things drawn on it)
-NO_FLIP = re.compile(r"score-page|fx-paper|study-staff|#osmd|\.coach\b|lune-letter|lune-finger|lane-|\.lp-note|\.lp-grade|\.chip\b")
+NO_FLIP = re.compile(r"lune-key|score-page|fx-paper|study-staff|#osmd|\.coach\b|lune-letter|lune-finger|lane-|\.lp-note|\.lp-grade|\.chip\b")
 
 # Hand fixes, found by going through every screen in light mode. They win.
 KEEP = """
@@ -55,6 +55,10 @@ html[data-theme="light"] #coach .coach-kicker,
 html[data-theme="light"] #coach #help-body h4 { color: #666666; }
 html[data-theme="light"] .onboard-progress li { color: #666666; }
 html[data-theme="light"] .ask-form input:focus-visible { outline: 2px solid #0d0d0d; outline-offset: 1px; }
+/* the phone keyboard sits on the page, not on a dark keybed */
+@media (max-width: 640px) {
+  html[data-theme="light"] body.is-studio .piano-dock.is-slim .lune-kbd-track { background: #ececec; }
+}
 """
 
 
