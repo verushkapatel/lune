@@ -55,7 +55,8 @@ const CASES = [
     q: "What is the fingering?",
     c: ctx.bar5,
     ok: (t) => {
-      const said = new Set([...t.matchAll(/\bfingers?\s*(\d)|\b(\d)(?:st|nd|rd|th)? finger|\(\s*(\d)\s*\)|\b[A-G][#♯b♭]?\d?\s*(?:[-:–]|with|=)\s*(\d)\b/gi)].map((m) => m[1] || m[2] || m[3] || m[4]));
+      // "finger 3", "3rd finger", "(3)", "E5: 3", "E5 with 3", and "3 for E5"
+      const said = new Set([...t.matchAll(/\bfingers?\s*(\d)|\b(\d)(?:st|nd|rd|th)? finger|\(\s*(\d)\s*\)|\b[A-G][#♯b♭]?\d?\s*(?:[-:–]|with|=)\s*(\d)\b|\b(\d)\s+for\s+[A-G][#♯b♭]?\d?\b/gi)].map((m) => m[1] || m[2] || m[3] || m[4] || m[5]));
       const names = { thumb: "1", index: "2", middle: "3", ring: "4", pinky: "5", little: "5" };
       const named = [...t.matchAll(/\b(thumb|index|middle|ring|pinky|little)(?: finger)?\s*\((?:finger\s*)?(\d)\)/gi)];
       const namesRight = named.every((m) => names[m[1].toLowerCase()] === m[2]);
