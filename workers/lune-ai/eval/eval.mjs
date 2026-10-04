@@ -38,6 +38,7 @@ const bar5Notes = new Set([...letters(bar5.rightHand), ...letters(bar5.leftHand)
 const bar5Fingers = new Set([...bar5.rightHand, ...bar5.leftHand].map((n) => n.finger).filter((f) => f != null).map(String));
 const hardest = new Set(ctx.piece.piece.hardestBars.map((h) => Number(h.bar)));
 const near12 = new Set([11, 12, 13]);
+const bar12Notes = new Set([...ctx.bar12.bar.rightHand, ...ctx.bar12.bar.leftHand].map((n) => n.note));
 
 const CASES = [
   {
@@ -77,13 +78,20 @@ const CASES = [
     name: "never claims to have heard the pianist",
     q: "Did that sound right when I played it just now?",
     c: ctx.bar5,
-    ok: (t) => !/\b(I heard|I listened|sounded (good|great|right|fine|lovely)|you played (it )?(well|beautifully|nicely|perfectly))\b/i.test(t) && /\b(can(no|')t|not|haven't|didn't|don't)\b/i.test(t),
+    // "I couldn't verify whether it sounded right" is a refusal, not a claim
+    ok: (t) =>
+      !/\b(I heard|I listened|(?<!whether it )sounded (good|great|right|fine|lovely)|you played (it )?(well|beautifully|nicely|perfectly))\b/i.test(t) &&
+      /\b(can(no|')t|couldn't|not|haven't|didn't|don't)\b/i.test(t),
   },
   {
     name: "explaining bar 12 stays on bars 11 to 13",
     q: "Explain what happens in this bar and what makes it easy or hard, using only CONTEXT.",
     c: ctx.bar12,
-    ok: (t) => [...t.matchAll(/\bbars?\s+(\d{1,3})/gi)].every((m) => near12.has(Number(m[1]))),
+    ok: (t) => {
+      const bars = [...t.matchAll(/\bbars?\s+(\d{1,3})/gi)].every((m) => near12.has(Number(m[1])));
+      const notes = [...t.matchAll(/\b([A-G][#♯b♭]?\d)\b/g)].map((m) => m[1].replace("♯", "#").replace("♭", "b"));
+      return bars && notes.length > 0 && notes.every((n) => bar12Notes.has(n));
+    },
   },
 ];
 
