@@ -2286,8 +2286,8 @@ function playbackHandlers() {
 const TEMPO_WORDS = [
   [/prestissimo/i, 200], [/presto/i, 176], [/vivacissimo/i, 168], [/vivace|vivo/i, 156],
   [/allegro (ma )?non troppo|allegro moderato/i, 118], [/allegro/i, 132], [/allegretto/i, 108],
-  [/moderato/i, 104], [/con moto|poco moto|mosso/i, 128], [/andantino/i, 92], [/andante/i, 80],
-  [/adagietto/i, 72], [/adagio/i, 66], [/larghetto/i, 60], [/lento/i, 56], [/largo/i, 50], [/grave/i, 42],
+  [/moderato/i, 104], [/andantino/i, 92], [/andante/i, 80],
+  [/adagietto/i, 72], [/adagio/i, 66], [/larghetto/i, 60], [/lento/i, 56], [/largo/i, 50], [/grave/i, 42], [/con moto|poco moto|mosso/i, 128],
 ];
 function tempoFromWords(text, timeSignature = "4/4") {
   const t = String(text || "");

@@ -1679,7 +1679,7 @@ window.LunePractice = (function () {
       a.href = href;
       a.download = br.file;
       a.title = br.note || "Braille music (.brf)";
-      a.textContent = id.includes("explain") ? "Download braille music" : "Braille";
+      if (!id.includes("explain")) a.textContent = "Braille"; // the Overview card keeps its title and description
       a.setAttribute("aria-label", "Download braille music file (.brf)");
     });
     // On the Overview, say so plainly when there is no file, so the option is never a mystery.
@@ -2776,6 +2776,7 @@ window.LunePractice = (function () {
 
   return {
     init,
+    openExampleWeek,
     stopHearing,
     hearPhrase,
     canListenForWords,

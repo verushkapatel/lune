@@ -7,7 +7,7 @@ stand-in model server on 8139 (scripts/standin_model_server.py), then:
 
     python3 scripts/lune_cloud_test.py [section ...]
 
-Sections: ai install tabs ratings week a11y. With none, all run.
+Sections: ai install tabs a11y ratings week catalogue console account latest. With none, all run.
 """
 import json
 import sys
@@ -73,8 +73,9 @@ def section_ai(browser):
     check("ai: Lune AI on this device is not offered before a real model has passed its test", not pg.locator("#ask-ai-offer").is_visible())
     pg.evaluate("() => document.getElementById('btn-settings').click()")
     pg.wait_for_timeout(500)
-    check("ai: Settings does not offer it either, and still offers Ollama",
-          pg.locator("#set-device-ai").count() == 0 and pg.locator("[data-ai=ollama]").is_visible())
+    # Ollama sits under Advanced details since Settings became one page with fewer options
+    check("ai: Settings does not offer it either, and still offers Ollama under Advanced details",
+          pg.locator("#set-device-ai").count() == 0 and pg.locator("details [data-ai=ollama]").count() == 1)
     pg.keyboard.press("Escape")
     # the developer switch shows the offer: it states the size and source before anything downloads
     pg.evaluate("() => { localStorage.setItem('lune.ai.device.test', '1'); LuneAsk.close(); LuneAsk.open({bar: 5}); }")
@@ -655,7 +656,77 @@ def section_account(browser):
 
 # ---------------------------------------------------------------- main
 
-SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week, "catalogue": section_catalogue, "console": section_console, "account": section_account}
+# ---------------------------------------------------------------- latest (the owner's October list)
+
+
+def section_latest(browser):
+    pg = new_page(browser)
+    pg.goto(BASE, wait_until="networkidle")
+    merge = pg.evaluate("""() => {
+      const local = { tasks: [{ id: 'a', done: false, created_at: '2026-10-01', updated_at: '2026-10-01' }, { id: 'b', done: false, created_at: '2026-10-02' }], removedTaskIds: [] };
+      const remote = { planTasks: [{ id: 'a', done: true, created_at: '2026-10-01', done_at: '2026-10-03' }, { id: 'c', done: false, created_at: '2026-10-04' }, { id: 'd', created_at: '2026-10-04' }], removedTaskIds: ['d'] };
+      const changed = LuneStore.mergePlanTasks(local, remote);
+      return { changed, ids: local.tasks.map(t => t.id + (t.done ? '+' : '')), gone: local.removedTaskIds };
+    }""")
+    check("plans: tasks from another device are merged in, newest first", merge["changed"] and merge["ids"] == ["c", "b", "a+"], merge)
+    check("plans: a task finished on another device stays finished, a removed one stays removed", "a+" in merge["ids"] and "d" not in merge["ids"] and "d" in merge["gone"], merge)
+    cloud = pg.evaluate("() => Object.keys(LuneStore.prefsForCloud())")
+    check("plans: plans are part of what an account keeps", "planTasks" in cloud and "removedTaskIds" in cloud, cloud)
+
+    tempo = pg.evaluate("""() => [['Allegro', '4/4'], ['Andante con moto', '4/4'], ['Adagio', '3/4'], ['Allegretto', '6/8'], ['Con moto', '4/4'], ['dolce', '4/4']]
+      .map(([w, ts]) => { const n = tempoFromWords(w, ts); return Number.isNaN(n) ? null : n; })""")
+    check("tempo: a tempo word gives a beat when the score has no number", tempo[0] == 132 and tempo[1] == 80 and tempo[2] == 66 and tempo[3] == 162 and tempo[4] == 128, tempo)
+    check("tempo: words that are not tempo marks give nothing", tempo[5] is None, tempo)
+
+    answers = pg.evaluate("""() => ['vision', 'I have dyslexia', 'both', 'neither', 'No visual impairment', 'not dyslexic, but low vision', 'hello']
+      .map(t => LuneOnboard.parseAccessAnswer(t))""")
+    check("setup: spoken answers are understood, including no", answers == ["vision", "dyslexia", "both", "none", "none", "vision", None], answers)
+
+    check("Play along is gone", pg.evaluate("() => !document.querySelector('script[src*=\"follow.js\"]') && typeof window.LuneFollow === 'undefined'"))
+
+    # This week explains itself and has an example on Home
+    pg.evaluate("() => document.getElementById('btn-member-week-example').click()")
+    pg.wait_for_selector("#example-week-dialog[open]")
+    kick = pg.text_content("#example-week-dialog .auth-kicker")
+    flag = pg.inner_text("#example-week-dialog .example-flag")
+    check("week: Home opens an example week, labelled as an example", kick.startswith("Example · 1 of 7") and "Nothing here is saved" in flag, kick)
+    seen = []
+    for _ in range(6):
+        pg.click("#example-week-dialog [data-ex=next]")
+        seen.append(pg.inner_text("#example-week-dialog h2"))
+    check("week: the example covers setting the week, sharing it and inviting", "What a teacher or parent sees" in seen and "Bring someone with you" in seen, seen)
+    pg.keyboard.press("Escape")
+    how = pg.evaluate("() => [...document.querySelectorAll('.member-week-how li')].map(li => li.textContent).join(' ')")
+    check("week: Home says what Share this week and Invite do", "read-only page" in how and "Invite" in how, how)
+
+    # voice: without Lune AI's server, the device voice and device listening are used
+    off = browser.new_context(viewport={"width": 1280, "height": 860})
+    off.add_init_script(POINT_AT_SERVER.replace(ACCOUNT_SERVER, ""))
+    p2 = off.new_page()
+    p2.goto(BASE, wait_until="networkidle")
+    check("voice: with no Lune AI server, the server voice is not offered", p2.evaluate("() => LuneAsk.voice.available() === false"))
+    off.close()
+
+    # the Reading and access card on a piece's overview
+    errors = pg.errors
+    pg = new_page(browser)
+    open_piece(pg)
+    pg.evaluate("() => document.getElementById('tab-explain').click()")
+    pg.wait_for_timeout(900)
+    pg.wait_for_function("() => !document.getElementById('btn-braille-explain').hidden || !document.getElementById('braille-none-explain').hidden", timeout=15000)
+    card = pg.evaluate("""() => { const c = document.getElementById('explain-access');
+      const on = [...c.querySelectorAll('.access-option')].filter(o => !o.hidden && o.offsetParent);
+      const b = document.getElementById('btn-braille-explain');
+      return { visible: !!c.offsetParent, options: on.map(o => o.querySelector('strong').textContent), brf: b.hidden ? null : b.getAttribute('href') }; }""")
+    check("overview: Reading and access is a card with three plain options", card["visible"] and len(card["options"]) == 3, card)
+    check("overview: Für Elise offers its braille music file", (card["brf"] or "").endswith(".brf"), card)
+    if card["brf"]:
+        st = pg.evaluate("(u) => fetch(u).then(r => r.ok ? r.text() : '').then(t => t.length)", card["brf"])
+        check("overview: the braille file downloads and is not empty", st > 200, st)
+    check("latest: no page errors", not (errors + pg.errors), errors + pg.errors)
+
+
+SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week, "catalogue": section_catalogue, "console": section_console, "account": section_account, "latest": section_latest}
 
 if __name__ == "__main__":
     want = sys.argv[1:] or list(SECTIONS)
