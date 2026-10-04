@@ -596,8 +596,8 @@ def section_account(browser):
     scenes = pg.eval_on_selector_all("#ai .ai-scene h3", "els => els.map(e => e.textContent)")
     check("landing: six Lune AI scenarios, each with an example conversation", len(scenes) == 6 and pg.locator("#ai .ai-scene .ai-you").count() == 6 and pg.locator("#ai .ai-scene .ai-lune").count() == 6, scenes)
     truth = pg.text_content("#ai .ai-truth")
-    check("landing: Lune AI is named for what it is: Llama 3.1 8B, open-weight, free with an account",
-          "Llama 3.1 8B" in truth and "open-weight" in truth and "free with a Lune account" in truth and "Built with Llama" in truth and "can be wrong" in truth, truth)
+    check("landing: Lune AI is named for what it is: Llama 3.3 70B, open-weight, free with an account",
+          "Llama 3.3 70B" in truth and "open-weight" in truth and "free with a Lune account" in truth and "Built with Llama" in truth and "can be wrong" in truth, truth)
     check("landing: nothing claims a model made or trained for Lune",
           not pg.evaluate("() => /original (ai|llm|model)|trained (for|on) lune|our own (ai|model)|built (for|by) lune from scratch/i.test(document.getElementById('home-guest').textContent)"))
     close = pg.eval_on_selector_all("#get-lune button", "els => els.map(e => e.textContent.trim())")

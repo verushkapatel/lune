@@ -2,7 +2,7 @@
 // it, runs eval.mjs against it and deletes it. It reaches the models through
 // the same AI binding as Lune AI and answers only requests carrying EVAL_KEY,
 // a random secret made for each run.
-import { synthesize, transcribe } from "../src/index.js";
+import { runModel, synthesize, transcribe } from "../src/index.js";
 
 export default {
   async fetch(req, env) {
@@ -15,7 +15,8 @@ export default {
       const text = await transcribe(env, audio);
       return Response.json({ bytes: audio.length, head: Array.from(audio.slice(0, 3)), text, sttMs: Date.now() - t0 });
     }
-    const out = await env.AI.run(env.MODEL, { messages: body.messages, max_tokens: 400, temperature: 0.3 });
-    return Response.json({ response: out?.response || "" });
+    // the same choice of model, and the same fallback, as Lune AI itself
+    const { text, model } = await runModel(env, body.messages);
+    return Response.json({ response: text, model });
   },
 };

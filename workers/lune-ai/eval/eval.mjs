@@ -11,7 +11,9 @@ import { SYSTEM_PROMPT } from "../src/index.js";
 
 const EVAL_URL = process.env.EVAL_URL;
 const EVAL_KEY = process.env.EVAL_KEY;
-const MODEL = /MODEL = "([^"]+)"/.exec(readFileSync(new URL("../wrangler.toml", import.meta.url), "utf8"))[1];
+const TOML = readFileSync(new URL("../wrangler.toml", import.meta.url), "utf8");
+const MODEL = /^MODEL = "([^"]+)"/m.exec(TOML)[1];
+const FALLBACK = /^MODEL_FALLBACK = "([^"]+)"/m.exec(TOML)?.[1] || "";
 const ctx = JSON.parse(readFileSync(new URL("./fur-elise-context.json", import.meta.url), "utf8"));
 const REPEATS = 3;
 
@@ -29,7 +31,7 @@ async function ask(question, context) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(`evaluation Worker ${res.status}: ${JSON.stringify(data).slice(0, 300)}`);
-  return { text: String(data.response || ""), ms: Date.now() - t0 };
+  return { text: String(data.response || ""), model: String(data.model || ""), ms: Date.now() - t0 };
 }
 
 const letters = (list) => new Set((list || []).map((n) => String(n.note || "")[0]).filter(Boolean));
@@ -67,7 +69,7 @@ export function fingeringRight(t, bar) {
     (m) => names[(m[2] || m[3]).toLowerCase()] === (m[1] || m[4]),
   );
   // fingers listed in order for a hand: "right hand ... fingers 5, 4, 5, 1, 3, 2"
-  const seqs = [...t.matchAll(/\b(right|left)[- ]hand\b[^.;]*?\bfingers?\s+((?:[1-5](?:\s*,\s*(?:and\s+)?|\s+and\s+)?)+)/gi)].map((m) => {
+  const seqs = [...t.matchAll(/\b(right|left)[- ]hand\b[^.;:]*?\bfingers\s+([1-5](?:\s*,\s*(?:and\s+)?[1-5]|\s+and\s+[1-5])+)\b(?!\s*(?:for|on)\b)/gi)].map((m) => {
     const said = m[2].match(/[1-5]/g);
     const hand = (m[1].toLowerCase() === "right" ? bar.rightHand : bar.leftHand).map((n) => n.finger).filter((f) => f != null).map(String);
     return said.length === hand.length && said.every((f, i) => f === hand[i]);
@@ -134,17 +136,19 @@ const CASES = [
 let passed = 0;
 let total = 0;
 const times = [];
-const lines = [`Model: ${MODEL}`, ""];
+const lines = [`Model: ${MODEL}, with ${FALLBACK || "no"} fallback`, ""];
+const byModel = {};
 for (const k of CASES) {
   let ok = 0;
   for (let i = 0; i < REPEATS; i++) {
-    const { text, ms } = await ask(k.q, k.c);
+    const { text, ms, model } = await ask(k.q, k.c);
     times.push(ms);
+    byModel[model] = (byModel[model] || 0) + 1;
     const good = k.ok(text);
     ok += good ? 1 : 0;
     total++;
     passed += good ? 1 : 0;
-    lines.push(`${good ? "PASS" : "FAIL"}  ${k.name}  (${(ms / 1000).toFixed(1)} s)`);
+    lines.push(`${good ? "PASS" : "FAIL"}  ${k.name}  (${(ms / 1000).toFixed(1)} s${model && model !== MODEL ? `, answered by the fallback ${model}` : ""})`);
     lines.push(`      ${text.replace(/\s+/g, " ").slice(0, 400)}`);
   }
   lines.push(`      ${ok}/${REPEATS} for this question`, "");
@@ -165,6 +169,11 @@ const SAY = "Bar twelve. Keep the thumb light, then play the right hand slowly."
   lines.push(`${ok2 ? "PASS" : "FAIL"}  Whisper hears it back with punctuation (${(v.sttMs || 0) / 1000} s)`);
   lines.push(`      said:  ${SAY}`, `      heard: ${heard || JSON.stringify(v).slice(0, 200)}`, "");
 }
+// the larger model must really be the one answering, not the fallback every time
+const primary = byModel[MODEL] || 0;
+total += 1;
+passed += primary > 0 ? 1 : 0;
+lines.push(`${primary > 0 ? "PASS" : "FAIL"}  ${MODEL} answered ${primary} of ${CASES.length * REPEATS} questions${Object.keys(byModel).filter((m) => m !== MODEL).map((m) => `; ${m} answered ${byModel[m]}`).join("")}`, "");
 times.sort((a, b) => a - b);
 lines.push(`${passed}/${total} answers passed · median ${(times[Math.floor(times.length / 2)] / 1000).toFixed(1)} s · slowest ${(times[times.length - 1] / 1000).toFixed(1)} s`);
 console.log(lines.join("\n"));

@@ -200,7 +200,8 @@ window.LunePractice = (function () {
   let activeRec = null;
   let _voiceSecureToasted = false;
   function canListenForWords() {
-    return !!Recognition && !!window.isSecureContext;
+    // Lune AI's Whisper (signed in) or the browser's own recognition
+    return !!window.isSecureContext && (!!Recognition || !!window.LuneAsk?.voice?.available?.());
   }
   /** Open coach note field for the current/selected bar (type fallback). */
   function focusTypeNote(bar, text = "") {
@@ -238,6 +239,9 @@ window.LunePractice = (function () {
     const chunks = [];
     rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    // iPhones start an audio context paused; a paused meter reads silence, so it must not decide anything
+    await ctx.resume().catch(() => {});
+    const meterLive = ctx.state === "running";
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 1024;
     ctx.createMediaStreamSource(stream).connect(analyser);
@@ -258,18 +262,57 @@ window.LunePractice = (function () {
         heardVoice = true;
         quietSince = 0;
       } else if (heardVoice) quietSince ||= now;
-      if ((heardVoice && quietSince && now - quietSince > 1600) || now - started > 45000) rec.stop();
+      if ((meterLive && heardVoice && quietSince && now - quietSince > 1600) || now - started > 45000) rec.stop();
       else requestAnimationFrame(watch);
     };
     requestAnimationFrame(watch);
     await done;
     activeRecorder = null;
     stream.getTracks().forEach((t) => t.stop());
-    ctx.close().catch(() => {});
-    if (!heardVoice) return "";
+    const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
+    // only a working meter that heard nothing at all may drop the recording
+    if ((meterLive && !heardVoice) || blob.size < 800) {
+      ctx.close().catch(() => {});
+      return "";
+    }
     onPartial?.("Writing it down…");
-    const text = await window.LuneAsk.voice.transcribe(new Blob(chunks, { type: rec.mimeType || "audio/webm" }));
+    let audio = blob;
+    try {
+      audio = await toWav16k(ctx, blob);
+    } catch {
+      /* send the recording as it is */
+    }
+    ctx.close().catch(() => {});
+    const text = await window.LuneAsk.voice.transcribe(audio);
     return tidySpoken(text);
+  }
+
+  /** Any recording → 16 kHz mono WAV, the form Whisper is tested with (about 32 KB a second). */
+  async function toWav16k(ctx, blob) {
+    const decoded = await ctx.decodeAudioData(await blob.arrayBuffer());
+    const rate = 16000;
+    const off = new OfflineAudioContext(1, Math.ceil(decoded.duration * rate), rate);
+    const src = off.createBufferSource();
+    src.buffer = decoded;
+    src.connect(off.destination);
+    src.start();
+    const pcm = (await off.startRendering()).getChannelData(0);
+    const out = new DataView(new ArrayBuffer(44 + pcm.length * 2));
+    const str = (o, t) => [...t].forEach((c, i) => out.setUint8(o + i, c.charCodeAt(0)));
+    str(0, "RIFF");
+    out.setUint32(4, 36 + pcm.length * 2, true);
+    str(8, "WAVEfmt ");
+    out.setUint32(16, 16, true);
+    out.setUint16(20, 1, true);
+    out.setUint16(22, 1, true);
+    out.setUint32(24, rate, true);
+    out.setUint32(28, rate * 2, true);
+    out.setUint16(32, 2, true);
+    out.setUint16(34, 16, true);
+    str(36, "data");
+    out.setUint32(40, pcm.length * 2, true);
+    for (let i = 0; i < pcm.length; i++) out.setInt16(44 + i * 2, Math.max(-1, Math.min(1, pcm[i])) * 0x7fff, true);
+    return new Blob([out], { type: "audio/wav" });
   }
 
   function hearPhrase({ onPartial } = {}) {
@@ -279,6 +322,8 @@ window.LunePractice = (function () {
         if (/denied|not allowed|permission/i.test(err?.message || "")) {
           throw new Error("Lune needs the microphone for voice notes. Allow it in the address bar, or type the note.");
         }
+        // the browser's own recognition if it has one; otherwise say what went wrong
+        if (!Recognition) throw new Error(err?.message || "Lune AI could not hear that. Try again, or type.");
         return browserPhrase({ onPartial });
       });
     }

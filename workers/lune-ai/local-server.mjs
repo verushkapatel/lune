@@ -13,6 +13,11 @@ const env = {
   ALLOWED_ORIGINS: "http://127.0.0.1:8137,http://localhost:8137",
   AI: {
     run: async (model, input) => {
+      if (/whisper/.test(model)) {
+        const bytes = Buffer.from(input.audio, "base64");
+        last = { model, format: bytes.subarray(0, 4).toString("latin1"), bytes: bytes.length, language: input.language };
+        return { text: "Bar 12, keep the thumb light." };
+      }
       last = input;
       const ctx = input.messages[1].content;
       const bar = ctx.match(/"bar":\{"number":(\d+)/)?.[1];

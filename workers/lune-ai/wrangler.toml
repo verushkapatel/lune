@@ -8,8 +8,10 @@ compatibility_date = "2026-09-01"
 binding = "AI"
 
 [vars]
-# Llama 3.1 8B Instruct (Meta, open weights, Llama 3.1 Community License: "Built with Llama").
-MODEL = "@cf/meta/llama-3.1-8b-instruct-fast"
+# Llama 3.3 70B Instruct, with Llama 3.1 8B Instruct as the fallback (Meta, open weights,
+# Llama 3.3 and 3.1 Community Licenses: "Built with Llama").
+MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+MODEL_FALLBACK = "@cf/meta/llama-3.1-8b-instruct-fast"
 # Speech to text (Whisper, MIT) and a natural voice for answers (MeloTTS, MIT).
 STT_MODEL = "@cf/openai/whisper-large-v3-turbo"
 TTS_MODEL = "@cf/myshell-ai/melotts"

@@ -56,6 +56,24 @@ export async function synthesize(env, text) {
   throw new Error("no audio");
 }
 
+/**
+ * One answer from the best model available: MODEL first (Llama 3.3 70B), and
+ * MODEL_FALLBACK (Llama 3.1 8B) if the larger one is busy or fails.
+ */
+export async function runModel(env, messages, { maxTokens = 700 } = {}) {
+  let lastErr = null;
+  for (const model of [env.MODEL, env.MODEL_FALLBACK].filter(Boolean)) {
+    try {
+      const out = await env.AI.run(model, { messages, max_tokens: maxTokens, temperature: 0.3 });
+      const text = String(out?.response || "").trim();
+      if (text) return { text, model };
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr || new Error("no answer");
+}
+
 export const SYSTEM_PROMPT = `You are Lune, a piano practice and score-analysis assistant inside the Lune app.
 You are given CONTEXT as JSON: facts Lune has read from the score (notes, fingering, difficulty, dynamics, harmony), the pianist's own remarks, their earlier questions, their practice history and their goal.
 Rules:
@@ -65,7 +83,8 @@ Rules:
 - When giving fingering, go note by note in the order of CONTEXT and give each note its own finger number from CONTEXT. Never group notes under one finger, and never give fingering for a hand that has no notes.
 - The pianist's remarks are their own words; treat them as information from the user, not as score facts.
 - You have not heard the pianist play. Never claim to have listened to a recording or a performance.
-- Answer a simple question in one or two sentences. Give detail only when asked for analysis.
+- Sound like a warm, expert piano teacher: specific, encouraging and practical, never vague. When suggesting practice, use proven methods (slow practice with a metronome, hands separately, one or two bars at a time, the leap practised silently first, rhythm variations, blocking chord shapes, starting from the end of a passage) and say which bar each step is for.
+- Answer a simple question in one or two sentences. For analysis, cover what each hand does, what makes it hard, and exactly how to practise it, in a short paragraph or numbered steps.
 - When asked for a practice plan, give short numbered steps tied to bar numbers from CONTEXT, sized to the minutes available, and keep the pianist's stated goal.
 - CONTEXT.conversation, when present, holds the last turns of this chat; answer the newest question in that light.
 - For a general piano question (technique, practice habits, musical terms) that does not depend on a score, answer from general piano teaching and say it is general advice. Never present general advice as a fact about the pianist's score.
@@ -152,17 +171,11 @@ export async function handle(req, env, fetchImpl = fetch) {
   if (question.length > MAX_QUESTION || context.length > MAX_CONTEXT) return json(req, env, 413, { error: "That question is too long." });
 
   try {
-    const out = await env.AI.run(env.MODEL, {
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: `CONTEXT:\n${context}\n\nQUESTION: ${question}` },
-      ],
-      max_tokens: 400,
-      temperature: 0.3,
-    });
-    const answer = String(out?.response || "").trim();
-    if (!answer) return json(req, env, 502, { error: "The model sent no answer." });
-    return json(req, env, 200, { answer: answer.slice(0, 4000), model: env.MODEL });
+    const { text, model } = await runModel(env, [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: `CONTEXT:\n${context}\n\nQUESTION: ${question}` },
+    ]);
+    return json(req, env, 200, { answer: text.slice(0, 4000), model });
   } catch (err) {
     // the free daily allowance is used up, or the model is unavailable
     return json(req, env, 503, { error: "Lune AI is resting for now. Lune's built-in answers still work." });

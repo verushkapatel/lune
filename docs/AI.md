@@ -20,7 +20,8 @@ This mode has been tested only against a stand-in server (`scripts/standin_model
 
 Anyone with a free Lune account gets Lune AI in Ask Lune, with nothing to download or install. Guests are invited to make an account.
 
-The model is Llama 3.1 8B Instruct (Meta, open weights, Llama 3.1 Community License, so the credits say "Built with Llama"). It runs on Cloudflare Workers AI, called from a small Cloudflare Worker in `workers/lune-ai`. It costs nothing inside Workers AI's free daily allowance. As a rough estimate from Cloudflare's published rates, that is around 500 to 600 questions a day across everyone. When the allowance runs out, Ask Lune says so and gives its built-in answer. There is no API key: the Worker reaches the model through its AI binding.
+The model is Llama 3.3 70B Instruct, with Llama 3.1 8B Instruct as the fallback when the larger one is busy or fails (Meta, open weights, Llama 3.3 and 3.1 Community Licenses, so the credits say "Built with Llama"). Both run on Cloudflare Workers AI, called from a small Cloudflare Worker in `workers/lune-ai`. It costs nothing inside Workers AI's free daily allowance of 10,000 neurons. The 70B model is far better at teaching but uses that allowance much faster: as a rough estimate from Cloudflare's published rates, about 140 neurons per question, so around 70 questions a day across everyone (the 8B model alone allowed about 500). The fallback does not stretch the allowance, because both models draw on it. When the allowance runs out, Ask Lune says so and gives its built-in answer until the next day. To trade quality for volume, set `MODEL` in `workers/lune-ai/wrangler.toml` back to `@cf/meta/llama-3.1-8b-instruct-fast`.
+There is no API key: the Worker reaches the model through its AI binding.
 
 The Worker:
 

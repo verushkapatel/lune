@@ -104,5 +104,23 @@ check("text comes back as audio, labelled by its format", r.status === 200 && r.
 r = await post("/speak", JSON.stringify({ text: "x" }), { token: "" });
 check("no account, no voice", r.status === 401);
 
+// the larger model first; the smaller one when it fails
+{
+  const tried = [];
+  const e2 = env({
+    MODEL: "big",
+    MODEL_FALLBACK: "small",
+    AI: { run: async (model) => { tried.push(model); if (model === "big") throw new Error("busy"); return { response: "Bar 5 from the small model." }; } },
+  });
+  r = await ask({ question: "What notes?", context: ctx }, { e: e2 });
+  const d2 = await r.json();
+  check("when the large model fails, the fallback answers and says which model it was", r.status === 200 && d2.model === "small" && tried.join(",") === "big,small", JSON.stringify(d2));
+  tried.length = 0;
+  r = await ask({ question: "What notes?", context: ctx }, { e: env({ MODEL: "big", MODEL_FALLBACK: "small", AI: { run: async (m) => { tried.push(m); return { response: "From big." }; } } }) });
+  check("the large model answers first when it can", (await r.json()).model === "big" && tried.join(",") === "big");
+  r = await ask({ question: "What notes?", context: ctx }, { e: env({ MODEL: "big", MODEL_FALLBACK: "small", AI: { run: async () => { throw new Error("quota"); } } }) });
+  check("when both fail, Lune says so and its built-in answers take over", r.status === 503);
+}
+
 console.log(`\n${pass}/${pass + fail} passed`);
 process.exit(fail ? 1 : 0);
