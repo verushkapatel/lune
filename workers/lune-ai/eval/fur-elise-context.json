@@ -1,0 +1,460 @@
+{
+ "bar5": {
+  "piece": {
+   "title": "Für Elise",
+   "composer": "Ludwig van Beethoven",
+   "key": null,
+   "timeSignature": "3/8",
+   "tempo": "72 bpm",
+   "era": "Early Romantic",
+   "bars": 106,
+   "hardestBars": [
+    {
+     "bar": 79,
+     "why": "busy texture, wide leaps"
+    },
+    {
+     "bar": 32,
+     "why": "wide leaps, busy texture"
+    },
+    {
+     "bar": 34,
+     "why": "wide leaps, busy texture"
+    },
+    {
+     "bar": 33,
+     "why": "busy texture, wide leaps"
+    },
+    {
+     "bar": 27,
+     "why": "wide leaps, chords"
+    }
+   ]
+  },
+  "goal": {
+   "daysPerWeek": null,
+   "minutesPerSession": null,
+   "workingToward": null
+  },
+  "remarks": [],
+  "practiceHistory": [],
+  "plans": [],
+  "earlierQuestions": [],
+  "tempo": {
+   "marked": 72,
+   "practisingAt": 72
+  },
+  "neighbouringBars": [
+   {
+    "number": 4,
+    "rightHand": [
+     {
+      "note": "C5",
+      "beat": 0,
+      "length": 0.5,
+      "finger": 4
+     },
+     {
+      "note": "E4",
+      "beat": 0.75,
+      "length": 0.25,
+      "finger": 1
+     },
+     {
+      "note": "E5",
+      "beat": 1,
+      "length": 0.25,
+      "finger": 5
+     },
+     {
+      "note": "D#5",
+      "beat": 1.25,
+      "length": 0.25,
+      "finger": 4
+     }
+    ],
+    "leftHand": [
+     {
+      "note": "A2",
+      "beat": 0,
+      "length": 0.25,
+      "finger": 5
+     },
+     {
+      "note": "E3",
+      "beat": 0.25,
+      "length": 0.25,
+      "finger": 2
+     },
+     {
+      "note": "A3",
+      "beat": 0.5,
+      "length": 0.25,
+      "finger": 1
+     }
+    ]
+   },
+   {
+    "number": 6,
+    "rightHand": [
+     {
+      "note": "A4",
+      "beat": 0,
+      "length": 0.5,
+      "finger": 1
+     },
+     {
+      "note": "C4",
+      "beat": 0.75,
+      "length": 0.25,
+      "finger": 1
+     },
+     {
+      "note": "E4",
+      "beat": 1,
+      "length": 0.25,
+      "finger": 2
+     },
+     {
+      "note": "A4",
+      "beat": 1.25,
+      "length": 0.25,
+      "finger": 4
+     }
+    ],
+    "leftHand": [
+     {
+      "note": "A2",
+      "beat": 0,
+      "length": 0.25,
+      "finger": 5
+     },
+     {
+      "note": "E3",
+      "beat": 0.25,
+      "length": 0.25,
+      "finger": 2
+     },
+     {
+      "note": "A3",
+      "beat": 0.5,
+      "length": 0.25,
+      "finger": 1
+     }
+    ]
+   }
+  ],
+  "bar": {
+   "number": 5,
+   "rightHand": [
+    {
+     "note": "E5",
+     "beat": 0,
+     "length": 0.25,
+     "finger": 5
+    },
+    {
+     "note": "D#5",
+     "beat": 0.25,
+     "length": 0.25,
+     "finger": 4
+    },
+    {
+     "note": "E5",
+     "beat": 0.5,
+     "length": 0.25,
+     "finger": 5
+    },
+    {
+     "note": "B4",
+     "beat": 0.75,
+     "length": 0.25,
+     "finger": 1
+    },
+    {
+     "note": "D5",
+     "beat": 1,
+     "length": 0.25,
+     "finger": 3
+    },
+    {
+     "note": "C5",
+     "beat": 1.25,
+     "length": 0.25,
+     "finger": 2
+    }
+   ],
+   "leftHand": [],
+   "difficulty": {
+    "hard": false,
+    "reasons": [
+     "straightforward"
+    ]
+   },
+   "technicalFeatures": [],
+   "dynamics": [],
+   "harmony": [],
+   "expressions": [],
+   "lunesAdvice": []
+  }
+ },
+ "bar12": {
+  "piece": {
+   "title": "Für Elise",
+   "composer": "Ludwig van Beethoven",
+   "key": null,
+   "timeSignature": "3/8",
+   "tempo": "72 bpm",
+   "era": "Early Romantic",
+   "bars": 106,
+   "hardestBars": [
+    {
+     "bar": 79,
+     "why": "busy texture, wide leaps"
+    },
+    {
+     "bar": 32,
+     "why": "wide leaps, busy texture"
+    },
+    {
+     "bar": 34,
+     "why": "wide leaps, busy texture"
+    },
+    {
+     "bar": 33,
+     "why": "busy texture, wide leaps"
+    },
+    {
+     "bar": 27,
+     "why": "wide leaps, chords"
+    }
+   ]
+  },
+  "goal": {
+   "daysPerWeek": null,
+   "minutesPerSession": null,
+   "workingToward": null
+  },
+  "remarks": [],
+  "practiceHistory": [],
+  "plans": [],
+  "earlierQuestions": [],
+  "tempo": {
+   "marked": 72,
+   "practisingAt": 72
+  },
+  "neighbouringBars": [
+   {
+    "number": 11,
+    "rightHand": [
+     {
+      "note": "D5",
+      "beat": 0,
+      "length": 0.75,
+      "finger": 3
+     },
+     {
+      "note": "F4",
+      "beat": 0.75,
+      "length": 0.25,
+      "finger": 1
+     },
+     {
+      "note": "E5",
+      "beat": 1,
+      "length": 0.25,
+      "finger": 5
+     },
+     {
+      "note": "D5",
+      "beat": 1.25,
+      "length": 0.25,
+      "finger": 4
+     }
+    ],
+    "leftHand": [
+     {
+      "note": "G2",
+      "beat": 0,
+      "length": 0.25,
+      "finger": 5
+     },
+     {
+      "note": "G3",
+      "beat": 0.25,
+      "length": 0.25,
+      "finger": 1
+     },
+     {
+      "note": "B3",
+      "beat": 0.5,
+      "length": 0.25,
+      "finger": 3
+     }
+    ]
+   },
+   {
+    "number": 13,
+    "rightHand": [
+     {
+      "note": "B4",
+      "beat": 0,
+      "length": 0.5,
+      "finger": 1
+     },
+     {
+      "note": "E4",
+      "beat": 0.75,
+      "length": 0.25,
+      "finger": 1
+     },
+     {
+      "note": "E5",
+      "beat": 1,
+      "length": 0.25,
+      "finger": 5
+     }
+    ],
+    "leftHand": [
+     {
+      "note": "E2",
+      "beat": 0,
+      "length": 0.25,
+      "finger": 5
+     },
+     {
+      "note": "E3",
+      "beat": 0.25,
+      "length": 0.25,
+      "finger": 1
+     },
+     {
+      "note": "E4",
+      "beat": 0.5,
+      "length": 0.25,
+      "finger": 1
+     },
+     {
+      "note": "E4",
+      "beat": 1.25,
+      "length": 0.25,
+      "finger": 5
+     }
+    ]
+   }
+  ],
+  "bar": {
+   "number": 12,
+   "rightHand": [
+    {
+     "note": "C5",
+     "beat": 0,
+     "length": 0.75,
+     "finger": 3
+    },
+    {
+     "note": "E4",
+     "beat": 0.75,
+     "length": 0.25,
+     "finger": 1
+    },
+    {
+     "note": "D5",
+     "beat": 1,
+     "length": 0.25,
+     "finger": 4
+    },
+    {
+     "note": "C5",
+     "beat": 1.25,
+     "length": 0.25,
+     "finger": 2
+    }
+   ],
+   "leftHand": [
+    {
+     "note": "A2",
+     "beat": 0,
+     "length": 0.25,
+     "finger": 5
+    },
+    {
+     "note": "E3",
+     "beat": 0.25,
+     "length": 0.25,
+     "finger": 2
+    },
+    {
+     "note": "A3",
+     "beat": 0.5,
+     "length": 0.25,
+     "finger": 1
+    }
+   ],
+   "difficulty": {
+    "hard": true,
+    "reasons": [
+     "wide leaps"
+    ]
+   },
+   "technicalFeatures": [
+    "leap",
+    "hands-together"
+   ],
+   "dynamics": [],
+   "harmony": [],
+   "expressions": [],
+   "lunesAdvice": [
+    "Right hand leaps up a minor 7th — E4 to D5. Practise the jump silently first: eyes find D5 before the hand leaves E4, then add sound.",
+    "Left hand leaps up a perfect 5th — A2 to E3. Practise the jump silently first: eyes find E3 before the hand leaves A2, then add sound.",
+    "Both hands are active (4 right-hand and 3 left-hand notes) — practise hands separately until each is easy, then join at half speed."
+   ]
+  }
+ },
+ "piece": {
+  "piece": {
+   "title": "Für Elise",
+   "composer": "Ludwig van Beethoven",
+   "key": null,
+   "timeSignature": "3/8",
+   "tempo": "72 bpm",
+   "era": "Early Romantic",
+   "bars": 106,
+   "hardestBars": [
+    {
+     "bar": 79,
+     "why": "busy texture, wide leaps"
+    },
+    {
+     "bar": 32,
+     "why": "wide leaps, busy texture"
+    },
+    {
+     "bar": 34,
+     "why": "wide leaps, busy texture"
+    },
+    {
+     "bar": 33,
+     "why": "busy texture, wide leaps"
+    },
+    {
+     "bar": 27,
+     "why": "wide leaps, chords"
+    }
+   ]
+  },
+  "goal": {
+   "daysPerWeek": null,
+   "minutesPerSession": null,
+   "workingToward": null
+  },
+  "remarks": [],
+  "practiceHistory": [],
+  "plans": [],
+  "earlierQuestions": [],
+  "tempo": {
+   "marked": 72,
+   "practisingAt": 72
+  }
+ }
+}

@@ -1,0 +1,28 @@
+# Checks the real Lune AI model answers from the score and only from the score.
+# Uses the same two repository secrets as Deploy Lune AI.
+name: Evaluate Lune AI
+
+on:
+  push:
+    branches: [main, claude/exciting-cori-mkxrlm]
+    paths:
+      - "workers/lune-ai/**"
+      - ".github/workflows/eval-lune-ai.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Ask the real model about Für Elise and check every answer
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node workers/lune-ai/eval/eval.mjs | tee -a "$GITHUB_STEP_SUMMARY"
