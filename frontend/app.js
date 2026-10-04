@@ -1102,7 +1102,7 @@ function saveTabs() {
       panel: s.panel || "explain",
     }));
   try {
-    if (tabs.length) localStorage.setItem(TABS_KEY, JSON.stringify({ tabs, active: sessionRouteId(activeSession()) || null }));
+    if (tabs.length) localStorage.setItem(TABS_KEY, JSON.stringify({ tabs, active: sessionRouteId(activeSession()) || null, at: Date.now() }));
     else localStorage.removeItem(TABS_KEY);
   } catch {
     /* private mode: tabs last for this visit */

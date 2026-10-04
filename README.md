@@ -1,5 +1,12 @@
 # Lune
 
+> **What serves lune.page today.** The live site is the static app in `frontend/`, published to the
+> `gh-pages` branch with `scripts/sync_pages_dev.sh` and `scripts/publish_pages.sh` (custom domain in
+> `CNAME`). Accounts, sign-in by emailed code and sync use Supabase (`supabase/schema.sql`). Lune AI is
+> the Cloudflare Worker in `workers/lune-ai`, deployed by `.github/workflows/deploy-lune-ai.yml`; see
+> `docs/AI.md`. The FastAPI app described below (`backend/`, `./run.sh`) is the earlier local version,
+> still used to build the score analysis and library, but it is not what visitors to lune.page use.
+
 Open a score. Click where you need help.
 
 Search a piece, or drop **MusicXML**, a **PDF**, or a **photo** of the page. Lune

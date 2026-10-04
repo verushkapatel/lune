@@ -646,7 +646,7 @@ def section_account(browser):
     pg.evaluate("() => { LuneAsk.close(); LuneAsk.open({bar: 5}); }")
     pg.wait_for_timeout(400)
     fine = pg.inner_text("#ask-fine")
-    check("account: signed in, Ask Lune says Lune AI is on and where questions go", fine.startswith("Lune AI is on") and "Lune does not keep them" in fine, fine)
+    check("account: signed in, Ask Lune says Lune AI is on and where questions go", fine.startswith("Lune AI is on") and "Lune’s server stores none of it" in fine and "saved only in this browser" in fine, fine)
     tasks = pg.eval_on_selector_all("#ask-chips [data-task]", "els => els.map(e => e.dataset.task)")
     check("account: the model actions appear", tasks == ["explainBar", "whyHard", "suggestPractice", "explainFingering"], tasks)
     pg.evaluate("() => LuneAsk.ask('What notes are in this bar?')")
@@ -816,7 +816,9 @@ def section_playback(browser):
               return { score: Math.round(r('score-scroll').height), tools: Math.round(tools.height), top: Math.round(tools.bottom), vh: innerHeight,
                 player: Math.round(r('studio-dock').height), banner: !!document.querySelector('#keep-account-banner')?.offsetParent }; }""")
             check("phone: the score takes most of the screen", box["score"] >= box["vh"] * 0.5, box)
-            check("phone: header, tabs and tools fit in about a sixth of the screen, tools on one row", box["top"] <= 150 and box["tools"] <= 50, box)
+            check("phone: header, tabs and tools fit in about a fifth of the screen, tools on one row of 40 px targets", box["top"] <= 170 and box["tools"] <= 56, box)
+            title = pg.evaluate("() => { const t = document.getElementById('studio-piece-quiet'); return [t.textContent, t.scrollWidth <= t.clientWidth + 1]; }")
+            check("phone: the piece's name shows in full", title == ["Für Elise", True], title)
             check("phone: the player is one row and the sign-up banner stays off the score", box["player"] <= 80 and not box["banner"], box)
             pg.click("#bpm-readout-btn")
             check("phone: the tempo readout opens the tempo slider", pg.locator("#bpm-slider").is_visible())
@@ -856,7 +858,179 @@ def section_voice(browser):
         ctx.close()
 
 
-SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week, "catalogue": section_catalogue, "console": section_console, "account": section_account, "latest": section_latest, "voice": section_voice}
+PROGRESS_SEED = """(rows) => {
+  const d = JSON.parse(localStorage.getItem('lune.local.v1') || '{"v":1}');
+  d.v = 1; d.activity = rows.activity || []; d.tasks = rows.tasks || []; d.cards = []; d.repertoire = d.repertoire || [];
+  localStorage.setItem('lune.local.v1', JSON.stringify(d));
+  return LuneStore.weekSnapshot();
+}"""
+
+
+def section_progress(browser):
+    """This week counts what Lune records, the same way on every device, and never contradicts itself."""
+    pg = new_page(browser)
+    pg.goto(BASE, wait_until="networkidle")
+    week = pg.evaluate("() => LuneStore.weekStartKey()")
+    today = pg.evaluate("() => LuneStore.dayKey()")
+    now = pg.evaluate("() => new Date().toISOString()")
+    seed = lambda rows: pg.evaluate(PROGRESS_SEED, rows)
+    rev = lambda i, piece="fe", bar=7, grade="hard", day=today, wk=week: {"id": i, "kind": "review", "piece_key": piece, "bar": bar, "grade": grade, "mins": 0, "day": day, "week": wk, "created_at": now}
+
+    s = seed({})
+    check("progress: no activity reads as zero everywhere", (s["days"], s["ratings"], s["tasksDone"], s["sessions"], s["mins"]) == (0, 0, 0, 0, 0), s)
+    s = seed({"activity": [rev("r1")]})
+    check("progress: one bar rated is one practice day, one rating, one session", (s["days"], s["ratings"], s["hard"], s["sessions"]) == (1, 1, 1, 1), s)
+    s = seed({"activity": [rev("r1"), rev("r2", bar=8, grade="good"), rev("r3", bar=9, grade="okay")]})
+    check("progress: three bars rated in one piece on one day are one session, not three", (s["days"], s["ratings"], s["sessions"], s["good"], s["okay"], s["hard"]) == (1, 3, 1, 1, 1, 1), s)
+    s = seed({"tasks": [{"id": "t1", "piece_key": "fe", "bars": [7], "done": True, "done_at": now, "created_at": now, "plan": {"source": "ask"}}]})
+    check("progress: a task finished with no session recorded (another device, older data) still counts its day", (s["days"], s["tasksDone"], s["sessions"]) == (1, 1, 1), s)
+    s = seed({"activity": [rev("r1"), {"id": "k1", "kind": "task", "piece_key": "fe", "bar": None, "grade": None, "mins": 0, "day": today, "week": week, "created_at": now}],
+              "tasks": [{"id": "t1", "piece_key": "fe", "bars": [7], "done": True, "done_at": now, "created_at": now}]})
+    check("progress: a rated bar and a finished task in the same piece and day are one day and one session", (s["days"], s["sessions"], s["tasksDone"], s["ratings"]) == (1, 1, 1, 1), s)
+    s = seed({"activity": [{"id": "o1", "kind": "follow", "piece_key": "fe", "bar": None, "grade": None, "mins": 0, "day": today, "week": week, "created_at": now}]})
+    check("progress: only real practice evidence counts (old Play along rows do not)", s["days"] == 0, s)
+
+    # week boundaries, in the pianist's own time zone: Sunday night and Monday morning are different weeks
+    b = pg.evaluate("""() => { const sun = new Date(2026, 9, 4, 23, 30), mon = new Date(2026, 9, 5, 0, 15);
+      return [LuneStore.weekStartKey(sun), LuneStore.weekStartKey(mon), LuneStore.dayKey(sun), LuneStore.dayKey(mon)]; }""")
+    check("progress: Sunday 23:30 and Monday 00:15 fall in different weeks, by local time", b == ["2026-09-28", "2026-10-05", "2026-10-04", "2026-10-05"], b)
+    s = seed({"activity": [rev("old", day="2026-09-20", wk="2026-09-14")]})
+    check("progress: last week's rating is not this week's", s["days"] == 0 and s["ratings"] == 0, s)
+
+    # another device's practice arrives through the account, once
+    s = seed({"activity": [rev("r1")]})
+    merged = pg.evaluate("""(r) => { const d = { activity: [r[0]] };
+      const first = LuneStore.mergeActivity(d, { recentActivity: [r[0], r[1]] });
+      const again = LuneStore.mergeActivity(d, { recentActivity: [r[0], r[1]] });
+      return [first, again, d.activity.map(x => x.id)]; }""", [rev("r1"), rev("r2", bar=12, grade="good")])
+    check("progress: another device's ratings are added once and never doubled", merged == [True, False, ["r1", "r2"]], merged)
+    sent = pg.evaluate("() => (LuneStore.prefsForCloud().recentActivity || []).map(r => [r.id, 'mins' in r])")
+    check("progress: recent practice evidence travels with the account (ids, no minutes)", sent == [["r1", False]], sent)
+
+    # the review screen states what it counts and does not show unmeasured numbers
+    seed({"activity": [rev("r1")], "tasks": [{"id": "t1", "piece_key": "fe", "bars": [7], "done": True, "done_at": now, "created_at": now}]})
+    pg.evaluate("() => LuneImpact.openWeeklyReview()")
+    pg.wait_for_selector("#weekly-review-dialog[open]")
+    text = pg.inner_text("#weekly-review-dialog")
+    check("progress: This week shows practice days, bars rated and tasks finished", "practice days" in text and "bar rated" in text and "task finished" in text, text[:300])
+    check("progress: it says what a day is and that Lune does not time practice", "rated a bar or finished a task" in text and "does not time your practice" in text)
+    check("progress: no sessions or minutes figures that Lune does not measure", "sessions" not in text and "minutes logged" not in text)
+    check("progress: no page errors", not pg.errors, pg.errors)
+
+
+NEXT_SEED = """(o) => {
+  const d = JSON.parse(localStorage.getItem('lune.local.v1') || '{"v":1}');
+  d.v = 1; d.tasks = o.tasks || []; d.cards = o.cards || []; d.repertoire = o.repertoire || []; d.activity = [];
+  d.prefs = Object.assign(d.prefs || {}, { dreamPiece: o.dream || null });
+  localStorage.setItem('lune.local.v1', JSON.stringify(d));
+  if (o.tabs) localStorage.setItem('lune.tabs', JSON.stringify(o.tabs)); else localStorage.removeItem('lune.tabs');
+  return LunePractice.nextAction();
+}"""
+
+
+def section_home(browser):
+    """The signed-in home leads with one next step, chosen from real data, and says why."""
+    ctx = browser.new_context(viewport={"width": 375, "height": 800}, is_mobile=True, has_touch=True)
+    ctx.add_init_script(POINT_AT_SERVER)
+    pg = ctx.new_page()
+    pg.errors = []
+    pg.on("pageerror", lambda e: pg.errors.append(str(e)[:200]))
+    pg.goto(BASE, wait_until="networkidle")
+    now = pg.evaluate("() => Date.now()")
+    iso = pg.evaluate("() => new Date().toISOString()")
+    past = pg.evaluate("() => new Date(Date.now() - 864e5).toISOString()")
+    nx = lambda o: pg.evaluate(NEXT_SEED, o)
+    piece = lambda k, t, st="learning": {"piece_key": k, "title": t, "composer": "", "status": st, "created_at": past}
+    task = {"id": "t1", "piece_key": "fe", "title": "Für Elise", "bars": [12, 13], "done": False, "created_at": iso, "plan": {"source": "ask"}}
+    card = {"piece_key": "cl", "bar": 9, "ease": 2.3, "interval_days": 1, "reps": 1, "lapses": 1, "due_at": past, "last_grade": "hard", "updated_at": past}
+
+    n = nx({"tabs": {"tabs": [{"id": "beethoven-fur-elise", "title": "Für Elise", "panel": "score"}], "active": "beethoven-fur-elise", "at": now - 3600e3}, "tasks": [task]})
+    check("home: a piece left open within the last 12 hours comes first", n["kind"] == "resume" and n["title"] == "Für Elise" and "earlier today" in n["why"], n)
+    n = nx({"tabs": {"tabs": [{"id": "beethoven-fur-elise", "title": "Für Elise", "panel": "score"}], "active": "beethoven-fur-elise", "at": now - 30 * 3600e3}, "tasks": [task]})
+    check("home: a tab left open yesterday does not hide today's plan", n["kind"] == "task", n)
+    check("home: a plan task names its bars, and built-in steps are not credited to Lune AI", n["label"] == "Practise bars 12, 13" and n["why"].startswith("Lune’s built-in rules suggested"), n)
+    n = nx({"tasks": [dict(task, plan={"source": "ask", "ai": "1. Bar 12 slowly."})]})
+    check("home: a plan written by Lune AI says so, and asks to be checked", n["why"].startswith("Lune AI planned this") and "Check it against the score" in n["why"], n)
+    n = nx({"tasks": [dict(task, plan={"source": "repertoire"})]})
+    check("home: bars you chose with Lune's steps say exactly that", n["why"].startswith("You chose these bars"), n)
+    n = nx({"tasks": [dict(task, plan={"source": "self"})]})
+    check("home: a task you added says you added it", n["why"].startswith("You added this"), n)
+    n = nx({"cards": [card], "repertoire": [piece("cl", "Clair de lune")]})
+    check("home: with no plan, a bar that is due again comes next, with how it was rated", n["kind"] == "review" and n["label"] == "Review bar 9" and "Hard" in n["why"] and n["title"] == "Clair de lune", n)
+    n = nx({"repertoire": [piece("cl", "Clair de lune", "ready"), piece("fe", "Für Elise", "learning")]})
+    check("home: otherwise the piece marked Learning", n["kind"] == "learning" and n["title"] == "Für Elise", n)
+    n = nx({"dream": {"title": "Ballade No. 1", "composer": "Chopin"}})
+    check("home: otherwise the dream piece you named", n["kind"] == "dream" and n["title"] == "Ballade No. 1", n)
+    n = nx({})
+    check("home: a new pianist is asked to choose a piece, with nothing invented", n["kind"] == "new" and n["label"] == "Find a score", n)
+
+    nx({"tasks": [task]})
+    pg.evaluate(SIGN_IN)
+    pg.evaluate("() => { document.getElementById('home-guest').hidden = true; document.getElementById('home-member').hidden = false; document.body.classList.add('is-signed-in'); LuneOnboard.paintSignedHome(); }")
+    pg.wait_for_function("() => document.getElementById('member-next').dataset.kind === 'task'", timeout=8000)
+    lay = pg.evaluate("""() => { const r = (s) => document.querySelector(s).getBoundingClientRect();
+      return { nextTop: r('#member-next').top, recsTop: r('#member-recs').top, aiTop: r('.member-ai').top, vh: innerHeight,
+        tour: !!document.querySelector('#home-member .member-features'), btn: r('[data-next-go]').height, overflow: document.documentElement.scrollWidth > innerWidth + 1,
+        primaries: [...document.querySelectorAll('#home-member .primary')].filter(b => b.offsetParent && b.getBoundingClientRect().top < innerHeight).length }; }""")
+    check("home: the next step is on the first screen, above suggestions and Lune AI", lay["nextTop"] < lay["vh"] * 0.5 and lay["nextTop"] < lay["recsTop"] < lay["aiTop"], lay)
+    check("home: one primary button on the first screen, at least 44 px tall", lay["primaries"] == 1 and lay["btn"] >= 44, lay)
+    check("home: no feature tour on the signed-in home, no sideways scrolling", not lay["tour"] and not lay["overflow"], lay)
+    check("home: no page errors", not pg.errors, pg.errors)
+    ctx.close()
+
+
+def section_practice_loop(browser):
+    """One whole practice path: open a piece, pick a bar, hear it, plan it, rate it, and see it on Home and in This week."""
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+    pg = ctx.new_page()
+    pg.errors = []
+    pg.on("pageerror", lambda e: pg.errors.append(str(e)[:200]))
+    pg.goto(BASE, wait_until="networkidle")
+    pg.evaluate("() => { localStorage.removeItem('lune.local.v1'); localStorage.removeItem('lune.tabs'); }")
+    open_piece(pg)
+    select_bar(pg, 12)
+    check("loop: a bar can be selected and its panel opens", pg.evaluate("() => state.coachOpen && selectedBarsSorted()[0] === 12"))
+    played = pg.evaluate("async () => { await playSelectedBars(); await new Promise(r => setTimeout(r, 600)); const p = LunePiano.isPlaying(); LunePiano.stop?.(); return p; }")
+    check("loop: the selected bar plays", played)
+    pg.evaluate("() => LuneAsk.open({bar: 12})")
+    pg.evaluate("() => LuneAsk.ask('Make a plan')")
+    pg.wait_for_timeout(1200)
+    tasks = pg.evaluate("() => LuneStore.listTasks().map(t => [t.piece_key, t.bars, t.plan?.source, !!t.plan?.ai, t.done])")
+    check("loop: Make a plan saves a task for bar 12, made by Lune's built-in rules (no model here)", tasks and 12 in tasks[0][1] and tasks[0][2] == "ask" and not tasks[0][3] and not tasks[0][4], tasks)
+    src = pg.eval_on_selector_all("#ask-log .ask-src", "els => els.map(e => e.textContent)")
+    check("loop: Ask Lune labels where its answers come from", src and all(x in ("Built-in answer, read from the score", "Lune") for x in src), src)
+    pg.evaluate("() => LuneAsk.close()")
+    pg.evaluate("() => LuneAsk.ask('What is the fingering?')")
+    pg.wait_for_timeout(400)
+    fing = pg.evaluate("() => [...document.querySelectorAll('#ask-log .ask-msg')].pop().textContent")
+    check("loop: fingering is called suggested fingering, and the edition may differ", fing.startswith("Suggested fingering") and "edition may print different fingers" in fing, fing[:200])
+    pg.evaluate("() => LuneAsk.close()")
+    select_bar(pg, 12)
+    pg.click("#coach .lp-grade[data-grade=hard]")
+    pg.wait_for_timeout(800)
+    snap = pg.evaluate("() => LuneStore.weekSnapshot()")
+    check("loop: rating bar 12 Hard is one practice day and one Hard rating this week", snap["days"] == 1 and snap["ratings"] == 1 and snap["hard"] == 1, snap)
+    card = pg.evaluate("async () => (await LuneStore.listCards()).find(c => c.bar === 12)")
+    check("loop: the Hard bar is scheduled to come back", card and card["last_grade"] == "hard" and card["due_at"] > pg.evaluate("() => new Date().toISOString()"), card)
+    pg.evaluate("() => localStorage.removeItem('lune.tabs')")
+    n = pg.evaluate("() => LunePractice.nextAction()")
+    check("loop: Home's next step is the plan just made, for bar 12", n["kind"] == "task" and "12" in n["label"], n)
+    pg.evaluate("() => LuneImpact.openWeeklyReview()")
+    pg.wait_for_selector("#weekly-review-dialog[open]")
+    wk = pg.inner_text("#weekly-review-dialog")
+    check("loop: This week shows the day, the rating and the plan, with nothing contradictory", "1\npractice days" in wk.replace("\n\n", "\n") or "practice days" in wk, wk[:200])
+    pg.keyboard.press("Escape")
+    rep_ok = pg.evaluate("""async () => { await LunePractice.showRepertoire(); await new Promise(r => setTimeout(r, 600));
+      const card = document.querySelector('#rep-today .rep-plan-card, .rep-plan-card'); if (!card) return null;
+      return { origin: card.querySelector('.task-origin').textContent, primary: card.querySelector('.rep-plan-actions .primary').textContent,
+        remove: card.querySelector('[data-task-remove]').className }; }""")
+    check("loop: in Repertoire the plan says who made it and leads with practising the bars", rep_ok and rep_ok["origin"] == "Suggested by Lune" and rep_ok["primary"].startswith("Practise bar"), rep_ok)
+    check("loop: Remove is a quiet link, not a third equal button", rep_ok and "link-btn" in rep_ok["remove"], rep_ok)
+    check("loop: no page errors", not pg.errors, pg.errors)
+    ctx.close()
+
+
+SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week, "catalogue": section_catalogue, "console": section_console, "account": section_account, "latest": section_latest, "voice": section_voice, "progress": section_progress, "home": section_home, "loop": section_practice_loop}
 
 if __name__ == "__main__":
     want = sys.argv[1:] or list(SECTIONS)

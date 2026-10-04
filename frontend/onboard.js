@@ -1711,7 +1711,8 @@ window.LuneOnboard = (function () {
       }
       const recHtml = show
         .map((r, i) => {
-          const role = r.role || (i === 0 ? "Start tonight" : "For you");
+          // the Next card above is the one thing for today; these are only suggestions
+          const role = /tonight/i.test(r.role || "") || (!r.role && i === 0) ? "On your path" : r.role || "For you";
           const openAttrs = r.id
             ? `data-open-piece="${esc(r.id)}"`
             : `data-rec-q="${esc(r.query || r.title)}"`;
@@ -1722,6 +1723,8 @@ window.LuneOnboard = (function () {
           </button>`;
         })
         .join("");
+      const recsSection = $("member-recs");
+      if (recsSection) recsSection.hidden = !show.length;
       // Repainting identical buttons would swallow a click that is in progress.
       if (grid.dataset.painted !== recHtml) {
         grid.dataset.painted = recHtml;
@@ -1746,6 +1749,7 @@ window.LuneOnboard = (function () {
       guestCont.innerHTML = "";
     }
     window.LuneImpact?.paintHomeImpact?.();
+    window.LunePractice?.renderNextCard?.();
   }
 
   function applyGateChrome() {

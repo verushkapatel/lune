@@ -69,7 +69,7 @@ window.LuneImpact = (function () {
     if (!snap.days) return "The week is still open. One quiet session is enough to begin.";
     if (snap.days >= snap.goalDays) return "You met the rhythm you set. That is how pieces settle.";
     if (snap.good > snap.hard) return "More bars moving toward Good than Hard — keep the light on.";
-    if (snap.sessions >= 1) return "Hard bars are information, not failure. Meet them again tonight.";
+    if (snap.hard >= 1) return "Hard bars are information, not failure. Meet them again tonight.";
     return "Show up once more this week. Small sessions still count.";
   }
 
@@ -413,10 +413,7 @@ window.LuneImpact = (function () {
           .join("")}</ul>`
       : `<p class="impact-empty">No bars rated Again or Hard this week.</p>`;
 
-    const minsLine =
-      snap.mins > 0
-        ? `About ${snap.mins} minutes logged, where the time is known.`
-        : `${snap.sessions} practice session${snap.sessions === 1 ? "" : "s"} logged. Lune counts sessions, not minutes.`;
+    const minsLine = "A practice day is a day you rated a bar or finished a task in Lune, on any of your devices. Opening a piece or pressing Play does not count, and Lune does not time your practice.";
 
     d.innerHTML = `
       ${closeRow}
@@ -429,10 +426,9 @@ window.LuneImpact = (function () {
           <p class="impact-voice">${esc(encouragement(snap))}</p>
         </header>
         <div class="impact-stats impact-stats-chapter" role="list">
-          <div role="listitem"><span class="impact-num">${snap.days}</span><span class="dim">days · goal ${snap.goalDays}</span></div>
-          <div role="listitem"><span class="impact-num">${snap.sessions}</span><span class="dim">sessions</span></div>
-          <div role="listitem"><span class="impact-num">${snap.good}</span><span class="dim">Good / Strong</span></div>
-          <div role="listitem"><span class="impact-num">${snap.hard}</span><span class="dim">Again / Hard</span></div>
+          <div role="listitem"><span class="impact-num">${snap.days}</span><span class="dim">practice days · goal ${snap.goalDays}</span></div>
+          <div role="listitem"><span class="impact-num">${snap.ratings}</span><span class="dim">bar${snap.ratings === 1 ? "" : "s"} rated${snap.ratings ? ` · ${snap.good} Good or Strong, ${snap.hard} Again or Hard` : ""}</span></div>
+          <div role="listitem"><span class="impact-num">${snap.tasksDone}</span><span class="dim">task${snap.tasksDone === 1 ? "" : "s"} finished</span></div>
         </div>
         <p class="dim impact-mins">${esc(minsLine)}</p>
         <section class="impact-chapter-block" aria-labelledby="week-plan-h">
@@ -461,7 +457,9 @@ window.LuneImpact = (function () {
   function summaryText(p) {
     const lines = [`${p.displayName}: practice week ${p.weekLabel || `of ${p.week}`}`];
     lines.push(
-      `Practised on ${p.days} of the ${p.goalDays} days planned, ${p.sessions} session${p.sessions === 1 ? "" : "s"}${p.mins ? `, about ${p.mins} minutes` : ""}.`
+      p.ratings != null
+        ? `Practised on ${p.days} of the ${p.goalDays} days planned. ${p.ratings} bar${p.ratings === 1 ? "" : "s"} rated, ${p.tasksDone || 0} task${p.tasksDone === 1 ? "" : "s"} finished.`
+        : `Practised on ${p.days} of the ${p.goalDays} days planned, ${p.sessions} session${p.sessions === 1 ? "" : "s"}.`
     );
     if (p.items?.length) {
       const done = p.items.filter((x) => x.done);
@@ -543,7 +541,8 @@ window.LuneImpact = (function () {
         days: snap.days,
         goalDays: snap.goalDays,
         sessions: snap.sessions,
-        mins: snap.mins,
+        ratings: snap.ratings,
+        tasksDone: snap.tasksDone,
         barsWorked: snap.barsWorked || 0,
         pieces: selected(),
         includeBars,
@@ -602,7 +601,8 @@ window.LuneImpact = (function () {
       days: snap.days,
       goalDays: snap.goalDays,
       sessions: snap.sessions,
-      mins: snap.mins,
+      ratings: snap.ratings,
+      tasksDone: snap.tasksDone,
       pieces: [],
       invite: true,
       madeWith: "Lune",
@@ -762,8 +762,12 @@ window.LuneImpact = (function () {
         ${invited && range ? `<p class="dim share-range">${esc(range)}</p>` : ""}
         <div class="impact-stats">
           <div><span class="impact-num">${esc(String(p.days ?? 0))}</span><span class="dim">days · goal ${esc(String(p.goalDays ?? "—"))}</span></div>
-          <div><span class="impact-num">${esc(String(p.sessions ?? 0))}</span><span class="dim">sessions</span></div>
-          ${p.mins ? `<div><span class="impact-num">${esc(String(p.mins))}</span><span class="dim">minutes (approx.)</span></div>` : ""}
+          ${
+            p.ratings != null
+              ? `<div><span class="impact-num">${esc(String(p.ratings))}</span><span class="dim">bars rated</span></div>
+          <div><span class="impact-num">${esc(String(p.tasksDone ?? 0))}</span><span class="dim">tasks finished</span></div>`
+              : `<div><span class="impact-num">${esc(String(p.sessions ?? 0))}</span><span class="dim">sessions</span></div>`
+          }
         </div>
         ${
           p.items?.length

@@ -15,7 +15,7 @@ SCREENS = {
     "app-home": (BASE, "() => { document.querySelector('[data-enter-app]').click(); }", 900),
     "chat": (BASE, "() => LuneAsk.openChat()", 700),
     "landing-how": (BASE, "() => document.querySelector('[data-lp-sim]')?.click()", 1200),
-    "member-home": (BASE, "() => { document.getElementById('home-guest').hidden = true; document.getElementById('home-member').hidden = false; document.body.classList.add('is-signed-in'); }", 2500),
+    "member-home": (BASE, "() => { document.getElementById('home-guest').hidden = true; document.getElementById('home-member').hidden = false; document.body.classList.add('is-signed-in'); LunePractice.renderNextCard(); }", 2500),
     "search": (BASE, "() => { const q = document.getElementById('q'); document.body.classList.add('studio-search-open'); q.value = 'chopin'; q.dispatchEvent(new Event('input', {bubbles: true})); }", 900),
     "explain": (BASE + "#/beethoven-fur-elise/explain", "", 1500),
     "score": (PIECE, "", 1500),
