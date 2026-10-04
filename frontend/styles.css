@@ -9271,3 +9271,22 @@ input[type="range"]:focus-visible { outline: 2px solid var(--text); outline-offs
 }
 .lune-ai-badge:hover { border-color: var(--muted); }
 .lune-ai-badge:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+
+/*
+ * The landing page for guests shows only what a guest can use. Repertoire
+ * opens after the short questionnaire, Sign in is in the hero, and there is
+ * nothing to share yet; the small mark repeats the large one. Settings stays:
+ * it holds reading and access (easy-read letters, large print, high contrast)
+ * and light or dark.
+ */
+body.is-home:not(.is-signed-in) #btn-bar-auth,
+body.is-home:not(.is-signed-in) #btn-share,
+body.is-home:not(.is-signed-in) #btn-home,
+body.is-home.needs-onboard #btn-repertoire {
+  display: none !important;
+}
+body.is-home:not(.is-signed-in) .bar {
+  justify-content: flex-end;
+  background: transparent;
+  border-bottom-color: transparent;
+}
