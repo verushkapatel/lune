@@ -134,3 +134,142 @@ drop policy if exists "own score files" on storage.objects;
 create policy "own score files" on storage.objects for all to authenticated
   using (bucket_id = 'scores' and (storage.foldername(name))[1] = auth.uid()::text)
   with check (bucket_id = 'scores' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ---------------------------------------------------------------------------
+-- Added October 2026: what the current site uses that the file above lacks.
+-- Safe to run more than once. The owner is the account signed in as
+-- verushkapatel@icloud.com (the same address as ownerEmail in lune-config.js).
+-- ---------------------------------------------------------------------------
+
+-- Settings that follow an account across devices (goal, onboarding answers, plan count)
+alter table public.profiles add column if not exists prefs jsonb not null default '{}'::jsonb;
+
+create or replace function public.is_lune_owner()
+returns boolean
+language sql
+stable
+as $$
+  select coalesce(auth.jwt() ->> 'email', '') = 'verushkapatel@icloud.com';
+$$;
+
+-- Feedback form: anyone may send; only the owner can read, through owner_feedback()
+create table if not exists public.feedback (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid default auth.uid() references auth.users (id) on delete set null,
+  role text check (char_length(role) <= 40),
+  reads text[],
+  helped int check (helped between 0 and 10),
+  weeks int check (weeks between 0 and 520),
+  changed text check (char_length(changed) <= 4000),
+  missing text check (char_length(missing) <= 4000),
+  name text check (char_length(name) <= 80),
+  quote_ok text check (char_length(quote_ok) <= 40),
+  message text check (char_length(message) <= 4000),
+  created_at timestamptz not null default now()
+);
+alter table public.feedback enable row level security;
+drop policy if exists "send feedback" on public.feedback;
+create policy "send feedback" on public.feedback for insert to anon, authenticated with check (true);
+
+create or replace function public.owner_feedback()
+returns setof public.feedback
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_lune_owner() then raise exception 'owner only'; end if;
+  return query select * from public.feedback order by created_at desc limit 500;
+end $$;
+revoke all on function public.owner_feedback() from public, anon;
+grant execute on function public.owner_feedback() to authenticated;
+
+-- Share this week: read-only links. The token is the key; revoked links are not readable.
+create table if not exists public.share_links (
+  token text primary key check (char_length(token) between 8 and 64),
+  user_id uuid references auth.users (id) on delete cascade,
+  payload jsonb not null,
+  revoked boolean not null default false,
+  created_at timestamptz not null default now()
+);
+alter table public.share_links enable row level security;
+drop policy if exists "make own links" on public.share_links;
+create policy "make own links" on public.share_links for insert to authenticated with check (user_id = auth.uid());
+drop policy if exists "revoke own links" on public.share_links;
+create policy "revoke own links" on public.share_links for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+drop policy if exists "open live links" on public.share_links;
+create policy "open live links" on public.share_links for select to anon, authenticated using (not revoked or user_id = auth.uid());
+
+-- Owner stats
+create or replace function public.owner_user_count()
+returns bigint
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_lune_owner() then raise exception 'owner only'; end if;
+  return (select count(*) from auth.users);
+end $$;
+revoke all on function public.owner_user_count() from public, anon;
+grant execute on function public.owner_user_count() to authenticated;
+
+create or replace function public.owner_impact_stats()
+returns json
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_lune_owner() then raise exception 'owner only'; end if;
+  return json_build_object(
+    'users', (select count(*) from auth.users),
+    'plans', (select coalesce(sum(nullif(prefs ->> 'planCount', '')::int), 0) from public.profiles),
+    'weeks', (select coalesce(sum(jsonb_array_length(case when jsonb_typeof(prefs -> 'weekRollups') = 'array' then prefs -> 'weekRollups' else '[]'::jsonb end)), 0) from public.profiles),
+    'stumbles', (select count(*) from public.stumbles),
+    'shares', (select count(*) from public.share_links)
+  );
+end $$;
+revoke all on function public.owner_impact_stats() from public, anon;
+grant execute on function public.owner_impact_stats() to authenticated;
+
+-- Public impact page (#impact): the owner publishes anonymous totals; anyone may read them
+create table if not exists public.impact_public (
+  id int primary key default 1 check (id = 1),
+  enabled boolean not null default false,
+  stats jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+alter table public.impact_public enable row level security;
+
+create or replace function public.publish_impact_snapshot(p_stats jsonb, p_enabled boolean)
+returns json
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare r public.impact_public;
+begin
+  if not public.is_lune_owner() then raise exception 'owner only'; end if;
+  insert into public.impact_public (id, enabled, stats, updated_at)
+  values (1, p_enabled, coalesce(p_stats, '{}'::jsonb), now())
+  on conflict (id) do update set enabled = excluded.enabled, stats = excluded.stats, updated_at = now()
+  returning * into r;
+  return json_build_object('enabled', r.enabled, 'stats', r.stats, 'updated_at', r.updated_at);
+end $$;
+revoke all on function public.publish_impact_snapshot(jsonb, boolean) from public, anon;
+grant execute on function public.publish_impact_snapshot(jsonb, boolean) to authenticated;
+
+create or replace function public.get_impact_snapshot()
+returns json
+language sql
+security definer
+set search_path = public
+as $$
+  select coalesce(
+    (select json_build_object('enabled', enabled, 'stats', case when enabled then stats else null end, 'updated_at', updated_at)
+     from public.impact_public where id = 1),
+    json_build_object('enabled', false)
+  );
+$$;
+grant execute on function public.get_impact_snapshot() to anon, authenticated;
