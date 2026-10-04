@@ -200,7 +200,8 @@ window.LunePractice = (function () {
   let activeRec = null;
   let _voiceSecureToasted = false;
   function canListenForWords() {
-    return !!Recognition && !!window.isSecureContext;
+    // Lune AI's Whisper (signed in) or the browser's own recognition
+    return !!window.isSecureContext && (!!Recognition || !!window.LuneAsk?.voice?.available?.());
   }
   /** Open coach note field for the current/selected bar (type fallback). */
   function focusTypeNote(bar, text = "") {
@@ -238,6 +239,9 @@ window.LunePractice = (function () {
     const chunks = [];
     rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    // iPhones start an audio context paused; a paused meter reads silence, so it must not decide anything
+    await ctx.resume().catch(() => {});
+    const meterLive = ctx.state === "running";
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 1024;
     ctx.createMediaStreamSource(stream).connect(analyser);
@@ -258,18 +262,57 @@ window.LunePractice = (function () {
         heardVoice = true;
         quietSince = 0;
       } else if (heardVoice) quietSince ||= now;
-      if ((heardVoice && quietSince && now - quietSince > 1600) || now - started > 45000) rec.stop();
+      if ((meterLive && heardVoice && quietSince && now - quietSince > 1600) || now - started > 45000) rec.stop();
       else requestAnimationFrame(watch);
     };
     requestAnimationFrame(watch);
     await done;
     activeRecorder = null;
     stream.getTracks().forEach((t) => t.stop());
-    ctx.close().catch(() => {});
-    if (!heardVoice) return "";
+    const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
+    // only a working meter that heard nothing at all may drop the recording
+    if ((meterLive && !heardVoice) || blob.size < 800) {
+      ctx.close().catch(() => {});
+      return "";
+    }
     onPartial?.("Writing it down…");
-    const text = await window.LuneAsk.voice.transcribe(new Blob(chunks, { type: rec.mimeType || "audio/webm" }));
+    let audio = blob;
+    try {
+      audio = await toWav16k(ctx, blob);
+    } catch {
+      /* send the recording as it is */
+    }
+    ctx.close().catch(() => {});
+    const text = await window.LuneAsk.voice.transcribe(audio);
     return tidySpoken(text);
+  }
+
+  /** Any recording → 16 kHz mono WAV, the form Whisper is tested with (about 32 KB a second). */
+  async function toWav16k(ctx, blob) {
+    const decoded = await ctx.decodeAudioData(await blob.arrayBuffer());
+    const rate = 16000;
+    const off = new OfflineAudioContext(1, Math.ceil(decoded.duration * rate), rate);
+    const src = off.createBufferSource();
+    src.buffer = decoded;
+    src.connect(off.destination);
+    src.start();
+    const pcm = (await off.startRendering()).getChannelData(0);
+    const out = new DataView(new ArrayBuffer(44 + pcm.length * 2));
+    const str = (o, t) => [...t].forEach((c, i) => out.setUint8(o + i, c.charCodeAt(0)));
+    str(0, "RIFF");
+    out.setUint32(4, 36 + pcm.length * 2, true);
+    str(8, "WAVEfmt ");
+    out.setUint32(16, 16, true);
+    out.setUint16(20, 1, true);
+    out.setUint16(22, 1, true);
+    out.setUint32(24, rate, true);
+    out.setUint32(28, rate * 2, true);
+    out.setUint16(32, 2, true);
+    out.setUint16(34, 16, true);
+    str(36, "data");
+    out.setUint32(40, pcm.length * 2, true);
+    for (let i = 0; i < pcm.length; i++) out.setInt16(44 + i * 2, Math.max(-1, Math.min(1, pcm[i])) * 0x7fff, true);
+    return new Blob([out], { type: "audio/wav" });
   }
 
   function hearPhrase({ onPartial } = {}) {
@@ -279,6 +322,8 @@ window.LunePractice = (function () {
         if (/denied|not allowed|permission/i.test(err?.message || "")) {
           throw new Error("Lune needs the microphone for voice notes. Allow it in the address bar, or type the note.");
         }
+        // the browser's own recognition if it has one; otherwise say what went wrong
+        if (!Recognition) throw new Error(err?.message || "Lune AI could not hear that. Try again, or type.");
         return browserPhrase({ onPartial });
       });
     }
@@ -1870,69 +1915,59 @@ window.LunePractice = (function () {
     const sw = (k, label, hint) => `<label class="lp-switch"><input type="checkbox" data-pref="${k}" ${p[k] ? "checked" : ""}>
       <span><strong>${label}</strong><small>${hint}</small></span></label>`;
     const install = window.LuneInstall?.installed?.()
-      ? `<p class="settings-note"><strong>Installed</strong>Lune is running as an app on this device.</p>`
+      ? `<p class="settings-note">Lune is installed on this device.</p>`
       : `<button type="button" class="settings-row" data-install id="set-install"><strong>Install Lune</strong><span>${
           window.LuneInstall?.available?.()
-            ? "Put Lune on this device as an app. It opens in its own window and works offline for pieces you have opened."
-            : "Steps for this browser: iPhone and iPad use Share, then Add to Home Screen; Safari on a Mac uses File, then Add to Dock."
+            ? "Opens in its own window and works offline"
+            : "Shows the steps for this browser"
         }</span></button>`;
     d.innerHTML = `
       <header class="settings-top">
         <h2>Settings</h2>
         <form method="dialog"><button type="submit" class="quiet settings-done">Done</button></form>
       </header>
-      <section class="settings-sec" aria-labelledby="set-h-account">
-        <h3 id="set-h-account">Account</h3>
-        ${signedIn ? row("account", "Your account", `${esc(store.status().email || "Signed in")}. Download or delete your data, or sign out.`) : row("signin", "Sign in or create a free account", "Keeps your Repertoire, remarks and plans on every device, and turns on Lune AI.")}
+      <section class="settings-sec settings-account" aria-labelledby="set-h-account">
+        <h3 id="set-h-account" class="visually-hidden">Account</h3>
+        ${signedIn ? row("account", esc(store.status().email || "Your account"), "Your data, sign out") : row("signin", "Sign in or create an account", "Free. Keeps your Repertoire and plans on every device, and turns on Lune AI.")}
       </section>
-      <section class="settings-sec" aria-labelledby="set-h-look">
-        <h3 id="set-h-look">Light or dark</h3>
-        <div class="settings-theme" role="group" aria-label="Light or dark">
-          ${[["dark", "Dark"], ["light", "Light"]]
-            .map(([v, l]) => `<button type="button" data-theme-set="${v}" aria-pressed="${(document.documentElement.dataset.theme || "dark") === v}">${l}</button>`)
-            .join("")}
-        </div>
-        <p class="settings-note">The whole app and the score change together.</p>
-      </section>
-      <section class="settings-sec" aria-labelledby="set-h-access">
-        <h3 id="set-h-access">Reading and access</h3>
-        ${sw("readableFont", "Easy-read letters", "For dyslexia: a typeface where every letter shape is distinct.")}
-        ${sw("largePrint", "Large print", "Bigger notes, letters and buttons.")}
-        ${sw("highContrast", "High contrast", "Pure black on white for the score.")}
-        ${sw("autoRead", "Read bars aloud", "Each bar you select is described out loud.")}
-        <p class="settings-note">Blind or low vision: Lune works with the screen reader already on your phone or computer (VoiceOver on iPhone, iPad and Mac, TalkBack on Android, Narrator on Windows). Braille music for a piece is on its Overview, under Reading and access.</p>
+      <section class="settings-sec" aria-labelledby="set-h-ai">
+        ${accountAISettingsHtml().replace('<h4 class="settings-sub">Lune AI</h4>', '<h3 id="set-h-ai">Lune AI</h3>') || '<h3 id="set-h-ai">Lune AI</h3><p class="settings-note">Ask Lune answers from the score with built-in rules. Sign in to turn on Lune AI.</p>'}
+        ${row("chat", "Chat with Lune", "Your practice, your week, or any piano question")}
       </section>
       <section class="settings-sec" aria-labelledby="set-h-week">
-        <h3 id="set-h-week">Your week</h3>
+        <h3 id="set-h-week">Practice</h3>
         <div class="settings-goal">
           <label for="set-days">Days a week</label>
           <select id="set-days">${[1, 2, 3, 4, 5, 6, 7].map((n) => `<option ${n === days ? "selected" : ""}>${n}</option>`).join("")}</select>
           <label for="set-mins">Minutes a day</label>
           <select id="set-mins">${[10, 15, 20, 30, 45, 60, 90].map((n) => `<option ${n === mins ? "selected" : ""}>${n}</option>`).join("")}</select>
         </div>
-        ${signedIn ? row("week", "This week", "What your week holds, what is done and what is left.") : ""}
-        ${row("example-week", "How This week works", "A short walk-through with made-up numbers: setting your week, This week, Share and Invite.")}
+        ${signedIn ? row("week", "This week", "Done, left, and the bars that need you") : ""}
+        ${row("example-week", "How This week works", "A short example with made-up numbers")}
       </section>
-      <section class="settings-sec" aria-labelledby="set-h-ai">
-        ${accountAISettingsHtml().replace('<h4 class="settings-sub">Lune AI</h4>', '<h3 id="set-h-ai">Lune AI</h3>') || '<h3 id="set-h-ai">Ask Lune</h3><p class="settings-note">Ask Lune answers from Lune’s reading of the score and your remarks.</p>'}
-        ${row("chat", "Chat with Lune", "Ask about your practice, your week, your goal or any piano question. Uses Lune AI, which comes with a free account.")}
+      <section class="settings-sec" aria-labelledby="set-h-look">
+        <h3 id="set-h-look">Look and access</h3>
+        <div class="settings-theme" role="group" aria-label="Light or dark">
+          ${[["dark", "Dark"], ["light", "Light"]]
+            .map(([v, l]) => `<button type="button" data-theme-set="${v}" aria-pressed="${(document.documentElement.dataset.theme || "dark") === v}">${l}</button>`)
+            .join("")}
+        </div>
+        ${sw("readableFont", "Easy-read letters", "A typeface for dyslexia")}
+        ${sw("largePrint", "Large print", "Bigger notes, letters and buttons")}
+        ${sw("highContrast", "High contrast", "Black on white for the score")}
+        ${sw("autoRead", "Read bars aloud", "Each bar you select is described")}
+        <p class="settings-note">Lune works with your device’s screen reader. Braille music is on each piece’s Overview.</p>
       </section>
-      <section class="settings-sec" aria-labelledby="set-h-app">
-        <h3 id="set-h-app">App</h3>
+      <section class="settings-sec settings-more" aria-labelledby="set-h-app">
+        <h3 id="set-h-app">More</h3>
         ${install}
-        ${row("feedback", "Send feedback", "Tell Verushka what helped and what is missing. It goes straight to her.")}
-      </section>
-      <section class="settings-sec" aria-labelledby="set-h-privacy">
-        <h3 id="set-h-privacy">Privacy</h3>
-        ${row("privacy", "Privacy statement", "What Lune keeps, where it is kept, and how to delete it.")}
-      </section>
-      <section class="settings-sec" aria-labelledby="set-h-about">
-        <h3 id="set-h-about">About Lune</h3>
-        <p class="settings-note">A free piano practice studio made by Verushka Patel. No ads, no payments.</p>
-        ${row("credits", "Credits and licences", "The scores, sounds, model and software Lune is built on.")}
+        ${row("feedback", "Send feedback", "Straight to the maker")}
+        ${row("privacy", "Privacy", "What Lune keeps and how to delete it")}
+        ${row("credits", "Credits and licences", "Scores, sounds, models and software")}
+        <p class="settings-note">Lune is free, with no ads and no payments. Made by Verushka Patel.</p>
       </section>
       <details class="settings-advanced">
-        <summary>Advanced: use your own AI model</summary>
+        <summary>Advanced</summary>
         <h4 class="settings-sub">Lune AI on this device</h4>
         <div class="settings-device-ai" id="set-device-ai"></div>
         <h4 class="settings-sub">Your own model with Ollama</h4>
@@ -2093,13 +2128,12 @@ window.LunePractice = (function () {
     if (!server) return "";
     const st = store.status();
     const name = esc(window.LUNE_CONFIG?.aiModelName || "an open-weight model");
-    const where = `Answers come from ${name}, an open-weight model, on Lune’s server at Cloudflare. Ask Lune sends it the score facts for the bar or piece, your remarks and your question. Lune does not keep them. It is a general model, not one trained for Lune, and it can be wrong. Built with Llama.`;
+    const where = ` ${name}, an open-weight model from Meta. It gets the score facts, your remarks and your question, and Lune keeps none of it. It can be wrong.`;
     if (st.mode === "cloud") {
       return `<h4 class="settings-sub">Lune AI</h4><p class="settings-note" id="set-account-ai" role="status"><strong>Lune AI is on</strong>${where}</p>`;
     }
     return `<h4 class="settings-sub">Lune AI</h4>
-      <p class="settings-note" id="set-account-ai"><strong>Free with a Lune account</strong>${where}</p>
-      ${st.signedIn ? "" : `<button type="button" class="settings-row" data-set="signin"><strong>Create a free account</strong><span>Then Lune AI is on in Ask Lune. Nothing to download or install.</span></button>`}`;
+      <p class="settings-note" id="set-account-ai"><strong>Free with an account</strong>${where}</p>`;
   }
 
   /** Lune AI in Settings: what it is, its size before anything downloads, and how to turn it off. */

@@ -9677,3 +9677,30 @@ body.is-studio #studio, body.is-home #home, body.is-repertoire #repertoire { ani
 .home-app-head .lead { max-width: 52ch; }
 .home-scroll-cue { color: #8e8e8e; }
 @keyframes home-scroll-cue { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(6px); } }
+
+/* Settings, lune11: grouped like a phone's own settings, short rows with a chevron */
+.settings-dialog .settings-sec { border: 0; padding: 0; margin: 0 0 26px; }
+.settings-dialog .settings-sec > h3 { margin: 0 0 8px 4px; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); font-weight: 500; }
+.settings-dialog .settings-row {
+  position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%;
+  margin: 0; padding: 13px 40px 13px 16px; border: 0; border-radius: 0; background: var(--surface); text-align: left;
+  border-bottom: 1px solid var(--line);
+  transition: background-color 0.2s var(--ease-out, ease);
+}
+.settings-dialog .settings-row:hover { background: var(--accent-soft); }
+.settings-dialog .settings-row::after {
+  content: ""; position: absolute; right: 18px; top: 50%; width: 7px; height: 7px; margin-top: -4px;
+  border-right: 1.5px solid var(--dim); border-top: 1.5px solid var(--dim); transform: rotate(45deg);
+}
+.settings-dialog .settings-row strong { font-weight: 500; font-size: 15.5px; }
+.settings-dialog .settings-row span { font-size: 13.5px; color: var(--muted); line-height: 1.4; }
+.settings-dialog .settings-sec > .settings-row:first-of-type,
+.settings-dialog .settings-sec > h3 + .settings-row { border-top-left-radius: 14px; border-top-right-radius: 14px; }
+.settings-dialog .settings-sec > .settings-row:last-of-type { border-bottom: 0; border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; }
+.settings-dialog .settings-account .settings-row { border-radius: 14px; padding-top: 16px; padding-bottom: 16px; }
+.settings-dialog .settings-note { font-size: 13.5px; line-height: 1.5; color: var(--muted); margin: 8px 4px 10px; }
+.settings-dialog .settings-note strong { display: block; color: var(--text); font-weight: 500; margin-bottom: 2px; }
+.settings-dialog .lp-switch { padding: 10px 4px; border-bottom: 1px solid var(--line); }
+.settings-dialog .lp-switch small { font-size: 13px; }
+.settings-dialog .settings-goal { margin: 0 0 12px 4px; }
+.settings-dialog .settings-theme { margin: 0 0 6px; }
