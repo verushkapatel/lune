@@ -113,6 +113,22 @@ for (const k of CASES) {
   }
   lines.push(`      ${ok}/${REPEATS} for this question`, "");
 }
+// voice: the natural voice says a practice note, Whisper hears it back
+const SAY = "Bar twelve. Keep the thumb light, then play the right hand slowly.";
+{
+  const res = await fetch(EVAL_URL, { method: "POST", headers: { "X-Eval-Key": EVAL_KEY, "Content-Type": "application/json" }, body: JSON.stringify({ voice: SAY }) });
+  const v = await res.json().catch(() => ({}));
+  const mp3 = v.head && ((v.head[0] === 0x49 && v.head[1] === 0x44 && v.head[2] === 0x33) || (v.head[0] === 0xff && (v.head[1] & 0xe0) === 0xe0));
+  const heard = String(v.text || "");
+  const words = ["thumb", "light", "right hand", "slowly"].filter((w) => heard.toLowerCase().includes(w));
+  const ok1 = res.ok && v.bytes > 4000 && mp3;
+  const ok2 = words.length >= 3 && /[.,]/.test(heard);
+  total += 2;
+  passed += (ok1 ? 1 : 0) + (ok2 ? 1 : 0);
+  lines.push(`${ok1 ? "PASS" : "FAIL"}  the voice model speaks the sentence as mp3 (${v.bytes || 0} bytes)`);
+  lines.push(`${ok2 ? "PASS" : "FAIL"}  Whisper hears it back with punctuation (${(v.sttMs || 0) / 1000} s)`);
+  lines.push(`      said:  ${SAY}`, `      heard: ${heard || JSON.stringify(v).slice(0, 200)}`, "");
+}
 times.sort((a, b) => a - b);
 lines.push(`${passed}/${total} answers passed · median ${(times[Math.floor(times.length / 2)] / 1000).toFixed(1)} s · slowest ${(times[times.length - 1] / 1000).toFixed(1)} s`);
 console.log(lines.join("\n"));

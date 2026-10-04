@@ -12,8 +12,49 @@
  * be used as a general chatbot), the score context Ask Lune built for the bar
  * or piece, and the question. Nothing is stored.
  *
- * Routes: GET /health → {ok, model}; POST /ask {question, context} → {answer}.
+ * Routes: GET /health → {ok, model}; POST /ask {question, context} → {answer};
+ * POST /transcribe (audio bytes) → {text}: speech to text with Whisper, which
+ * punctuates; POST /speak {text} → audio/mpeg: a natural voice for answers.
+ * The audio is passed to the model and not kept.
  */
+
+const STT_PROMPT = "Piano practice notes. Bar 12, right hand, left hand, fingering, thumb, crescendo, diminuendo, legato, staccato, pedal, sharp, flat, metronome, tempo.";
+const MAX_AUDIO = 2_000_000; // bytes: about two minutes of compressed speech
+const MAX_SPEAK = 900; // characters
+
+function toBase64(bytes) {
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+function fromBase64(b64) {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+/** Speech to text: Whisper, told it is hearing a pianist's practice notes. */
+export async function transcribe(env, bytes) {
+  const out = await env.AI.run(env.STT_MODEL || "@cf/openai/whisper-large-v3-turbo", {
+    audio: toBase64(bytes),
+    language: "en",
+    initial_prompt: STT_PROMPT,
+  });
+  return String(out?.text || "").trim();
+}
+
+/** Text to speech: returns mp3 bytes, whatever shape the model answers in. */
+export async function synthesize(env, text) {
+  const model = env.TTS_MODEL || "@cf/myshell-ai/melotts";
+  const input = /deepgram\/aura/.test(model) ? { text, speaker: env.TTS_VOICE || "luna", encoding: "mp3" } : { prompt: text, lang: "en" };
+  const out = await env.AI.run(model, input);
+  if (out instanceof ReadableStream) return new Uint8Array(await new Response(out).arrayBuffer());
+  if (out instanceof ArrayBuffer) return new Uint8Array(out);
+  if (out instanceof Uint8Array) return out;
+  if (typeof out?.audio === "string") return fromBase64(out.audio);
+  throw new Error("no audio");
+}
 
 export const SYSTEM_PROMPT = `You are Lune, a piano practice and score-analysis assistant inside the Lune app.
 You are given CONTEXT as JSON: facts Lune has read from the score (notes, fingering, difficulty, dynamics, harmony), the pianist's own remarks, their earlier questions, their practice history and their goal.
@@ -63,7 +104,8 @@ export async function handle(req, env, fetchImpl = fetch) {
   const url = new URL(req.url);
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(req, env) });
   if (req.method === "GET" && url.pathname === "/health") return json(req, env, 200, { ok: true, model: env.MODEL });
-  if (req.method !== "POST" || url.pathname !== "/ask") return json(req, env, 404, { error: "Not found" });
+  const routes = ["/ask", "/transcribe", "/speak"];
+  if (req.method !== "POST" || !routes.includes(url.pathname)) return json(req, env, 404, { error: "Not found" });
 
   const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
   const user = await accountFor(token, env, fetchImpl);
@@ -73,6 +115,28 @@ export async function handle(req, env, fetchImpl = fetch) {
   if (env.PER_ACCOUNT?.limit) {
     const { success } = await env.PER_ACCOUNT.limit({ key: user.id });
     if (!success) return json(req, env, 429, { error: "That is a lot of questions at once. Try again in a minute." });
+  }
+
+  if (url.pathname === "/transcribe") {
+    const bytes = new Uint8Array(await req.arrayBuffer());
+    if (bytes.length < 800) return json(req, env, 400, { error: "No speech was recorded." });
+    if (bytes.length > MAX_AUDIO) return json(req, env, 413, { error: "That recording is too long. Keep it under two minutes." });
+    try {
+      return json(req, env, 200, { text: await transcribe(env, bytes) });
+    } catch {
+      return json(req, env, 503, { error: "Lune AI could not hear that just now." });
+    }
+  }
+  if (url.pathname === "/speak") {
+    const body = await req.json().catch(() => null);
+    const text = String(body?.text || "").trim().slice(0, MAX_SPEAK);
+    if (!text) return json(req, env, 400, { error: "Nothing to say." });
+    try {
+      const audio = await synthesize(env, text);
+      return new Response(audio, { status: 200, headers: { "Content-Type": "audio/mpeg", "Cache-Control": "private, max-age=86400", ...cors(req, env) } });
+    } catch {
+      return json(req, env, 503, { error: "Lune AI's voice is resting. Your device will read it instead." });
+    }
   }
 
   const body = await req.json().catch(() => null);

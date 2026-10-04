@@ -19,6 +19,8 @@ const env = (over = {}) => ({
   AI: {
     run: async (model, input) => {
       calls.push({ model, input });
+      if (/whisper/.test(model)) return { text: "Bar 12, keep the thumb light." };
+      if (/melotts/.test(model)) return { audio: btoa("ID3fake-mp3-bytes") };
       return { response: "Bar 5 has E and D sharp in the right hand." };
     },
   },
@@ -74,6 +76,33 @@ check("too many questions a minute are refused", r.status === 429);
 
 r = await ask({ question: "What notes?", context: ctx }, { e: env({ AI: { run: async () => { throw new Error("quota"); } } }) });
 check("when the free allowance runs out, it says so", r.status === 503 && /built-in answers/.test((await r.json()).error));
+
+// voice: speech to text and a natural voice, for accounts only
+const post = (path, body, { token = "good", type = "application/json" } = {}) =>
+  handle(
+    new Request(`https://lune-ai.test${path}`, {
+      method: "POST",
+      headers: { "Content-Type": type, Origin: "https://lune.page", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body,
+    }),
+    env(),
+    fakeFetch,
+  );
+const audio = new Uint8Array(4000).fill(7);
+r = await post("/transcribe", audio, { token: "", type: "audio/webm" });
+check("no account, no transcription", r.status === 401);
+calls.length = 0;
+r = await post("/transcribe", audio, { type: "audio/webm" });
+const heard = await r.json();
+check("a recording comes back as punctuated text", r.status === 200 && heard.text === "Bar 12, keep the thumb light.", JSON.stringify(heard));
+check("Whisper is told it is hearing piano practice, in English", calls[0]?.input?.language === "en" && /fingering/.test(calls[0]?.input?.initial_prompt) && typeof calls[0]?.input?.audio === "string");
+r = await post("/transcribe", new Uint8Array(10), { type: "audio/webm" });
+check("an empty recording is refused", r.status === 400);
+r = await post("/speak", JSON.stringify({ text: "Bar twelve. Keep the thumb light." }));
+const mp3 = new Uint8Array(await r.arrayBuffer());
+check("text comes back as mp3 audio", r.status === 200 && r.headers.get("Content-Type") === "audio/mpeg" && new TextDecoder().decode(mp3).startsWith("ID3"));
+r = await post("/speak", JSON.stringify({ text: "x" }), { token: "" });
+check("no account, no voice", r.status === 401);
 
 console.log(`\n${pass}/${pass + fail} passed`);
 process.exit(fail ? 1 : 0);
