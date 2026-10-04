@@ -91,7 +91,8 @@ def main():
     results = []
     with sync_playwright() as p:
         args = ["--headless=new"]
-        if BACKEND == "webgpu":
+        if BACKEND == "webgpu" and not USE_CHROME:
+            # the bundled Linux Chromium needs these; Chrome on a Mac has WebGPU on already
             args += ["--enable-unsafe-webgpu", "--enable-features=Vulkan"]
         if HEADED:
             args = [a for a in args if a != "--headless=new"]
