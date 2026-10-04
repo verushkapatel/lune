@@ -1772,6 +1772,7 @@ window.LunePractice = (function () {
       ${row("upload", "Upload a score", "MusicXML, PDF or a photo. It stays on this device unless you add it to your Repertoire while signed in.")}
       ${row("feedback", "Send feedback", "Tell Verushka what changed or what is missing. It goes straight to her.")}
       <h3>Ask Lune</h3>
+      ${accountAISettingsHtml()}
       <h4 class="settings-sub">Lune AI on this device</h4>
       <div class="settings-device-ai" id="set-device-ai"></div>
       <h4 class="settings-sub">Your own model with Ollama</h4>
@@ -1918,6 +1919,21 @@ window.LunePractice = (function () {
       else if (act === "owner-feedback") window.LuneFeedback?.openOwner?.();
     };
     if (!d.open) d.showModal();
+  }
+
+  /** Lune AI for account holders: on when signed in, with where questions go said plainly. */
+  function accountAISettingsHtml() {
+    const server = String(window.LUNE_CONFIG?.aiServer || "");
+    if (!server) return "";
+    const st = store.status();
+    const name = esc(window.LUNE_CONFIG?.aiModelName || "an open-weight model");
+    const where = `Answers come from ${name}, an open-weight model, on Lune’s server at Cloudflare. Ask Lune sends it the score facts for the bar or piece, your remarks and your question. Lune does not keep them. It is a general model, not one trained for Lune, and it can be wrong. Built with Llama.`;
+    if (st.mode === "cloud") {
+      return `<h4 class="settings-sub">Lune AI</h4><p class="settings-note" id="set-account-ai" role="status"><strong>Lune AI is on</strong>${where}</p>`;
+    }
+    return `<h4 class="settings-sub">Lune AI</h4>
+      <p class="settings-note" id="set-account-ai"><strong>Free with a Lune account</strong>${where}</p>
+      ${st.signedIn ? "" : `<button type="button" class="settings-row" data-set="signin"><strong>Create a free account</strong><span>Then Lune AI is on in Ask Lune. Nothing to download or install.</span></button>`}`;
   }
 
   /** Lune AI in Settings: what it is, its size before anything downloads, and how to turn it off. */

@@ -568,9 +568,97 @@ def section_console(browser):
     print(f"      (outside hosts this environment could not reach: {', '.join(sorted(outside)) or 'none'})")
 
 
+# ---------------------------------------------------------------- account (Lune AI for signed-in people)
+
+ACCOUNT_SERVER = "http://127.0.0.1:8140"  # node workers/lune-ai/local-server.mjs: the real Worker, stand-in model
+# LUNE_CONFIG is set by lune-config.js; this points its aiServer at the local Worker before anything reads it
+POINT_AT_SERVER = """(() => { let c; Object.defineProperty(window, 'LUNE_CONFIG', { configurable: true,
+  get: () => c, set: (v) => { c = Object.assign(v, { aiServer: '%s' }); } }); })();""" % ACCOUNT_SERVER
+SIGN_IN = """() => { LuneStore.status = () => ({ signedIn: true, mode: 'cloud', email: 't@example.com', userId: 'u-test', cloud: true });
+  LuneStore.accessToken = async () => window.__token || 'test-token'; LuneAsk.paintNews(); }"""
+
+
+def section_account(browser):
+    ctx = browser.new_context(viewport={"width": 1280, "height": 860})
+    ctx.add_init_script(POINT_AT_SERVER)
+    pg = ctx.new_page()
+    pg.errors = []
+    pg.on("pageerror", lambda e: pg.errors.append(str(e)[:200]))
+    downloads = []
+    pg.on("request", lambda r: downloads.append(r.url) if "huggingface" in r.url or "jsdelivr" in r.url else None)
+
+    # a guest: the landing card invites an account; nothing to download
+    pg.goto(BASE, wait_until="networkidle")
+    pg.wait_for_timeout(300)
+    card = pg.locator("#home-guest [data-ai-news], .home-hero [data-ai-news]").first
+    text = card.inner_text() if card.is_visible() else ""
+    check("account: the landing page says “Now superpowered with Lune AI” with the sub-line",
+          "Now superpowered with Lune AI" in text and "An AI assistant built around your music, your score, your practice and your goals." in text, text)
+    check("account: the same card says it is free with an account, nothing to download, and where answers come from",
+          "Free with a Lune account" in text and "nothing to download" in text and "Lune’s server" in text and "Built with Llama" in text, text)
+    check("account: a guest's button is Create a free account", "Create a free account" in text)
+    check("account: the top of the landing page has the Lune AI badge", pg.locator("[data-ai-news-badge]").is_visible())
+    pg.click("[data-ai-news-badge]")
+    pg.wait_for_timeout(900)
+    check("account: the badge jumps to the card without changing the address",
+          pg.evaluate("() => location.hash === '' && !!document.activeElement.closest('[data-ai-news]')"))
+    credit = pg.evaluate("() => !document.querySelector('[data-ai-credit]').hidden")
+    check("account: the credits name the model and its licence", credit)
+
+    open_piece(pg)
+    select_bar(pg, 5)
+    pg.evaluate("() => LuneAsk.open({bar: 5})")
+    pg.wait_for_timeout(500)
+    offer = pg.inner_text("#ask-ai-offer") if pg.locator("#ask-ai-offer").is_visible() else ""
+    check("account: Ask Lune invites a guest to make an account, with no download", "Create a free account" in offer and "Download" not in offer, offer)
+    check("account: no model chips for a guest", pg.locator("#ask-chips [data-task]").count() == 0)
+    pg.click("[data-ai-account]")
+    pg.wait_for_timeout(500)
+    check("account: that button opens account creation", pg.evaluate("() => !!document.querySelector('dialog[open]')"))
+    pg.keyboard.press("Escape")
+
+    # signed in: Lune AI is on with nothing to set up
+    pg.evaluate(SIGN_IN)
+    pg.evaluate("() => { LuneAsk.close(); LuneAsk.open({bar: 5}); }")
+    pg.wait_for_timeout(400)
+    fine = pg.inner_text("#ask-fine")
+    check("account: signed in, Ask Lune says Lune AI is on and where questions go", fine.startswith("Lune AI is on") and "Lune does not keep them" in fine, fine)
+    tasks = pg.eval_on_selector_all("#ask-chips [data-task]", "els => els.map(e => e.dataset.task)")
+    check("account: the model actions appear", tasks == ["explainBar", "whyHard", "suggestPractice", "explainFingering"], tasks)
+    pg.evaluate("() => LuneAsk.ask('What notes are in this bar?')")
+    pg.wait_for_function("() => document.querySelector('#ask-log .ask-msg[data-via=model]')", timeout=15000)
+    last = pg.evaluate("() => [...document.querySelectorAll('#ask-log .ask-msg')].pop().textContent")
+    check("account: a question is answered by Lune AI through the server", last == "STANDIN account reply about bar 5.", last)
+    import urllib.request as _u
+
+    sent = json.loads(_u.urlopen(ACCOUNT_SERVER + "/last").read())
+    check("account: the server, not the browser, supplies the system prompt", sent["messages"][0]["content"].startswith("You are Lune, a piano practice"))
+    pg.evaluate("() => document.querySelector('#ask-chips [data-task=\"whyHard\"]').click()")
+    pg.wait_for_timeout(1500)
+    last = pg.evaluate("() => [...document.querySelectorAll('#ask-log .ask-msg')].pop().textContent")
+    check("account: Why is this hard? goes to Lune AI too", last == "STANDIN account reply about bar 5.", last)
+
+    # a token the server rejects: the built-in reply, with the server's reason
+    pg.evaluate("() => { window.__token = 'expired'; }")
+    pg.evaluate("() => LuneAsk.ask('What is the fingering?')")
+    pg.wait_for_timeout(1500)
+    msgs = pg.eval_on_selector_all("#ask-log .ask-msg", "els => els.map(e => e.textContent)")
+    check("account: a rejected sign-in falls back to the built-in reply and says why",
+          any("Sign in to Lune to use Lune AI. This is Lune’s built-in reply." in m for m in msgs), msgs[-2:])
+    pg.evaluate("() => { window.__token = null; }")
+
+    pg.evaluate("() => document.getElementById('btn-settings').click()")
+    pg.wait_for_timeout(500)
+    st = pg.inner_text("#set-account-ai")
+    check("account: Settings says Lune AI is on", st.startswith("Lune AI is on"), st)
+    check("account: nothing was downloaded from Hugging Face or a CDN", not downloads, downloads[:3])
+    check("account: no page errors", not pg.errors, pg.errors[:3])
+    ctx.close()
+
+
 # ---------------------------------------------------------------- main
 
-SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week, "catalogue": section_catalogue, "console": section_console}
+SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week, "catalogue": section_catalogue, "console": section_console, "account": section_account}
 
 if __name__ == "__main__":
     want = sys.argv[1:] or list(SECTIONS)

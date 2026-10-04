@@ -52,3 +52,4 @@ ll is 0 for every piece at 390 and 1280
 - The score region takes keyboard focus; arrow keys, Home and End move bar by bar and are announced.
 - A language section in Settings is left out: Lune has no translations.
 - Catalogue: Mozart's Piano Sonata no. 18, K. 576 (DCML, CC BY-NC-SA 4.0, MusicXML via When in Rome) was added as fetch-on-open. The rest of that corpus duplicates sonatas Lune has, or has no stated score source.
+- Lune AI is offered to account holders through a Cloudflare Worker on Workers AI (Llama 3.1 8B, free allowance, no API key), not as a browser download, so there is nothing to install. The Worker checks the Supabase sign-in and keeps the system prompt. scripts/deploy_lune_ai.sh puts it live.

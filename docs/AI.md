@@ -16,7 +16,26 @@ If Ollama runs on the pianist's computer, Ask Lune can send questions to it. Set
 
 This mode has been tested only against a stand-in server (`scripts/standin_model_server.py`), not a real Ollama install.
 
-## 3. Lune AI on this device (built, switched off)
+## 3. Lune AI for account holders (the main way)
+
+Anyone with a free Lune account gets Lune AI in Ask Lune, with nothing to download or install. Guests are invited to make an account.
+
+The model is Llama 3.1 8B Instruct (Meta, open weights, Llama 3.1 Community License, so the credits say "Built with Llama"). It runs on Cloudflare Workers AI, called from a small Cloudflare Worker in `workers/lune-ai`. It costs nothing inside Workers AI's free daily allowance. As a rough estimate from Cloudflare's published rates, that is around 500 to 600 questions a day across everyone. When the allowance runs out, Ask Lune says so and gives its built-in answer. There is no API key: the Worker reaches the model through its AI binding.
+
+The Worker:
+
+- checks every request against Supabase. The browser sends the account's access token, and the Worker asks Supabase whether it is valid (with the public anon key). No account, no answer.
+- allows at most 10 questions a minute per account.
+- holds the system prompt itself, so the service cannot be used as a general chatbot.
+- sends the model the score context Ask Lune built and the question, and stores nothing.
+
+Questions leave the pianist's device and go to Cloudflare. Ask Lune, Settings and the landing card say so.
+
+To put it live, run `scripts/deploy_lune_ai.sh` once on a computer with Node.js and a free Cloudflare account. It tests the Worker, deploys it, writes its address into `frontend/lune-config.js` (`aiServer`), and publishes. Until `aiServer` is set, nothing about Lune AI shows on the site. Once it is set, the landing page and signed-in home say "Now superpowered with Lune AI".
+
+Tests: `node workers/lune-ai/test.mjs` checks the Worker itself (accounts, limits, prompt, errors). `scripts/lune_cloud_test.py account` runs the real Worker code locally (`workers/lune-ai/local-server.mjs`, with a stand-in model) behind the website.
+
+## 4. Lune AI on this device (built, switched off)
 
 An open-weight model that runs inside the browser with transformers.js, on the graphics card through WebGPU where the browser has it and on the processor through WebAssembly otherwise. Nothing downloads until the pianist turns it on, and the size is shown first. The weights come from Hugging Face and stay in the browser's cache; turning it off deletes them. The model is a general one, given Lune's reading of the score. It was not trained for Lune.
 
@@ -33,7 +52,7 @@ It is switched off (`MODEL.verified = false` in `ai-device.js`) because it has n
 3. It asks grounded questions through the same system prompt and `buildContext()` as Ask Lune, and checks that note names, bar numbers and fingers in each answer come from the context, that a missing fact is declined and that the model never claims to have heard the pianist. It also times loading and answering.
 4. Only if every check passes and answers come back in under 20 seconds, set `verified: true`. If the 1.5B model is too slow on the processor, try `onnx-community/Qwen2.5-0.5B-Instruct` and run the evaluation again. If neither is good enough, leave it off.
 
-Only once a real model answers inside Lune may the landing page and signed-in home say "Now superpowered with Lune AI", together with the fact that it runs on the pianist's device and what it downloads.
+This in-browser mode is kept as an option but is not used: Lune AI is offered through accounts instead, so nobody has to download a model.
 
 ## What a model is given
 

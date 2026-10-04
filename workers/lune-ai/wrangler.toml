@@ -1,0 +1,22 @@
+# Lune AI on Cloudflare Workers (free plan). Deploy with scripts/deploy_lune_ai.sh.
+name = "lune-ai"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+# Workers AI: the model is reached through this binding, so there is no API key.
+[ai]
+binding = "AI"
+
+[vars]
+# Llama 3.1 8B Instruct (Meta, open weights, Llama 3.1 Community License: "Built with Llama").
+MODEL = "@cf/meta/llama-3.1-8b-instruct-fast"
+# Supabase project and its public anon key (the same ones in frontend/lune-config.js).
+SUPABASE_URL = "https://ggxbkynudklihxovqedv.supabase.co"
+SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdneGJreW51ZGtsaWh4b3ZxZWR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEwMTI3ODEsImV4cCI6MjEwNjU4ODc4MX0.aBrUJsPWU1iz2Z7DVCqDrLIW1R0YV6PZ7OKdmgm4xLE"
+ALLOWED_ORIGINS = "https://lune.page,https://www.lune.page,https://verushkapatel.github.io,http://localhost:8137,http://127.0.0.1:8137"
+
+# At most 10 questions a minute per account.
+[[ratelimits]]
+name = "PER_ACCOUNT"
+namespace_id = "1001"
+simple = { limit = 10, period = 60 }

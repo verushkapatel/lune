@@ -199,39 +199,8 @@ window.LuneDeviceAI = (function () {
 
   const enabled = () => offered() && get(FLAG) === "on";
 
-  /*
-   * "Now superpowered with Lune AI" on the landing page and signed-in home.
-   * It stays hidden until the model has passed its test (MODEL.verified), and
-   * says on the same screen that the model runs on the device and what it downloads.
-   */
-  async function paintNews() {
-    const boxes = document.querySelectorAll("[data-ai-news]");
-    if (!boxes.length) return;
-    const p = await plan();
-    const show = offered() && p.supported && p.bytes > 0;
-    for (const box of boxes) {
-      box.hidden = !show;
-      if (!show) continue;
-      const fine = box.querySelector("[data-ai-news-fine]");
-      if (fine) {
-        fine.textContent = `It runs on your device, not on a server: nothing you ask leaves it. Turning it on downloads ${sizeText(p.bytes)} once (${p.name}, an open-weight model, ${p.licence} licence). It is free, needs no account, and is off until you turn it on.`;
-      }
-      const btn = box.querySelector("[data-ai-news-open]");
-      if (btn) btn.textContent = enabled() ? "Lune AI is on" : "Turn on Lune AI";
-    }
-  }
-  document.addEventListener("click", (e) => {
-    if (!e.target.closest?.("[data-ai-news-open]")) return;
-    // Settings has the switch, the size and the way to turn it off again
-    document.getElementById("btn-settings")?.click();
-    setTimeout(() => document.getElementById("set-device-ai")?.scrollIntoView({ block: "center" }), 120);
-  });
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", paintNews, { once: true });
-  else paintNews();
-
   return {
     MODEL,
-    paintNews,
     plan,
     support,
     sizeText,

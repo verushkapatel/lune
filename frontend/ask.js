@@ -8,6 +8,9 @@
  * Answers come from a provider (LuneAIProvider):
  *   - "rules"    built in, always available: a rule-based assistant that
  *                runs in the browser and sends nothing anywhere.
+ *   - "account"  Lune AI for anyone signed in: an open-weight model on
+ *                Lune's Cloudflare Worker (workers/lune-ai), free, no key in
+ *                this code. The Worker checks the account and holds the prompt.
  *   - "device"   optional: Lune AI, an open-weight model that runs inside
  *                this browser (ai-device.js). Nothing is downloaded until
  *                the pianist turns it on, and the size is shown first.
@@ -207,7 +210,39 @@ Rules:
   };
 
   const D = () => window.LuneDeviceAI;
+  const aiServer = () => String(window.LUNE_CONFIG?.aiServer || "").replace(/\/+$/, "");
+  const aiName = () => window.LUNE_CONFIG?.aiModelName || "an open-weight model";
+  /** Signed in with a real account (not only on this device), so the server can check it. */
+  const cloudAccount = () => store()?.status?.().mode === "cloud";
   const providers = {
+    /** Lune AI for account holders: Lune's own server, which checks the account first. */
+    account: {
+      available: () => !!aiServer() && cloudAccount(),
+      label: () => "Lune AI",
+      async answer(question, ctx) {
+        const token = await store().accessToken();
+        if (!token) throw new Error("Sign in again to use Lune AI.");
+        const ctl = new AbortController();
+        const timer = setTimeout(() => ctl.abort(), 45000);
+        try {
+          const res = await fetch(`${aiServer()}/ask`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ question, context: ctx }),
+            signal: ctl.signal,
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data.answer) {
+            const err = new Error(data.error || `Lune AI returned ${res.status}`);
+            err.userMessage = data.error;
+            throw err;
+          }
+          return String(data.answer).slice(0, 4000);
+        } finally {
+          clearTimeout(timer);
+        }
+      },
+    },
     /** Lune AI: an open-weight model running in this browser. */
     device: {
       available: () => !!D()?.enabled() || D()?.status() === "ready",
@@ -258,8 +293,17 @@ Rules:
       label: () => `your local model (${aiSettings().model})`,
     },
   };
-  /** A model the pianist set up themselves comes first, then Lune AI on this device. */
-  const active = () => (providers.endpoint.available() ? providers.endpoint : providers.device.available() ? providers.device : null);
+  /** A model the pianist set up themselves comes first, then Lune AI (account), then Lune AI on this device. */
+  const active = () =>
+    providers.endpoint.available()
+      ? providers.endpoint
+      : providers.account.available()
+        ? providers.account
+        : providers.device.available()
+          ? providers.device
+          : null;
+  const fallbackNote = (err) =>
+    err?.userMessage ? `${err.userMessage} This is Lune’s built-in reply.` : "The model didn’t answer, so this is Lune’s built-in reply.";
 
   /* ---------- actions ---------- */
 
@@ -448,6 +492,7 @@ Rules:
     line("you", act.label);
     const model = active();
     let a = null;
+    let failure = null;
     if (model) {
       const shown = line("lune", model === providers.device && D().status() !== "ready" ? "Loading Lune AI…" : "Thinking…");
       shown.setAttribute("aria-hidden", "true");
@@ -459,14 +504,15 @@ Rules:
             shown.textContent = streamed;
           },
         });
-      } catch {
+      } catch (err) {
         a = null;
+        failure = err;
       }
       shown.remove();
     }
     let note = "";
     if (!a) {
-      note = "The model didn’t answer, so this is Lune’s built-in reply.";
+      note = fallbackNote(failure);
       a = act.fallback ? (await reply(act.fallback)).a : "Lune’s built-in answers can’t summarise practice. This week shows the days, bars and ratings instead.";
     }
     const said = line("lune", a);
@@ -474,6 +520,46 @@ Rules:
     else line("lune", note).classList.add("ask-note");
     remember({ bar: act.bar ? bar || selectedBarsSorted()[0] || null : null, q: act.label, a, note: note || undefined, via: note ? undefined : "model", t: Date.now() });
   }
+
+  /* ---------- "Now superpowered with Lune AI" (landing page and signed-in home) ---------- */
+
+  /**
+   * Shown once Lune AI's server is set (LUNE_CONFIG.aiServer). It says, on the
+   * same card, where answers come from and that an account is all it needs.
+   */
+  function paintNews() {
+    const boxes = document.querySelectorAll("[data-ai-news]");
+    const on = !!aiServer();
+    document.querySelectorAll("[data-ai-credit], [data-ai-news-badge]").forEach((el) => (el.hidden = !on));
+    const st = store()?.status?.() || {};
+    for (const box of boxes) {
+      box.hidden = !on;
+      if (!on) continue;
+      const fine = box.querySelector("[data-ai-news-fine]");
+      if (fine) {
+        fine.textContent = `Free with a Lune account, with nothing to download. Answers come from ${aiName()}, an open-weight model, on Lune’s server. Lune sends it the score facts and your question and keeps nothing. Built with Llama.`;
+      }
+      const btn = box.querySelector("[data-ai-news-open]");
+      if (btn) btn.textContent = st.mode === "cloud" ? "Try it on Clair de lune" : st.signedIn ? "Confirm your account" : "Create a free account";
+    }
+  }
+  document.addEventListener("click", (e) => {
+    if (e.target.closest?.("[data-ai-news-badge]")) {
+      const card = document.querySelector("#home-guest [data-ai-news]") || document.querySelector("[data-ai-news]");
+      card?.scrollIntoView({ behavior: "smooth", block: "center" });
+      card?.querySelector("[data-ai-news-open]")?.focus({ preventScroll: true });
+      return;
+    }
+    if (!e.target.closest?.("[data-ai-news-open]")) return;
+    if (store()?.status?.().mode === "cloud") {
+      // the piece opens on its score; Ask Lune is the button beside the score
+      location.hash = "#/debussy-clair-de-lune/score";
+    } else window.LuneOnboard?.openCreateAccount?.();
+  });
+  const paintNewsSoon = () => setTimeout(paintNews, 0);
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", paintNewsSoon, { once: true });
+  else paintNewsSoon();
+  setTimeout(() => store()?.onChange?.(paintNews), 0);
 
   /* ---------- the panel ---------- */
 
@@ -520,6 +606,10 @@ Rules:
     p.querySelector("#ask-mic").addEventListener("click", speakInto);
     p.querySelector("#ask-ai-offer").addEventListener("click", (e) => {
       if (e.target.closest("[data-ai-on]")) turnOnDeviceAI(p.querySelector("#ask-ai-offer"));
+      if (e.target.closest("[data-ai-account]")) {
+        close();
+        window.LuneOnboard?.openCreateAccount?.();
+      }
     });
     p.querySelector("#ask-chips").addEventListener("click", (e) => {
       const t = e.target.closest("button[data-task]");
@@ -548,7 +638,9 @@ Rules:
     if (fine) {
       fine.textContent = providers.endpoint.available()
         ? `Local model connected (${aiSettings().model}). Questions go to it with this bar’s score facts and your remarks.`
-        : providers.device.available()
+        : providers.account.available()
+          ? `Lune AI is on: ${aiName()}, an open-weight model on Lune’s server. Questions go there with this bar’s score facts and your remarks. Lune does not keep them.`
+          : providers.device.available()
           ? `Lune AI is on. ${D().MODEL.name} runs in this browser and answers from this bar’s score facts and your remarks. Nothing you ask leaves this device.`
           : "These are Lune’s built-in answers, worked out from the score and your remarks. They are not from a language model. Nothing is sent anywhere.";
     }
@@ -588,7 +680,22 @@ Rules:
   async function paintDeviceOffer() {
     const box = $("ask-ai-offer");
     if (!box || box.dataset.busy) return;
-    if (!D() || active()) {
+    if (active()) {
+      box.hidden = true;
+      return;
+    }
+    // Lune AI comes with an account: guests are invited to make one, no download
+    if (aiServer()) {
+      const st = store()?.status?.() || {};
+      box.innerHTML = st.signedIn
+        ? `<p><strong>Lune AI</strong> needs your account to be confirmed. Sign in with the code Lune emails you, and it turns on.</p>
+           <button type="button" class="quiet" data-ai-account="signin">Sign in</button>`
+        : `<p><strong>Lune AI</strong> answers with a language model when you have a Lune account. The account is free, and nothing is downloaded.</p>
+           <button type="button" class="quiet" data-ai-account="create">Create a free account</button>`;
+      box.hidden = false;
+      return;
+    }
+    if (!D()) {
       box.hidden = true;
       return;
     }
@@ -688,8 +795,8 @@ Rules:
           },
         });
         out.via = "model";
-      } catch {
-        out.note = "The model didn’t answer, so this is Lune’s built-in reply.";
+      } catch (err) {
+        out.note = fallbackNote(err);
       }
       shown.remove();
     }
@@ -796,5 +903,5 @@ Rules:
   for (const task of Object.keys(TASKS)) LuneAIProvider[task] = (bar, ...args) => LuneAIProvider.run(task, bar, ...args);
   window.LuneAIProvider = LuneAIProvider;
 
-  return { open, close, ask, historyFor, onSelection, buildContext, aiSettings, SYSTEM_PROMPT, TASKS, MODEL_ACTIONS, runTask, modelConnected: () => !!active(), deviceOfferHtml, turnOnDeviceAI, testModel: () => providers.endpoint.answer("Reply with the single word: ready", { test: true }) };
+  return { open, close, ask, historyFor, onSelection, buildContext, aiSettings, SYSTEM_PROMPT, TASKS, MODEL_ACTIONS, runTask, paintNews, modelConnected: () => !!active(), deviceOfferHtml, turnOnDeviceAI, testModel: () => providers.endpoint.answer("Reply with the single word: ready", { test: true }) };
 })();
