@@ -55,8 +55,12 @@ def select_bar(pg, n):
 
 
 def section_ai(browser):
-    # without a model: no model chips, an offer that states the size, nothing downloaded
-    pg = new_page(browser)
+    # with Lune AI's server not set (as before launch): no model chips, nothing downloaded
+    off = browser.new_context(viewport={"width": 1280, "height": 860})
+    off.add_init_script(POINT_AT_SERVER.replace(ACCOUNT_SERVER, ""))
+    pg = off.new_page()
+    pg.errors = []
+    pg.on("pageerror", lambda e: pg.errors.append(str(e)[:200]))
     hf = []
     pg.on("request", lambda r: hf.append(r.url) if "huggingface" in r.url or "transformers" in r.url else None)
     open_piece(pg)
