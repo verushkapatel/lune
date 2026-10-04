@@ -9257,3 +9257,17 @@ input[type="range"]:focus-visible { outline: 2px solid var(--text); outline-offs
 .lune-ai-news-h { margin: 0 0 6px; font-family: var(--serif); font-size: 22px; font-weight: 500; color: var(--text); }
 .lune-ai-news-sub { margin: 0 0 8px; font-size: 16px; line-height: 1.5; color: var(--text); }
 .lune-ai-news-fine { margin: 0 0 12px; font-size: 13.5px; line-height: 1.5; color: var(--muted); }
+.lune-ai-badge {
+  display: inline-block;
+  margin: 0 0 18px;
+  padding: 6px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+.lune-ai-badge:hover { border-color: var(--muted); }
+.lune-ai-badge:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }

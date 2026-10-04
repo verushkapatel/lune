@@ -189,6 +189,16 @@ window.LuneStore = (function () {
       awaitingCode: false,
     };
   }
+  /** The signed-in account's access token, for Lune AI's server to check who is asking. */
+  async function accessToken() {
+    if (!remote()) return "";
+    try {
+      const { data } = await client.auth.getSession(); // refreshes an expired token
+      return data?.session?.access_token || "";
+    } catch {
+      return session?.access_token || "";
+    }
+  }
   function check(res) {
     if (res?.error) throw new Error(res.error.message || "Could not reach your Repertoire");
     return res?.data;
@@ -1088,6 +1098,7 @@ window.LuneStore = (function () {
   }
 
   return {
+    accessToken,
     GRADES,
     normGrade,
     schedule,
