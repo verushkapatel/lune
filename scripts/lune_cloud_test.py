@@ -80,6 +80,20 @@ def section_ai(browser):
     check("ai: when offered, it states the download and where it comes from", ("MB" in txt or "GB" in txt) and "Download" in txt, txt)
     pg.evaluate("() => localStorage.removeItem('lune.ai.device.test')")
     check("ai: nothing is downloaded before the pianist turns it on", not hf, hf[:3])
+    pg.goto(BASE, wait_until="networkidle")
+    check("ai: no “superpowered with Lune AI” line while the model is not verified",
+          pg.evaluate("() => [...document.querySelectorAll('[data-ai-news]')].every(b => b.hidden)"))
+    news = pg.evaluate("""async () => { localStorage.setItem('lune.ai.device.test', '1');
+      LuneDeviceAI.MODEL.builds.webgpu.bytes = LuneDeviceAI.MODEL.builds.wasm.bytes = 1.2e9;
+      await LuneDeviceAI.paintNews(); const b = document.querySelector('#home-guest [data-ai-news], [data-ai-news]');
+      const out = [b.hidden, b.innerText, document.querySelectorAll('[data-ai-news]').length]; localStorage.removeItem('lune.ai.device.test'); return out; }""")
+    check("ai: once verified, the landing page and signed-in home say it, with the device and download on the same card",
+          not news[0] and news[2] == 2 and "Now superpowered with Lune AI" in news[1] and "your music, your score, your practice and your goals" in news[1]
+          and "runs on your device" in news[1] and "1.2 GB" in news[1], news)
+    open_piece(pg)
+    select_bar(pg, 5)
+    pg.evaluate("() => LuneAsk.open({bar: 5})")
+    pg.wait_for_timeout(400)
     fine = pg.inner_text("#ask-fine")
     check("ai: built-in answers are not called a model", "not from a language model" in fine, fine)
 

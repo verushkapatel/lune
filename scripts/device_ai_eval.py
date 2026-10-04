@@ -4,7 +4,13 @@
 Needs network access to huggingface.co (model files) and cdn.jsdelivr.net
 (transformers.js and its WebAssembly). Serve the site on 8137 first.
 
-    python3 scripts/device_ai_eval.py [webgpu|wasm]
+    python3 scripts/device_ai_eval.py [webgpu|wasm] [--chrome] [--headed] [--model ID] [--apply]
+
+    --chrome   use the Google Chrome installed on this computer (best for WebGPU on a Mac)
+    --headed   show the browser window while it runs
+    --model    try another model, e.g. onnx-community/Qwen2.5-0.5B-Instruct
+    --apply    if every check passes, write the measured sizes, the model and
+               verified: true into frontend/ai-device.js (nothing is written otherwise)
 
 It
   1. measures the bytes each build downloads, from the Hugging Face file list
@@ -30,10 +36,28 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 BASE = "http://localhost:8137/lune/"
-BACKEND = sys.argv[1] if len(sys.argv) > 1 else "webgpu"
+ARGS = sys.argv[1:]
+BACKEND = next((a for a in ARGS if a in ("webgpu", "wasm")), "webgpu")
+USE_CHROME = "--chrome" in ARGS
+HEADED = "--headed" in ARGS
+APPLY = "--apply" in ARGS
 CHROME = next(iter(sorted(Path("/opt/pw-browsers").glob("chromium-*/chrome-linux/chrome"))), None)
-SRC = (Path(__file__).resolve().parents[1] / "frontend" / "ai-device.js").read_text(encoding="utf-8")
-MODEL_ID = re.search(r'id: "([^"]+)"', SRC).group(1)
+DEVICE_JS = Path(__file__).resolve().parents[1] / "frontend" / "ai-device.js"
+SRC = DEVICE_JS.read_text(encoding="utf-8")
+MODEL_ID = ARGS[ARGS.index("--model") + 1] if "--model" in ARGS else re.search(r'id: "([^"]+)"', SRC).group(1)
+
+
+def apply(sizes: dict):
+    """Write the tested model, its measured sizes and verified: true into ai-device.js."""
+    src = DEVICE_JS.read_text(encoding="utf-8")
+    name = MODEL_ID.split("/")[-1].replace("-", " ").replace("Qwen2.5 ", "Qwen2.5 ")
+    src = re.sub(r"verified: (true|false),", "verified: true,", src, count=1)
+    src = re.sub(r'id: "[^"]+",', f'id: "{MODEL_ID}",', src, count=1)
+    src = re.sub(r'name: "[^"]+",', f'name: "{name}",', src, count=1)
+    src = re.sub(r'webgpu: \{ dtype: "q4f16", bytes: \d+ \}', f'webgpu: {{ dtype: "q4f16", bytes: {sizes.get("q4f16", 0)} }}', src, count=1)
+    src = re.sub(r'wasm: \{ dtype: "q4", bytes: \d+ \}', f'wasm: {{ dtype: "q4", bytes: {sizes.get("q4", 0)} }}', src, count=1)
+    DEVICE_JS.write_text(src, encoding="utf-8")
+    print(f"Wrote {MODEL_ID}, sizes and verified: true into {DEVICE_JS}")
 NOTE = re.compile(r"\b([A-G])(?:[#♯b♭])?(\d)?\b")
 
 
@@ -69,16 +93,23 @@ def main():
         args = ["--headless=new"]
         if BACKEND == "webgpu":
             args += ["--enable-unsafe-webgpu", "--enable-features=Vulkan"]
-        b = p.chromium.launch(executable_path=str(CHROME) if CHROME else None, args=args, headless=True)
+        if HEADED:
+            args = [a for a in args if a != "--headless=new"]
+        if USE_CHROME:
+            b = p.chromium.launch(channel="chrome", args=args, headless=not HEADED)
+        else:
+            b = p.chromium.launch(executable_path=str(CHROME) if CHROME else None, args=args, headless=not HEADED)
         ctx = b.new_context(ignore_https_errors=True)  # sandbox proxies re-sign HTTPS
         pg = ctx.new_page()
         pg.add_init_script(f"localStorage.setItem('lune.ai.device.test', '1'); localStorage.setItem('lune.ai.device.backend', '{BACKEND}');")
+        if "--model" in ARGS:  # try a model other than the one in ai-device.js
+            pg.add_init_script(f"addEventListener('DOMContentLoaded', () => {{ window.LuneDeviceAI.MODEL.id = '{MODEL_ID}'; }});")
         pg.goto(BASE + "#/beethoven-fur-elise/score", wait_until="networkidle")
         pg.wait_for_function("() => state.piece && Object.keys(state.piece.debriefs || {}).length > 0", timeout=90000)
         plan = pg.evaluate("() => LuneDeviceAI.plan()")
         print(f"backend {plan['device']} dtype {plan['dtype']} (WebGPU available: {plan['support']['webgpu']})")
         t0 = time.time()
-        pg.evaluate("() => LuneDeviceAI.load()", )
+        pg.evaluate("() => LuneDeviceAI.load()")
         load_s = time.time() - t0
         print(f"load (download + start): {load_s:.1f} s")
 
@@ -135,6 +166,10 @@ def main():
     good = all(ok for _, ok, *_ in results)
     print(f"\nload {load_s:.1f} s · grounded {sum(ok for _, ok, *_ in results)}/{len(results)} · every answer under 20 s: {fast}")
     print("VERDICT:", "good enough to turn on" if good and fast else "not good enough: leave MODEL.verified = false")
+    if good and fast and APPLY:
+        apply(sizes)
+    elif APPLY:
+        print("Nothing written to ai-device.js.")
     sys.exit(0 if good and fast else 1)
 
 
