@@ -40,6 +40,42 @@ const hardest = new Set(ctx.piece.piece.hardestBars.map((h) => Number(h.bar)));
 const near12 = new Set([11, 12, 13]);
 const bar12Notes = new Set([...ctx.bar12.bar.rightHand, ...ctx.bar12.bar.leftHand].map((n) => n.note));
 
+
+// Each finger the answer pairs with a note must be the finger the score gives that note.
+// Reads "E5 (finger 5)", "E5: 5", "E5 with 5", "5 for E5", "5 little finger for E5",
+// "little finger (5) on E5 and D#5". Finger names must match their numbers.
+const NOTE = "[A-G](?:#|♯|b|♭)?\\d";
+export function fingeringRight(t, bar) {
+  const want = new Map();
+  for (const n of [...bar.rightHand, ...bar.leftHand]) {
+    if (n.finger == null) continue;
+    const k = String(n.note).replace("♯", "#").replace("♭", "b");
+    if (!want.has(k)) want.set(k, new Set());
+    want.get(k).add(String(n.finger));
+  }
+  const norm = (x) => x.replace("♯", "#").replace("♭", "b");
+  const pairs = [];
+  const notesIn = (list) => [...list.matchAll(new RegExp(NOTE, "g"))].map((m) => norm(m[0]));
+  // finger first: "5 for E5", "5 little finger for E5", "(5) on E5 and D#5"
+  for (const m of t.matchAll(new RegExp(`\\(?\\b([1-5])\\)?(?:\\s+(?:thumb|index|middle|ring|little|pinky)(?:\\s+finger)?)?\\s+(?:for|on)\\s+(${NOTE}(?:\\s*(?:,|and|&)\\s*${NOTE})*)`, "gi")))
+    for (const n of notesIn(m[2])) pairs.push([n, m[1]]);
+  // note first: "E5 (finger 5)", "E5: 5", "E5 - 5", "E5 with finger 5", "E5 is played with finger 5"
+  for (const m of t.matchAll(new RegExp(`(${NOTE})\\s*(?:\\(|:|-|–|=|with|is played with|is played by|uses)\\s*(?:finger\\s*|the\\s+)?([1-5])\\b`, "gi")))
+    pairs.push([norm(m[1]), m[2]]);
+  const names = { thumb: "1", index: "2", middle: "3", ring: "4", pinky: "5", little: "5" };
+  const namedOk = [...t.matchAll(/\b([1-5])\s+(thumb|index|middle|ring|pinky|little)\b|\b(thumb|index|middle|ring|pinky|little)(?: finger)?\s*\((?:finger\s*)?([1-5])\)/gi)].every(
+    (m) => names[(m[2] || m[3]).toLowerCase()] === (m[1] || m[4]),
+  );
+  // fingers listed in order for a hand: "right hand ... fingers 5, 4, 5, 1, 3, 2"
+  const seqs = [...t.matchAll(/\b(right|left)[- ]hand\b[^.;]*?\bfingers?\s+((?:[1-5](?:\s*,\s*(?:and\s+)?|\s+and\s+)?)+)/gi)].map((m) => {
+    const said = m[2].match(/[1-5]/g);
+    const hand = (m[1].toLowerCase() === "right" ? bar.rightHand : bar.leftHand).map((n) => n.finger).filter((f) => f != null).map(String);
+    return said.length === hand.length && said.every((f, i) => f === hand[i]);
+  });
+  if ((!pairs.length && !seqs.length) || !namedOk) return false;
+  return seqs.every(Boolean) && pairs.every(([n, f]) => want.get(n)?.has(f));
+}
+
 const CASES = [
   {
     name: "notes in bar 5 come from the bar",
@@ -54,14 +90,7 @@ const CASES = [
     name: "fingers for bar 5 come from the bar",
     q: "What is the fingering?",
     c: ctx.bar5,
-    ok: (t) => {
-      // "finger 3", "3rd finger", "(3)", "E5: 3", "E5 with 3", and "3 for E5"
-      const said = new Set([...t.matchAll(/\bfingers?\s*(\d)|\b(\d)(?:st|nd|rd|th)? finger|\(\s*(\d)\s*\)|\b[A-G][#♯b♭]?\d?\s*(?:[-:–]|with|=)\s*(\d)\b|\b(\d)\s+for\s+[A-G][#♯b♭]?\d?\b/gi)].map((m) => m[1] || m[2] || m[3] || m[4] || m[5]));
-      const names = { thumb: "1", index: "2", middle: "3", ring: "4", pinky: "5", little: "5" };
-      const named = [...t.matchAll(/\b(thumb|index|middle|ring|pinky|little)(?: finger)?\s*\((?:finger\s*)?(\d)\)/gi)];
-      const namesRight = named.every((m) => names[m[1].toLowerCase()] === m[2]);
-      return said.size > 0 && [...said].every((x) => bar5Fingers.has(x)) && namesRight;
-    },
+    ok: (t) => fingeringRight(t, bar5),
   },
   {
     name: "hardest bars come from Lune's analysis",
