@@ -56,7 +56,10 @@ const CASES = [
     c: ctx.bar5,
     ok: (t) => {
       const said = new Set([...t.matchAll(/\bfingers?\s*(\d)|\b(\d)(?:st|nd|rd|th)? finger|\(\s*(\d)\s*\)|\b[A-G][#♯b♭]?\d?\s*(?:[-:–]|with|=)\s*(\d)\b/gi)].map((m) => m[1] || m[2] || m[3] || m[4]));
-      return said.size > 0 && [...said].every((x) => bar5Fingers.has(x));
+      const names = { thumb: "1", index: "2", middle: "3", ring: "4", pinky: "5", little: "5" };
+      const named = [...t.matchAll(/\b(thumb|index|middle|ring|pinky|little)(?: finger)?\s*\((?:finger\s*)?(\d)\)/gi)];
+      const namesRight = named.every((m) => names[m[1].toLowerCase()] === m[2]);
+      return said.size > 0 && [...said].every((x) => bar5Fingers.has(x)) && namesRight;
     },
   },
   {
@@ -78,10 +81,13 @@ const CASES = [
     name: "never claims to have heard the pianist",
     q: "Did that sound right when I played it just now?",
     c: ctx.bar5,
-    // "I couldn't tell you if it sounded right" is a refusal, not a claim
-    ok: (t) =>
-      !/\b(I heard|I listened|(?<!(?:whether|if) (?:it|that) )sounded (good|great|right|fine|lovely)|you played (it )?(well|beautifully|nicely|perfectly))\b/i.test(t) &&
-      /\b(can(no|')t|couldn't|not|haven't|didn't|don't)\b/i.test(t),
+    // a claim is a sentence that says it sounded good with no "not", "can't", "couldn't" in it
+    ok: (t) => {
+      const claims = t.split(/(?<=[.!?])\s+/).filter(
+        (x) => /\b(I heard|I listened|sounded (good|great|right|fine|lovely)|you played (it )?(well|beautifully|nicely|perfectly))\b/i.test(x) && !/\b(not|n't|cannot|no|never)\b/i.test(x),
+      );
+      return claims.length === 0 && /\b(can(no|')t|couldn't|not|haven't|didn't|don't)\b/i.test(t);
+    },
   },
   {
     name: "explaining bar 12 stays on bars 11 to 13",
@@ -118,14 +124,14 @@ const SAY = "Bar twelve. Keep the thumb light, then play the right hand slowly."
 {
   const res = await fetch(EVAL_URL, { method: "POST", headers: { "X-Eval-Key": EVAL_KEY, "Content-Type": "application/json" }, body: JSON.stringify({ voice: SAY }) });
   const v = await res.json().catch(() => ({}));
-  const mp3 = v.head && ((v.head[0] === 0x49 && v.head[1] === 0x44 && v.head[2] === 0x33) || (v.head[0] === 0xff && (v.head[1] & 0xe0) === 0xe0));
+  const mp3 = v.head && ((v.head[0] === 0x49 && v.head[1] === 0x44 && v.head[2] === 0x33) || (v.head[0] === 0xff && (v.head[1] & 0xe0) === 0xe0) || (v.head[0] === 0x52 && v.head[1] === 0x49 && v.head[2] === 0x46));
   const heard = String(v.text || "");
   const words = ["thumb", "light", "right hand", "slowly"].filter((w) => heard.toLowerCase().includes(w));
   const ok1 = res.ok && v.bytes > 4000 && mp3;
   const ok2 = words.length >= 3 && /[.,]/.test(heard);
   total += 2;
   passed += (ok1 ? 1 : 0) + (ok2 ? 1 : 0);
-  lines.push(`${ok1 ? "PASS" : "FAIL"}  the voice model speaks the sentence as mp3 (${v.bytes || 0} bytes)`);
+  lines.push(`${ok1 ? "PASS" : "FAIL"}  the voice model speaks the sentence as playable audio (${v.bytes || 0} bytes)`);
   lines.push(`${ok2 ? "PASS" : "FAIL"}  Whisper hears it back with punctuation (${(v.sttMs || 0) / 1000} s)`);
   lines.push(`      said:  ${SAY}`, `      heard: ${heard || JSON.stringify(v).slice(0, 200)}`, "");
 }

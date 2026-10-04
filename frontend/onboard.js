@@ -1557,6 +1557,15 @@ window.LuneOnboard = (function () {
     paintSignedHome();
     paintKeepBanner();
     applyGateChrome();
+    // the home page starts at its top, not where the welcome page was scrolled to
+    const top = () => {
+      window.scrollTo(0, 0);
+      document.scrollingElement && (document.scrollingElement.scrollTop = 0);
+      const home = $("home");
+      if (home) home.scrollTop = 0;
+    };
+    top();
+    requestAnimationFrame(() => requestAnimationFrame(top));
   }
 
   function paintKeepBanner() {

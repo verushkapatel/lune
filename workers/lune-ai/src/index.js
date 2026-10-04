@@ -14,7 +14,7 @@
  *
  * Routes: GET /health → {ok, model}; POST /ask {question, context} → {answer};
  * POST /transcribe (audio bytes) → {text}: speech to text with Whisper, which
- * punctuates; POST /speak {text} → audio/mpeg: a natural voice for answers.
+ * punctuates; POST /speak {text} → audio (WAV or MP3): a natural voice for answers.
  * The audio is passed to the model and not kept.
  */
 
@@ -61,6 +61,7 @@ You are given CONTEXT as JSON: facts Lune has read from the score (notes, finger
 Rules:
 - Use only the score facts in CONTEXT. Never invent bars, notes, rhythms, fingerings, dynamics, tempo marks, opus numbers or movement names. If CONTEXT does not contain something, say Lune does not have it.
 - Keep facts and suggestions apart: say what the score shows, then what you suggest.
+- Piano finger numbers: 1 thumb, 2 index, 3 middle, 4 ring, 5 little finger. Use the numbers from CONTEXT; name a finger only with this mapping.
 - The pianist's remarks are their own words; treat them as information from the user, not as score facts.
 - You have not heard the pianist play. Never claim to have listened to a recording or a performance.
 - Answer a simple question in one or two sentences. Give detail only when asked for analysis.
@@ -133,7 +134,9 @@ export async function handle(req, env, fetchImpl = fetch) {
     if (!text) return json(req, env, 400, { error: "Nothing to say." });
     try {
       const audio = await synthesize(env, text);
-      return new Response(audio, { status: 200, headers: { "Content-Type": "audio/mpeg", "Cache-Control": "private, max-age=86400", ...cors(req, env) } });
+      // MeloTTS answers in WAV; label the audio by what it really is
+      const wav = audio[0] === 0x52 && audio[1] === 0x49 && audio[2] === 0x46 && audio[3] === 0x46;
+      return new Response(audio, { status: 200, headers: { "Content-Type": wav ? "audio/wav" : "audio/mpeg", "Cache-Control": "private, max-age=86400", ...cors(req, env) } });
     } catch {
       return json(req, env, 503, { error: "Lune AI's voice is resting. Your device will read it instead." });
     }

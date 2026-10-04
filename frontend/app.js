@@ -2215,7 +2215,9 @@ function shapePerformance(notes, index, barStart, endQ) {
   let changes = index.pedal.map((p) => ({ q: abs(p), down: p.down })).filter((p) => p.q != null).sort((a, b) => a.q - b.q);
   if (!changes.length) {
     const era = String(state.piece?.epoch || state.piece?.era || state.piece?.overview?.era || "").toLowerCase();
-    if (/romantic|impression|modern|20th|contemporary/.test(era)) {
+    // Romantic and later: pedal through each harmony. Classical: the same, lightly (it lifts
+    // within a beat of the bass moving). Baroque keyboard music is left unpedalled.
+    if (/classical|romantic|impression|modern|20th|contemporary/.test(era) && !/baroque/.test(era)) {
       // No marks in this edition: change the pedal at each bar and whenever the bass moves on.
       let lastBass = null;
       let lastQ = -9;
@@ -2276,6 +2278,33 @@ function playbackHandlers() {
 }
 
 /** Original tempo from the score marking (unclamped parse, sensible default). */
+/*
+ * A tempo word with no metronome mark (Andante, Allegro, Poco moto): the usual
+ * beats a minute for that word, counted in the beat the metre is felt in,
+ * then turned into crotchets a minute for playback.
+ */
+const TEMPO_WORDS = [
+  [/prestissimo/i, 200], [/presto/i, 176], [/vivacissimo/i, 168], [/vivace|vivo/i, 156],
+  [/allegro (ma )?non troppo|allegro moderato/i, 118], [/allegro/i, 132], [/allegretto/i, 108],
+  [/moderato/i, 104], [/con moto|poco moto|mosso/i, 128], [/andantino/i, 92], [/andante/i, 80],
+  [/adagietto/i, 72], [/adagio/i, 66], [/larghetto/i, 60], [/lento/i, 56], [/largo/i, 50], [/grave/i, 42],
+];
+function tempoFromWords(text, timeSignature = "4/4") {
+  const t = String(text || "");
+  const hit = TEMPO_WORDS.find(([re]) => re.test(t));
+  if (!hit) return NaN;
+  const [num, den] = String(timeSignature).split("/").map(Number);
+  // the felt beat: a dotted crotchet in 6/8, 9/8, 12/8; a quaver in 3/8; a minim in 2/2; else the written beat
+  let crotchetsPerBeat = 4 / (den || 4);
+  if (den === 8 && num % 3 === 0 && num > 3) crotchetsPerBeat = 1.5;
+  if (den === 2) crotchetsPerBeat = 1.5; // cut time: the minim beat runs slower than the word's crotchet speed
+  return Math.round(hit[1] * crotchetsPerBeat);
+}
+function firstTempoWords(xml) {
+  const head = String(xml || "").split(/(?=<measure\b)/i).slice(0, 4).join("");
+  return [...head.matchAll(/<words\b[^>]*>([^<]+)<\/words>/gi)].map((m) => m[1]).join(" ");
+}
+
 function markedTempoBpm() {
   const raw =
     state.piece?.tempo ||
@@ -2288,6 +2317,7 @@ function markedTempoBpm() {
     const map = pieceTempoMap();
     if (map.length) marked = map[0].bpm;
   }
+  if (!Number.isFinite(marked)) marked = tempoFromWords(`${raw} ${firstTempoWords(state.piece?.musicxml)}`, pieceTimeSignature());
   if (!Number.isFinite(marked) || marked <= 0) marked = 72;
   return Math.max(40, Math.min(208, marked));
 }
@@ -3249,6 +3279,19 @@ function styleLaneText(host) {
 }
 
 /** Notes / Fingers / Off without engraving again: swap the text in place. */
+/** Switch Notes, Fingers or Off with a short cross-fade instead of a jump. */
+let laneFadeTimer = 0;
+function fadeLaneMode(host) {
+  const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  if (still) return showLaneMode(host);
+  clearTimeout(laneFadeTimer);
+  host.classList.add("lane-fading");
+  laneFadeTimer = setTimeout(() => {
+    showLaneMode(host);
+    requestAnimationFrame(() => host.classList.remove("lane-fading"));
+  }, 110);
+}
+
 function showLaneMode(host) {
   const mode = state.scoreFingers ? "fingers" : state.scoreLetters ? "letters" : "off";
   host.classList.toggle("lane-hidden", mode === "off");
@@ -3977,7 +4020,7 @@ async function refreshScoreAnnotations() {
     const want = state.scoreFingers ? "fingers" : state.scoreLetters ? "letters" : "off";
     const host = $("osmd");
     if (state.renderedLaneMode === "both" && state.osmd && host?.querySelector("svg")) {
-      showLaneMode(host); // already engraved: nothing to redraw
+      fadeLaneMode(host); // already engraved: the labels cross-fade, nothing is redrawn
       return;
     }
     if (want !== state.renderedLaneMode) {
@@ -4895,6 +4938,13 @@ window.goHome = goHome;
 window.openPieceSession = openPieceSession;
 window.toast = toast;
 window.showView = showView;
+
+// Lune decides where each view starts; the browser must not drop a reload mid-page
+try {
+  if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+} catch {
+  /* older browsers */
+}
 
 try {
   bind();

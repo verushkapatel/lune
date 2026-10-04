@@ -100,7 +100,7 @@ r = await post("/transcribe", new Uint8Array(10), { type: "audio/webm" });
 check("an empty recording is refused", r.status === 400);
 r = await post("/speak", JSON.stringify({ text: "Bar twelve. Keep the thumb light." }));
 const mp3 = new Uint8Array(await r.arrayBuffer());
-check("text comes back as mp3 audio", r.status === 200 && r.headers.get("Content-Type") === "audio/mpeg" && new TextDecoder().decode(mp3).startsWith("ID3"));
+check("text comes back as audio, labelled by its format", r.status === 200 && r.headers.get("Content-Type") === "audio/mpeg" && new TextDecoder().decode(mp3).startsWith("ID3"));
 r = await post("/speak", JSON.stringify({ text: "x" }), { token: "" });
 check("no account, no voice", r.status === 401);
 

@@ -9290,3 +9290,72 @@ body.is-home:not(.is-signed-in) .bar {
   background: transparent;
   border-bottom-color: transparent;
 }
+
+/* Smoother movement everywhere: labels cross-fade, dialogs and panels ease in */
+#osmd svg g.lyrics text { transition: opacity 0.11s ease; }
+#osmd.lane-fading svg g.lyrics text { opacity: 0; }
+#osmd.lane-hidden svg g.lyrics text { transition: none; }
+dialog[open] { animation: lune-dialog-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
+dialog[open]::backdrop { animation: lune-backdrop-in 0.22s ease; }
+@keyframes lune-dialog-in { from { opacity: 0; transform: translateY(8px) scale(0.985); } to { opacity: 1; transform: none; } }
+@keyframes lune-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+.anno-opt span, .lp-grade {
+  transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease, opacity 0.18s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  dialog[open], dialog[open]::backdrop { animation: none; }
+  #osmd svg g.lyrics text { transition: none; }
+}
+
+/* Phones: words where a pianist needs to know what a button does */
+@media (max-width: 760px) {
+  body.is-studio #studio-nav { display: none !important; } /* the Score, Explain and Piano tabs below do the same */
+  .bookmark-btn .lp-add-label {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+  }
+  .bookmark-btn .lp-add-label::after { font-size: 12.5px; }
+  #btn-tell .lp-tool-label { display: inline; }
+  #btn-tell { min-width: 0; padding: 0 14px; gap: 6px; }
+}
+.bookmark-btn { font: inherit; font-size: 13px; }
+
+/* Settings: a page of its own, calm and short */
+dialog.settings-dialog {
+  width: 100vw;
+  max-width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0;
+  padding: 0 16px 48px;
+  border: 0;
+  border-radius: 0;
+  background: var(--bg);
+  overflow-y: auto;
+}
+dialog.settings-dialog > * { max-width: 620px; margin-left: auto; margin-right: auto; }
+.settings-top {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 0 14px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+.settings-top h2 { margin: 0; font-family: var(--serif); font-size: 26px; font-weight: 500; }
+.settings-top form { margin: 0; }
+.settings-sec { padding: 22px 0 6px; border-bottom: 1px solid var(--line); }
+.settings-sec h3 { margin: 0 0 10px; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.settings-advanced { padding: 18px 0; color: var(--muted); }
+.settings-advanced summary { cursor: pointer; font-size: 14px; color: var(--muted); }
+.settings-advanced[open] summary { margin-bottom: 8px; color: var(--text); }
+dialog.share-dialog { max-width: 520px; }
+.share-more { margin: 18px 0 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.rep-plan-ai { margin: 8px 0 0; white-space: pre-line; font-size: 14px; line-height: 1.55; color: var(--text); }
+.lp-ai-tip { margin: 10px 0 0; padding: 10px 12px; border-left: 3px solid #13244d; background: #f4f6fb; color: #1d2433; font-size: 13.5px; line-height: 1.5; white-space: pre-line; }
