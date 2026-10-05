@@ -591,8 +591,18 @@ def section_account(browser):
     hero = pg.evaluate("() => [...document.querySelectorAll('#hero button')].map(b => b.textContent.trim()).filter(t => t && !/scroll/i.test(t))")
     check("landing: the opening screen has no sign-in or install buttons, only the Lune AI pill", hero == ["New · Lune AI, built into Lune"], hero)
     order = pg.evaluate("""() => { const ids = [...document.querySelectorAll('#home-guest > section, #home-guest > div')].map(e => e.id).filter(Boolean);
-      return [ids.indexOf('features'), ids.indexOf('ai'), ids.indexOf('get-lune')]; }""")
-    check("landing: features, then Lune AI, then Get Lune", order[0] >= 0 and order[0] < order[1] < order[2], order)
+      return [ids.indexOf('features'), ids.indexOf('ai'), ids.indexOf('compare'), ids.indexOf('free'), ids.indexOf('get-lune')]; }""")
+    check("landing: features, Lune AI, the comparison and No payments come before Get Lune", order[0] >= 0 and order[0] < order[1] < order[2] < order[3] < order[4], order)
+    cmp = pg.evaluate("""() => ({ rows: [...document.querySelectorAll('#compare tbody th')].map(t => t.textContent),
+      theyWin: [...document.querySelectorAll('#compare .lp-they-win th')].map(t => t.textContent),
+      fine: document.querySelector('#compare .lp-compare-fine').textContent, names: document.querySelector('#compare thead').textContent })""")
+    check("landing: the comparison names flowkey, Simply Piano, Yousician and Skoove", all(n in cmp["names"] for n in ("flowkey", "Simply Piano", "Yousician", "Skoove")), cmp["names"])
+    check("landing: it says plainly what they do better (listening as you play, beginner courses)", cmp["theyWin"] == ["Listening as you play", "Courses from the first note"], cmp["theyWin"])
+    check("landing: it dates its sources and says Lune is not connected with them", "October 2026" in cmp["fine"] and "not connected" in cmp["fine"], cmp["fine"])
+    check("landing: no best, first or only claims in the comparison",
+          not pg.evaluate("() => /\\b(best|first|only|number one|#1)\\b/i.test(document.getElementById('compare').innerText.replace(/first note/gi, ''))"))
+    free = pg.text_content("#free")
+    check("landing: No payments says no subscription, no ads and Lune AI included", "No payments" in free and "No subscription" in free and "No ads" in free and "Lune AI is free" in free, free[:200])
     scenes = pg.eval_on_selector_all("#ai .ai-scene h3", "els => els.map(e => e.textContent)")
     check("landing: six Lune AI scenarios, each with an example conversation", len(scenes) == 6 and pg.locator("#ai .ai-scene .ai-you").count() == 6 and pg.locator("#ai .ai-scene .ai-lune").count() == 6, scenes)
     truth = pg.text_content("#ai .ai-truth")
