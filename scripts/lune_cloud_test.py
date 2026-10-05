@@ -10,6 +10,7 @@ stand-in model server on 8139 (scripts/standin_model_server.py), then:
 Sections: ai install tabs a11y ratings week catalogue console account latest. With none, all run.
 """
 import json
+import os
 import sys
 import urllib.request
 
@@ -26,6 +27,7 @@ out = []
 
 
 def check(name, ok, detail=""):
+    if os.environ.get("LUNE_TRACE"): print("..", "PASS" if ok else "FAIL", name, flush=True)
     out.append(("PASS" if ok else "FAIL", name, str(detail)[:240]))
 
 
@@ -111,8 +113,11 @@ def section_ai(browser):
     check("ai: Ask Lune shows the four bar actions as chips", tasks == ["explainBar", "whyHard", "suggestPractice", "explainFingering"], tasks)
     ok_all = True
     for task in tasks:
-        pg.click(f'#ask-chips [data-task="{task}"]')
-        pg.wait_for_function("() => document.querySelector('#ask-log .ask-msg[data-via=model]:last-of-type')", timeout=15000)
+        # chips show on an empty chat only; after the first answer the same actions run from the bar panel
+        n = pg.evaluate("() => document.querySelectorAll('#ask-log .ask-msg[data-via=model]').length")
+        pg.evaluate(f"() => {{ LuneAsk.runTask('{task}', 7); }}")
+        # data-via is set once the answer has finished arriving
+        pg.wait_for_function(f"() => document.querySelectorAll('#ask-log .ask-msg[data-via=model]').length > {n}", timeout=15000)
         last = pg.evaluate("() => [...document.querySelectorAll('#ask-log .ask-msg')].pop().textContent")
         sent = json.loads(urllib.request.urlopen(STANDIN.replace("/v1/chat/completions", "/")).read())
         user = sent["messages"][-1]["content"]
@@ -613,7 +618,8 @@ def section_account(browser):
     close = pg.eval_on_selector_all("#get-lune button", "els => els.map(e => e.textContent.trim())")
     check("landing: the end offers Install first, then the browser, and no sign-in", close == ["Install Lune", "Use it in your browser"], close)
     pg.click("#hero [data-show-ai]")
-    pg.wait_for_timeout(1500)
+    # a smooth scroll, then one re-landing once the demos above have drawn
+    pg.wait_for_timeout(3000)
     check("landing: the pill scrolls to Lune AI without changing the address",
           pg.evaluate("() => location.hash === '' && Math.abs(document.getElementById('ai').getBoundingClientRect().top) < 120"),
           pg.evaluate("() => [location.hash, document.getElementById('ai').getBoundingClientRect().top]"))
@@ -673,7 +679,7 @@ def section_account(browser):
 
     sent = json.loads(_u.urlopen(ACCOUNT_SERVER + "/last").read())
     check("account: the server, not the browser, supplies the system prompt", sent["messages"][0]["content"].startswith("You are Lune, a piano practice"))
-    pg.evaluate("() => document.querySelector('#ask-chips [data-task=\"whyHard\"]').click()")
+    pg.evaluate("() => { LuneAsk.runTask('whyHard', 5); }")
     pg.wait_for_timeout(1500)
     last = pg.evaluate("() => [...document.querySelectorAll('#ask-log .ask-msg')].pop().textContent")
     check("account: Why is this hard? goes to Lune AI too", last == "STANDIN account reply about bar 5.", last)
@@ -807,7 +813,8 @@ def section_playback(browser):
         open_piece(pg)
         pg.evaluate(ONSETS)
         dock_before = pg.evaluate("() => { const d = document.getElementById('piano-dock'); return d.hidden ? -1 : Math.round(d.getBoundingClientRect().top); }")
-        pg.click("#btn-play-range")
+        # on a phone, Play sits in the top bar; it presses the player's own button
+        pg.click("#st-play" if width < 900 else "#btn-play-range")
         if stall:
             for _ in range(3):
                 pg.wait_for_timeout(2300)
@@ -836,8 +843,14 @@ def section_playback(browser):
             title = pg.evaluate("() => { const t = document.getElementById('studio-piece-quiet'); return [t.textContent, t.scrollWidth <= t.clientWidth + 1]; }")
             check("phone: the piece's name shows in full", title == ["Für Elise", True], title)
             check("phone: the player is one row and the sign-up banner stays off the score", box["player"] <= 80 and not box["banner"], box)
-            pg.click("#bpm-readout-btn")
-            check("phone: the tempo readout opens the tempo slider", pg.locator("#bpm-slider").is_visible())
+            # with the piano hidden, the bottom holds the metronome and speed, ready to use
+            if not pg.evaluate("() => document.getElementById('piano-dock').hidden"):
+                pg.evaluate("() => document.getElementById('btn-toggle-kbd').click()")
+                pg.wait_for_timeout(300)
+            if pg.locator("#bpm-readout-btn").is_visible():
+                pg.click("#bpm-readout-btn")
+            check("phone: the speed slider and metronome are at hand", pg.locator("#bpm-slider").is_visible() and pg.locator("#btn-metro").is_visible())
+            check("phone: the top bar is Menu, Play and +", pg.evaluate("() => ['st-menu','st-play','st-add'].every(id => document.getElementById(id)?.offsetParent)"))
         ctx.close()
 
 
@@ -1059,7 +1072,177 @@ def section_practice_loop(browser):
     ctx.close()
 
 
-SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week, "catalogue": section_catalogue, "console": section_console, "account": section_account, "latest": section_latest, "voice": section_voice, "progress": section_progress, "home": section_home, "loop": section_practice_loop}
+def section_studio(browser):
+    """The compact studio on a phone: Menu, Play and + on top, the score following the music, loading never blank."""
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+    pg = ctx.new_page()
+    pg.errors = []
+    pg.on("pageerror", lambda e: pg.errors.append(str(e)[:200]))
+    # opening a piece link shows the loading screen at once, not a blank page
+    pg.goto(PIECE, wait_until="commit")
+    try:
+        pg.wait_for_function("() => { const l = document.getElementById('lune-loader'); return !!l && getComputedStyle(l).display !== 'none' && !!l.querySelector('.lune-loader-keys'); }", timeout=4000, polling=50)
+        shown = True
+    except Exception:
+        shown = False
+    check("studio: a piece link shows the piano loading screen while it opens", shown)
+    pg.wait_for_function("() => typeof state !== 'undefined' && state.piece && Object.keys(state.piece.debriefs || {}).length > 0", timeout=60000)
+    pg.wait_for_timeout(800)
+    check("studio: the loading screen goes once the score is ready", pg.evaluate("() => !document.documentElement.classList.contains('boot-piece')"))
+    shown = pg.evaluate("""() => [...document.querySelectorAll('header.bar > *')].filter(e => e.offsetParent && e.getBoundingClientRect().width > 0).map(e => e.id || e.className)""")
+    check("studio: the top bar holds Menu, the title, Play and + and little else", all(x in shown for x in ("st-menu", "st-play", "st-add")) and len(shown) <= 6, shown)
+    # Play mirrors the player
+    pg.click("#st-play")
+    pg.wait_for_timeout(1500)
+    check("studio: Play turns into Pause while the piece plays", pg.get_attribute("#st-play", "aria-label") == "Pause")
+    # the score follows the playhead on its own
+    top0 = pg.evaluate("() => document.getElementById('score-scroll').scrollTop")
+    pg.evaluate("() => { const s = document.getElementById('score-scroll'); s.scrollTop = 0; }")
+    pg.wait_for_timeout(9000)
+    follow = pg.evaluate("""() => { const s = document.getElementById('score-scroll'); const h = document.querySelector('.playhead, #playhead, [data-playhead]');
+      const r = h ? h.getBoundingClientRect() : null; const v = s.getBoundingClientRect();
+      return { top: s.scrollTop, inView: r ? (r.top >= v.top - 4 && r.bottom <= v.bottom + 4) : null }; }""")
+    check("studio: the score rolls by itself to keep the playing bar in view", follow["inView"] is not False, follow)
+    pg.click("#st-play")
+    pg.wait_for_timeout(400)
+    check("studio: Pause stops it", pg.get_attribute("#st-play", "aria-label") != "Pause")
+    # the menu
+    pg.click("#st-menu")
+    pg.wait_for_selector("#studio-menu[open]")
+    menu = pg.text_content("#studio-menu")
+    check("studio: the menu has the panels, open pieces, annotations and actions",
+          all(w in menu for w in ("Score", "Explain", "Piano", "Open pieces", "Für Elise", "Notes", "Fingers", "Piano keys", "Ask Lune", "Settings")), menu[:200])
+    kbd = lambda: pg.evaluate("() => !document.getElementById('piano-dock').hidden")
+    before = kbd()
+    pg.click('#studio-menu [data-m="kbd"]')
+    pg.wait_for_timeout(300)
+    check("studio: Piano keys in the menu shows or hides the keyboard", kbd() != before)
+    if kbd():
+        pg.click('#studio-menu [data-m="kbd"]')
+        pg.wait_for_timeout(300)
+    pg.keyboard.press("Escape")
+    pg.wait_for_timeout(200)
+    check("studio: with the piano hidden, the bottom has the metronome and speed", pg.locator("#btn-metro").is_visible() and pg.locator("#bpm-slider").is_visible())
+    # + opens search for another piece
+    pg.click("#st-add")
+    pg.wait_for_timeout(400)
+    check("studio: + opens search to add another piece", pg.locator("#q").is_visible() and pg.evaluate("() => document.activeElement && document.activeElement.id === 'q'"))
+    pg.fill("#q", "clair")
+    pg.wait_for_timeout(900)
+    check("studio: search shows pieces to open", pg.locator(".results li, .results [role=option], .results a, .results button").count() > 0)
+    check("studio: nothing scrolls sideways", pg.evaluate("() => document.documentElement.scrollWidth <= innerWidth + 1"))
+    check("studio: no page errors", not pg.errors, pg.errors)
+    ctx.close()
+
+
+def section_plans(browser):
+    """Progress per piece, summaries after a session, the week plan, sharing, and the voice pieces of Lune AI."""
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+    ctx.grant_permissions(["microphone"], origin=BASE.rsplit("/lune/", 1)[0])
+    ctx.add_init_script(POINT_AT_SERVER)
+    pg = ctx.new_page()
+    pg.errors = []
+    pg.on("pageerror", lambda e: pg.errors.append(str(e)[:200]))
+    open_piece(pg)
+    key = pg.evaluate("() => LunePractice.keyFor(state.piece)")
+    # Lune, heard as Loon
+    fixed = pg.evaluate("() => ['ask loon about bar 3', 'Loons advice', 'balloon'].map(LunePractice.tidySpoken)")
+    check("voice: “Loon” is written as Lune, and other words are left alone", fixed[0].lower().startswith("ask lune about bar 3") and fixed[1].startswith("Lune ") and fixed[2].lower().startswith("balloon"), fixed)
+    # the bar panel's "I can play up to here"
+    select_bar(pg, 24)
+    pg.evaluate("() => document.querySelector('[data-lp=\"upto\"]')?.click()")
+    pg.wait_for_timeout(300)
+    prog = pg.evaluate("(k) => LunePlans.progressOf(k)", key)
+    check("progress: “I can play up to here” on bar 24 marks the piece up to bar 24", bool(prog) and prog.get("upTo") == 24 and prog.get("of", 0) > 24, prog)
+    label = pg.evaluate("(k) => LunePlans.progressLabel(LunePlans.progressOf(k))", key)
+    check("progress: it reads “Up to bar 24 of N”", label.startswith("Up to bar 24 of "), label)
+    # a session with one question and one remark: a summary lands in Repertoire
+    pg.evaluate("() => { setBarSelection([12]); }")
+    pg.wait_for_timeout(400)
+    pg.evaluate("() => LuneAsk.open({bar: 12})")
+    pg.wait_for_timeout(300)
+    pg.evaluate("() => LuneAsk.ask('What notes are in this bar?')")
+    pg.wait_for_timeout(800)
+    pg.evaluate("(k) => LunePlans.noteActivity('note', {key: k, title: 'Für Elise'})", key)
+    summ = pg.evaluate("() => LunePlans.flushSummary()")
+    check("summary: after a session with a question, Lune writes a summary for the piece", bool(summ) and "1 question" in summ["text"] and 12 in summ["bars"], summ)
+    check("summary: a built-in summary says so (not credited to Lune AI)", summ and summ["via"] == "rules", summ)
+    check("summary: nothing is summarised when nothing was asked or noted", pg.evaluate("() => LunePlans.flushSummary()") is None)
+    # Repertoire shows the bar, the summary and the plan button
+    pg.evaluate("(k) => LuneStore.addPiece ? LuneStore.addPiece({ piece_key: k, title: 'Für Elise', composer: 'Beethoven', status: 'learning' }) : null", key)
+    pg.evaluate("async () => { LuneAsk.close(); await LunePractice.showRepertoire(); }")
+    pg.wait_for_timeout(800)
+    rep = pg.evaluate("""() => { const v = document.querySelector('.rep-card'); return v ? { bar: !!v.querySelector('.rp-bar[role=progressbar]'),
+       now: v.querySelector('.rp-bar')?.getAttribute('aria-valuenow'), sum: v.querySelector('.rep-sum')?.textContent || '' } : null; }""")
+    check("repertoire: each piece shows a progress bar with its value", bool(rep) and rep["bar"] and rep["now"] not in (None, "", "0"), rep)
+    check("repertoire: the piece shows the last session's summary", bool(rep) and "question" in rep["sum"], rep)
+    check("repertoire: + Plan my week is on the page", pg.locator("[data-wp-open]").first.is_visible())
+    # the week plan wizard
+    pg.click("[data-wp-open]")
+    pg.wait_for_selector("#wp-dialog[open]")
+    pg.fill("#wp-goal", "Learn bars 1 to 24 of Für Elise hands together")
+    pg.click("#wp-dialog button[type=submit]")
+    pg.wait_for_function("() => !document.querySelector('#wp-dialog[open]')", timeout=15000)
+    pg.wait_for_timeout(600)
+    plan = pg.evaluate("() => LunePlans.currentPlan()")
+    check("week plan: it makes a plan for each chosen day, from the goal typed", bool(plan) and len(plan["days"]) >= 3 and plan["goal"].startswith("Learn bars 1 to 24") and all(d["items"] for d in plan["days"]), plan and [d["day"] for d in plan["days"]])
+    check("week plan: built without a model, it says Planned by Lune", plan and plan["via"] == "rules" and "Planned by Lune" in pg.inner_text("#rep-week-plan"))
+    check("week plan: the plan names the piece being learned", plan and any("Für Elise" in (it.get("title") or "") + it.get("text", "") for d in plan["days"] for it in d["items"]), plan and plan["days"][0])
+    pg.click("#rep-week-plan [data-wp-day]")
+    pg.wait_for_timeout(200)
+    check("week plan: a day can be ticked off, and it stays ticked", any(pg.evaluate("() => LunePlans.currentPlan().done").values()))
+    parsed = pg.evaluate("() => LunePlans.parseModelPlan('Mon: Für Elise bars 1-8; scales\\nWed: bars 9-16\\nSome chatter', ['Mon','Wed'])")
+    check("week plan: a model's plan is read line by line, one day per line", parsed and [d["day"] for d in parsed] == ["Mon", "Wed"] and len(parsed[0]["items"]) == 2, parsed)
+    # sharing: a guest is told it needs an account; signed in, Lune does not ask for what it knows
+    pg.evaluate("() => LunePlans.sharePlan()")
+    pg.wait_for_timeout(300)
+    check("share: without an account, sharing says it needs one", "Sharing a link needs a free account" in pg.evaluate("() => document.body.innerText"))
+    pg.evaluate(SIGN_IN)
+    pg.evaluate("""() => { LuneStore.status = () => ({ signedIn: true, mode: 'cloud', email: 't@example.com', userId: 'u-test', cloud: true });
+      window.__shared = []; LuneStore.createShareLink = async (p) => { window.__shared.push(p); return { token: 'tok' + window.__shared.length }; };
+      navigator.share = undefined; navigator.clipboard.writeText = async () => {}; }""")
+    pg.evaluate("(k) => LunePlans.shareProgress(k, 'Für Elise', 0)", key)
+    pg.wait_for_timeout(300)
+    asked = pg.evaluate("() => !!document.querySelector('#wp-upto[open]')")
+    shared = pg.evaluate("() => window.__shared")
+    check("share: progress Lune already knows is shared without asking", not asked and shared and shared[-1]["kind"] == "piece" and shared[-1]["progress"].startswith("Up to bar 24"), (asked, shared))
+    pg.evaluate("() => { LunePlans.shareProgress('no-such-piece', 'Gymnopédie', 40); }")  # it waits on the dialog, so not awaited
+    pg.wait_for_selector("#wp-upto[open]", timeout=8000)
+    check("share: unknown progress asks how far, up to which bar", "How far through Gymnopédie" in pg.inner_text("#wp-upto"))
+    pg.click("#wp-upto button[type=submit]", timeout=8000)
+    pg.wait_for_timeout(300)
+    check("share: then the link carries that answer", pg.evaluate("() => window.__shared.pop().progress").startswith("Up to bar"))
+    pg.evaluate("() => LunePlans.sharePlan()")
+    pg.wait_for_timeout(300)
+    wp = pg.evaluate("() => window.__shared.pop()")
+    check("share: the week plan is shared as a Lune link", wp and wp["kind"] == "weekplan" and len(wp["days"]) >= 3, wp and wp.get("kind"))
+    page = pg.evaluate("(p) => { const d = document.createElement('div'); LunePlans.renderShare(d, { ...p, displayName: 'Sam' }); return d.innerText; }", wp)
+    check("share: the shared plan page shows each day and nothing to tick", "Monday" in page or "Tuesday" in page or "Wednesday" in page, page[:200])
+    # dictation: the listening bar with a live waveform, then the words in the box
+    open_piece(pg)
+    pg.evaluate(SIGN_IN)
+    pg.evaluate("() => LuneAsk.open({bar: 12})")
+    pg.wait_for_timeout(300)
+    pg.click("#ask-mic")
+    pg.wait_for_timeout(900)
+    check("voice: while listening, a waveform and timer replace the text box", pg.locator("#ask-listen .lc-wave").is_visible() and pg.locator("#ask-listen .lc-timer").is_visible())
+    pg.click('#ask-listen [data-listen="done"]')
+    pg.wait_for_timeout(2500)
+    check("voice: the words land in the box to check before sending", pg.input_value("#ask-input") == "Bar 12, keep the thumb light.", pg.input_value("#ask-input"))
+    # talk: Lune listens, then answers aloud
+    pg.click("#ask-talk")
+    pg.wait_for_selector("#lune-talk[open]")
+    pg.wait_for_timeout(800)
+    talk = pg.inner_text("#lune-talk")
+    check("talk: Talk opens a full screen that listens", "Listening" in talk or "LISTENING" in talk.upper(), talk[:120])
+    pg.click('#lune-talk [data-talk="end"]')
+    pg.wait_for_timeout(300)
+    check("talk: End closes it", not pg.evaluate("() => !!document.querySelector('#lune-talk[open]')"))
+    check("plans: no page errors", not pg.errors, pg.errors)
+    ctx.close()
+
+
+SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week, "catalogue": section_catalogue, "console": section_console, "account": section_account, "latest": section_latest, "voice": section_voice, "progress": section_progress, "home": section_home, "loop": section_practice_loop, "studio": section_studio, "plans": section_plans}
 
 if __name__ == "__main__":
     want = sys.argv[1:] or list(SECTIONS)
@@ -1070,6 +1253,7 @@ if __name__ == "__main__":
             try:
                 SECTIONS[name](browser)
             except Exception as e:  # a crashed section is a failure, not a stop
+                import traceback; traceback.print_exc()
                 check(f"{name}: section ran", False, repr(e))
         browser.close()
     for status, name, detail in out:

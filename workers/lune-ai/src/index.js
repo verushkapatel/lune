@@ -18,7 +18,7 @@
  * The audio is passed to the model and not kept.
  */
 
-const STT_PROMPT = "Piano practice notes. Bar 12, right hand, left hand, fingering, thumb, crescendo, diminuendo, legato, staccato, pedal, sharp, flat, metronome, tempo.";
+const STT_PROMPT = "Lune, ask Lune. Piano practice notes. Bar 12, right hand, left hand, fingering, thumb, crescendo, diminuendo, legato, staccato, pedal, sharp, flat, metronome, tempo.";
 const MAX_AUDIO = 2_000_000; // bytes: about two minutes of compressed speech
 const MAX_SPEAK = 900; // characters
 

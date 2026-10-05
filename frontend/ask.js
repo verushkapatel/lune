@@ -544,8 +544,7 @@ Rules:
     let a = null;
     let failure = null;
     if (model) {
-      const shown = line("lune", model === providers.device && D().status() !== "ready" ? "Loading Lune AI…" : "Thinking…");
-      shown.setAttribute("aria-hidden", "true");
+      const shown = thinkingRow();
       let streamed = "";
       try {
         a = await model.answer(TASKS[task](), await buildContext(act.bar ? bar || selectedBarsSorted()[0] || null : null), {
@@ -558,17 +557,23 @@ Rules:
         a = null;
         failure = err;
       }
-      shown.remove();
+      shown.closest(".ask-row")?.remove();
     }
     let note = "";
     if (!a) {
       note = fallbackNote(failure);
       a = act.fallback ? (await reply(act.fallback)).a : "Lune’s built-in answers can’t summarise practice. This week shows the days, bars and ratings instead.";
     }
-    const said = line("lune", a);
-    if (!note) said.dataset.via = "model";
-    else line("lune", note).classList.add("ask-note");
+    if (state.piece) window.LunePlans?.noteActivity?.("question", { key: keyFor(), title: state.piece?.overview?.title || state.piece?.title || "" });
     remember({ bar: act.bar ? bar || selectedBarsSorted()[0] || null : null, q: act.label, a, note: note || undefined, via: note ? undefined : "model", t: Date.now() });
+    const said = line("lune", note ? a : "", { src: note ? "rules" : "model" });
+    if (!note) {
+      if (window.LuneFX) await window.LuneFX.typeText(said, a);
+      else said.textContent = a;
+      said.dataset.via = "model";
+    }
+    addActions(said);
+    if (note) line("lune", note).classList.add("ask-note");
   }
 
   /* ---------- "Now superpowered with Lune AI" (landing page and signed-in home) ---------- */
@@ -613,6 +618,226 @@ Rules:
 
   /* ---------- the panel ---------- */
 
+  const ICON = {
+    mic: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
+    talk: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+    send: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    close: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
+    speak: '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 10v4h3l4 3.5v-11L8 10H5zM15.5 9a4 4 0 0 1 0 6M17.8 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    copy: '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 15V6a1 1 0 0 1 1-1h9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+    check: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    info: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 11v5M12 8v.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+  };
+
+  /** A composer like Claude's or ChatGPT's: a growing text box, then dictate, talk and send. */
+  function composerHtml(prefix, placeholder) {
+    return `<div class="lc-composer" id="${prefix}-composer">
+        <label class="visually-hidden" for="${prefix}-input">Message Lune</label>
+        <textarea id="${prefix}-input" rows="1" maxlength="600" placeholder="${esc(placeholder)}"></textarea>
+        <div class="lc-row">
+          <button type="button" class="lc-tool" id="${prefix}-mic" aria-pressed="false" aria-label="Dictate">${ICON.mic}</button>
+          <span class="lc-grow"></span>
+          <button type="button" class="lc-tool lc-talk" id="${prefix}-talk" aria-label="Talk with Lune">${ICON.talk}<span>Talk</span></button>
+          <button type="submit" class="lc-send ${prefix}-send" aria-label="Send" disabled>${ICON.send}</button>
+        </div>
+      </div>
+      <div class="lc-listen" id="${prefix}-listen" hidden>
+        <button type="button" class="lc-tool" data-listen="cancel" aria-label="Cancel dictation">${ICON.close}</button>
+        <canvas class="lc-wave" width="600" height="60" aria-hidden="true"></canvas>
+        <span class="lc-timer" aria-live="off">0:00</span>
+        <button type="button" class="lc-send lc-done" data-listen="done" aria-label="Done">${ICON.check}</button>
+      </div>`;
+  }
+
+  /** Grow the text box with what is typed, send on Enter, and only enable Send when there is text. */
+  function wireComposer(prefix, onSend) {
+    const input = $(`${prefix}-input`);
+    const send = document.querySelector(`#${prefix}-composer .lc-send`);
+    const fit = () => {
+      input.style.height = "auto";
+      input.style.height = `${Math.min(140, input.scrollHeight)}px`;
+      send.disabled = !input.value.trim();
+    };
+    input.addEventListener("input", fit);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+        e.preventDefault();
+        if (input.value.trim()) onSend();
+      }
+    });
+    return fit;
+  }
+
+  /*
+   * Dictation, drawn as a live waveform: the bars move with your voice, the
+   * timer counts, and Done keeps the words in the box to check before sending.
+   */
+  async function dictate(prefix) {
+    const input = $(`${prefix}-input`);
+    const composer = $(`${prefix}-composer`);
+    const ui = $(`${prefix}-listen`);
+    if (!P()?.canListenForWords?.()) {
+      toast(cloudAccount() ? "Voice isn’t available in this browser. Type instead." : "This browser has no voice input of its own. Sign in (free) and Lune AI listens for you, or type.");
+      input.focus();
+      return;
+    }
+    const canvas = ui.querySelector(".lc-wave");
+    const timer = ui.querySelector(".lc-timer");
+    const ctx = canvas.getContext("2d");
+    const bars = new Array(48).fill(0.04);
+    let level = 0;
+    let fake = true;
+    let cancelled = false;
+    const started = performance.now();
+    let raf = 0;
+    const draw = () => {
+      const now = performance.now();
+      // without a level from the microphone (the browser's own recognition), the wave breathes
+      const v = fake ? 0.12 + 0.1 * Math.abs(Math.sin(now / 260)) : level;
+      bars.push(Math.max(0.04, v));
+      bars.shift();
+      const w = canvas.width;
+      const h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+      const step = w / bars.length;
+      ctx.fillStyle = getComputedStyle(canvas).color || "#fff";
+      bars.forEach((b, i) => {
+        const bh = Math.max(3, b * h * 0.95);
+        ctx.globalAlpha = 0.35 + 0.65 * (i / bars.length);
+        ctx.fillRect(i * step + step * 0.25, (h - bh) / 2, step * 0.5, bh);
+      });
+      const sec = Math.floor((now - started) / 1000);
+      timer.textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+      raf = requestAnimationFrame(draw);
+    };
+    composer.hidden = true;
+    ui.hidden = false;
+    raf = requestAnimationFrame(draw);
+    const finish = (e) => {
+      const act = e.target.closest?.("[data-listen]")?.dataset.listen;
+      if (!act) return;
+      if (act === "cancel") cancelled = true;
+      P()?.stopHearing?.();
+    };
+    ui.addEventListener("click", finish);
+    try {
+      const said = await P().hearPhrase({
+        onPartial: (t) => {
+          if (!/^Listening|^Writing/.test(t)) input.value = t;
+        },
+        onLevel: (v) => {
+          fake = false;
+          level = v;
+        },
+      });
+      if (!cancelled) input.value = said || input.value;
+      if (!cancelled && !said) toast("Didn’t catch that. Try again, or type.");
+    } catch (err) {
+      toast(err.message || "Type instead.");
+    } finally {
+      cancelAnimationFrame(raf);
+      ui.removeEventListener("click", finish);
+      ui.hidden = true;
+      composer.hidden = false;
+      input.dispatchEvent(new Event("input"));
+      input.focus();
+    }
+  }
+
+  /*
+   * Talk with Lune: a voice conversation. Lune listens, answers out loud, then
+   * listens again, with the orb showing which it is doing. The words also land
+   * in the conversation, so nothing said is lost.
+   */
+  let talking = null;
+  async function openTalk({ answer, title = "Lune AI" }) {
+    if (!P()?.canListenForWords?.()) {
+      toast(cloudAccount() ? "Voice isn’t available in this browser." : "This browser has no voice input of its own. Sign in (free) to talk with Lune AI.");
+      return;
+    }
+    let d = $("lune-talk");
+    if (!d) {
+      d = document.createElement("dialog");
+      d.id = "lune-talk";
+      d.className = "lune-talk";
+      d.setAttribute("aria-label", "Talk with Lune");
+      d.innerHTML = `<div class="lt-top"><span class="fx-shiny lt-title"></span><button type="button" class="lc-tool" data-talk="end" aria-label="End the conversation">${ICON.close}</button></div>
+        <div class="lt-orb" id="lt-orb"></div>
+        <p class="lt-state" id="lt-state" aria-live="polite">Listening</p>
+        <p class="lt-caption" id="lt-caption"></p>
+        <div class="lt-actions"><button type="button" class="lt-btn" data-talk="tap">Tap to speak</button><button type="button" class="lt-btn lt-end" data-talk="end">End</button></div>`;
+      document.body.appendChild(d);
+    }
+    d.querySelector(".lt-title").textContent = title;
+    if (!d.open) d.showModal();
+    const orbHost = d.querySelector("#lt-orb");
+    orbHost.innerHTML = "";
+    const orb = window.LuneFX.orb(orbHost);
+    const stateEl = d.querySelector("#lt-state");
+    const cap = d.querySelector("#lt-caption");
+    const tapBtn = d.querySelector('[data-talk="tap"]');
+    const run = { live: true };
+    talking = run;
+    const setState = (m, label) => {
+      orb.setMode(m);
+      stateEl.textContent = label;
+      tapBtn.hidden = m !== "idle";
+    };
+    const end = () => {
+      run.live = false;
+      P()?.stopHearing?.();
+      P()?.stopSpeaking?.();
+      orb.destroy();
+      if (d.open) d.close();
+      talking = null;
+    };
+    d.onclick = (e) => {
+      const a = e.target.closest?.("[data-talk]")?.dataset.talk;
+      if (a === "end") end();
+      if (a === "tap") loop();
+      // tapping the orb while Lune speaks lets you cut in
+      if (e.target.closest?.("#lt-orb") && orbHost.dataset.mode === "speaking") P()?.stopSpeaking?.();
+    };
+    d.oncancel = (e) => {
+      e.preventDefault();
+      end();
+    };
+    let misses = 0;
+    async function loop() {
+      while (run.live) {
+        setState("listening", "Listening");
+        let said = "";
+        try {
+          said = await P().hearPhrase({ onLevel: (v) => orb.setLevel(v), onPartial: (t) => !/^Listening|^Writing/.test(t) && (cap.textContent = t) });
+        } catch (err) {
+          setState("idle", err.message || "Lune couldn’t hear that.");
+          return;
+        }
+        orb.setLevel(0);
+        if (!run.live) return;
+        if (!said) {
+          if (++misses >= 2) return setState("idle", "Tap to speak when you’re ready");
+          continue;
+        }
+        misses = 0;
+        cap.textContent = said;
+        setState("thinking", "Thinking");
+        let text = "";
+        try {
+          text = await answer(said);
+        } catch {
+          text = "That didn’t work. Try again in a moment.";
+        }
+        if (!run.live) return;
+        cap.textContent = text;
+        setState("speaking", "Speaking · tap the orb to cut in");
+        await P().speakAndWait(text, { onLevel: (v) => orb.setLevel(v) });
+        orb.setLevel(0);
+      }
+    }
+    loop();
+  }
+
   function ensurePanel() {
     let p = $("ask-lune");
     if (p) return p;
@@ -623,37 +848,43 @@ Rules:
     p.setAttribute("aria-label", "Ask Lune");
     p.innerHTML = `
       <header class="ask-head">
-        <div>
-          <p class="ask-title">Ask Lune</p>
+        <span class="lune-orb-sm" aria-hidden="true"></span>
+        <div class="ask-id">
+          <p class="ask-title"><span class="fx-shiny">Lune AI</span></p>
           <p class="ask-where" id="ask-where"></p>
         </div>
-        <button type="button" class="icon-btn" id="ask-close" aria-label="Close Ask Lune">
-          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-        </button>
+        <button type="button" class="lc-tool" id="ask-info" aria-expanded="false" aria-controls="ask-fine" aria-label="About these answers">${ICON.info}</button>
+        <button type="button" class="lc-tool" id="ask-close" aria-label="Close Ask Lune">${ICON.close}</button>
       </header>
+      <p class="ask-fine" id="ask-fine" hidden></p>
       <div class="ask-log" id="ask-log" role="log" aria-live="polite"></div>
       <div class="ask-chips" id="ask-chips"></div>
-      <form class="ask-form" id="ask-form" autocomplete="off">
-        <button type="button" class="icon-btn ask-mic" id="ask-mic" aria-pressed="false" aria-label="Speak">
-          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-        </button>
-        <label class="visually-hidden" for="ask-input">Ask about a bar, or leave a remark</label>
-        <input id="ask-input" type="text" maxlength="400" placeholder="Ask, or say “bar 12, keep the thumb light”">
-        <button type="submit" class="primary ask-send">Send</button>
-      </form>
       <div class="ask-ai-offer" id="ask-ai-offer" hidden></div>
-      <p class="ask-fine" id="ask-fine"></p>`;
+      <form class="ask-form" id="ask-form" autocomplete="off">${composerHtml("ask", "Ask about this bar…")}</form>`;
     document.body.appendChild(p);
     p.querySelector("#ask-close").addEventListener("click", close);
-    p.querySelector("#ask-form").addEventListener("submit", (e) => {
-      e.preventDefault();
+    p.querySelector("#ask-info").addEventListener("click", (e) => {
+      const f = $("ask-fine");
+      f.hidden = !f.hidden;
+      e.currentTarget.setAttribute("aria-expanded", f.hidden ? "false" : "true");
+    });
+    const send = () => {
       const input = $("ask-input");
       const text = input.value.trim();
       if (!text) return;
       input.value = "";
+      fitAsk();
       ask(text);
+    };
+    const fitAsk = wireComposer("ask", send);
+    p.querySelector("#ask-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      send();
     });
     p.querySelector("#ask-mic").addEventListener("click", speakInto);
+    p.querySelector("#ask-talk").addEventListener("click", () =>
+      openTalk({ title: "Lune AI", answer: async (said) => (await ask(said)) || "" })
+    );
     p.querySelector("#ask-ai-offer").addEventListener("click", (e) => {
       if (e.target.closest("[data-ai-on]")) turnOnDeviceAI(p.querySelector("#ask-ai-offer"));
       if (e.target.closest("[data-ai-account]")) {
@@ -667,49 +898,92 @@ Rules:
       const b = e.target.closest("button[data-q]");
       if (b) ask(b.dataset.q);
     });
+    p.querySelector("#ask-log").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-msg-act]");
+      if (!b) return;
+      const text = b.closest(".ask-row")?.querySelector(".ask-msg")?.textContent || "";
+      if (b.dataset.msgAct === "speak") P()?.speak?.(text);
+      if (b.dataset.msgAct === "copy") {
+        navigator.clipboard?.writeText(text).then(() => toast("Copied"), () => toast("Couldn’t copy"));
+      }
+    });
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && !p.hidden) close();
+      if (e.key === "Escape" && !p.hidden && !$("lune-talk")?.open) close();
     });
     return p;
   }
 
-  function line(who, text) {
+  /** One message. Yours sit on the right; Lune's read like a page, with Listen and Copy under them. */
+  function line(who, text, { src = "" } = {}) {
     const log = $("ask-log");
+    $("ask-empty")?.remove();
+    const chipsEl = $("ask-chips");
+    if (chipsEl) chipsEl.hidden = true;
+    const row = document.createElement("div");
+    row.className = `ask-row ask-row-${who}`;
     const el = document.createElement("p");
     el.className = `ask-msg ask-from-${who}`;
     el.textContent = text;
-    log.appendChild(el);
+    if (who === "lune") {
+      const body = document.createElement("div");
+      body.className = "ask-body";
+      if (src) {
+        const s = document.createElement("p");
+        s.className = `ask-src ask-src-${src === "model" ? "ai" : "rules"}`;
+        s.textContent = src === "model" ? "Lune AI · can be wrong" : src === "rules" ? "Built-in answer, read from the score" : "Lune";
+        body.appendChild(s);
+      }
+      body.appendChild(el);
+      row.appendChild(body);
+    } else row.appendChild(el);
+    log.appendChild(row);
+    requestAnimationFrame(() => row.classList.add("in"));
     log.scrollTop = log.scrollHeight;
+    return el;
+  }
+  function addActions(el) {
+    const bar = document.createElement("div");
+    bar.className = "ask-actions";
+    bar.innerHTML = `<button type="button" class="lc-mini" data-msg-act="speak" aria-label="Read this answer aloud">${ICON.speak}</button><button type="button" class="lc-mini" data-msg-act="copy" aria-label="Copy this answer">${ICON.copy}</button>`;
+    el.parentElement.appendChild(bar);
+  }
+  function thinkingRow() {
+    const el = line("lune", "Thinking…");
+    el.classList.add("ask-thinking");
+    el.setAttribute("aria-hidden", "true");
+    el.innerHTML = '<span class="dots"><i></i><i></i><i></i></span><span class="visually-hidden">Thinking…</span>';
     return el;
   }
 
   function paintContext() {
     const fine = $("ask-fine");
     if (fine) {
+      // the short version; the ⓘ button shows it
       fine.textContent = providers.endpoint.available()
-        ? `Local model connected (${aiSettings().model}). Questions go to it with this bar’s score facts and your remarks.`
+        ? `Your own model (${aiSettings().model}), with this bar’s facts and your remarks.`
         : providers.account.available()
-          ? `Lune AI is on: ${aiName()}, an open-weight model on Lune’s server. Questions go there with this bar’s score facts and your remarks; Lune’s server stores none of it. Your questions and answers are saved only in this browser.`
+          ? `Lune AI is on. ${aiName()}, an open model. Lune’s server stores none of it; your chats are saved only in this browser.`
           : providers.device.available()
-          ? `Lune AI is on. ${D().MODEL.name} runs in this browser and answers from this bar’s score facts and your remarks. Nothing you ask leaves this device.`
-          : "These are Lune’s built-in answers, worked out from the score and your remarks. They are not from a language model. Nothing is sent anywhere.";
+          ? `Lune AI is on, in this browser. Nothing leaves this device.`
+          : "Built-in answers from the score, not from a language model. Sign in for Lune AI.";
     }
     paintDeviceOffer();
     const sel = selectedBarsSorted();
     const where = $("ask-where");
     const title = state.piece?.overview?.title || state.piece?.title || "";
-    where.textContent = sel.length ? `${title} · bar ${sel.join(", ")}` : `${title} · tap a bar to ask about it`;
-    const chips = sel.length
+    const who = providers.endpoint.available() ? aiSettings().model : providers.account.available() ? aiName().replace(/ Instruct$/, "") : providers.device.available() ? "on this device" : "built-in answers";
+    where.textContent = `${sel.length ? `Bar ${sel.join(", ")}` : title || "This piece"} · ${who}`;
+    // suggestions only start a conversation, as in Claude or ChatGPT; with Lune AI on, its actions replace the built-in ones
+    const fresh = !(sel.length ? historyFor(sel[0]) : history().filter((h) => !h.bar)).length;
+    const builtIn = sel.length
       ? [
           ["How do I practise this bar?", "How to practise"],
           ["What is the fingering?", "Fingering"],
-          ["What notes are in this bar?", "Notes"],
           ["Make a plan", "Add to my plan"],
         ]
       : [
           ["Which bars are hardest?", "Hardest bars"],
           ["Make a plan", "Make a plan"],
-          ["What key and tempo?", "Key and tempo"],
         ];
     const modelChips = active()
       ? Object.entries(MODEL_ACTIONS)
@@ -717,11 +991,11 @@ Rules:
           .map(([task, a]) => `<button type="button" class="ask-chip-ai" data-task="${task}">${esc(a.label)}</button>`)
           .join("")
       : "";
+    const chips = active() ? builtIn.filter(([q]) => q === "Make a plan") : builtIn;
+    $("ask-chips").hidden = !fresh;
     $("ask-chips").innerHTML =
       modelChips +
-      chips.map(([q, label]) => `<button type="button" data-q="${esc(q)}">${esc(label)}</button>`).join("") +
-      // the coach's full step-by-step notes for the selected bars, written into the bar panel
-      (sel.length ? `<button type="button" id="btn-plan">Step-by-step notes</button>` : "");
+      chips.map(([q, label]) => `<button type="button" data-q="${esc(q)}">${esc(label)}</button>`).join("");
   }
 
   /* ---------- turning Lune AI on (ask first, show the size, then download) ---------- */
@@ -809,13 +1083,20 @@ Rules:
     const sel = selectedBarsSorted();
     const rows = (sel.length ? historyFor(sel[0]) : history().filter((h) => !h.bar)).slice(-6);
     if (!rows.length) {
-      line("lune", sel.length ? `Bar ${sel[0]}. Ask me anything about it, leave a remark, or tell me how it went.` : "Ask about this piece, or tap a bar first.");
+      const empty = document.createElement("div");
+      empty.className = "ask-empty";
+      empty.id = "ask-empty";
+      empty.innerHTML = `<div class="ask-empty-orb"></div><p class="ask-empty-h">${sel.length ? `What about bar ${sel[0]}?` : "Ask about this piece"}</p><p class="ask-empty-sub">${sel.length ? "Ask, leave a remark, or say how it went." : "Or tap a bar first."}</p>`;
+      log.appendChild(empty);
+      const orb = window.LuneFX?.orb(empty.querySelector(".ask-empty-orb"));
+      orb?.setMode("idle");
       return;
     }
     for (const h of rows) {
       line("you", h.q);
-      const a = line("lune", h.a);
+      const a = line("lune", h.a, { src: h.via === "model" ? "model" : "" });
       if (h.via === "model") a.dataset.via = "model";
+      addActions(a);
       if (h.note) line("lune", h.note).classList.add("ask-note");
     }
   }
@@ -827,15 +1108,12 @@ Rules:
     try {
       out = await reply(text);
     } catch (err) {
-      out = { a: err?.message || "That didn't work — try again." };
+      out = { a: err?.message || "That didn't work. Try again." };
     }
     // A question may go to the connected model; the built-in answer is the fallback.
     const model = out.question ? active() : null;
-    let shown = null;
     if (model) {
-      shown = line("lune", model === providers.device && D().status() !== "ready" ? "Loading Lune AI…" : "Thinking…");
-      // the words appear as they are written; screen readers get the finished answer once
-      shown.setAttribute("aria-hidden", "true");
+      const shown = thinkingRow();
       let streamed = "";
       try {
         out.a = await model.answer(text, await buildContext(out.bar || selectedBarsSorted()[0] || null), {
@@ -848,52 +1126,36 @@ Rules:
       } catch (err) {
         out.note = fallbackNote(err);
       }
-      shown.remove();
+      shown.closest(".ask-row")?.remove();
     }
+    // counted before it is saved, so the session that starts here includes it
+    if (out.question) window.LunePlans?.noteActivity?.("question", { key: keyFor(), title: state.piece?.overview?.title || state.piece?.title || "" });
     // every answer says where it came from: the score through Lune's rules, or a language model
-    const src = document.createElement("p");
-    src.className = `ask-src ask-src-${out.via === "model" ? "ai" : "rules"}`;
-    src.textContent = out.via === "model" ? "Lune AI · a language model, can be wrong" : out.question ? "Built-in answer, read from the score" : "Lune";
-    $("ask-log").appendChild(src);
-    const said = line("lune", out.a);
-    if (out.via === "model") said.dataset.via = "model";
-    if (out.note) line("lune", out.note).classList.add("ask-note");
+    const said = line("lune", out.via === "model" ? "" : out.a, { src: out.via === "model" ? "model" : out.question ? "rules" : "lune" });
     remember({ bar: out.bar || null, q: text, a: out.a, note: out.note, via: out.via, t: Date.now() });
+    if (out.via === "model") {
+      // Lune AI's words arrive as if typed; built-in answers appear at once
+      if (window.LuneFX) await window.LuneFX.typeText(said, out.a);
+      else said.textContent = out.a;
+      said.dataset.via = "model";
+    }
+    addActions(said);
+    if (out.note) line("lune", out.note).classList.add("ask-note");
+    $("ask-log").scrollTop = $("ask-log").scrollHeight;
     if (out.saved) {
       P()?.paintScoreMarks?.();
       if (state.coachOpen) openBarCoach();
     }
+    return out.a;
   }
 
   async function speakInto() {
-    const btn = $("ask-mic");
-    const input = $("ask-input");
     if (listening) return P()?.stopHearing?.();
-    if (!P()?.canListenForWords?.()) {
-      toast(cloudAccount() ? "Voice isn’t available in this browser. Type instead." : "This browser has no voice input of its own. Sign in (free) and Lune AI listens for you, or type.");
-      input.focus();
-      return;
-    }
     listening = true;
-    btn.classList.add("on");
-    btn.setAttribute("aria-pressed", "true");
-    input.placeholder = "Listening…";
     try {
-      const said = await P().hearPhrase({ onPartial: (t) => (input.value = t) });
-      // The words stay in the box to be corrected before they are sent.
-      input.value = said || "";
-      if (said) {
-        input.focus();
-        toast("Check the words, then press Send");
-      } else toast("Didn’t catch that — try again, or type.");
-    } catch (err) {
-      toast(err.message || "Type instead.");
-      input.focus();
+      await dictate("ask");
     } finally {
       listening = false;
-      btn.classList.remove("on");
-      btn.setAttribute("aria-pressed", "false");
-      input.placeholder = "Ask, or say “bar 12, keep the thumb light”";
     }
   }
 
@@ -1024,8 +1286,9 @@ Rules:
     d.setAttribute("aria-labelledby", "chat-h");
     d.innerHTML = `
       <header class="chat-head">
+        <span class="lune-orb-sm" aria-hidden="true"></span>
         <div>
-          <h2 id="chat-h">Chat with Lune</h2>
+          <h2 id="chat-h"><span class="fx-shiny">Lune AI</span></h2>
           <p class="chat-sub" id="chat-sub"></p>
         </div>
         <button type="button" class="quiet chat-clear" id="chat-clear">Clear</button>
@@ -1040,14 +1303,7 @@ Rules:
         <button type="button" class="primary" data-chat-signin>Sign in or create an account</button>
         <p class="chat-fine">Without an account, Ask Lune on any score still answers from the music with Lune’s built-in rules.</p>
       </div>
-      <form class="chat-form" id="chat-form" autocomplete="off">
-        <button type="button" class="icon-btn chat-mic" id="chat-mic" aria-pressed="false" aria-label="Speak your question">
-          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-        </button>
-        <label class="visually-hidden" for="chat-input">Your question</label>
-        <input id="chat-input" type="text" maxlength="600" placeholder="Ask about your practice">
-        <button type="submit" class="primary chat-send">Send</button>
-      </form>
+      <form class="chat-form ask-form" id="chat-form" autocomplete="off">${composerHtml("chat", "Ask about your practice…")}</form>
       <p class="chat-fine" id="chat-fine"></p>`;
     document.body.appendChild(d);
     d.querySelector("#chat-close").addEventListener("click", () => d.close());
@@ -1064,37 +1320,21 @@ Rules:
         window.LuneOnboard?.openCreateAccount?.();
       }
     });
-    d.querySelector("#chat-form").addEventListener("submit", (e) => {
-      e.preventDefault();
+    const sendChat = () => {
       const input = $("chat-input");
       const text = input.value.trim();
       if (!text) return;
       input.value = "";
+      fitChat();
       chatAsk(text);
+    };
+    const fitChat = wireComposer("chat", sendChat);
+    d.querySelector("#chat-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      sendChat();
     });
-    d.querySelector("#chat-mic").addEventListener("click", async () => {
-      const btn = $("chat-mic");
-      const input = $("chat-input");
-      if (btn.classList.contains("on")) return P()?.stopHearing?.();
-      if (!P()?.canListenForWords?.()) {
-        toast(cloudAccount() ? "Voice isn’t available in this browser. Type instead." : "This browser has no voice input of its own. Sign in (free) and Lune AI listens for you, or type.");
-        return input.focus();
-      }
-      btn.classList.add("on");
-      btn.setAttribute("aria-pressed", "true");
-      input.placeholder = "Listening…";
-      try {
-        const said = await P().hearPhrase({ onPartial: (t) => (input.value = t) });
-        input.value = said || "";
-        input.focus();
-      } catch (err) {
-        toast(err.message || "Type instead.");
-      } finally {
-        btn.classList.remove("on");
-        btn.setAttribute("aria-pressed", "false");
-        input.placeholder = "Ask about your practice";
-      }
-    });
+    d.querySelector("#chat-mic").addEventListener("click", () => dictate("chat"));
+    d.querySelector("#chat-talk").addEventListener("click", () => openTalk({ title: "Lune AI", answer: (said) => chatAsk(said) }));
     return d;
   }
 
@@ -1107,10 +1347,15 @@ Rules:
     $("chat-form").hidden = !model;
     $("chat-clear").hidden = !log.length;
     $("chat-starters").innerHTML = model && !log.length ? CHAT_STARTERS.map((q) => `<button type="button" data-starter="${esc(q)}">${esc(q)}</button>`).join("") : "";
-    $("chat-sub").textContent = model ? "Your Repertoire, plans and week, with Lune AI" : "Needs a free Lune account";
-    $("chat-fine").textContent = model
-      ? `Answers come from ${model.label()}. Lune sends it your question, this chat’s last few turns, and a summary of your Repertoire, plans and week. Lune’s server stores none of it, and this chat is saved only in this browser. Answers can be wrong.`
-      : "";
+    $("chat-sub").textContent = model ? `Knows your pieces, plans and week · ${aiName().replace(/ Instruct$/, "")}` : "Needs a free Lune account";
+    $("chat-fine").textContent = model ? "Lune’s server stores none of it; this chat is saved only in this browser. Answers can be wrong." : "";
+    if (model && !log.length) {
+      const empty = document.createElement("div");
+      empty.className = "ask-empty";
+      empty.innerHTML = `<div class="ask-empty-orb"></div><p class="ask-empty-h">What are we practising?</p>`;
+      $("chat-log").appendChild(empty);
+      window.LuneFX?.orb(empty.querySelector(".ask-empty-orb"))?.setMode("idle");
+    }
   }
 
   async function chatAsk(text) {
@@ -1122,8 +1367,10 @@ Rules:
     $("chat-starters").innerHTML = "";
     $("chat-clear").hidden = false;
     chatLine("you", text);
+    $("chat-log").querySelector(".ask-empty")?.remove();
     const wait = chatLine("lune", "Thinking…");
     wait.classList.add("chat-wait");
+    wait.innerHTML = '<span class="dots"><i></i><i></i><i></i></span><span class="visually-hidden">Thinking…</span>';
     let answer = "";
     let via = "model";
     try {
@@ -1133,9 +1380,13 @@ Rules:
       answer = err?.userMessage || "Lune AI didn’t answer just now. Try again in a minute.";
     }
     wait.parentElement.remove();
-    chatLine("lune", answer, { via });
+    // saved before it is typed out, so a follow-up sent mid-typing still carries it
     log.push({ who: "lune", text: answer, via, t: Date.now() });
     saveChat(log);
+    const shown = chatLine("lune", via === "model" ? "" : answer, { via });
+    if (via === "model" && window.LuneFX) await window.LuneFX.typeText(shown, answer);
+    else shown.textContent = answer;
+    return answer;
   }
 
   function openChat() {
@@ -1199,5 +1450,5 @@ Rules:
   for (const task of Object.keys(TASKS)) LuneAIProvider[task] = (bar, ...args) => LuneAIProvider.run(task, bar, ...args);
   window.LuneAIProvider = LuneAIProvider;
 
-  return { openChat, paintAiHome, buildChatContext, open, close, ask, historyFor, onSelection, buildContext, aiSettings, SYSTEM_PROMPT, TASKS, MODEL_ACTIONS, runTask, paintNews, voice, modelConnected: () => !!active(), deviceOfferHtml, turnOnDeviceAI, testModel: () => providers.endpoint.answer("Reply with the single word: ready", { test: true }) };
+  return { askModel: async (q, ctx) => { const m = active(); return m ? m.answer(q, ctx) : null; }, openChat, paintAiHome, buildChatContext, open, close, ask, historyFor, onSelection, buildContext, aiSettings, SYSTEM_PROMPT, TASKS, MODEL_ACTIONS, runTask, paintNews, voice, modelConnected: () => !!active(), deviceOfferHtml, turnOnDeviceAI, testModel: () => providers.endpoint.answer("Reply with the single word: ready", { test: true }) };
 })();

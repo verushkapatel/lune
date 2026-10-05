@@ -41,7 +41,7 @@ TEXT_PROPS = {"color", "fill", "stroke", "caret-color", "text-decoration-color",
 SURFACE_PROPS = re.compile(r"^(background(-color)?|border(-[a-z]+)*|outline(-color)?|box-shadow)$")
 
 # selectors that stay as they are in the light (white paper and things drawn on it)
-NO_FLIP = re.compile(r"lune-key|score-page|fx-paper|study-staff|#osmd|\.coach\b|lune-letter|lune-finger|lane-|\.lp-note|\.lp-grade|\.chip\b")
+NO_FLIP = re.compile(r"lune-key|lune-talk|\.lt-|lune-loader|lune-orb|fx-aurora|score-page|fx-paper|study-staff|#osmd|\.coach\b|lune-letter|lune-finger|lane-|\.lp-note|\.lp-grade|\.chip\b")
 
 # Hand fixes, found by going through every screen in light mode. They win.
 KEEP = """

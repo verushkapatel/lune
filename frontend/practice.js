@@ -191,6 +191,7 @@ window.LunePractice = (function () {
     if (/\b(hard|tricky|difficult|messy|again)\b/i.test(body)) await store.queueBar(key, bar);
     await notesFor(key, { fresh: true });
     paintScoreMarks();
+    window.LunePlans?.noteActivity?.("note", { key, title: titleFor(piece) });
     return row;
   }
 
@@ -232,7 +233,7 @@ window.LunePractice = (function () {
    * seconds, or when the microphone is tapped again.
    */
   let activeRecorder = null;
-  async function recordPhrase({ onPartial } = {}) {
+  async function recordPhrase({ onPartial, onLevel } = {}) {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
     const type = ["audio/webm;codecs=opus", "audio/mp4", "audio/webm"].find((t) => MediaRecorder.isTypeSupported?.(t)) || "";
     const rec = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
@@ -257,6 +258,7 @@ window.LunePractice = (function () {
       if (rec.state !== "recording") return;
       analyser.getFloatTimeDomainData(buf);
       const rms = Math.sqrt(buf.reduce((a, v) => a + v * v, 0) / buf.length);
+      onLevel?.(Math.min(1, rms * 9));
       const now = performance.now();
       if (rms > 0.02) {
         heardVoice = true;
@@ -315,10 +317,10 @@ window.LunePractice = (function () {
     return new Blob([out], { type: "audio/wav" });
   }
 
-  function hearPhrase({ onPartial } = {}) {
+  function hearPhrase({ onPartial, onLevel } = {}) {
     if (window.LuneAsk?.voice?.available?.() && window.isSecureContext) {
       // Lune AI's ear; the browser's own recognition if that fails
-      return recordPhrase({ onPartial }).catch((err) => {
+      return recordPhrase({ onPartial, onLevel }).catch((err) => {
         if (/denied|not allowed|permission/i.test(err?.message || "")) {
           throw new Error("Lune needs the microphone for voice notes. Allow it in the address bar, or type the note.");
         }
@@ -397,6 +399,8 @@ window.LunePractice = (function () {
   function tidySpoken(text) {
     let t = String(text || "").replace(/\s+/g, " ").trim();
     if (!t) return "";
+    // the app's own name: speech recognisers hear "Lune" as "Loon", "Loun" or "Lun"
+    t = t.replace(/\b(loons?|louns?|lunn|lune|lewn)\b/gi, "Lune");
     t = t
       .replace(/\s*\b(comma)\b\s*/gi, ", ")
       .replace(/\s*\b(full stop|period)\b\s*/gi, ". ")
@@ -565,6 +569,95 @@ window.LunePractice = (function () {
     }
     speakOnDevice(text);
   }
+  /** Say something and resolve when it has been said; onLevel gets 0-1 while it plays. */
+  async function speakAndWait(text, { onLevel } = {}) {
+    lastSpoken = text;
+    stopAudio();
+    try {
+      speechSynthesis?.cancel();
+    } catch {
+      /* no speech synthesis */
+    }
+    const V = window.LuneAsk?.voice;
+    if (V?.available?.()) {
+      try {
+        let blob = voiceCache.get(text);
+        if (!blob) {
+          blob = await V.speak(text);
+          voiceCache.set(text, blob);
+        }
+        const audio = new Audio(URL.createObjectURL(blob));
+        audio.playbackRate = Number(store.prefs().speechRate) || 1;
+        currentAudio = audio;
+        let meter = null;
+        try {
+          const ac = new (window.AudioContext || window.webkitAudioContext)();
+          const srcNode = ac.createMediaElementSource(audio);
+          const an = ac.createAnalyser();
+          an.fftSize = 512;
+          srcNode.connect(an);
+          an.connect(ac.destination);
+          const buf = new Float32Array(an.fftSize);
+          meter = { ac, tick: () => { an.getFloatTimeDomainData(buf); onLevel?.(Math.min(1, Math.sqrt(buf.reduce((a, v) => a + v * v, 0) / buf.length) * 6)); } };
+        } catch {
+          meter = null;
+        }
+        await new Promise((resolve, reject) => {
+          let raf = 0;
+          const loop = () => {
+            meter?.tick();
+            raf = requestAnimationFrame(loop);
+          };
+          audio.onended = audio.onpause = () => {
+            cancelAnimationFrame(raf);
+            onLevel?.(0);
+            meter?.ac.close().catch(() => {});
+            if (currentAudio === audio) currentAudio = null;
+            resolve();
+          };
+          audio.onerror = reject;
+          audio.play().then(() => (raf = requestAnimationFrame(loop)), reject);
+        });
+        return;
+      } catch {
+        stopAudio(); // the device voice says it instead
+      }
+    }
+    if (!("speechSynthesis" in window)) return;
+    await new Promise((resolve) => {
+      const u = new SpeechSynthesisUtterance(text);
+      const voice = bestVoice();
+      if (voice) {
+        u.voice = voice;
+        u.lang = voice.lang;
+      } else u.lang = "en-GB";
+      u.rate = Number(store.prefs().speechRate) || 1;
+      // the device voice gives no level, so the orb breathes with the words instead
+      let pulse = 0;
+      u.onboundary = () => {
+        pulse = 0.8;
+      };
+      const iv = setInterval(() => {
+        pulse *= 0.82;
+        onLevel?.(0.25 + pulse * 0.6);
+      }, 60);
+      u.onend = u.onerror = () => {
+        clearInterval(iv);
+        onLevel?.(0);
+        resolve();
+      };
+      speechSynthesis.speak(u);
+    });
+  }
+  function stopSpeaking() {
+    stopAudio();
+    try {
+      speechSynthesis?.cancel();
+    } catch {
+      /* nothing to stop */
+    }
+  }
+
   function speakOnDevice(text) {
     if (!("speechSynthesis" in window)) {
       listenBar(false);
@@ -714,6 +807,7 @@ window.LunePractice = (function () {
         <button type="button" class="quiet ink" data-lp="ask">Ask Lune about bar ${primary}</button>
         <button type="button" class="quiet ink" data-lp="plan">Add to my plan</button>
         <button type="button" class="quiet ink" data-lp="share" title="A link that opens this piece at these bars with your instructions">Share ${bars.length > 1 ? "these bars" : "this bar"}</button>
+        <button type="button" class="quiet ink" data-lp="upto">I can play up to here</button>
       </div>
       <h3 class="lp-h">Practice · how did it go?</h3>
       <div class="lp-grades" role="group" aria-label="Rate this practice">
@@ -786,6 +880,13 @@ window.LunePractice = (function () {
       else if (btn.dataset.lp === "aloud") readSelectedAloud();
       else if (btn.dataset.lp === "ask") window.LuneAsk?.open?.({ bar: primary });
       else if (btn.dataset.lp === "share") openAssignDialog(bars);
+      else if (btn.dataset.lp === "upto") {
+        const key = keyFor(state.piece);
+        const of = Object.keys(state.piece?.debriefs || {}).map(Number).filter((n) => n > 0).reduce((m, n) => Math.max(m, n), 0) || null;
+        if (!repertoireKeys.has(key)) addCurrentToRepertoire({ quiet: true });
+        window.LunePlans?.setProgress?.(key, { upTo: Math.max(...bars), of });
+        toast(`Saved: up to bar ${Math.max(...bars)}${of ? ` of ${of}` : ""}`);
+      }
       else if (btn.dataset.lp === "plan" && window.LuneAsk) {
         // the plan is written from this bar's analysis and your remarks on it
         window.LuneAsk.open({ bar: primary });
@@ -1087,22 +1188,27 @@ window.LunePractice = (function () {
     main.innerHTML = `
       <div class="rep-inner">
         <header class="rep-hero">
-          <p class="eyebrow">Your practice</p>
           <h1>Repertoire</h1>
-          <p class="rep-lead">Your pieces, your notes, and practice plans you set yourself — bars you chose, summarised by Lune.</p>
           <div class="rep-account" id="rep-account"></div>
         </header>
         <section class="rep-section" id="rep-add-section" aria-labelledby="rep-add-h">
           <h2 id="rep-add-h">Add a piece</h2>
           <form class="rep-add" id="rep-add" autocomplete="off">
-            <input id="rep-add-q" type="search" placeholder="Type a piece — e.g. Für Elise, Gymnopédie, Chopin nocturne" aria-label="Piece you’re learning">
+            <input id="rep-add-q" type="search" placeholder="Add a piece…" aria-label="Piece you’re learning">
             <button type="submit" class="quiet">Add</button>
           </form>
           <ul class="rep-suggest" id="rep-suggest" role="listbox" aria-label="Pieces Lune has"></ul>
         </section>
+        <section class="rep-section rep-week" aria-labelledby="rep-week-h">
+          <div class="rep-today-head">
+            <h2 id="rep-week-h">This week</h2>
+            <button type="button" class="quiet rep-plan-week" data-wp-open><span aria-hidden="true">＋</span> Plan my week</button>
+          </div>
+          <div id="rep-week-plan"></div>
+        </section>
         <section class="rep-section" aria-labelledby="rep-plan-h">
           <div class="rep-today-head">
-            <h2 id="rep-plan-h">Your plan</h2>
+            <h2 id="rep-plan-h">Tasks</h2>
             <button type="button" class="quiet" id="rep-new-task">New task</button>
           </div>
           <div id="rep-today" class="rep-today rep-plan"></div>
@@ -1315,6 +1421,14 @@ window.LunePractice = (function () {
     renderAccountChip();
     const listEl = $("rep-list");
     const todayEl = $("rep-today");
+    await window.LunePlans?.flushSummary?.().catch?.(() => null);
+    const wp = window.LunePlans?.currentPlan?.();
+    const weekHost = $("rep-week-plan");
+    if (weekHost) {
+      weekHost.innerHTML = wp
+        ? window.LunePlans.planHtml(wp)
+        : `<p class="rep-empty">Tell Lune what you want to get done, and it plans each day.</p>`;
+    }
     let pieces = [];
     let counts = {};
     try {
@@ -1347,17 +1461,23 @@ window.LunePractice = (function () {
             </article>`;
           })
           .join("")
-      : `<p class="rep-empty">No tasks yet. On a score, select bars and tap <em>Add to plan</em> — or speak a note and let Lune summarise it.</p>`;
+      : `<p class="rep-empty">No tasks yet. Tap a bar on a score, then Add to my plan.</p>`;
 
     const listHtml = pieces.length
       ? pieces
           .map((p) => {
             const n = counts[p.piece_key] || 0;
-            return `<article class="rep-card" data-key="${esc(p.piece_key)}">
+            const prog = window.LunePlans?.progressOf?.(p.piece_key);
+            const sum = window.LunePlans?.summaryOf?.(p.piece_key);
+            return `<article class="rep-card fx-spot" data-key="${esc(p.piece_key)}">
               <div class="rep-card-main">
                 <h3>${esc(p.title)}</h3>
-                <p class="rep-card-by">${esc(p.composer || (p.source === "upload" ? "Your score" : ""))}</p>
-                <p class="rep-card-meta">${levelFor(p.piece_key) ? `<span title="Lune’s estimate from the score’s hardest bars. Not an exam grade.">Level: ${esc(levelFor(p.piece_key))} (Lune’s estimate)</span> · ` : ""}Last practised ${esc(ago(p.last_practised_at))}${n ? ` · ${n} note${n === 1 ? "" : "s"}` : ""}</p>
+                <p class="rep-card-by">${esc(p.composer || (p.source === "upload" ? "Your score" : ""))}${levelFor(p.piece_key) ? ` · ${esc(levelFor(p.piece_key))}` : ""}</p>
+                <div class="rp-row">
+                  <div class="rp-bar" role="progressbar" aria-label="How much of ${esc(p.title)} you can play" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${prog?.pct ?? 0}"><i style="width:${prog?.pct ?? 0}%"></i></div>
+                  <button type="button" class="link-btn rp-set" data-progress="${esc(p.piece_key)}">${prog ? esc(window.LunePlans.progressLabel(prog)) : "Mark progress"}</button>
+                </div>
+                ${sum ? `<p class="rep-sum"><span class="rep-sum-k">${sum.via === "model" ? "Lune AI" : "Last session"}</span> ${esc(sum.text)}</p>` : `<p class="rep-card-meta">Practised ${esc(ago(p.last_practised_at))}${n ? ` · ${n} note${n === 1 ? "" : "s"}` : ""}</p>`}
               </div>
               <div class="rep-card-actions">
                 <label class="visually-hidden" for="st-${esc(p.piece_key)}">Status</label>
@@ -1365,7 +1485,8 @@ window.LunePractice = (function () {
                   ${STATUS.map(([v, l]) => `<option value="${v}" ${p.status === v ? "selected" : ""}>${l}</option>`).join("")}
                 </select>
                 <button type="button" class="primary" data-open="${esc(p.piece_key)}">Open</button>
-                <button type="button" class="quiet" data-work="${esc(p.piece_key)}" title="See what needs work in this piece and add it to your plan">Work on this piece</button>
+                <button type="button" class="quiet" data-work="${esc(p.piece_key)}" title="See what needs work in this piece and add it to your plan">Work on it</button>
+                <button type="button" class="quiet" data-share-progress="${esc(p.piece_key)}" data-title="${esc(p.title)}">Share</button>
                 <button type="button" class="quiet rep-remove" hidden data-remove="${esc(p.piece_key)}" aria-label="Remove ${esc(p.title)}">Remove</button>
               </div>
             </article>`;
@@ -1427,6 +1548,16 @@ window.LunePractice = (function () {
     if (!b) return;
     if (b.hasAttribute("data-lp-account")) return openAccountDialog();
     if (b.hasAttribute("data-lp-access")) return openAccessDialog();
+    if (b.dataset.progress) {
+      const row = await store.getPiece(b.dataset.progress);
+      if (await window.LunePlans?.editProgress?.(b.dataset.progress, row?.title || "this piece")) renderRepertoire();
+      return;
+    }
+    if (b.dataset.shareProgress) {
+      await window.LunePlans?.shareProgress?.(b.dataset.shareProgress, b.dataset.title || "This piece", window.LunePlans.progressOf(b.dataset.shareProgress)?.of || 0);
+      renderRepertoire();
+      return;
+    }
     if (b.dataset.taskDone) {
       store.updateTask(b.dataset.taskDone, { done: true });
       toast("Marked done");
@@ -1943,6 +2074,7 @@ window.LunePractice = (function () {
           <select id="set-mins" aria-describedby="set-mins-note">${[10, 15, 20, 30, 45, 60, 90].map((n) => `<option ${n === mins ? "selected" : ""}>${n}</option>`).join("")}</select>
         </div>
         <p class="settings-note" id="set-mins-note">Lune sizes plans to this. It does not time your practice.</p>
+        ${row("plan-week", "Plan my week", "Tell Lune your goal; it plans each day")}
         ${signedIn ? row("week", "This week", "Done, left, and the bars that need you") : ""}
         ${row("example-week", "How This week works", "A short example with made-up numbers")}
       </section>
@@ -2105,6 +2237,7 @@ window.LunePractice = (function () {
       else if (act === "week") window.LuneImpact?.openWeeklyReview?.();
       else if (act === "example-week") openExampleWeek();
       else if (act === "chat") window.LuneAsk?.openChat?.();
+      else if (act === "plan-week") window.LunePlans?.openWizard?.();
       else if (act === "compare") document.querySelector("[data-show-compare]")?.click();
       else if (act === "upload") $("file")?.click();
       else if (act === "feedback") window.LuneFeedback?.open?.();
@@ -2949,6 +3082,9 @@ window.LunePractice = (function () {
 
   return {
     init,
+    speakAndWait,
+    stopSpeaking,
+    tidySpoken,
     nextAction,
     renderNextCard,
     openExampleWeek,
