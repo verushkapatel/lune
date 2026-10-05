@@ -249,7 +249,11 @@ window.LunePractice = (function () {
     const buf = new Float32Array(analyser.fftSize);
     let heardVoice = false;
     let quietSince = 0;
-    const started = performance.now();
+    // voice is sustained sound well above the room's own noise, not one click or bump
+    let floor = 0.006;
+    let voicedMs = 0;
+    let last = performance.now();
+    const started = last;
     const done = new Promise((resolve) => (rec.onstop = resolve));
     activeRecorder = rec;
     rec.start(250);
@@ -260,8 +264,13 @@ window.LunePractice = (function () {
       const rms = Math.sqrt(buf.reduce((a, v) => a + v * v, 0) / buf.length);
       onLevel?.(Math.min(1, rms * 9));
       const now = performance.now();
-      if (rms > 0.02) {
-        heardVoice = true;
+      const dt = Math.min(100, now - last);
+      last = now;
+      // the floor follows the quietest moments, slowly
+      floor = rms < floor ? floor * 0.9 + rms * 0.1 : floor * 0.999 + rms * 0.001;
+      if (rms > Math.max(0.018, floor * 3.2)) {
+        voicedMs += dt;
+        if (voicedMs > 220) heardVoice = true;
         quietSince = 0;
       } else if (heardVoice) quietSince ||= now;
       if ((meterLive && heardVoice && quietSince && now - quietSince > 1600) || now - started > 45000) rec.stop();
@@ -286,6 +295,8 @@ window.LunePractice = (function () {
     }
     ctx.close().catch(() => {});
     const text = await window.LuneAsk.voice.transcribe(audio);
+    // what Whisper says over noise, if the server let any through
+    if (/^\s*(thank you\.?|thanks for watching!?|you\.?|bye\.?)\s*$/i.test(text || "")) return "";
     return tidySpoken(text);
   }
 
@@ -1076,8 +1087,9 @@ window.LunePractice = (function () {
       b.title = label;
       const el = b.querySelector(".lp-add-label");
       if (el) {
-        el.textContent = label;
-        el.dataset.short = inRep ? "In your Repertoire" : "Add to Repertoire";
+        // the visible word stays short; the full sentence is the button's name
+        el.textContent = inRep ? "Saved" : "Save";
+        el.dataset.short = inRep ? "Saved" : "Save";
       }
     }
   }
@@ -1192,7 +1204,7 @@ window.LunePractice = (function () {
           <div class="rep-account" id="rep-account"></div>
         </header>
         <section class="rep-section" id="rep-add-section" aria-labelledby="rep-add-h">
-          <h2 id="rep-add-h">Add a piece</h2>
+          <h2 id="rep-add-h" class="visually-hidden">Add a piece</h2>
           <form class="rep-add" id="rep-add" autocomplete="off">
             <input id="rep-add-q" type="search" placeholder="Add a piece…" aria-label="Piece you’re learning">
             <button type="submit" class="quiet">Add</button>
@@ -2059,7 +2071,7 @@ window.LunePractice = (function () {
       </header>
       <section class="settings-sec settings-account" aria-labelledby="set-h-account">
         <h3 id="set-h-account" class="visually-hidden">Account</h3>
-        ${signedIn ? row("account", esc(store.status().email || "Your account"), "Your data, sign out") : row("signin", "Sign in or create an account", "Free. Keeps your Repertoire and plans on every device, and turns on Lune AI.")}
+        ${signedIn ? row("account", esc(store.status().email || "Your account"), "Your data, sign out") : row("signin", "Sign in or create an account", "Free. Syncs your practice and turns on Lune AI.")}
       </section>
       <section class="settings-sec" aria-labelledby="set-h-ai">
         ${accountAISettingsHtml().replace('<h4 class="settings-sub">Lune AI</h4>', '<h3 id="set-h-ai">Lune AI</h3>') || '<h3 id="set-h-ai">Lune AI</h3><p class="settings-note">Ask Lune answers from the score with built-in rules. Sign in to turn on Lune AI.</p>'}
@@ -2105,16 +2117,20 @@ window.LunePractice = (function () {
         <h4 class="settings-sub">Lune AI on this device</h4>
         <div class="settings-device-ai" id="set-device-ai"></div>
         <h4 class="settings-sub">Your own model with Ollama</h4>
-        <p class="settings-note">If Ollama runs on your computer, Ask Lune can use a model there instead. What you ask stays on your machine.</p>
-        <p class="settings-note" id="set-ai-status" role="status"><strong>${window.LuneAsk?.aiSettings?.().endpoint ? "Local model set" : "Local model not connected"}</strong></p>
-        <ol class="settings-steps">
-          <li>Install Ollama from ollama.com (free) and open it.</li>
-          <li>In Terminal, fetch a model: <code>ollama pull llama3.2</code> (about 2 GB).</li>
-          <li>Allow this site to reach it: quit Ollama, then run <code>OLLAMA_ORIGINS=${esc(location.origin)} ollama serve</code>.</li>
-          <li>Press “Use Ollama on this computer”, then Test.</li>
-        </ol>
+        <p class="settings-note">Run a free model on your own computer. Questions stay on your machine.</p>
+        <p class="settings-note" id="set-ai-status" role="status"><strong>${window.LuneAsk?.aiSettings?.().endpoint ? `Using ${esc((() => { try { return localStorage.getItem("lune.ai.model") || "your model"; } catch { return "your model"; } })())}` : "Not connected"}</strong></p>
+        <div class="settings-ai-picks" id="set-ai-picks"></div>
+        <details class="settings-ai-how">
+          <summary>How to set up Ollama</summary>
+          <ol class="settings-steps">
+            <li>Install Ollama from ollama.com (free).</li>
+            <li>Get a model: <code>ollama pull llama3.2</code> (2 GB), or OpenAI’s open model <code>ollama pull gpt-oss:20b</code> (14 GB).</li>
+            <li>Start it for Lune: <code>OLLAMA_ORIGINS=${esc(location.origin)} ollama serve</code></li>
+            <li>Press Find Ollama.</li>
+          </ol>
+        </details>
         <div class="settings-ai">
-          <button type="button" class="quiet" data-ai="ollama">Use Ollama on this computer</button>
+          <button type="button" class="quiet" data-ai="ollama">Find Ollama</button>
           <label for="set-ai-url">Model address</label>
           <input id="set-ai-url" type="url" inputmode="url" placeholder="http://localhost:11434/v1/chat/completions" value="${esc(window.LuneAsk?.aiSettings?.().endpoint || "")}">
           <label for="set-ai-model">Model name</label>
@@ -2192,12 +2208,40 @@ window.LunePractice = (function () {
             /* private mode */
           }
         };
-        if (ai.dataset.ai === "ollama") {
+        if (ai.dataset.ai === "pick") {
           d.querySelector("#set-ai-url").value = "http://localhost:11434/v1/chat/completions";
-          if (!d.querySelector("#set-ai-model").value.trim()) d.querySelector("#set-ai-model").value = "llama3.2";
+          d.querySelector("#set-ai-model").value = ai.dataset.model;
           put("lune.ai.endpoint", d.querySelector("#set-ai-url").value);
-          put("lune.ai.model", d.querySelector("#set-ai-model").value.trim());
-          msg.textContent = "Set to Ollama’s address on this computer. Press Test to check it is running.";
+          put("lune.ai.model", ai.dataset.model);
+          d.querySelectorAll('[data-ai="pick"]').forEach((x) => x.setAttribute("aria-pressed", String(x === ai)));
+          const st = d.querySelector("#set-ai-status");
+          if (st) st.innerHTML = `<strong>Using ${esc(ai.dataset.model)}</strong>`;
+          msg.textContent = `Ask Lune and Chat now use ${ai.dataset.model} on this computer.`;
+          return;
+        }
+        if (ai.dataset.ai === "ollama") {
+          // ask Ollama which models it has, and offer them by name
+          const picks = d.querySelector("#set-ai-picks");
+          msg.textContent = "Looking for Ollama on this computer…";
+          fetch("http://localhost:11434/api/tags")
+            .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+            .then((j) => {
+              const names = (j.models || []).map((m) => m.name).filter(Boolean);
+              const now = d.querySelector("#set-ai-model").value.trim();
+              if (!names.length) {
+                msg.textContent = "Ollama is running but has no models yet. Run: ollama pull llama3.2";
+                return;
+              }
+              picks.innerHTML = names
+                .map((n) => `<button type="button" class="quiet" data-ai="pick" data-model="${esc(n)}" aria-pressed="${n === now}">${esc(n)}${/gpt-oss/i.test(n) ? " · OpenAI open model" : /llama/i.test(n) ? " · Meta" : ""}</button>`)
+                .join("");
+              msg.textContent = names.length === 1 ? "Found one model. Tap it to use it." : `Found ${names.length} models. Tap one to use it.`;
+            })
+            .catch(() => {
+              msg.textContent = "Ollama isn’t answering. Open “How to set up Ollama” above, then try again.";
+              const how = d.querySelector(".settings-ai-how");
+              if (how) how.open = true;
+            });
           return;
         }
         if (ai.dataset.ai === "off") {
@@ -2236,7 +2280,7 @@ window.LunePractice = (function () {
       else if (act === "signin") window.LuneOnboard?.openCreateAccount?.();
       else if (act === "week") window.LuneImpact?.openWeeklyReview?.();
       else if (act === "example-week") openExampleWeek();
-      else if (act === "chat") window.LuneAsk?.openChat?.();
+      else if (act === "chat") window.LuneAsk?.goAiPage?.();
       else if (act === "plan-week") window.LunePlans?.openWizard?.();
       else if (act === "compare") document.querySelector("[data-show-compare]")?.click();
       else if (act === "upload") $("file")?.click();
@@ -2264,7 +2308,7 @@ window.LunePractice = (function () {
     if (!server) return "";
     const st = store.status();
     const name = esc(window.LUNE_CONFIG?.aiModelName || "an open-weight model");
-    const where = ` ${name}, an open-weight model from Meta. It gets the score facts, your remarks and your question. Lune’s server stores none of it, and your questions stay in this browser. It can be wrong.`;
+    const where = ` ${name}, an open-weight model from Meta. Lune’s server stores none of it. It can be wrong.`;
     if (st.mode === "cloud") {
       return `<h4 class="settings-sub">Lune AI</h4><p class="settings-note" id="set-account-ai" role="status"><strong>Lune AI is on</strong>${where}</p>`;
     }
@@ -2752,6 +2796,10 @@ window.LunePractice = (function () {
     const m = (hash || "").match(/^#\/assign\/([A-Za-z0-9_-]+)$/);
     if (m) {
       openAssignment(m[1]);
+      return true;
+    }
+    if (hash === "#/ai") {
+      window.LuneAsk?.openChatPage?.();
       return true;
     }
     if (hash === "#/study") {

@@ -1177,20 +1177,24 @@ function renderPieceTabs() {
   }
 
   const studio = document.body.classList.contains("is-studio");
+  // on a phone the top bar has its own +, so one open piece needs no strip; elsewhere the strip,
+  // with its + for a new tab, is always there
+  const compact = document.body.classList.contains("studio-compact");
+  const solo = studio && compact && n < 2;
   const active = activeSession();
   const title =
     active?.shortTitle ||
     shortPieceTitle(active?.piece?.title || active?.piece?.overview?.title || "");
   if (quiet) {
     quiet.textContent = title;
-    quiet.hidden = !studio || (n >= 2 && window.innerWidth > 760);
+    quiet.hidden = !studio || !compact;
     quiet.title = active?.piece?.title || title;
   }
   const mark = $("btn-bookmark");
   if (mark) mark.hidden = false;
   // On the home page every open piece keeps its tab, so one tap returns to it.
-  host.hidden = studio ? n < 2 : false;
-  if (studio && n < 2) {
+  host.hidden = solo;
+  if (solo) {
     host.textContent = "";
     return;
   }
@@ -1222,8 +1226,7 @@ function renderPieceTabs() {
     btn.className = "piece-tab-label";
     btn.title = s.piece?.title || s.shortTitle;
     btn.textContent = s.shortTitle;
-    btn.setAttribute("role", "tab");
-    btn.setAttribute("aria-selected", current ? "true" : "false");
+    // plain buttons in a labelled group: a tab list may hold only tabs, and this strip also has close and +
     if (current) btn.setAttribute("aria-current", "page");
     btn.addEventListener("click", () => {
       // from the home page the "active" piece still has to be brought back on stage
@@ -1232,7 +1235,7 @@ function renderPieceTabs() {
     });
     tab.appendChild(face);
     tab.appendChild(btn);
-    if (n >= 2 || !studio) {
+    if (n >= 2 || !studio || !compact) {
       const close = document.createElement("button");
       close.type = "button";
       close.className = "piece-tab-close";
@@ -1251,9 +1254,10 @@ function renderPieceTabs() {
   add.className = "piece-tab-new";
   add.setAttribute("aria-label", "Open another piece in a new tab");
   add.title = "Open another piece";
-  add.textContent = "+";
+  add.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
   add.addEventListener("click", () => {
-    if (document.body.classList.contains("is-studio")) openStudioSearch();
+    if (window.LuneStudioUI) setTimeout(() => window.LuneStudioUI.openSearch(), 0);
+    else if (document.body.classList.contains("is-studio")) openStudioSearch();
     else $("q")?.focus();
   });
   frag.appendChild(add);
@@ -4602,7 +4606,7 @@ function bind() {
   document.addEventListener("click", (e) => {
     if (!e.target.closest(".top-search") && !e.target.closest(".results")) {
       closeSearchResults();
-      if (!e.target.closest(".piece-tab-add")) {
+      if (!e.target.closest(".piece-tab-add, .piece-tab-new, #st-add")) {
         document.body.classList.remove("studio-search-open");
       }
       if (!e.target.closest("#btn-search")) {

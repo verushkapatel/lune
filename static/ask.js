@@ -619,6 +619,8 @@ Rules:
   /* ---------- the panel ---------- */
 
   const ICON = {
+    menu: '<svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+    add: '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>',
     mic: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
     talk: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
     send: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
@@ -631,15 +633,14 @@ Rules:
 
   /** A composer like Claude's or ChatGPT's: a growing text box, then dictate, talk and send. */
   function composerHtml(prefix, placeholder) {
+    // one pill, as in ChatGPT: the words, the microphone, and a round button that is
+    // voice chat while the box is empty and Send once there is something to send
     return `<div class="lc-composer" id="${prefix}-composer">
         <label class="visually-hidden" for="${prefix}-input">Message Lune</label>
         <textarea id="${prefix}-input" rows="1" maxlength="600" placeholder="${esc(placeholder)}"></textarea>
-        <div class="lc-row">
-          <button type="button" class="lc-tool" id="${prefix}-mic" aria-pressed="false" aria-label="Dictate">${ICON.mic}</button>
-          <span class="lc-grow"></span>
-          <button type="button" class="lc-tool lc-talk" id="${prefix}-talk" aria-label="Talk with Lune">${ICON.talk}<span>Talk</span></button>
-          <button type="submit" class="lc-send ${prefix}-send" aria-label="Send" disabled>${ICON.send}</button>
-        </div>
+        <button type="button" class="lc-tool lc-mic" id="${prefix}-mic" aria-pressed="false" aria-label="Dictate">${ICON.mic}</button>
+        <button type="button" class="lc-round lc-talk" id="${prefix}-talk" aria-label="Voice chat with Lune">${ICON.talk}</button>
+        <button type="submit" class="lc-round lc-send ${prefix}-send" aria-label="Send" hidden>${ICON.send}</button>
       </div>
       <div class="lc-listen" id="${prefix}-listen" hidden>
         <button type="button" class="lc-tool" data-listen="cancel" aria-label="Cancel dictation">${ICON.close}</button>
@@ -653,10 +654,14 @@ Rules:
   function wireComposer(prefix, onSend) {
     const input = $(`${prefix}-input`);
     const send = document.querySelector(`#${prefix}-composer .lc-send`);
+    const talk = $(`${prefix}-talk`);
     const fit = () => {
       input.style.height = "auto";
       input.style.height = `${Math.min(140, input.scrollHeight)}px`;
-      send.disabled = !input.value.trim();
+      const has = !!input.value.trim();
+      send.hidden = !has;
+      send.disabled = !has;
+      if (talk) talk.hidden = has;
     };
     input.addEventListener("input", fit);
     input.addEventListener("keydown", (e) => {
@@ -684,7 +689,13 @@ Rules:
     const canvas = ui.querySelector(".lc-wave");
     const timer = ui.querySelector(".lc-timer");
     const ctx = canvas.getContext("2d");
-    const bars = new Array(48).fill(0.04);
+    const bars = new Array(40).fill(0.03);
+    let lastPush = 0;
+    const fit = () => {
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      canvas.width = Math.max(60, canvas.clientWidth * dpr);
+      canvas.height = Math.max(20, canvas.clientHeight * dpr);
+    };
     let level = 0;
     let fake = true;
     let cancelled = false;
@@ -693,18 +704,28 @@ Rules:
     const draw = () => {
       const now = performance.now();
       // without a level from the microphone (the browser's own recognition), the wave breathes
-      const v = fake ? 0.12 + 0.1 * Math.abs(Math.sin(now / 260)) : level;
-      bars.push(Math.max(0.04, v));
-      bars.shift();
+      const v = fake ? 0.1 + 0.08 * Math.abs(Math.sin(now / 260)) : level;
+      // a new bar every 60 ms scrolls in from the right, like a voice memo
+      if (now - lastPush > 60) {
+        lastPush = now;
+        bars.push(Math.max(0.03, Math.min(1, v * 1.4)));
+        bars.shift();
+      }
       const w = canvas.width;
       const h = canvas.height;
       ctx.clearRect(0, 0, w, h);
       const step = w / bars.length;
+      const bw = Math.max(2, step * 0.42);
       ctx.fillStyle = getComputedStyle(canvas).color || "#fff";
       bars.forEach((b, i) => {
-        const bh = Math.max(3, b * h * 0.95);
-        ctx.globalAlpha = 0.35 + 0.65 * (i / bars.length);
-        ctx.fillRect(i * step + step * 0.25, (h - bh) / 2, step * 0.5, bh);
+        const bh = Math.max(bw, b * h * 0.92);
+        ctx.globalAlpha = 0.3 + 0.7 * (i / bars.length);
+        const x = i * step + (step - bw) / 2;
+        const y = (h - bh) / 2;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(x, y, bw, bh, bw / 2);
+        else ctx.rect(x, y, bw, bh);
+        ctx.fill();
       });
       const sec = Math.floor((now - started) / 1000);
       timer.textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
@@ -712,6 +733,7 @@ Rules:
     };
     composer.hidden = true;
     ui.hidden = false;
+    fit();
     raf = requestAnimationFrame(draw);
     const finish = (e) => {
       const act = e.target.closest?.("[data-listen]")?.dataset.listen;
@@ -731,7 +753,7 @@ Rules:
         },
       });
       if (!cancelled) input.value = said || input.value;
-      if (!cancelled && !said) toast("Didn’t catch that. Try again, or type.");
+      if (!cancelled && !said) toast("Lune didn’t catch that. Try again, or type.");
     } catch (err) {
       toast(err.message || "Type instead.");
     } finally {
@@ -761,11 +783,15 @@ Rules:
       d.id = "lune-talk";
       d.className = "lune-talk";
       d.setAttribute("aria-label", "Talk with Lune");
-      d.innerHTML = `<div class="lt-top"><span class="fx-shiny lt-title"></span><button type="button" class="lc-tool" data-talk="end" aria-label="End the conversation">${ICON.close}</button></div>
+      // as in ChatGPT's voice mode: the orb, a line of caption, and two round buttons
+      d.innerHTML = `<div class="lt-top"><span class="fx-shiny lt-title"></span></div>
         <div class="lt-orb" id="lt-orb"></div>
         <p class="lt-state" id="lt-state" aria-live="polite">Listening</p>
         <p class="lt-caption" id="lt-caption"></p>
-        <div class="lt-actions"><button type="button" class="lt-btn" data-talk="tap">Tap to speak</button><button type="button" class="lt-btn lt-end" data-talk="end">End</button></div>`;
+        <div class="lt-actions">
+          <button type="button" class="lt-round" data-talk="tap" aria-pressed="false" aria-label="Pause listening">${ICON.mic}</button>
+          <button type="button" class="lt-round lt-end" data-talk="end" aria-label="End voice chat">${ICON.close}</button>
+        </div>`;
       document.body.appendChild(d);
     }
     d.querySelector(".lt-title").textContent = title;
@@ -781,7 +807,11 @@ Rules:
     const setState = (m, label) => {
       orb.setMode(m);
       stateEl.textContent = label;
-      tapBtn.hidden = m !== "idle";
+      // the mic button pauses listening, or starts it again
+      const paused = m === "idle";
+      tapBtn.setAttribute("aria-pressed", String(paused));
+      tapBtn.setAttribute("aria-label", paused ? "Start listening" : "Pause listening");
+      tapBtn.classList.toggle("off", paused);
     };
     const end = () => {
       run.live = false;
@@ -794,7 +824,17 @@ Rules:
     d.onclick = (e) => {
       const a = e.target.closest?.("[data-talk]")?.dataset.talk;
       if (a === "end") end();
-      if (a === "tap") loop();
+      if (a === "tap") {
+        if (orbHost.dataset.mode === "idle") {
+          run.live = true;
+          loop();
+        } else {
+          run.live = false;
+          P()?.stopHearing?.();
+          P()?.stopSpeaking?.();
+          setState("idle", "Paused · tap the microphone to talk");
+        }
+      }
       // tapping the orb while Lune speaks lets you cut in
       if (e.target.closest?.("#lt-orb") && orbHost.dataset.mode === "speaking") P()?.stopSpeaking?.();
     };
@@ -816,7 +856,12 @@ Rules:
         orb.setLevel(0);
         if (!run.live) return;
         if (!said) {
-          if (++misses >= 2) return setState("idle", "Tap to speak when you’re ready");
+          // honest about silence: nothing is sent, and Lune says so
+          cap.textContent = "Lune didn’t catch that.";
+          if (++misses >= 2) {
+            run.live = false;
+            return setState("idle", "Tap the microphone when you’re ready");
+          }
           continue;
         }
         misses = 0;
@@ -848,13 +893,12 @@ Rules:
     p.setAttribute("aria-label", "Ask Lune");
     p.innerHTML = `
       <header class="ask-head">
-        <span class="lune-orb-sm" aria-hidden="true"></span>
+        <button type="button" class="lc-tool" id="ask-close" aria-label="Close Ask Lune">${ICON.close}</button>
         <div class="ask-id">
           <p class="ask-title"><span class="fx-shiny">Lune AI</span></p>
           <p class="ask-where" id="ask-where"></p>
         </div>
         <button type="button" class="lc-tool" id="ask-info" aria-expanded="false" aria-controls="ask-fine" aria-label="About these answers">${ICON.info}</button>
-        <button type="button" class="lc-tool" id="ask-close" aria-label="Close Ask Lune">${ICON.close}</button>
       </header>
       <p class="ask-fine" id="ask-fine" hidden></p>
       <div class="ask-log" id="ask-log" role="log" aria-live="polite"></div>
@@ -927,13 +971,14 @@ Rules:
     if (who === "lune") {
       const body = document.createElement("div");
       body.className = "ask-body";
+      body.appendChild(el);
+      // where it came from, said quietly under the answer, beside its actions
       if (src) {
         const s = document.createElement("p");
         s.className = `ask-src ask-src-${src === "model" ? "ai" : "rules"}`;
         s.textContent = src === "model" ? "Lune AI · can be wrong" : src === "rules" ? "Built-in answer, read from the score" : "Lune";
         body.appendChild(s);
       }
-      body.appendChild(el);
       row.appendChild(body);
     } else row.appendChild(el);
     log.appendChild(row);
@@ -945,6 +990,8 @@ Rules:
     const bar = document.createElement("div");
     bar.className = "ask-actions";
     bar.innerHTML = `<button type="button" class="lc-mini" data-msg-act="speak" aria-label="Read this answer aloud">${ICON.speak}</button><button type="button" class="lc-mini" data-msg-act="copy" aria-label="Copy this answer">${ICON.copy}</button>`;
+    const src = el.parentElement.querySelector(".ask-src");
+    if (src) bar.appendChild(src);
     el.parentElement.appendChild(bar);
   }
   function thinkingRow() {
@@ -962,7 +1009,7 @@ Rules:
       fine.textContent = providers.endpoint.available()
         ? `Your own model (${aiSettings().model}), with this bar’s facts and your remarks.`
         : providers.account.available()
-          ? `Lune AI is on. ${aiName()}, an open model. Lune’s server stores none of it; your chats are saved only in this browser.`
+          ? `Lune AI is on: ${aiName().replace(/ Instruct$/, "")}. Lune’s server stores none of it; chats are saved only in this browser.`
           : providers.device.available()
           ? `Lune AI is on, in this browser. Nothing leaves this device.`
           : "Built-in answers from the score, not from a language model. Sign in for Lune AI.";
@@ -1212,19 +1259,93 @@ Rules:
     "How do I stop rushing fast notes?",
     "How do I practise a trill?",
   ];
-  function chatLog() {
+  /*
+   * Chat history, as in ChatGPT: many conversations, each with its own title,
+   * kept only in this browser (lune.chats.v2). The old single chat (v1) becomes
+   * the first conversation.
+   */
+  const CHATS_KEY = "lune.chats.v2";
+  function chatStore() {
+    let st = null;
     try {
-      return JSON.parse(localStorage.getItem(CHAT_KEY) || "[]").slice(-40);
+      st = JSON.parse(localStorage.getItem(CHATS_KEY) || "null");
     } catch {
-      return [];
+      st = null;
+    }
+    if (!st || !Array.isArray(st.convs)) {
+      st = { cur: null, convs: [] };
+      try {
+        const old = JSON.parse(localStorage.getItem(CHAT_KEY) || "[]");
+        if (old.length) {
+          const id = `c${Date.now().toString(36)}`;
+          st = { cur: id, convs: [{ id, title: chatTitle(old), t: old[old.length - 1]?.t || Date.now(), msgs: old.slice(-40) }] };
+        }
+      } catch {
+        /* nothing to bring over */
+      }
+    }
+    return st;
+  }
+  function putChats(st) {
+    try {
+      localStorage.setItem(CHATS_KEY, JSON.stringify({ cur: st.cur, convs: st.convs.slice(0, 50) }));
+      localStorage.removeItem(CHAT_KEY);
+    } catch {
+      /* private mode: the chats last for this visit */
     }
   }
+  function chatTitle(msgs) {
+    const first = String(msgs.find((m) => m.who === "you")?.text || "New chat").replace(/\s+/g, " ").trim();
+    return first.length > 42 ? `${first.slice(0, 40)}…` : first;
+  }
+  function chatLog() {
+    const st = chatStore();
+    return (st.convs.find((c) => c.id === st.cur)?.msgs || []).slice(-40);
+  }
   function saveChat(log) {
-    try {
-      localStorage.setItem(CHAT_KEY, JSON.stringify(log.slice(-40)));
-    } catch {
-      /* private mode: the chat lasts for this visit */
+    const st = chatStore();
+    if (!log.length) {
+      // an empty log is a new chat; the old one stays in history
+      st.cur = null;
+      return putChats(st);
     }
+    let c = st.convs.find((x) => x.id === st.cur);
+    if (!c) {
+      c = { id: `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, title: "", t: Date.now(), msgs: [] };
+      st.convs.unshift(c);
+      st.cur = c.id;
+    }
+    c.msgs = log.slice(-40);
+    c.title = chatTitle(c.msgs);
+    c.t = Date.now();
+    // the most recent conversation first
+    st.convs.sort((x, y) => y.t - x.t);
+    putChats(st);
+  }
+  function openConv(id) {
+    const st = chatStore();
+    st.cur = id;
+    putChats(st);
+    paintChat();
+  }
+  function deleteConv(id) {
+    const st = chatStore();
+    st.convs = st.convs.filter((c) => c.id !== id);
+    if (st.cur === id) st.cur = null;
+    putChats(st);
+    paintChat();
+  }
+  function paintHistoryList() {
+    const box = $("chat-hist-list");
+    if (!box) return;
+    const st = chatStore();
+    box.innerHTML = st.convs.length
+      ? st.convs
+          .map(
+            (c) => `<div class="ch-item${c.id === st.cur ? " on" : ""}"><button type="button" data-conv="${esc(c.id)}">${esc(c.title || "New chat")}</button><button type="button" class="ch-del" data-conv-del="${esc(c.id)}" aria-label="Delete “${esc(c.title)}”">${ICON.close}</button></div>`
+          )
+          .join("")
+      : `<p class="ch-empty">Your chats will show here.</p>`;
   }
 
   /** What Chat with Lune knows: the pianist's Repertoire, plans, week and goal, and the open piece. */
@@ -1263,13 +1384,13 @@ Rules:
     bubble.textContent = text;
     row.appendChild(bubble);
     if (who === "lune" && via === "model") {
-      const say = document.createElement("button");
-      say.type = "button";
-      say.className = "chat-say";
-      say.setAttribute("aria-label", "Read this answer aloud");
-      say.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 10v4h3l4 3.5v-11L8 10H5zM15.5 9a4 4 0 0 1 0 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-      say.addEventListener("click", () => P()?.speak?.(text));
-      row.appendChild(say);
+      // read aloud and copy, as under a ChatGPT answer; both use the words as finally shown
+      const bar = document.createElement("div");
+      bar.className = "ask-actions";
+      bar.innerHTML = `<button type="button" class="lc-mini chat-say" aria-label="Read this answer aloud">${ICON.speak}</button><button type="button" class="lc-mini chat-copy" aria-label="Copy this answer">${ICON.copy}</button>`;
+      bar.querySelector(".chat-say").addEventListener("click", () => P()?.speak?.(bubble.textContent));
+      bar.querySelector(".chat-copy").addEventListener("click", () => navigator.clipboard?.writeText(bubble.textContent).then(() => toast("Copied")).catch(() => {}));
+      row.appendChild(bar);
     }
     log.appendChild(row);
     requestAnimationFrame(() => row.classList.add("in"));
@@ -1285,34 +1406,69 @@ Rules:
     d.className = "lune-chat";
     d.setAttribute("aria-labelledby", "chat-h");
     d.innerHTML = `
+      <aside class="chat-hist" id="chat-hist" aria-label="Your chats">
+        <div class="ch-top"><p class="ch-h">Chats</p><button type="button" class="lc-tool ch-close" data-hist-close aria-label="Hide chats">${ICON.close}</button></div>
+        <button type="button" class="ch-new" data-chat-new>${ICON.add}<span>New chat</span></button>
+        <div class="ch-list" id="chat-hist-list"></div>
+        <p class="ch-foot">Saved only in this browser.</p>
+      </aside>
+      <div class="chat-main">
       <header class="chat-head">
-        <span class="lune-orb-sm" aria-hidden="true"></span>
-        <div>
+        <span class="chat-lead"><button type="button" class="lc-tool" id="chat-close" aria-label="Close the chat">${ICON.close}</button><button type="button" class="lc-tool" id="chat-hist-btn" aria-label="Your chats" aria-expanded="false" aria-controls="chat-hist">${ICON.menu}</button></span>
+        <div class="chat-id">
           <h2 id="chat-h"><span class="fx-shiny">Lune AI</span></h2>
           <p class="chat-sub" id="chat-sub"></p>
         </div>
-        <button type="button" class="quiet chat-clear" id="chat-clear">Clear</button>
-        <button type="button" class="icon-btn" id="chat-close" aria-label="Close the chat">
-          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-        </button>
+        <button type="button" class="lc-tool chat-clear" id="chat-clear" aria-label="New chat"><svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><path d="M12 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6M17.5 3.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </header>
       <div class="chat-log" id="chat-log" role="log" aria-live="polite"></div>
       <div class="chat-starters" id="chat-starters"></div>
       <div class="chat-locked" id="chat-locked" hidden>
-        <p>Chat with Lune uses Lune AI, which comes free with a Lune account. Sign in and ask about your practice, your week, or any piano question.</p>
-        <button type="button" class="primary" data-chat-signin>Sign in or create an account</button>
-        <p class="chat-fine">Without an account, Ask Lune on any score still answers from the music with Lune’s built-in rules.</p>
+        <p>Lune AI is free with a Lune account.</p>
+        <button type="button" class="primary" data-chat-signin>Sign in to chat</button>
       </div>
-      <form class="chat-form ask-form" id="chat-form" autocomplete="off">${composerHtml("chat", "Ask about your practice…")}</form>
-      <p class="chat-fine" id="chat-fine"></p>`;
+      <form class="chat-form ask-form" id="chat-form" autocomplete="off">${composerHtml("chat", "Ask anything about piano…")}</form>
+      <p class="chat-fine" id="chat-fine"></p>
+      </div>`;
     document.body.appendChild(d);
     d.querySelector("#chat-close").addEventListener("click", () => d.close());
+    // leaving the Lune AI page goes back to where the pianist was
+    d.addEventListener("close", () => {
+      d.classList.remove("is-page", "hist-open");
+      if (location.hash === "#/ai") history.length > 1 ? history.back() : (location.hash = "");
+    });
+    const hist = (open) => {
+      d.classList.toggle("hist-open", open);
+      d.querySelector("#chat-hist-btn").setAttribute("aria-expanded", String(open));
+      if (open) paintHistoryList();
+    };
+    d.querySelector("#chat-hist-btn").addEventListener("click", () => hist(!d.classList.contains("hist-open")));
     d.querySelector("#chat-clear").addEventListener("click", () => {
       saveChat([]);
       paintChat();
     });
     d.addEventListener("click", (e) => {
       if (e.target === d) d.close();
+      const conv = e.target.closest?.("[data-conv]");
+      if (conv) {
+        openConv(conv.dataset.conv);
+        if (!wide()) hist(false);
+        return;
+      }
+      const del = e.target.closest?.("[data-conv-del]");
+      if (del) {
+        deleteConv(del.dataset.convDel);
+        paintHistoryList();
+        return;
+      }
+      if (e.target.closest?.("[data-chat-new]")) {
+        saveChat([]);
+        paintChat();
+        if (!wide()) hist(false);
+        setTimeout(() => $("chat-input")?.focus(), 30);
+        return;
+      }
+      if (e.target.closest?.("[data-hist-close]")) return hist(false);
       const st = e.target.closest?.("[data-starter]");
       if (st) chatAsk(st.dataset.starter);
       if (e.target.closest?.("[data-chat-signin]")) {
@@ -1338,17 +1494,19 @@ Rules:
     return d;
   }
 
+  const wide = () => window.matchMedia("(min-width: 900px)").matches;
   function paintChat() {
     const model = active();
     const log = chatLog();
+    paintHistoryList();
     $("chat-log").innerHTML = "";
     for (const m of log) chatLine(m.who, m.text, { via: m.via });
     $("chat-locked").hidden = !!model;
     $("chat-form").hidden = !model;
     $("chat-clear").hidden = !log.length;
     $("chat-starters").innerHTML = model && !log.length ? CHAT_STARTERS.map((q) => `<button type="button" data-starter="${esc(q)}">${esc(q)}</button>`).join("") : "";
-    $("chat-sub").textContent = model ? `Knows your pieces, plans and week · ${aiName().replace(/ Instruct$/, "")}` : "Needs a free Lune account";
-    $("chat-fine").textContent = model ? "Lune’s server stores none of it; this chat is saved only in this browser. Answers can be wrong." : "";
+    $("chat-sub").textContent = model ? aiName().replace(/ Instruct$/, "") : "Needs a free Lune account";
+    $("chat-fine").textContent = model ? "Lune AI can be wrong. Lune’s server stores none of it; this chat stays in this browser." : "";
     if (model && !log.length) {
       const empty = document.createElement("div");
       empty.className = "ask-empty";
@@ -1389,6 +1547,18 @@ Rules:
     return answer;
   }
 
+  /** Go to the Lune AI page: its own address, so it can be bookmarked and Back leaves it. */
+  function goAiPage() {
+    if (location.hash === "#/ai") openChatPage();
+    else location.hash = "#/ai";
+  }
+  /** The Lune AI page (#/ai): the same chat, full screen, with its history at the side. */
+  function openChatPage() {
+    const d = ensureChat();
+    d.classList.add("is-page");
+    if (wide()) d.classList.add("hist-open");
+    openChat();
+  }
   function openChat() {
     const d = ensureChat();
     paintChat();
@@ -1423,7 +1593,7 @@ Rules:
   document.addEventListener("click", (e) => {
     if (e.target.closest?.("[data-open-chat]")) {
       e.preventDefault();
-      openChat();
+      goAiPage();
     }
   });
   const paintAiHomeSoon = () => setTimeout(paintAiHome, 0);
@@ -1450,5 +1620,5 @@ Rules:
   for (const task of Object.keys(TASKS)) LuneAIProvider[task] = (bar, ...args) => LuneAIProvider.run(task, bar, ...args);
   window.LuneAIProvider = LuneAIProvider;
 
-  return { askModel: async (q, ctx) => { const m = active(); return m ? m.answer(q, ctx) : null; }, openChat, paintAiHome, buildChatContext, open, close, ask, historyFor, onSelection, buildContext, aiSettings, SYSTEM_PROMPT, TASKS, MODEL_ACTIONS, runTask, paintNews, voice, modelConnected: () => !!active(), deviceOfferHtml, turnOnDeviceAI, testModel: () => providers.endpoint.answer("Reply with the single word: ready", { test: true }) };
+  return { openChatPage, goAiPage, chatStore, askModel: async (q, ctx) => { const m = active(); return m ? m.answer(q, ctx) : null; }, openChat, paintAiHome, buildChatContext, open, close, ask, historyFor, onSelection, buildContext, aiSettings, SYSTEM_PROMPT, TASKS, MODEL_ACTIONS, runTask, paintNews, voice, modelConnected: () => !!active(), deviceOfferHtml, turnOnDeviceAI, testModel: () => providers.endpoint.answer("Reply with the single word: ready", { test: true }) };
 })();
