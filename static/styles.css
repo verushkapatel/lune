@@ -10271,3 +10271,43 @@ body.is-studio:not(.studio-compact).studio-search-open .top-search { flex: 0 1 3
 @media (hover: none) { .ch-del { opacity: 1; } }
 .piece-tab-close { color: var(--dim); opacity: 1; }
 .piece-tab-close:hover { color: var(--text); }
+
+/* ---------- Home: Lune AI first, one ChatGPT-style bar ---------- */
+.home-ask {
+  display: flex; align-items: center; gap: 4px; margin: 18px 0 10px; padding: 6px 6px 6px 8px; border-radius: 30px;
+  border: 1px solid var(--line); background: color-mix(in srgb, var(--text) 7%, var(--bg)); box-shadow: 0 10px 40px rgba(0, 0, 0, 0.22);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.home-ask:focus-within { border-color: var(--line-strong); box-shadow: 0 10px 40px rgba(60, 90, 200, 0.18); }
+.home-ask-orb { flex: 0 0 auto; width: 36px; height: 36px; }
+.home-ask input { flex: 1; min-width: 0; height: 44px; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; font-size: 16px; padding: 0 6px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+.home-ask input::placeholder { color: var(--dim); }
+.home-ask .lc-tool { width: 40px; min-width: 40px; padding: 0; }
+.home-ask-chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 0 22px; }
+.home-ask-chips::-webkit-scrollbar { display: none; }
+.home-ask-chips button { flex: 0 0 auto; padding: 9px 14px; border-radius: 16px; border: 1px solid var(--line); background: transparent; color: var(--text); font: inherit; font-size: 14px; cursor: pointer; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+.home-ask-chips button:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+
+/* ---------- ChatGPT's own palette for Lune AI ---------- */
+.lune-chat, .ask-lune { --cg-bg: #212121; --cg-side: #171717; --cg-bubble: #303030; --cg-input: #303030; --cg-hover: #2a2a2a; --cg-line: rgba(255,255,255,0.08); }
+[data-theme="light"] .lune-chat, [data-theme="light"] .ask-lune { --cg-bg: #ffffff; --cg-side: #f9f9f9; --cg-bubble: #f1f1f1; --cg-input: #ffffff; --cg-hover: #ececec; --cg-line: rgba(0,0,0,0.1); }
+.lune-chat, .ask-lune, .lune-chat .chat-head { background: var(--cg-bg); }
+.chat-hist { background: var(--cg-side); border-right: 0; }
+.ch-new:hover, .ch-item:hover { background: var(--cg-hover); }
+.ch-item.on { background: var(--cg-hover); }
+.ask-from-you, .chat-from-you .chat-bubble { background: var(--cg-bubble); }
+.lune-chat .lc-composer, .ask-lune .lc-composer, .lune-chat .lc-listen, .ask-lune .lc-listen { background: var(--cg-input); border-color: var(--cg-line); }
+[data-theme="light"] .lune-chat .lc-composer, [data-theme="light"] .ask-lune .lc-composer { box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+.lune-chat .chat-starters button, .ask-lune .ask-chips button { border-color: var(--cg-line); }
+/* an empty chat on a computer: the greeting and the bar sit together in the middle, as on ChatGPT */
+@media (min-width: 900px) {
+  .lune-chat.is-page.is-empty .chat-log { flex: 0 0 auto; min-height: 0; overflow: visible; margin-top: auto; }
+  .lune-chat.is-page.is-empty .chat-fine { margin-top: auto; }
+  .lune-chat.is-page.is-empty .ask-empty { padding-bottom: 8px; }
+  .lune-chat.is-page.is-empty .ask-empty-h { font-size: 28px; }
+  .lune-chat.is-page.is-empty .chat-starters { order: 3; flex-wrap: wrap; justify-content: center; -webkit-mask-image: none; mask-image: none; padding-top: 12px; }
+  .lune-chat.is-page.is-empty .chat-form { order: 2; }
+  .lune-chat.is-page.is-empty .chat-fine { order: 4; }
+}
+/* on ChatGPT's #212121 the quiet text needs to be a little brighter to stay readable */
+:root:not([data-theme="light"]) .lune-chat, :root:not([data-theme="light"]) .ask-lune { --dim: #9e9e9e; }

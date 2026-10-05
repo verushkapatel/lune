@@ -2022,6 +2022,16 @@ html[data-theme="light"] .lc-composer:focus-within {
     box-shadow: 20px 0 60px rgba(0, 0, 0, 0.115);
   }
 }
+html[data-theme="light"] .home-ask {
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.051);
+}
+html[data-theme="light"] .home-ask:focus-within {
+  box-shadow: 0 10px 40px rgba(55, 85, 195, 0.18);
+}
+html[data-theme="light"] [data-theme="light"] .lune-chat .lc-composer,
+html[data-theme="light"] [data-theme="light"] .ask-lune .lc-composer {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.018);
+}
 /* KEEP: hand fixes */
 /* --dim text reaches 4.5:1 on the page and on surfaces (was #8a8a8a, 3.4:1) */
 html[data-theme="light"] { --dim: #666666; }

@@ -1435,7 +1435,9 @@ Rules:
     // leaving the Lune AI page goes back to where the pianist was
     d.addEventListener("close", () => {
       d.classList.remove("is-page", "hist-open");
-      if (location.hash === "#/ai") history.length > 1 ? history.back() : (location.hash = "");
+      // the page underneath never changed; only the address goes back to it
+      if (location.hash === "#/ai") window.history.replaceState(null, "", `${location.pathname}${location.search}${aiReturn || ""}`);
+      aiReturn = null;
     });
     const hist = (open) => {
       d.classList.toggle("hist-open", open);
@@ -1499,6 +1501,7 @@ Rules:
     const model = active();
     const log = chatLog();
     paintHistoryList();
+    $("lune-chat")?.classList.toggle("is-empty", !!model && !log.length);
     $("chat-log").innerHTML = "";
     for (const m of log) chatLine(m.who, m.text, { via: m.via });
     $("chat-locked").hidden = !!model;
@@ -1510,7 +1513,7 @@ Rules:
     if (model && !log.length) {
       const empty = document.createElement("div");
       empty.className = "ask-empty";
-      empty.innerHTML = `<div class="ask-empty-orb"></div><p class="ask-empty-h">What are we practising?</p>`;
+      empty.innerHTML = `<div class="ask-empty-orb"></div><p class="ask-empty-h">What are we practising today?</p>`;
       $("chat-log").appendChild(empty);
       window.LuneFX?.orb(empty.querySelector(".ask-empty-orb"))?.setMode("idle");
     }
@@ -1524,6 +1527,7 @@ Rules:
     saveChat(log);
     $("chat-starters").innerHTML = "";
     $("chat-clear").hidden = false;
+    $("lune-chat")?.classList.remove("is-empty");
     chatLine("you", text);
     $("chat-log").querySelector(".ask-empty")?.remove();
     const wait = chatLine("lune", "Thinking…");
@@ -1547,10 +1551,71 @@ Rules:
     return answer;
   }
 
+  /** Ask a question on the Lune AI page, in a new chat. */
+  async function askOnPage(text) {
+    goAiPage();
+    if (!active()) return; // no account: the page explains and offers sign-in
+    await new Promise((r) => setTimeout(r, 60));
+    saveChat([]);
+    paintChat();
+    return chatAsk(text);
+  }
+
+  /*
+   * The Ask bar on Home: a question goes to the Lune AI page and is asked
+   * there; the microphone and voice chat start there too.
+   */
+  function wireHomeAsk() {
+    const form = $("home-ask");
+    if (!form || form.dataset.wired) return;
+    form.dataset.wired = "1";
+    const input = $("home-ask-input");
+    const send = form.querySelector('[data-home-ask="send"]');
+    const talk = form.querySelector('[data-home-ask="talk"]');
+    const fit = () => {
+      const has = !!input.value.trim();
+      send.hidden = !has;
+      talk.hidden = has;
+    };
+    input.addEventListener("input", fit);
+    const go = askOnPage;
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = "";
+      fit();
+      go(text);
+    });
+    form.addEventListener("click", (e) => {
+      const a = e.target.closest?.("[data-home-ask]")?.dataset.homeAsk;
+      if (a === "talk") {
+        goAiPage();
+        setTimeout(() => active() && $("chat-talk")?.click(), 120);
+      }
+      if (a === "mic") {
+        goAiPage();
+        setTimeout(() => active() && $("chat-mic")?.click(), 120);
+      }
+    });
+    $("home-ask-chips")?.addEventListener("click", (e) => {
+      const q = e.target.closest?.("[data-home-q]")?.dataset.homeQ;
+      if (q) go(q);
+    });
+    const orb = form.querySelector(".home-ask-orb");
+    if (orb && window.LuneFX && !orb.firstChild) window.LuneFX.orb(orb)?.setMode("idle");
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", wireHomeAsk, { once: true });
+  else setTimeout(wireHomeAsk, 0);
+
   /** Go to the Lune AI page: its own address, so it can be bookmarked and Back leaves it. */
+  let aiReturn = null;
   function goAiPage() {
     if (location.hash === "#/ai") openChatPage();
-    else location.hash = "#/ai";
+    else {
+      aiReturn = location.hash || "";
+      location.hash = "#/ai";
+    }
   }
   /** The Lune AI page (#/ai): the same chat, full screen, with its history at the side. */
   function openChatPage() {
@@ -1620,5 +1685,5 @@ Rules:
   for (const task of Object.keys(TASKS)) LuneAIProvider[task] = (bar, ...args) => LuneAIProvider.run(task, bar, ...args);
   window.LuneAIProvider = LuneAIProvider;
 
-  return { openChatPage, goAiPage, chatStore, askModel: async (q, ctx) => { const m = active(); return m ? m.answer(q, ctx) : null; }, openChat, paintAiHome, buildChatContext, open, close, ask, historyFor, onSelection, buildContext, aiSettings, SYSTEM_PROMPT, TASKS, MODEL_ACTIONS, runTask, paintNews, voice, modelConnected: () => !!active(), deviceOfferHtml, turnOnDeviceAI, testModel: () => providers.endpoint.answer("Reply with the single word: ready", { test: true }) };
+  return { openChatPage, goAiPage, askOnPage, chatStore, askModel: async (q, ctx) => { const m = active(); return m ? m.answer(q, ctx) : null; }, openChat, paintAiHome, buildChatContext, open, close, ask, historyFor, onSelection, buildContext, aiSettings, SYSTEM_PROMPT, TASKS, MODEL_ACTIONS, runTask, paintNews, voice, modelConnected: () => !!active(), deviceOfferHtml, turnOnDeviceAI, testModel: () => providers.endpoint.answer("Reply with the single word: ready", { test: true }) };
 })();

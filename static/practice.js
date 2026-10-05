@@ -1498,6 +1498,7 @@ window.LunePractice = (function () {
                 </select>
                 <button type="button" class="primary" data-open="${esc(p.piece_key)}">Open</button>
                 <button type="button" class="quiet" data-work="${esc(p.piece_key)}" title="See what needs work in this piece and add it to your plan">Work on it</button>
+                <button type="button" class="quiet" data-ask-piece="${esc(p.title)}"${prog ? ` data-ask-progress="${esc(window.LunePlans.progressLabel(prog))}"` : ""}>Ask Lune</button>
                 <button type="button" class="quiet" data-share-progress="${esc(p.piece_key)}" data-title="${esc(p.title)}">Share</button>
                 <button type="button" class="quiet rep-remove" hidden data-remove="${esc(p.piece_key)}" aria-label="Remove ${esc(p.title)}">Remove</button>
               </div>
@@ -1525,6 +1526,13 @@ window.LunePractice = (function () {
       }
     }
     if (!listChanged) return;
+    // Lune AI about this piece, on its page, with what Lune knows of the pianist's progress
+    listEl.querySelectorAll("[data-ask-piece]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const where = btn.dataset.askProgress ? ` I'm at: ${btn.dataset.askProgress}.` : "";
+        window.LuneAsk?.askOnPage?.(`How should I practise ${btn.dataset.askPiece} this week?${where}`);
+      });
+    });
     listEl.querySelectorAll("[data-work]").forEach((btn) => {
       btn.addEventListener("click", () => openWorkOn(btn.dataset.work).catch((err) => toast(err.message)));
     });
