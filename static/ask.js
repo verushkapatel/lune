@@ -573,6 +573,7 @@ Rules:
       said.dataset.via = "model";
     }
     addActions(said);
+    sayIfVoice(a);
     if (note) line("lune", note).classList.add("ask-note");
   }
 
@@ -619,6 +620,7 @@ Rules:
   /* ---------- the panel ---------- */
 
   const ICON = {
+    mute: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 10v4h3l4 3.5v-11L8 10H5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M16 10l4 4M20 10l-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
     menu: '<svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
     add: '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>',
     mic: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
@@ -742,6 +744,7 @@ Rules:
       P()?.stopHearing?.();
     };
     ui.addEventListener("click", finish);
+    let heard = "";
     try {
       const said = await P().hearPhrase({
         onPartial: (t) => {
@@ -754,6 +757,7 @@ Rules:
       });
       if (!cancelled) input.value = said || input.value;
       if (!cancelled && !said) toast("Lune didn’t catch that. Try again, or type.");
+      if (!cancelled && said) heard = said;
     } catch (err) {
       toast(err.message || "Type instead.");
     } finally {
@@ -764,6 +768,42 @@ Rules:
       input.dispatchEvent(new Event("input"));
       input.focus();
     }
+    // once you stop speaking, it is sent, as in ChatGPT's voice input
+    if (heard) $(`${prefix}-form`)?.requestSubmit();
+  }
+
+  document.addEventListener("click", (e) => {
+    if (e.target.closest?.(".lc-voice-toggle")) toggleVoiceReplies();
+  });
+  /* Voice replies: when on, Lune reads every answer aloud (a choice kept in this browser). */
+  const voiceReplies = () => {
+    try {
+      return localStorage.getItem("lune.voiceReplies") === "1";
+    } catch {
+      return false;
+    }
+  };
+  function voiceToggleHtml(id) {
+    const on = voiceReplies();
+    return `<button type="button" class="lc-tool lc-voice-toggle" id="${id}" aria-pressed="${on}" aria-label="Voice replies" title="Voice replies: Lune reads its answers aloud">${on ? ICON.speak : ICON.mute}</button>`;
+  }
+  function toggleVoiceReplies() {
+    const on = !voiceReplies();
+    try {
+      localStorage.setItem("lune.voiceReplies", on ? "1" : "0");
+    } catch {
+      /* private mode */
+    }
+    document.querySelectorAll(".lc-voice-toggle").forEach((b) => {
+      b.setAttribute("aria-pressed", String(on));
+      b.innerHTML = on ? ICON.speak : ICON.mute;
+    });
+    toast(on ? "Voice replies on: Lune reads its answers aloud" : "Voice replies off");
+    if (!on) P()?.stopSpeaking?.();
+  }
+  function sayIfVoice(text) {
+    // voice chat speaks for itself; this is for typed questions
+    if (text && voiceReplies() && !talking) P()?.speak?.(text);
   }
 
   /*
@@ -898,7 +938,7 @@ Rules:
           <p class="ask-title"><span class="fx-shiny">Lune AI</span></p>
           <p class="ask-where" id="ask-where"></p>
         </div>
-        <button type="button" class="lc-tool" id="ask-info" aria-expanded="false" aria-controls="ask-fine" aria-label="About these answers">${ICON.info}</button>
+        <span class="ask-head-end">${voiceToggleHtml("ask-voice")}<button type="button" class="lc-tool" id="ask-info" aria-expanded="false" aria-controls="ask-fine" aria-label="About these answers">${ICON.info}</button></span>
       </header>
       <p class="ask-fine" id="ask-fine" hidden></p>
       <div class="ask-log" id="ask-log" role="log" aria-live="polite"></div>
@@ -1187,6 +1227,7 @@ Rules:
       said.dataset.via = "model";
     }
     addActions(said);
+    sayIfVoice(out.a);
     if (out.note) line("lune", out.note).classList.add("ask-note");
     $("ask-log").scrollTop = $("ask-log").scrollHeight;
     if (out.saved) {
@@ -1419,7 +1460,7 @@ Rules:
           <h2 id="chat-h"><span class="fx-shiny">Lune AI</span></h2>
           <p class="chat-sub" id="chat-sub"></p>
         </div>
-        <button type="button" class="lc-tool chat-clear" id="chat-clear" aria-label="New chat"><svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><path d="M12 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6M17.5 3.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <span class="ask-head-end">${voiceToggleHtml("chat-voice")}<button type="button" class="lc-tool chat-clear" id="chat-clear" aria-label="New chat"><svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><path d="M12 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6M17.5 3.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span>
       </header>
       <div class="chat-log" id="chat-log" role="log" aria-live="polite"></div>
       <div class="chat-starters" id="chat-starters"></div>
@@ -1546,6 +1587,7 @@ Rules:
     log.push({ who: "lune", text: answer, via, t: Date.now() });
     saveChat(log);
     const shown = chatLine("lune", via === "model" ? "" : answer, { via });
+    if (via === "model") sayIfVoice(answer); // heard while it types
     if (via === "model" && window.LuneFX) await window.LuneFX.typeText(shown, answer);
     else shown.textContent = answer;
     return answer;

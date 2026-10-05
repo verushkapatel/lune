@@ -1785,17 +1785,42 @@ function extractTempoMap(xml) {
   const src = String(xml || "");
   if (!src) return [];
   const map = [];
-  const chunks = src.split(/(?=<measure\b)/i);
+  // Only the first part's measures: every part repeats the same tempo marks.
+  const firstPart = (src.match(/<part\b[\s\S]*?<\/part>/i) || [src])[0];
+  const chunks = firstPart.split(/(?=<measure\b)/i);
   let bar = 1;
+  let divisions = 1;
   for (const chunk of chunks) {
     const nm = chunk.match(/<measure[^>]*\bnumber\s*=\s*["'](-?\d+)/i);
-    if (nm) bar = Number(nm[1]);
+    if (!nm) continue;
+    bar = Number(nm[1]);
+    /*
+     * Walk the bar in order, keeping the position in crotchets, so a tempo change
+     * written partway through a bar (an edition's rubato, a ritardando to a
+     * fermata) starts where it is written and not at the barline.
+     */
+    let pos = 0;
     let found = false;
-    for (const m of chunk.matchAll(/<sound\b[^>]*\btempo\s*=\s*["'](\d+(?:\.\d+)?)["'][^>]*>/gi)) {
-      const bpm = Number(m[1]);
-      if (Number.isFinite(bpm) && bpm > 0) {
-        map.push({ bar, bpm });
-        found = true;
+    const tags = chunk.matchAll(/<(divisions|note|backup|forward|sound|metronome)\b([^>]*)>([\s\S]*?)<\/\1>|<(sound)\b([^>]*)\/>/gi);
+    for (const m of tags) {
+      const tag = (m[1] || m[4] || "").toLowerCase();
+      const attrs = m[2] || m[5] || "";
+      const body = m[3] || "";
+      if (tag === "divisions") {
+        divisions = Math.max(1, Number(body.trim()) || 1);
+      } else if (tag === "note") {
+        const dur = Number((body.match(/<duration>\s*(\d+(?:\.\d+)?)\s*<\/duration>/i) || [])[1]) || 0;
+        if (!/<chord\s*\/?>/i.test(body) && !/<grace\b/i.test(body)) pos += dur / divisions;
+      } else if (tag === "backup" || tag === "forward") {
+        const dur = Number((body.match(/<duration>\s*(\d+(?:\.\d+)?)\s*<\/duration>/i) || [])[1]) || 0;
+        pos += (tag === "backup" ? -dur : dur) / divisions;
+      } else if (tag === "sound") {
+        const t = attrs.match(/\btempo\s*=\s*["'](\d+(?:\.\d+)?)["']/i);
+        const bpm = t ? Number(t[1]) : 0;
+        if (Number.isFinite(bpm) && bpm > 0) {
+          map.push({ bar, off: Math.max(0, pos), bpm });
+          found = true;
+        }
       }
     }
     if (found) continue;

@@ -553,7 +553,8 @@ window.LunePractice = (function () {
       /* no speech synthesis */
     }
     const V = window.LuneAsk?.voice;
-    if (V?.available?.()) {
+    // a natural voice on the device (Siri, Edge's and Google's natural voices) sounds warmest of all
+    if (V?.available?.() && !premiumVoice()) {
       try {
         let blob = voiceCache.get(text);
         if (!blob) {
@@ -590,7 +591,7 @@ window.LunePractice = (function () {
       /* no speech synthesis */
     }
     const V = window.LuneAsk?.voice;
-    if (V?.available?.()) {
+    if (V?.available?.() && !premiumVoice()) {
       try {
         let blob = voiceCache.get(text);
         if (!blob) {
@@ -643,6 +644,7 @@ window.LunePractice = (function () {
         u.lang = voice.lang;
       } else u.lang = "en-GB";
       u.rate = Number(store.prefs().speechRate) || 1;
+      u.pitch = 1.04; // a touch warmer than flat
       // the device voice gives no level, so the orb breathes with the words instead
       let pulse = 0;
       u.onboundary = () => {
@@ -685,7 +687,7 @@ window.LunePractice = (function () {
       u.lang = "en-GB"; // never the device's own language: the text is English
     }
     u.rate = Number(store.prefs().speechRate) || 1;
-    u.pitch = 1;
+    u.pitch = 1.04; // a touch warmer than flat
     lastSpoken = text;
     u.onend = u.onerror = () => {
       // a newer utterance may already be speaking (Replay)
@@ -749,6 +751,15 @@ window.LunePractice = (function () {
    * often the oldest, most robotic one, and a non-English default reads
    * English text as gibberish.
    */
+  /** A device voice good enough to prefer over the server's: a neural or premium one. */
+  function premiumVoice() {
+    try {
+      const v = bestVoice();
+      return v && /natural|neural|premium|enhanced|siri/i.test(v.name) ? v : null;
+    } catch {
+      return null;
+    }
+  }
   function bestVoice() {
     const voices = (speechSynthesis.getVoices?.() || []).filter((v) => /^en[-_]/i.test(v.lang));
     if (!voices.length) return null;
@@ -790,14 +801,43 @@ window.LunePractice = (function () {
     const primary = bars[0];
     const wrap = document.createElement("section");
     wrap.className = "lp-coach";
+    // Short labels for the Lune AI actions, as suggestion chips
+    const SHORT = { explainBar: "Explain", whyHard: "Why it’s hard", suggestPractice: "How to practise", explainFingering: "Fingering" };
+    const many = bars.length > 1;
     wrap.innerHTML = `
       <div class="lp-teacher" hidden></div>
+      <div class="lp-askbar">
+        <span class="lp-askbar-orb" aria-hidden="true"></span>
+        <label class="visually-hidden" for="lp-ask-input">Ask Lune about bar ${primary}</label>
+        <input id="lp-ask-input" type="text" maxlength="600" placeholder="Ask Lune about bar ${primary}…" enterkeyhint="send">
+        <button type="button" class="lc-round lp-ask-go" data-lp="ask" aria-label="Ask Lune about bar ${primary}"><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      ${
+        window.LuneAsk?.modelConnected?.()
+          ? `<div class="lp-ai-row" role="group" aria-label="Lune AI on bar ${primary}">${Object.entries(window.LuneAsk.MODEL_ACTIONS)
+              .filter(([, a]) => a.bar)
+              .map(([task, a]) => `<button type="button" data-lp-task="${task}" title="${esc(a.label)}">${esc(SHORT[task] || a.label)}</button>`)
+              .join("")}</div>`
+          : ""
+      }
+      <div class="lp-tools" role="group" aria-label="Bar ${primary}">
+        <button type="button" data-lp="plan"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 12l4 4 10-10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Add to plan</span></button>
+        <button type="button" data-lp="upto" title="Mark how far through the piece you are"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 19V5M5 5h11l-2 4 2 4H5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg><span>Up to here</span></button>
+        <button type="button" data-lp="share" title="A link that opens this piece at ${many ? "these bars" : "this bar"} with your instructions"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4M5 13v6h14v-6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Share</span></button>
+      </div>
+      <div class="lp-rate">
+        <h3 class="lp-h">How did it go?</h3>
+        <div class="lp-grades" role="group" aria-label="Rate this practice">
+          ${GRADES.map(([g, label, hint]) => `<button type="button" class="lp-grade lp-${g}" data-grade="${g}" title="${esc(hint)}">${label}</button>`).join("")}
+        </div>
+        <p class="lp-due dim"></p>
+      </div>
       <h3 class="lp-h lp-h-remarks" hidden>Remarks</h3>
       <ul class="lp-notes" aria-live="polite" hidden></ul>
       <form class="lp-note-form" autocomplete="off">
         <label class="visually-hidden" for="lp-note-input">Note for bar ${primary}</label>
         <div class="lp-note-grow">
-          <textarea id="lp-note-input" rows="1" maxlength="500" placeholder="Note for bar ${primary}, or say it"></textarea>
+          <textarea id="lp-note-input" rows="1" maxlength="500" placeholder="Add a note, or say it"></textarea>
           <button type="button" class="icon-btn lp-mic" data-lp="mic" aria-label="${canListenForWords() ? "Speak a note" : "Focus note field"}" aria-pressed="false" title="${canListenForWords() ? "Speak a note" : "Type a note for this bar"}">
             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
             <span class="visually-hidden">${canListenForWords() ? "Speak" : "Type"}</span>
@@ -805,26 +845,7 @@ window.LunePractice = (function () {
         </div>
         <button type="submit" class="lp-save primary">Save</button>
       </form>
-      <div class="lp-asked" hidden></div>
-      ${
-        window.LuneAsk?.modelConnected?.()
-          ? `<div class="lp-ai-row" role="group" aria-label="Lune AI on bar ${primary}">${Object.entries(window.LuneAsk.MODEL_ACTIONS)
-              .filter(([, a]) => a.bar)
-              .map(([task, a]) => `<button type="button" class="quiet ink" data-lp-task="${task}">${esc(a.label)}</button>`)
-              .join("")}</div>`
-          : ""
-      }
-      <div class="lp-ask-row">
-        <button type="button" class="quiet ink" data-lp="ask">Ask Lune about bar ${primary}</button>
-        <button type="button" class="quiet ink" data-lp="plan">Add to my plan</button>
-        <button type="button" class="quiet ink" data-lp="share" title="A link that opens this piece at these bars with your instructions">Share ${bars.length > 1 ? "these bars" : "this bar"}</button>
-        <button type="button" class="quiet ink" data-lp="upto">I can play up to here</button>
-      </div>
-      <h3 class="lp-h">Practice · how did it go?</h3>
-      <div class="lp-grades" role="group" aria-label="Rate this practice">
-        ${GRADES.map(([g, label, hint]) => `<button type="button" class="lp-grade lp-${g}" data-grade="${g}" title="${esc(hint)}">${label}</button>`).join("")}
-      </div>
-      <p class="lp-due dim"></p>`;
+      <div class="lp-asked" hidden></div>`;
     body.appendChild(wrap);
 
     const list = wrap.querySelector(".lp-notes");
@@ -853,7 +874,7 @@ window.LunePractice = (function () {
         const cards = (await store.listCards(key)).filter((c) => bars.includes(c.bar));
         if (token !== coachToken) return;
         if (!cards.length) {
-          dueEl.textContent = "Rate it after you practise. Lune brings it back at the right time.";
+          dueEl.textContent = "";
           return;
         }
         const c = cards.sort((a, b) => a.due_at.localeCompare(b.due_at))[0];
@@ -862,6 +883,14 @@ window.LunePractice = (function () {
         dueEl.textContent = "";
       }
     };
+    wrap.querySelector("#lp-ask-input")?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.isComposing) {
+        e.preventDefault();
+        wrap.querySelector('[data-lp="ask"]')?.click();
+      }
+    });
+    const orbHost = wrap.querySelector(".lp-askbar-orb");
+    if (orbHost && window.LuneFX) window.LuneFX.orb(orbHost)?.setMode("idle");
     renderNotes();
     renderDue();
     // what was asked about this bar before, so the answers are not lost
@@ -889,7 +918,15 @@ window.LunePractice = (function () {
       if (!btn) return;
       if (btn.dataset.lpTask) window.LuneAsk?.runTask?.(btn.dataset.lpTask, primary);
       else if (btn.dataset.lp === "aloud") readSelectedAloud();
-      else if (btn.dataset.lp === "ask") window.LuneAsk?.open?.({ bar: primary });
+      else if (btn.dataset.lp === "ask") {
+        const q = wrap.querySelector("#lp-ask-input");
+        const text = (q?.value || "").trim();
+        window.LuneAsk?.open?.({ bar: primary });
+        if (text) {
+          q.value = "";
+          window.LuneAsk?.ask?.(text);
+        }
+      }
       else if (btn.dataset.lp === "share") openAssignDialog(bars);
       else if (btn.dataset.lp === "upto") {
         const key = keyFor(state.piece);
