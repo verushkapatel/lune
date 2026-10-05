@@ -137,6 +137,10 @@ Rules:
     return { endpoint: endpoint.trim(), model: model.trim() };
   }
 
+  /** Lune computes fingering; it does not read the edition's. Every model is told so in its context. */
+  const FINGERING_NOTE =
+    "Finger numbers here are Lune's suggested fingering, worked out from the notes by Lune. They are not printed in the pianist's edition. Call them suggested fingering.";
+
   /** Everything Lune knows that is relevant to this question, as plain data. */
   async function buildContext(bar) {
     const p = state.piece || {};
@@ -169,6 +173,7 @@ Rules:
         .map((c) => ({ bar: c.bar, timesReviewed: c.reps ?? null, lastRating: c.last_grade || c.grade || null, nextReview: c.due_at })),
       plans: tasks.map((t) => ({ bars: t.bars, summary: t.plan?.summary || t.notes, done: !!t.done })),
       earlierQuestions: (bar ? historyFor(bar) : history()).slice(-4).map((h) => ({ question: h.q, answer: h.a })),
+      fingeringNote: FINGERING_NOTE,
     };
     // bars the pianist keeps finding hard (from their own ratings)
     const struggling = cards.filter((c) => (c.lapses || 0) >= 2 || /again|hard/i.test(String(c.last_grade || ""))).map((c) => c.bar);
@@ -494,7 +499,8 @@ Rules:
     // questions about one bar
     const lines = [];
     if (/\bfinger/.test(t)) {
-      lines.push(fingerLine(d.rh, "Right hand"), fingerLine(d.lh, "Left hand"));
+      lines.push(fingerLine(d.rh, "Suggested fingering, right hand"), fingerLine(d.lh, "Suggested fingering, left hand"));
+      if (lines.filter(Boolean).length) lines.push("Lune works this fingering out from the notes. Your edition may print different fingers.");
       const why = [...(d.rh || []), ...(d.lh || [])].map((n) => n.fingeringNote).filter(Boolean)[0];
       if (why) lines.push(`Why: ${why}.`);
       if (!lines.filter(Boolean).length) lines.push("No fingering is suggested for this bar.");
@@ -581,7 +587,7 @@ Rules:
       if (!on) continue;
       const fine = box.querySelector("[data-ai-news-fine]");
       if (fine) {
-        fine.textContent = `Free with a Lune account, with nothing to download. Answers come from ${aiName()}, an open-weight model, on Lune’s server. Lune sends it the score facts and your question and keeps nothing. Built with Llama.`;
+        fine.textContent = `Free with a Lune account, with nothing to download. Answers come from ${aiName()}, an open-weight model, on Lune’s server. Lune’s server passes it the score facts and your question to write the answer and stores neither. Built with Llama.`;
       }
       const btn = box.querySelector("[data-ai-news-open]");
       if (btn) btn.textContent = st.mode === "cloud" ? "Try it on Clair de lune" : st.signedIn ? "Confirm your account" : "Create a free account";
@@ -683,7 +689,7 @@ Rules:
       fine.textContent = providers.endpoint.available()
         ? `Local model connected (${aiSettings().model}). Questions go to it with this bar’s score facts and your remarks.`
         : providers.account.available()
-          ? `Lune AI is on: ${aiName()}, an open-weight model on Lune’s server. Questions go there with this bar’s score facts and your remarks. Lune does not keep them.`
+          ? `Lune AI is on: ${aiName()}, an open-weight model on Lune’s server. Questions go there with this bar’s score facts and your remarks; Lune’s server stores none of it. Your questions and answers are saved only in this browser.`
           : providers.device.available()
           ? `Lune AI is on. ${D().MODEL.name} runs in this browser and answers from this bar’s score facts and your remarks. Nothing you ask leaves this device.`
           : "These are Lune’s built-in answers, worked out from the score and your remarks. They are not from a language model. Nothing is sent anywhere.";
@@ -844,6 +850,11 @@ Rules:
       }
       shown.remove();
     }
+    // every answer says where it came from: the score through Lune's rules, or a language model
+    const src = document.createElement("p");
+    src.className = `ask-src ask-src-${out.via === "model" ? "ai" : "rules"}`;
+    src.textContent = out.via === "model" ? "Lune AI · a language model, can be wrong" : out.question ? "Built-in answer, read from the score" : "Lune";
+    $("ask-log").appendChild(src);
     const said = line("lune", out.a);
     if (out.via === "model") said.dataset.via = "model";
     if (out.note) line("lune", out.note).classList.add("ask-note");
@@ -971,6 +982,7 @@ Rules:
       thisWeek: week ? { daysPractised: week.days, goalDays: week.goalDays, minutes: week.mins, barsRatedGoodOrStrong: week.good, barsRatedHardOrAgain: week.hard, barsWorked: week.barsWorked } : null,
       barsStillHard: hardNow,
       goal: { daysPerWeek: prefs.practiceDays || null, minutesPerSession: prefs.practiceMins || null, workingToward: prefs.dreamPiece?.title || null, level: prefs.grade ?? null },
+      fingeringNote: FINGERING_NOTE,
       conversation: log.slice(-6).map((m) => ({ from: m.who === "you" ? "pianist" : "lune", text: String(m.text).slice(0, 600) })),
     };
     if (state.piece) {
@@ -1097,7 +1109,7 @@ Rules:
     $("chat-starters").innerHTML = model && !log.length ? CHAT_STARTERS.map((q) => `<button type="button" data-starter="${esc(q)}">${esc(q)}</button>`).join("") : "";
     $("chat-sub").textContent = model ? "Your Repertoire, plans and week, with Lune AI" : "Needs a free Lune account";
     $("chat-fine").textContent = model
-      ? `Answers come from ${model.label()}. Lune sends it your question, this chat’s last few turns, and a summary of your Repertoire, plans and week, and keeps nothing on the server. Answers can be wrong.`
+      ? `Answers come from ${model.label()}. Lune sends it your question, this chat’s last few turns, and a summary of your Repertoire, plans and week. Lune’s server stores none of it, and this chat is saved only in this browser. Answers can be wrong.`
       : "";
   }
 

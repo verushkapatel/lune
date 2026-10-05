@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- lune12 -->
-  <!-- deploy-lune12 -->
-  <!-- deploy-lune12 -->
+  <!-- lune13 -->
+  <!-- deploy-lune13 -->
+  <!-- deploy-lune13 -->
 
 <meta charset="UTF-8">
   <script>
@@ -34,13 +34,13 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Lune">
-  <link rel="icon" href="static/assets/favicon.svg?v=lune12" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=lune12">
+  <link rel="icon" href="static/assets/favicon.svg?v=lune13" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=lune13">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2?v=lune12" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="static/styles.css?v=lune12">
-  <link rel="stylesheet" href="static/theme-light.css?v=lune12">
-  <link rel="preload" href="static/search-index.json?v=lune12" as="fetch" crossorigin>
+  <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2?v=lune13" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="static/styles.css?v=lune13">
+  <link rel="stylesheet" href="static/theme-light.css?v=lune13">
+  <link rel="preload" href="static/search-index.json?v=lune13" as="fetch" crossorigin>
 </head>
 <body>
   <div id="app">
@@ -122,126 +122,40 @@
       <!-- Signed-in studio home (shown when body.is-signed-in) -->
       <div class="home-member" id="home-member" hidden>
         <section class="member-hero" aria-label="Your studio">
-          <div class="member-lockup" aria-label="Lune">
-            <svg class="lune-mark member-mark" viewBox="0 0 40 40" width="56" height="56" aria-hidden="true" focusable="false">
-              <path fill="currentColor" d="M26.2 7.2c-5.9.9-10.4 6-10.4 12.1 0 6.1 4.5 11.2 10.4 12.1A12.2 12.2 0 0 1 14 19.3c0-6.6 5.2-12 11.8-12.2.1 0 .3 0 .4 0z"/>
-            </svg>
-            <p class="member-brand">Lune</p>
+          <p class="member-kicker" id="member-today">Today</p>
+          <h1 class="member-title" id="member-greeting">Welcome back.</h1>
+          <section class="member-next" id="member-next" aria-labelledby="member-next-h" aria-live="polite">
+            <p class="member-next-k">Next</p>
+            <h2 id="member-next-h">Finding where you left off…</h2>
+          </section>
+          <p class="member-streak" id="member-streak"></p>
+          <div class="member-quick" role="group" aria-label="Elsewhere in Lune">
+            <button type="button" class="quiet" id="btn-member-search">Find a score</button>
+            <button type="button" class="quiet" id="btn-member-week">This week</button>
+            <button type="button" class="quiet" data-open-chat id="btn-member-chat">Chat with Lune</button>
           </div>
-          <p class="member-kicker">Your studio</p>
-          <h1 class="member-title">So practice feels right again.</h1>
-          <p class="member-streak" id="member-streak" aria-live="polite"></p>
-          <p class="member-lead" id="member-lead">Named for Clair de lune — a night studio shaped around the pieces you chose.</p>
-          <div class="lune-ai-home" data-ai-home></div>
+          <p class="member-lead" id="member-lead" hidden></p>
           <div class="home-continue member-continue" id="member-continue" hidden></div>
-          <div class="member-cta-row">
-            <button type="button" class="primary" id="btn-member-search">Search the catalogue</button>
-            <button type="button" class="quiet" id="btn-member-install" data-install>Install Lune</button>
-          </div>
-        </section>
-
-        <section class="member-tonight" id="member-tonight" aria-labelledby="member-tonight-h">
-          <p class="about-kicker">Tonight</p>
-          <h2 id="member-tonight-h">When practice feels lost</h2>
-          <p class="member-section-lead" id="member-tonight-body">Rate a bar after you practise it, or ask Lune to add it to your plan. The bars that need you come back here.</p>
-          <button type="button" class="primary" id="btn-member-tonight">Make tonight’s plan</button>
         </section>
 
         <section class="member-recs" id="member-recs" aria-labelledby="member-recs-h">
-          <p class="about-kicker">For you</p>
-          <h2 id="member-recs-h">Recommended for you</h2>
+          <h2 id="member-recs-h">For you</h2>
           <p class="member-section-lead" id="member-recs-lead">From the composers, level, and dream piece you shared.</p>
           <div class="member-rec-grid" id="member-rec-grid"></div>
         </section>
 
         <section class="member-week" id="member-week" aria-labelledby="member-week-h">
-          <p class="about-kicker">This week</p>
-          <h2 id="member-week-h">A quiet review</h2>
-          <p class="member-section-lead">Days against your goal, honest sessions, and the bars that asked for you.</p>
+          <h2 id="member-week-h">How This week works</h2>
           <ul class="member-week-how">
-            <li>Set the days and minutes you mean to practise in Settings, under Your week.</li>
-            <li>A day counts when you rate a bar, finish a task or open a piece to practise.</li>
+            <li>Set the days you mean to practise in Settings, under Practice.</li>
+            <li>A day counts when you rate a bar or finish a task. Opening a piece does not, and Lune does not time you.</li>
             <li>Share this week makes a read-only page for a teacher or parent. Invite sends the same page to someone who might join.</li>
           </ul>
-          <div class="member-week-actions">
-            <button type="button" class="quiet" id="btn-member-week">Open this week</button>
-            <button type="button" class="link-btn" id="btn-member-week-example">See an example week</button>
-          </div>
+          <button type="button" class="link-btn" id="btn-member-week-example">See an example week</button>
         </section>
 
-        <section class="member-features" aria-labelledby="member-feat-h">
-          <p class="about-kicker">Inside Lune</p>
-          <h2 id="member-feat-h">What you have</h2>
-          <p class="member-section-lead">The studio tools — open a piece and they’re waiting under the score.</p>
-          <div class="member-feat-stack">
-            <article class="member-feat-chapter">
-              <div class="member-feat-copy">
-                <p class="about-kicker">01 · Annotate</p>
-                <h3>Every note, named.</h3>
-                <p>Letter names and fingerings sit under the staff in their own lane — never painted on the heads — so the page stays readable while you learn.</p>
-              </div>
-              <figure class="member-feat-frame" aria-hidden="true">
-                <div class="mf-staffs"><i></i><i></i><i></i><i></i></div>
-                <div class="mf-labels"><span>G♯</span><span>C♯</span><span>E</span><span>B♭</span></div>
-              </figure>
-            </article>
-            <article class="member-feat-chapter member-feat-flip">
-              <div class="member-feat-copy">
-                <p class="about-kicker">02 · Hear</p>
-                <h3>Your tempo. The original marked.</h3>
-                <p>Play at a calm practice pace. The slider keeps the score’s bpm visible so you always know where “real” sits. The playhead follows the bar.</p>
-              </div>
-              <figure class="member-feat-frame mf-hear" aria-hidden="true">
-                <div class="mf-staffs"><i></i><i></i><i></i><i></i></div>
-                <div class="mf-playhead"></div>
-                <p class="mf-tempo">72 bpm · practising at 54</p>
-              </figure>
-            </article>
-            <article class="member-feat-chapter">
-              <div class="member-feat-copy">
-                <p class="about-kicker">03 · Piano</p>
-                <h3>Falling notes onto real keys.</h3>
-                <p>Hard bars make more sense under the hands. Filter right, left, or both — only the notes that just attacked light the keyboard.</p>
-              </div>
-              <figure class="member-feat-frame mf-piano" aria-hidden="true">
-                <div class="mf-fall"><b></b><b class="lh"></b><b></b><b class="lh"></b></div>
-                <div class="mf-keys"><i class="on"></i><i></i><i class="on"></i><i></i><i></i><i class="on"></i><i></i></div>
-              </figure>
-            </article>
-            <article class="member-feat-chapter">
-              <div class="member-feat-copy">
-                <p class="about-kicker">04 · Ask Lune</p>
-                <h3>Tap the bar that won’t sit.</h3>
-                <p>Help opens beside the page you tapped — what’s in the bar, suggested fingers, and a quiet way to work it. Speak or type a note for later.</p>
-              </div>
-              <figure class="member-feat-frame mf-ask" aria-hidden="true">
-                <div class="mf-staffs"><i></i><i></i><i></i></div>
-                <aside class="mf-coach"><strong>Bar 15</strong><span>LH quiet under the melody</span></aside>
-              </figure>
-            </article>
-            <article class="member-feat-chapter member-feat-flip">
-              <div class="member-feat-copy">
-                <p class="about-kicker">05 · Notes &amp; Repertoire</p>
-                <h3>What you’d forget, kept.</h3>
-                <p>Speak or jot thoughts on a bar. Plans and Today’s bars sync when you’re signed in — no ads, no payments.</p>
-              </div>
-              <figure class="member-feat-frame mf-rep" aria-hidden="true">
-                <p class="mf-tempo">Tonight’s 30 minutes</p>
-                <div class="mf-stumble"><em>Bars 7 · 12 · 24</em></div>
-              </figure>
-            </article>
-            <article class="member-feat-chapter">
-              <div class="member-feat-copy">
-                <p class="about-kicker">05 · Easy read &amp; Braille</p>
-                <h3>Letters that refuse to blur.</h3>
-                <p>Atkinson Hyperlegible under the staff when names mix up. When a library piece has a braille file, download is one quiet chip away.</p>
-              </div>
-              <figure class="member-feat-frame mf-easy" aria-hidden="true">
-                <p class="mf-easy-sample">G♯ · C♯ · E · B♭</p>
-                <p class="mf-tempo">Aa · Braille · .brf</p>
-              </figure>
-            </article>
-          </div>
+        <section class="member-ai" aria-label="Lune AI">
+          <div class="lune-ai-home" data-ai-home></div>
         </section>
 
     <section class="home-feedback" id="member-feedback" aria-labelledby="member-feedback-h" data-reveal>
@@ -259,6 +173,10 @@
             <path fill="currentColor" d="M26.2 7.2c-5.9.9-10.4 6-10.4 12.1 0 6.1 4.5 11.2 10.4 12.1A12.2 12.2 0 0 1 14 19.3c0-6.6 5.2-12 11.8-12.2.1 0 .3 0 .4 0z"/>
           </svg>
           <p class="home-footer-line">Lune · so practice feels right again</p>
+          <p class="member-footer-links">
+            <button type="button" class="link-btn" data-show-story>See everything Lune can do</button> ·
+            <button type="button" class="link-btn" id="btn-member-install" data-install>Install Lune</button>
+          </p>
           <p class="fine-print home-footer-legal member-footer-actions">
             <button type="button" class="link-btn" id="btn-footer-share">Share this week</button> ·
             <button type="button" class="link-btn" id="btn-footer-invite">Invite</button>
@@ -642,7 +560,7 @@
           </article>
         </div>
 
-        <p class="ai-truth" data-reveal>Lune AI is Llama 3.3 70B, an open-weight model from Meta, running on Lune’s server, with the smaller Llama 3.1 8B standing in when it is busy. Lune gives it the facts it read from your score, your remarks and your question, and keeps nothing. It comes free with a Lune account. Answers can be wrong, so the score always has the last word. Without an account, Ask Lune still answers from the score with Lune’s built-in rules. Built with Llama.</p>
+        <p class="ai-truth" data-reveal>Lune AI is Llama 3.3 70B, an open-weight model from Meta, running on Lune’s server, with the smaller Llama 3.1 8B standing in when it is busy. Lune gives it the facts it read from your score, your remarks and your question; Lune’s server stores none of it, and your chats stay in your browser. It comes free with a Lune account. Answers can be wrong, so the score always has the last word. Without an account, Ask Lune still answers from the score with Lune’s built-in rules. Built with Llama.</p>
       </section>
 
       <section class="home-for" id="for" aria-labelledby="home-for-h" data-reveal>
@@ -796,8 +714,8 @@
                   <input type="radio" name="score-anno" id="anno-notes" value="notes" checked>
                   <span>Notes</span>
                 </label>
-                <label class="anno-opt">
-                  <input type="radio" name="score-anno" id="anno-fingers" value="fingers">
+                <label class="anno-opt" title="Lune’s suggested fingering, worked out from the notes. Your edition may print different fingers.">
+                  <input type="radio" name="score-anno" id="anno-fingers" value="fingers" aria-describedby="anno-fingers-note">
                   <span>Fingers</span>
                 </label>
                 <label class="anno-opt">
@@ -818,6 +736,7 @@
           </div>
           <button type="button" class="quiet score-kbd-toggle" id="btn-toggle-kbd" aria-pressed="false" title="Show or hide the piano under the score"><span class="kbd-tog-label">Show piano</span></button>
           <span id="stage-label" class="visually-hidden">Score</span>
+          <span id="anno-fingers-note" class="visually-hidden">Suggested fingering, worked out by Lune from the notes. Your edition may print different fingers.</span>
         </div>
 
         <div class="score-scroll" id="score-scroll" tabindex="0" role="region" aria-label="Score. Arrow keys move bar by bar, Home and End go to the first and last bar, Enter opens the bar, Escape closes it.">
@@ -1028,7 +947,7 @@
       <li>Scores you upload are read inside your browser. They leave your device only if you add them to your Repertoire while signed in, and then only into your private storage.</li>
       <li>The microphone (Ask Lune, voice remarks) is used only while you ask Lune to listen. Audio is analysed in the browser and never recorded or uploaded; voice notes may use your browser’s built-in speech recognition, which can be provided by its maker (for example Google in Chrome, Apple in Safari).</li>
       <li>Under 13? Ask a parent or guardian before making an account.</li>
-      <li>Lune AI (for people with an account): when you ask it something, your question, the score facts for that bar or piece, and your remarks, ratings and plans for that piece are sent to Lune’s server on Cloudflare, which passes them to the model and sends back the answer. Lune does not keep them. Signed out, Lune AI is off.</li>
+      <li>Lune AI (for people with an account): when you ask it something, your question, the score facts for that bar or piece, and your remarks, ratings and plans for that piece are sent to Lune’s server on Cloudflare, which passes them to the model (run by Cloudflare Workers AI) and sends back the answer. Lune’s server does not store or log them; Cloudflare describes its own handling in its Workers AI terms. Your questions, answers and chats are saved only in this browser. Signed out, Lune AI is off.</li>
       <li>Ask Lune’s built-in answers are worked out on your device and nothing you ask is sent anywhere. If you connect a local model in Settings (for example Ollama on your own computer), your question, the score facts for that bar, your remarks, ratings and plans for that piece go to the address you entered and nowhere else. With a model on your own computer, that address is your own machine. If you ever enter an address on another computer, that data is sent there.</li>
       <li>Remarks, ratings, plans and your Repertoire stay in this browser unless you sign in; signed in, they are stored under your account. A share only ever contains the text shown in “What will be shared”, which you can edit first.</li>
       <li>The reading study records only a participant code, answers and timings — never names.</li>
@@ -1043,23 +962,23 @@
   <script src="static/vendor/opensheetmusicdisplay.min.js"></script>
   <script src="static/vendor/pdf.min.js"></script>
   <script src="static/vendor/Tone.js"></script>
-  <script src="static/piano.js?v=lune12"></script>
-  <script src="static/annotate.js?v=lune12"></script>
-  <script src="static/lite-analyze.js?v=lune12"></script>
-  <script src="static/fetch-score.js?v=lune12"></script>
-  <script src="static/lyric-lane.js?v=lune12"></script>
-  <script src="static/menu.js?v=lune12"></script>
-  <script src="static/lune-config.js?v=lune12"></script>
-  <script src="static/store.js?v=lune12"></script>
-  <script src="static/onboard.js?v=lune12"></script>
-  <script src="static/impact.js?v=lune12"></script>
-  <script src="static/feedback.js?v=lune12"></script>
-  <script src="static/ai-device.js?v=lune12"></script>
-  <script src="static/ask.js?v=lune12"></script>
-  <script src="static/app.js?v=lune12"></script>
-  <script src="static/landing-score.js?v=lune12"></script>
-  <script src="static/practice.js?v=lune12"></script>
-  <script src="static/study.js?v=lune12"></script>
-  <script src="static/install.js?v=lune12"></script>
+  <script src="static/piano.js?v=lune13"></script>
+  <script src="static/annotate.js?v=lune13"></script>
+  <script src="static/lite-analyze.js?v=lune13"></script>
+  <script src="static/fetch-score.js?v=lune13"></script>
+  <script src="static/lyric-lane.js?v=lune13"></script>
+  <script src="static/menu.js?v=lune13"></script>
+  <script src="static/lune-config.js?v=lune13"></script>
+  <script src="static/store.js?v=lune13"></script>
+  <script src="static/onboard.js?v=lune13"></script>
+  <script src="static/impact.js?v=lune13"></script>
+  <script src="static/feedback.js?v=lune13"></script>
+  <script src="static/ai-device.js?v=lune13"></script>
+  <script src="static/ask.js?v=lune13"></script>
+  <script src="static/app.js?v=lune13"></script>
+  <script src="static/landing-score.js?v=lune13"></script>
+  <script src="static/practice.js?v=lune13"></script>
+  <script src="static/study.js?v=lune13"></script>
+  <script src="static/install.js?v=lune13"></script>
 </body>
 </html>

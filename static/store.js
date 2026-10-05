@@ -759,28 +759,35 @@ window.LuneStore = (function () {
     const since = dayKey(new Date(Date.now() - sinceDays * DAY));
     return rows.filter((r) => r.day >= since);
   }
+  /*
+   * This week, from what Lune actually records:
+   * - a practice day is a day you rated a bar or finished a task in Lune (on any of your devices);
+   * - a session is one piece practised on one day;
+   * - Lune does not time practice, so there are no minutes here.
+   * Opening a piece or pressing Play does not count.
+   */
   function weekSnapshot(week = weekStartKey()) {
-    const rows = listActivity({ week });
-    const days = new Set(rows.map((r) => r.day));
-    const sessions = rows.filter((r) =>
-      r.kind === "practice" || r.kind === "follow" || r.kind === "review" || r.kind === "task" || r.kind === "tonight"
-    ).length;
-    const mins = rows.reduce((n, r) => n + (Number(r.mins) || 0), 0);
-    const rated = (...g) => rows.filter((r) => r.kind === "review" && g.includes(normGrade(r.grade))).length;
+    const rows = listActivity({ week }).filter((r) => r.kind === "review" || r.kind === "task" || r.kind === "practice");
+    // a task finished in this week counts even where its activity row was never recorded (older data)
+    const finished = (readLocal().tasks || []).filter((t) => t.done && t.done_at && weekStartKey(new Date(t.done_at)) === week);
+    const days = new Set([...rows.map((r) => r.day), ...finished.map((t) => dayKey(new Date(t.done_at)))]);
+    const sessionKeys = new Set([...rows.map((r) => `${r.day}|${r.piece_key}`), ...finished.map((t) => `${dayKey(new Date(t.done_at))}|${t.piece_key || ""}`)]);
+    const reviews = rows.filter((r) => r.kind === "review");
+    const rated = (...g) => reviews.filter((r) => g.includes(normGrade(r.grade))).length;
     const good = rated("good", "strong");
     const okay = rated("okay");
     const hard = rated("again", "hard");
-    const barsWorked = new Set(
-      rows.filter((r) => r.bar != null && Number(r.bar) > 0).map((r) => `${r.piece_key}:${r.bar}`)
-    ).size;
+    const barsWorked = new Set(reviews.filter((r) => r.bar != null && Number(r.bar) > 0).map((r) => `${r.piece_key}:${r.bar}`)).size;
     const goalDays = Number(prefs().practiceDays) || 4;
     const goalMins = Number(prefs().practiceMins) || 30;
     return {
       week,
       days: days.size,
       goalDays,
-      sessions,
-      mins,
+      sessions: sessionKeys.size,
+      mins: 0,
+      ratings: reviews.length,
+      tasksDone: finished.length,
       barsWorked,
       goalMinsPerSession: goalMins,
       good,
@@ -1015,7 +1022,29 @@ window.LuneStore = (function () {
     const d = readLocal();
     out.planTasks = (d.tasks || []).slice(0, 150);
     out.removedTaskIds = (d.removedTaskIds || []).slice(-300);
+    // the last five weeks of practice evidence, so This week reads the same on every device
+    const since = dayKey(new Date(Date.now() - 35 * DAY));
+    out.recentActivity = (d.activity || [])
+      .filter((r) => r.day >= since)
+      .slice(-600)
+      .map(({ id, kind, piece_key, bar, grade, day, week, created_at }) => ({ id, kind, piece_key, bar, grade, day, week, created_at }));
     return out;
+  }
+  /** Practice evidence from another device joins this one's, each event once. */
+  function mergeActivity(d, remote) {
+    const incoming = Array.isArray(remote.recentActivity) ? remote.recentActivity : [];
+    if (!incoming.length) return false;
+    d.activity = d.activity || [];
+    const have = new Set(d.activity.map((r) => r.id));
+    let added = 0;
+    for (const r of incoming) {
+      if (!r?.id || have.has(r.id) || !r.day || !r.week) continue;
+      d.activity.push({ mins: 0, ...r });
+      have.add(r.id);
+      added++;
+    }
+    if (added) d.activity.sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+    return added > 0;
   }
   /** Put plans from another device together with this one's: newest state of each plan wins. */
   function mergePlanTasks(d, remote) {
@@ -1083,9 +1112,11 @@ window.LuneStore = (function () {
           if (locLen && locLen >= remLen) merged[key] = loc;
         }
         const plansChanged = mergePlanTasks(d, remotePrefs);
+        const activityChanged = mergeActivity(d, remotePrefs);
         delete merged.planTasks;
         delete merged.removedTaskIds;
-        changed = plansChanged || stable(merged) !== stable(local);
+        delete merged.recentActivity;
+        changed = plansChanged || activityChanged || stable(merged) !== stable(local);
         d.prefs = merged;
       });
       if (changed) emit();
@@ -1124,6 +1155,7 @@ window.LuneStore = (function () {
 
   return {
     mergePlanTasks,
+    mergeActivity,
     prefsForCloud,
     accessToken,
     GRADES,

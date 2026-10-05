@@ -9704,3 +9704,81 @@ body.is-studio #studio, body.is-home #home, body.is-repertoire #repertoire { ani
 .settings-dialog .lp-switch small { font-size: 13px; }
 .settings-dialog .settings-goal { margin: 0 0 12px 4px; }
 .settings-dialog .settings-theme { margin: 0 0 6px; }
+
+/* ================================================================
+   lune13: tokens for one restrained navy accent, used for the single
+   primary action on a screen, keyboard focus and the active choice.
+   Dark: navy fill #22396b with white text (11:1); focus #8ea6dc on near-black (8:1).
+   Light values are set in scripts/build_light_theme.py (KEEP).
+   ================================================================ */
+:root {
+  --navy: #22396b;
+  --navy-ink: #ffffff;
+  --navy-soft: #121b2d;
+  --navy-line: #8ea6dc;
+  --focus: #8ea6dc;
+}
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* the signed-in home: today, one next step, then everything else */
+.member-hero { padding: clamp(28px, 6vh, 64px) 20px 24px; max-width: 720px; }
+.member-kicker { margin: 0 0 6px; }
+.member-title { font-size: clamp(30px, 6vw, 44px); margin: 0 0 22px; }
+.member-next {
+  position: relative; margin: 0 0 14px; padding: 22px 22px 20px; border-radius: 20px;
+  background: var(--navy-soft); border: 1px solid color-mix(in srgb, var(--navy-line) 35%, transparent);
+  animation: lune-rise 0.5s var(--ease-out, ease) both;
+}
+.member-next-k { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--navy-line); font-weight: 500; }
+.member-next h2 { margin: 0 0 4px; font-family: var(--serif); font-weight: 400; font-size: clamp(24px, 5vw, 32px); line-height: 1.15; letter-spacing: -0.01em; }
+.member-next-detail { margin: 0 0 6px; font-size: 16px; color: var(--text); }
+.member-next-why { margin: 0 0 18px; color: var(--muted); font-size: 14.5px; line-height: 1.5; max-width: 52ch; }
+.member-next-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.member-next-actions .primary { background: var(--navy); color: var(--navy-ink); border-color: var(--navy); min-height: 48px; padding: 0 22px; font-size: 15px; }
+.member-next-actions .primary:hover { filter: brightness(1.12); }
+.member-next-actions .quiet { min-height: 48px; }
+.member-streak { margin: 0 0 14px 2px; color: var(--muted); }
+.member-quick { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; }
+.member-quick .quiet { min-height: 44px; padding: 0 16px; font-size: 14px; }
+.member-recs, .member-week, .member-ai { max-width: 720px; margin: 0 auto; padding: 28px 20px; }
+.member-recs h2, .member-week h2 { margin: 0 0 6px; font-family: var(--serif); font-weight: 400; font-size: 24px; }
+.member-week { padding-top: 8px; }
+.member-week h2 { font-size: 18px; font-family: inherit; font-weight: 500; }
+.member-week .member-week-how { font-size: 14px; margin: 8px 0 10px; }
+.member-ai .lune-ai-home { margin: 0; }
+.member-footer-links { margin: 6px 0 0; font-size: 13px; color: var(--dim); }
+@media (max-width: 640px) {
+  .member-hero { padding-top: 22px; }
+  .member-next { padding: 20px 18px 18px; }
+  .member-next-actions .primary { width: 100%; justify-content: center; }
+  .member-quick .quiet { flex: 1 1 auto; }
+}
+/* guests in the app already have a sign-in card on their home */
+body.is-app #keep-account-banner { display: none !important; }
+/* where an answer came from, above the answer */
+.ask-src { margin: 10px 0 -2px; font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); }
+.ask-src-ai { color: var(--navy-line); }
+
+/* lune13: phone studio touch targets at 40-44 px; Listen lives in the bar panel on phones */
+@media (max-width: 640px) {
+  body.is-studio header.bar .brand { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  body.is-studio header.bar #btn-bookmark { height: 40px; min-height: 40px; }
+  body.is-studio header.bar #btn-share, body.is-studio header.bar #btn-settings { width: 40px; height: 40px; min-height: 40px; }
+  body.is-studio .studio-seg { height: 44px; padding: 4px; }
+  body.is-studio .studio-tab { height: 36px; }
+  body.is-studio .anno-seg { height: 40px; }
+  body.is-studio .anno-opt span { line-height: 36px; min-height: 36px; padding: 0 10px; }
+  body.is-studio .score-tools-head .access-chip { height: 40px; min-height: 40px; min-width: 40px; }
+  body.is-studio .score-kbd-toggle { width: 40px; height: 40px; min-height: 40px; }
+  body.is-studio #btn-listen { display: none; }
+  body.is-studio #btn-tell { height: 44px; min-height: 44px; }
+}
+@media (max-width: 400px) {
+  body.is-studio header.bar #btn-bookmark .lp-add-label { display: none; }
+  body.is-studio header.bar #btn-bookmark::after { content: "Save"; font-size: 13px; }
+  body.is-studio header.bar #btn-bookmark[aria-pressed="true"]::after { content: "Saved"; }
+  body.is-studio header.bar #btn-bookmark { padding: 0 12px; }
+}

@@ -1334,15 +1334,15 @@ window.LunePractice = (function () {
             return `<article class="rep-plan-card" data-task="${esc(t.id)}">
               <div class="rep-plan-top">
                 <h3>${esc(t.title)}</h3>
-                <p class="rep-card-meta"><span class="task-origin task-origin-${t.plan?.source && t.plan.source !== "self" ? "lune" : "you"}">${t.plan?.ai ? "Planned with Lune AI" : t.plan?.source && t.plan.source !== "self" ? "Suggested by Lune" : "Written by you"}</span> · ${t.bars?.length ? esc(barsText(t.bars)) : "Notes only"}${t.composer ? ` · ${esc(t.composer)}` : ""}</p>
+                <p class="rep-card-meta"><span class="task-origin task-origin-${taskOrigin(t).who}">${taskOrigin(t).label}</span> · ${t.bars?.length ? esc(barsText(t.bars)) : "Notes only"}${t.composer ? ` · ${esc(t.composer)}` : ""}</p>
               </div>
               <p class="rep-plan-summary">${esc(t.plan?.summary || t.notes || "")}</p>
               ${steps ? `<ol class="rep-plan-steps">${steps}</ol>` : ""}
               ${t.plan?.ai ? `<p class="rep-plan-ai">${esc(t.plan.ai)}</p>` : ""}
               <div class="rep-plan-actions">
-                <button type="button" class="primary" data-open="${esc(t.piece_key)}" ${t.bars?.[0] ? `data-bar="${t.bars[0]}"` : ""}>Open</button>
-                <button type="button" class="quiet" data-task-done="${esc(t.id)}">Done</button>
-                <button type="button" class="quiet" data-task-remove="${esc(t.id)}">Remove</button>
+                <button type="button" class="primary" data-open="${esc(t.piece_key)}" ${t.bars?.[0] ? `data-bar="${t.bars[0]}"` : ""}>${t.bars?.length ? `Practise ${esc(barsText(t.bars).toLowerCase())}` : "Open"}</button>
+                <button type="button" class="quiet" data-task-done="${esc(t.id)}" aria-label="Mark ${esc(t.title)} done">Mark done</button>
+                <button type="button" class="link-btn rep-task-remove" data-task-remove="${esc(t.id)}" aria-label="Remove ${esc(t.title)} from your plan">Remove</button>
               </div>
             </article>`;
           })
@@ -1939,9 +1939,10 @@ window.LunePractice = (function () {
         <div class="settings-goal">
           <label for="set-days">Days a week</label>
           <select id="set-days">${[1, 2, 3, 4, 5, 6, 7].map((n) => `<option ${n === days ? "selected" : ""}>${n}</option>`).join("")}</select>
-          <label for="set-mins">Minutes a day</label>
-          <select id="set-mins">${[10, 15, 20, 30, 45, 60, 90].map((n) => `<option ${n === mins ? "selected" : ""}>${n}</option>`).join("")}</select>
+          <label for="set-mins">Minutes a session</label>
+          <select id="set-mins" aria-describedby="set-mins-note">${[10, 15, 20, 30, 45, 60, 90].map((n) => `<option ${n === mins ? "selected" : ""}>${n}</option>`).join("")}</select>
         </div>
+        <p class="settings-note" id="set-mins-note">Lune sizes plans to this. It does not time your practice.</p>
         ${signedIn ? row("week", "This week", "Done, left, and the bars that need you") : ""}
         ${row("example-week", "How This week works", "A short example with made-up numbers")}
       </section>
@@ -2128,7 +2129,7 @@ window.LunePractice = (function () {
     if (!server) return "";
     const st = store.status();
     const name = esc(window.LUNE_CONFIG?.aiModelName || "an open-weight model");
-    const where = ` ${name}, an open-weight model from Meta. It gets the score facts, your remarks and your question, and Lune keeps none of it. It can be wrong.`;
+    const where = ` ${name}, an open-weight model from Meta. It gets the score facts, your remarks and your question. Lune’s server stores none of it, and your questions stay in this browser. It can be wrong.`;
     if (st.mode === "cloud") {
       return `<h4 class="settings-sub">Lune AI</h4><p class="settings-note" id="set-account-ai" role="status"><strong>Lune AI is on</strong>${where}</p>`;
     }
@@ -2180,7 +2181,7 @@ window.LunePractice = (function () {
             <div><span class="impact-num">5</span><span class="dim">bars rated Good or Easy</span></div>
             <div><span class="impact-num">2</span><span class="dim">bars still Hard</span></div>
             <div><span class="impact-num">1</span><span class="dim">task finished</span></div>
-          </div><p class="settings-note">A day counts when you rate a bar, finish a task or open a piece to practise. Again and Hard bars come back sooner.</p>`),
+          </div><p class="settings-note">A day counts when you rate a bar or finish a task. Opening a piece does not count. Again and Hard bars come back sooner.</p>`),
       ex(6, "Share the week", "What a teacher or parent sees", `<div class="example-share"><p class="auth-kicker">A Lune pianist · this week</p><p><strong>3 days practised</strong>, goal ${days}</p><p>Clair de lune · Für Elise</p><p class="dim">No email. No remark text. Hard bar numbers only if you tick the box.</p></div><p class="settings-note">Share, then This week, makes a read-only page with its own link. You pick the name and the pieces and can switch the link off whenever you like. It needs an account so you can switch it off later.</p>`),
       ex(7, "Invite another person", "Bring someone with you", `<p class="settings-note">Invite sends the same week page with one extra line: “Invited by a pianist on Lune”. If they make an account they start with their own empty studio. There are no points, no leaderboards and no friend lists.</p>`),
     ];
@@ -2759,8 +2760,143 @@ window.LunePractice = (function () {
     setInterval(refreshBadge, 5 * 60000);
   }
 
+  /*
+   * The one next step on the signed-in home, from real data only, in this order:
+   * 1. a piece left open in the last 12 hours, 2. an open task in the plan,
+   * 3. a bar that is due again, 4. a piece marked Learning, or the dream piece,
+   * 5. finding a first score. Each says why it is there.
+   */
+  /** Who made a task: the learner, Lune's built-in rules, or Lune AI. Shown wherever a task is. */
+  function taskOrigin(t) {
+    const src = t?.plan?.source || "self";
+    if (t?.plan?.ai) return { who: "lune", label: "Planned with Lune AI", why: "Lune AI planned this when you asked. Check it against the score." };
+    if (src === "self") return { who: "you", label: "Written by you", why: "You added this to your plan." };
+    if (src === "repertoire") return { who: "lune", label: "Your bars, Lune’s steps", why: "You chose these bars; Lune’s built-in rules wrote the steps." };
+    return { who: "lune", label: "Suggested by Lune", why: "Lune’s built-in rules suggested this when you asked for a plan." };
+  }
+  const shortDate = (iso) => {
+    try {
+      return new Date(iso).toLocaleDateString(undefined, { weekday: "long" });
+    } catch {
+      return "";
+    }
+  };
+  async function nextAction() {
+    let saved = null;
+    try {
+      saved = JSON.parse(localStorage.getItem("lune.tabs") || "null");
+    } catch {
+      saved = null;
+    }
+    const active = saved?.tabs?.find((t) => t.id === saved.active);
+    if (active && saved.at && Date.now() - Number(saved.at) < 12 * 3600e3) {
+      return { kind: "resume", title: active.title, why: "Still open from earlier today.", label: "Continue", open: { id: active.id, panel: active.panel === "piano" ? "piano" : "score" } };
+    }
+    const pieces = await store.listPieces().catch(() => []);
+    const titleOf = (key) => pieces.find((p) => p.piece_key === key)?.title || "";
+    const open = store
+      .listTasks()
+      .filter((t) => !t.done)
+      .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+    if (open.length) {
+      const t = open[0];
+      const bars = (t.bars || []).filter((n) => n > 0);
+      return {
+        kind: "task",
+        title: t.title || titleOf(t.piece_key) || "Your plan",
+        detail: bars.length ? `Bar${bars.length === 1 ? "" : "s"} ${bars.join(", ")}` : "",
+        why: taskOrigin(t).why + (open.length > 1 ? ` ${open.length - 1} more in your plan.` : ""),
+        label: bars.length ? `Practise bar${bars.length === 1 ? "" : "s"} ${bars.slice(0, 3).join(", ")}${bars.length > 3 ? "…" : ""}` : "Open",
+        key: t.piece_key,
+        bars,
+      };
+    }
+    const due = (await store.dueCards(20).catch(() => [])).sort((a, b) => String(a.due_at).localeCompare(String(b.due_at)));
+    if (due.length) {
+      const c = due[0];
+      const g0 = store.normGrade ? store.normGrade(c.last_grade) : String(c.last_grade || "");
+      const grade = g0 ? g0[0].toUpperCase() + g0.slice(1) : "";
+      return {
+        kind: "review",
+        title: titleOf(c.piece_key) || "A piece in your Repertoire",
+        detail: `Bar ${c.bar}`,
+        why: `You rated it ${grade || "earlier"}${c.updated_at ? ` on ${shortDate(c.updated_at)}` : ""}, so it is due again.${due.length > 1 ? ` ${due.length - 1} more bar${due.length === 2 ? "" : "s"} due.` : ""}`,
+        label: `Review bar ${c.bar}`,
+        key: c.piece_key,
+        bar: c.bar,
+      };
+    }
+    const learning = pieces
+      .filter((p) => (p.status || "learning") === "learning")
+      .sort((a, b) => String(b.last_practised_at || b.created_at || "").localeCompare(String(a.last_practised_at || a.created_at || "")))[0];
+    if (learning) {
+      return { kind: "learning", title: learning.title, why: "In your Repertoire as Learning. Tap a bar that feels unsure and rate it after you play it.", label: "Open the score", key: learning.piece_key };
+    }
+    const dream = store.prefs()?.dreamPiece;
+    if (dream?.title) {
+      return { kind: "dream", title: dream.title, detail: dream.composer || "", why: "The piece you said you are working toward.", label: "Find the score", query: dream.title };
+    }
+    return { kind: "new", title: "Choose a piece to practise", why: "Search the catalogue or open a score of your own. Lune names the notes, suggests fingering and plays it at your tempo.", label: "Find a score" };
+  }
+
+  async function renderNextCard() {
+    const host = $("member-next");
+    if (!host) return;
+    const hour = new Date().getHours();
+    const name = store.prefs()?.displayName;
+    const g = $("member-greeting");
+    if (g) g.textContent = `${hour < 5 || hour >= 18 ? "Good evening" : hour < 12 ? "Good morning" : "Good afternoon"}${name ? `, ${name}` : ""}.`;
+    const today = $("member-today");
+    if (today) today.textContent = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+    let n;
+    try {
+      n = await nextAction();
+    } catch {
+      // never leave the placeholder showing: fall back to the plainest next step
+      n = { kind: "new", title: "Choose a piece to practise", why: "Search the catalogue or open a score of your own.", label: "Find a score" };
+    }
+    const html = `<p class="member-next-k">Next</p>
+      <h2 id="member-next-h">${esc(n.title)}</h2>
+      ${n.detail ? `<p class="member-next-detail">${esc(n.detail)}</p>` : ""}
+      <p class="member-next-why">${esc(n.why)}</p>
+      <div class="member-next-actions"><button type="button" class="primary" data-next-go>${esc(n.label)}</button>${
+        n.kind === "new" ? `<button type="button" class="quiet" data-open-piece="debussy-clair-de-lune" data-open-panel="score">Try Clair de lune</button>` : ""
+      }</div>`;
+    host.dataset.kind = n.kind;
+    if (host.dataset.painted !== html) {
+      host.dataset.painted = html;
+      host.innerHTML = html;
+    }
+    host.onclick = async (e) => {
+      const b = e.target.closest("[data-next-go]");
+      if (!b || b.disabled) return;
+      b.disabled = true;
+      try {
+        if (n.open) location.hash = `#/${n.open.id}/${n.open.panel}`;
+        else if (n.key) await openFromRepertoire(n.key, { bar: n.bar ?? null, bars: n.bars?.length ? n.bars : null });
+        else if (n.query) {
+          const q = $("q");
+          if (q) {
+            q.value = n.query;
+            q.form?.requestSubmit?.();
+          }
+        } else $("btn-member-search")?.click();
+      } catch (err) {
+        toast(err?.message || "That didn’t open. Try it from Repertoire.");
+      } finally {
+        b.disabled = false;
+      }
+    };
+  }
+
   async function renderContinueCard() {
     const signedIn = !!(window.LuneOnboard?.signedIn?.() || store.status?.()?.signedIn);
+    if (signedIn) {
+      // the signed-in home has one next step instead of a Continue card
+      const old = $("member-continue");
+      if (old) old.hidden = true;
+      return renderNextCard();
+    }
     const host = signedIn ? $("member-continue") || $("home-continue") : $("home-continue");
     if (!host) return;
     // Don't paint continue onto the guest marketing hero while signed in.
@@ -2811,6 +2947,8 @@ window.LunePractice = (function () {
 
   return {
     init,
+    nextAction,
+    renderNextCard,
     openExampleWeek,
     stopHearing,
     hearPhrase,
