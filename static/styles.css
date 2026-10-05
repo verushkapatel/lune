@@ -9782,3 +9782,52 @@ body.is-app #keep-account-banner { display: none !important; }
   body.is-studio header.bar #btn-bookmark[aria-pressed="true"]::after { content: "Saved"; }
   body.is-studio header.bar #btn-bookmark { padding: 0 12px; }
 }
+
+/* ================================================================
+   lune14: how Lune compares, and no payments
+   ================================================================ */
+.lp-compare, .lp-free { padding: clamp(80px, 12vh, 140px) 24px; background: var(--bg); }
+.lp-compare-intro, .lp-free-inner { max-width: 1040px; margin: 0 auto; }
+.lp-compare-intro { text-align: center; margin-bottom: clamp(36px, 6vh, 64px); }
+.lp-compare h2, .lp-free h2 {
+  margin: 0 0 20px; font-family: var(--serif); font-weight: 400; letter-spacing: -0.04em; line-height: 1;
+  font-size: clamp(42px, 7vw, 84px);
+}
+.lp-lead { margin: 0 auto; max-width: 62ch; color: var(--muted); font-size: clamp(16px, 1.6vw, 18px); line-height: 1.6; }
+.lp-compare-table-wrap { max-width: 1040px; margin: 0 auto; }
+.lp-compare-table { width: 100%; border-collapse: collapse; font-size: 15px; line-height: 1.5; }
+.lp-compare-table thead th { text-align: left; padding: 0 18px 14px; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); font-weight: 500; }
+.lp-compare-table thead .lp-col-lune { color: var(--navy-line); }
+.lp-compare-table tbody th { text-align: left; vertical-align: top; width: 22%; padding: 18px 18px 18px 0; font-weight: 500; color: var(--text); }
+.lp-compare-table tbody td { vertical-align: top; padding: 18px; color: var(--muted); }
+.lp-compare-table tbody tr { border-top: 1px solid var(--line); }
+.lp-compare-table td.lp-win { color: var(--text); background: color-mix(in srgb, var(--navy-soft) 70%, transparent); }
+.lp-compare-table td.lp-win::before {
+  content: ""; display: inline-block; width: 10px; height: 6px; margin: 0 10px 3px 0;
+  border-left: 2px solid var(--navy-line); border-bottom: 2px solid var(--navy-line); transform: rotate(-45deg);
+}
+.lp-they-win td:last-child { color: var(--text); }
+.lp-tag { display: inline-block; margin: 0 8px 4px 0; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line-strong); font-size: 11.5px; letter-spacing: 0.04em; color: var(--text); }
+.lp-compare-fine { max-width: 1040px; margin: 24px auto 0; font-size: 12.5px; line-height: 1.55; color: var(--dim); }
+@media (max-width: 720px) {
+  .lp-compare-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .lp-compare-table, .lp-compare-table tbody, .lp-compare-table tr, .lp-compare-table th, .lp-compare-table td { display: block; width: auto; }
+  .lp-compare-table tbody tr { padding: 18px 0; }
+  .lp-compare-table tbody th { padding: 0 0 10px; font-size: 17px; font-family: var(--serif); font-weight: 400; }
+  .lp-compare-table tbody td { padding: 12px 14px; border-radius: 12px; margin: 0 0 8px; }
+  .lp-compare-table tbody td::after { display: none; }
+  .lp-compare-table tbody td[data-label]::before {
+    content: attr(data-label); display: block; margin: 0 0 4px; border: 0; width: auto; height: auto; transform: none;
+    font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim);
+  }
+  .lp-compare-table tbody td.lp-win[data-label]::before { color: var(--navy-line); }
+  .lp-compare-table tbody td:not(.lp-win) { background: var(--surface); }
+}
+
+.lp-free { border-top: 1px solid var(--line); }
+.lp-free-inner { text-align: left; }
+.lp-free h2 { max-width: 14ch; }
+.lp-free-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 28px 36px; margin-top: clamp(28px, 5vh, 48px); }
+.lp-free-grid h3 { margin: 0 0 8px; font-size: 17px; font-weight: 500; }
+.lp-free-grid p { margin: 0; color: var(--muted); line-height: 1.6; font-size: 15px; }
+.lp-free-grid > div { padding-top: 18px; border-top: 2px solid var(--navy-line); }
