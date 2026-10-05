@@ -1439,6 +1439,12 @@ def section_timing(browser):
     worst = max((lens[i] / min(lens[i - 1], lens[i + 1]), i + 1) for i in range(1, len(lens) - 1))
     check("timing: no bar of Clair de lune lasts more than twice its neighbours", worst[0] < 2, (worst, lens[20:30]))
     check("timing: bar 26 keeps its ritardando without stalling (under 6 s)", 3 < lens[25] < 6, lens[25])
+    # Liebestraum no. 3: its export pads a voice with rests and writes triplets at full length
+    open_piece(pg, BASE + "#/franz-liszt-liebestraum-no-3-in-a-major/score")
+    pg.wait_for_timeout(1500)
+    marks = pg.evaluate("() => LunePiano.barMarkers().slice(0, 25).map(x => x.t)")
+    lens = [round(b - a, 2) for a, b in zip(marks, marks[1:])][1:24]
+    check("timing: every 6/4 bar of Liebestraum's opening takes the same time (no stalls)", max(lens) - min(lens) < 0.05, lens)
     # any piece: search offers MuseScore and opening the downloaded file
     pg.evaluate("() => { document.body.classList.add('studio-search-open'); const f = document.getElementById('top-search'); if (f) f.hidden = false; }")
     pg.fill("#q", "interstellar")
