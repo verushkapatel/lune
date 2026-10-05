@@ -1964,6 +1964,7 @@ window.LunePractice = (function () {
         ${install}
         ${row("feedback", "Send feedback", "Straight to the maker")}
         ${row("privacy", "Privacy", "What Lune keeps and how to delete it")}
+        ${row("compare", "How Lune compares", "Next to flowkey, Simply Piano, Yousician and Skoove")}
         ${row("credits", "Credits and licences", "Scores, sounds, models and software")}
         <p class="settings-note">Lune is free, with no ads and no payments. Made by Verushka Patel.</p>
       </section>
@@ -2104,6 +2105,7 @@ window.LunePractice = (function () {
       else if (act === "week") window.LuneImpact?.openWeeklyReview?.();
       else if (act === "example-week") openExampleWeek();
       else if (act === "chat") window.LuneAsk?.openChat?.();
+      else if (act === "compare") document.querySelector("[data-show-compare]")?.click();
       else if (act === "upload") $("file")?.click();
       else if (act === "feedback") window.LuneFeedback?.open?.();
       else if (act === "credits") document.querySelector("[data-open-credits]")?.click();

@@ -9831,3 +9831,7 @@ body.is-app #keep-account-banner { display: none !important; }
 .lp-free-grid h3 { margin: 0 0 8px; font-size: 17px; font-weight: 500; }
 .lp-free-grid p { margin: 0; color: var(--muted); line-height: 1.6; font-size: 15px; }
 .lp-free-grid > div { padding-top: 18px; border-top: 2px solid var(--navy-line); }
+/* signed in, "See everything Lune can do", "See examples" and "How Lune compares" show the story in place */
+body.is-signed-in.is-story .home-guest { display: block !important; }
+body.is-signed-in.is-story .home-member { display: none !important; }
+body.is-story #home-app { display: none !important; }

@@ -1832,7 +1832,7 @@ window.LuneOnboard = (function () {
     setTimeout(settle, 900);
   }
   document.addEventListener("click", (e) => {
-    const t = e.target.closest?.("[data-enter-app], [data-show-story], [data-show-ai], [data-app-later], #btn-app-search");
+    const t = e.target.closest?.("[data-enter-app], [data-show-story], [data-show-ai], [data-show-compare], [data-app-later], #btn-app-search");
     if (!t) return;
     e.preventDefault();
     if (t.matches("[data-enter-app]")) {
@@ -1849,9 +1849,12 @@ window.LuneOnboard = (function () {
       requestAnimationFrame(() => scrollHomeTo(null));
       return;
     }
-    if (t.matches("[data-show-story], [data-show-ai]")) {
+    if (t.matches("[data-show-story], [data-show-ai], [data-show-compare]")) {
+      document.querySelector("dialog[open]")?.close?.();
       if (typeof window.showView === "function" && $("home")?.hidden) window.showView("home");
-      if (!signedIn()) {
+      // go by which home is on screen: the personal home swaps to the story in place
+      const memberHome = signedIn() || ($("home-member") && !$("home-member").hidden) || document.body.classList.contains("is-signed-in");
+      if (!memberHome) {
         storyView = true;
         paintAppMode();
         applyGateChrome();
@@ -1861,7 +1864,7 @@ window.LuneOnboard = (function () {
         $("home-member").hidden = true;
         document.body.classList.add("is-story");
       }
-      requestAnimationFrame(() => scrollHomeTo(t.matches("[data-show-ai]") ? $("ai") : null));
+      requestAnimationFrame(() => scrollHomeTo(t.matches("[data-show-ai]") ? $("ai") : t.matches("[data-show-compare]") ? $("compare") : null));
       return;
     }
     if (t.matches("[data-app-later]")) {
