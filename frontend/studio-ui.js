@@ -19,7 +19,10 @@ window.LuneStudioUI = (function () {
   };
 
   function apply() {
+    const was = document.body.classList.contains("studio-compact");
     document.body.classList.toggle("studio-compact", narrow.matches);
+    // the tab strip differs between phone and computer: redraw it when the width crosses over
+    if (was !== narrow.matches) window.renderPieceTabs?.();
   }
 
   function injectTopBar() {
@@ -109,6 +112,7 @@ window.LuneStudioUI = (function () {
       if (act === "share") press("btn-share");
       if (act === "settings") press("btn-settings");
       if (act === "ask") window.LuneAsk?.open?.();
+      if (act === "ai") window.LuneAsk?.goAiPage?.();
       if (act === "home") press("btn-home");
       if (keepOpen) setTimeout(paint, 60);
       else closeMenu();
@@ -155,7 +159,8 @@ window.LuneStudioUI = (function () {
         ${braille && !braille.hidden ? `<a class="sm-link" href="${esc(braille.getAttribute("href"))}" download>Braille music</a>` : ""}
       </div>
       <div class="sm-actions">
-        <button type="button" data-m="ask"><span class="lune-orb-sm" aria-hidden="true"></span>Ask Lune</button>
+        <button type="button" data-m="ask"><span class="lune-orb-sm" aria-hidden="true"></span>Ask about this bar</button>
+        <button type="button" data-m="ai">Lune AI chat</button>
         <button type="button" data-m="save">${saved ? "Saved" : "Save"}</button>
         <button type="button" data-m="share">Share</button>
         <button type="button" data-m="settings">Settings</button>

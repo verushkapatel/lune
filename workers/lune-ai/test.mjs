@@ -1,6 +1,6 @@
 // Tests for the Lune AI Worker, with a fake model and a fake Supabase.
 // Run: node workers/lune-ai/test.mjs
-import { handle, SYSTEM_PROMPT } from "./src/index.js";
+import { handle, SYSTEM_PROMPT, cleanTranscript } from "./src/index.js";
 
 let pass = 0;
 let fail = 0;
@@ -96,6 +96,12 @@ r = await post("/transcribe", audio, { type: "audio/webm" });
 const heard = await r.json();
 check("a recording comes back as punctuated text", r.status === 200 && heard.text === "Bar 12, keep the thumb light.", JSON.stringify(heard));
 check("Whisper is told it is hearing piano practice, in English", calls[0]?.input?.language === "en" && /fingering/.test(calls[0]?.input?.initial_prompt) && typeof calls[0]?.input?.audio === "string");
+check("Whisper skips the stretches with no voice", calls[0]?.input?.vad_filter === true);
+check("silence that Whisper fills with stock words comes back empty", ["Thank you.", "Thanks for watching!", "you", " ", "..."].every((t) => cleanTranscript({ text: t }) === ""));
+check("the hint prompt read back over silence comes back empty", cleanTranscript({ text: "Lune, ask Lune. Piano practice notes. Bar 12, right hand, left hand." }) === "");
+check("segments Whisper marks as no speech are dropped, real ones kept",
+  cleanTranscript({ text: "x", segments: [{ text: "Bar 12 is hard.", no_speech_prob: 0.1, avg_logprob: -0.3 }, { text: "Thank you.", no_speech_prob: 0.9, avg_logprob: -0.4 }] }) === "Bar 12 is hard.");
+check("a real sentence that mentions Lune is kept", cleanTranscript({ text: "Ask Lune why bar 12 is hard." }) === "Ask Lune why bar 12 is hard.");
 r = await post("/transcribe", new Uint8Array(10), { type: "audio/webm" });
 check("an empty recording is refused", r.status === 400);
 r = await post("/speak", JSON.stringify({ text: "Bar twelve. Keep the thumb light." }));

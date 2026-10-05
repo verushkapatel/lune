@@ -1615,7 +1615,7 @@ window.LuneOnboard = (function () {
       bar.id = "keep-account-banner";
       bar.className = "keep-account-banner";
       bar.innerHTML = `
-        <p>Exploring on this device. <strong>Make Lune yours</strong> — a short questionnaire, then an email code.</p>
+        <p>Exploring on this device. <strong>Make Lune yours</strong>, free.</p>
         <button type="button" class="primary" data-lp-personalise>Begin</button>`;
       const app = $("app");
       const header = app?.querySelector?.("header.bar");

@@ -40,8 +40,31 @@ export async function transcribe(env, bytes) {
     audio: toBase64(bytes),
     language: "en",
     initial_prompt: STT_PROMPT,
+    // skip stretches with no voice, where Whisper otherwise makes words up
+    vad_filter: true,
   });
-  return String(out?.text || "").trim();
+  return cleanTranscript(out);
+}
+
+// What Whisper is known to say over silence or noise, and nothing else.
+const HALLUCINATIONS = /^(thank you( so much)?( for watching)?|thanks for watching|bye|you|so|okay|ok|please subscribe.*|subtitles by.*|\.+|\s*)[.!]?$/i;
+const PROMPT_WORDS = new Set(STT_PROMPT.toLowerCase().match(/[a-z0-9]+/g));
+
+/** Keep only what was really said: drop silent segments, stock phrases and echoes of the hint prompt. */
+export function cleanTranscript(out) {
+  const segs = Array.isArray(out?.segments) ? out.segments : null;
+  let text = segs
+    ? segs
+        .filter((g) => !(Number(g.no_speech_prob) > 0.6) && !(Number(g.avg_logprob) < -1.2))
+        .map((g) => String(g.text || "").trim())
+        .join(" ")
+    : String(out?.text || "");
+  text = text.replace(/\s+/g, " ").trim();
+  if (HALLUCINATIONS.test(text)) return "";
+  // the hint prompt read back word for word means nothing was said
+  const words = text.toLowerCase().match(/[a-z0-9]+/g) || [];
+  if (words.length >= 4 && words.filter((w) => PROMPT_WORDS.has(w)).length / words.length > 0.85) return "";
+  return text;
 }
 
 /** Text to speech: returns mp3 bytes, whatever shape the model answers in. */

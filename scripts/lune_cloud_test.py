@@ -252,8 +252,8 @@ def section_tabs(browser):
     pg.wait_for_function("() => /Clair/.test(state.piece?.overview?.title || '') && document.body.classList.contains('is-studio')", timeout=60000)
     pg.wait_for_timeout(600)
     check("tabs: opening a restored tab fetches only its score", len(scores) == 1 and "clair" in scores[0].lower(), scores)
-    cur = pg.evaluate("() => [...document.querySelectorAll('#piece-tabs [role=tab]')].map(b => [b.textContent, b.getAttribute('aria-selected'), b.getAttribute('aria-current'), b.closest('.piece-tab').classList.contains('on')])")
-    check("tabs: the current tab is marked (aria-selected, aria-current and the underline)", cur[1][1:] == ["true", "page", True] and cur[0][1:] == ["false", None, False], cur)
+    cur = pg.evaluate("() => [...document.querySelectorAll('#piece-tabs .piece-tab-label')].map(b => [b.textContent, b.getAttribute('aria-current'), b.closest('.piece-tab').classList.contains('on')])")
+    check("tabs: the current tab is marked (aria-current and the underline)", cur[1][1:] == ["page", True] and cur[0][1:] == [None, False], cur)
 
     # a reload on a piece's own link reopens that piece with the other tab kept
     pg.goto(BASE + "#/beethoven-fur-elise/explain")
@@ -694,7 +694,7 @@ def section_account(browser):
     pg.evaluate("() => { window.__token = null; }")
 
     # Chat with Lune: Repertoire, plans and week as context, the conversation carried along
-    pg.evaluate("() => { LuneAsk.close(); localStorage.removeItem('lune.chat.v1'); LuneAsk.openChat(); }")
+    pg.evaluate("() => { LuneAsk.close(); localStorage.removeItem('lune.chat.v1'); localStorage.removeItem('lune.chats.v2'); LuneAsk.openChat(); }")
     pg.wait_for_selector("#lune-chat[open] #chat-form")
     starters = pg.eval_on_selector_all("#chat-starters button", "els => els.map(e => e.textContent)")
     check("chat: signed in, the chat opens with starter questions", "Summarise my week" in starters, starters)
@@ -872,8 +872,13 @@ def section_voice(browser):
         pg.evaluate("() => LuneAsk.open({bar: 12})")
         pg.wait_for_timeout(300)
         pg.click("#ask-mic")
-        pg.wait_for_timeout(2200)
-        pg.click("#ask-mic")
+        pg.wait_for_timeout(300)
+        guest_note = pg.evaluate("() => document.body.innerText")
+        # the test microphone only beeps now and then; enough of it to count as a phrase
+        pg.wait_for_timeout(3200)
+        # still listening: Done in the listening bar; already finished: nothing to press
+        if pg.locator('#ask-listen [data-listen="done"]').is_visible():
+            pg.click('#ask-listen [data-listen="done"]')
         pg.wait_for_timeout(2500)
         said = pg.input_value("#ask-input")
         if signed:
@@ -881,8 +886,7 @@ def section_voice(browser):
             check("voice: signed in, the microphone works without the browser's speech recognition", said == "Bar 12, keep the thumb light.", said)
             check("voice: the recording reaches Whisper as WAV, in English", got.get("format") == "RIFF" and got.get("language") == "en" and got.get("bytes", 0) > 8000, got)
         else:
-            toast = pg.evaluate("() => document.body.innerText")
-            check("voice: a guest in such a browser is told that signing in turns voice on", "Sign in (free) and Lune AI listens for you" in toast)
+            check("voice: a guest in such a browser is told that signing in turns voice on", "Sign in (free) and Lune AI listens for you" in guest_note)
         check("voice: no page errors", not pg.errors, pg.errors)
         ctx.close()
 
@@ -1111,7 +1115,7 @@ def section_studio(browser):
     pg.wait_for_selector("#studio-menu[open]")
     menu = pg.text_content("#studio-menu")
     check("studio: the menu has the panels, open pieces, annotations and actions",
-          all(w in menu for w in ("Score", "Explain", "Piano", "Open pieces", "Für Elise", "Notes", "Fingers", "Piano keys", "Ask Lune", "Settings")), menu[:200])
+          all(w in menu for w in ("Score", "Explain", "Piano", "Open pieces", "Für Elise", "Notes", "Fingers", "Piano keys", "Ask about this bar", "Lune AI chat", "Settings")), menu[:200])
     kbd = lambda: pg.evaluate("() => !document.getElementById('piano-dock').hidden")
     before = kbd()
     pg.click('#studio-menu [data-m="kbd"]')
@@ -1224,12 +1228,14 @@ def section_plans(browser):
     pg.evaluate("() => LuneAsk.open({bar: 12})")
     pg.wait_for_timeout(300)
     pg.click("#ask-mic")
-    pg.wait_for_timeout(900)
+    # the test microphone only beeps now and then; give it enough beeps to count as a phrase
+    pg.wait_for_timeout(5000)
     check("voice: while listening, a waveform and timer replace the text box", pg.locator("#ask-listen .lc-wave").is_visible() and pg.locator("#ask-listen .lc-timer").is_visible())
     pg.click('#ask-listen [data-listen="done"]')
     pg.wait_for_timeout(2500)
     check("voice: the words land in the box to check before sending", pg.input_value("#ask-input") == "Bar 12, keep the thumb light.", pg.input_value("#ask-input"))
-    # talk: Lune listens, then answers aloud
+    # talk: Lune listens, then answers aloud (the round button is voice chat while the box is empty)
+    pg.fill("#ask-input", "")
     pg.click("#ask-talk")
     pg.wait_for_selector("#lune-talk[open]")
     pg.wait_for_timeout(800)
@@ -1242,7 +1248,125 @@ def section_plans(browser):
     ctx.close()
 
 
-SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week, "catalogue": section_catalogue, "console": section_console, "account": section_account, "latest": section_latest, "voice": section_voice, "progress": section_progress, "home": section_home, "loop": section_practice_loop, "studio": section_studio, "plans": section_plans}
+def section_voice2(browser):
+    """Silence is never sent to be written down; the composer and voice chat look and act like ChatGPT's; + adds a tab anywhere."""
+    import urllib.request as _u
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+    ctx.grant_permissions(["microphone"], origin=BASE.rsplit("/lune/", 1)[0])
+    ctx.add_init_script(POINT_AT_SERVER)
+    # a microphone that hears nothing at all
+    ctx.add_init_script("""navigator.mediaDevices.getUserMedia = async () => { const c = new AudioContext(); const o = c.createOscillator(); const g = c.createGain(); g.gain.value = 0;
+      const d = c.createMediaStreamDestination(); o.connect(g); g.connect(d); o.start(); return d.stream; };""")
+    pg = ctx.new_page()
+    pg.errors = []
+    pg.on("pageerror", lambda e: pg.errors.append(str(e)[:200]))
+    open_piece(pg)
+    pg.evaluate(SIGN_IN)
+    pg.evaluate("() => { LuneAsk.openChat(); }")
+    pg.wait_for_selector("#lune-chat[open] #chat-form")
+    check("composer: with an empty box, the round button is voice chat", pg.locator("#chat-talk").is_visible() and not pg.locator("#chat-composer .lc-send").is_visible())
+    pg.fill("#chat-input", "Hello")
+    check("composer: once there is text, it becomes Send", pg.locator("#chat-composer .lc-send").is_visible() and not pg.locator("#chat-talk").is_visible())
+    pg.fill("#chat-input", "")
+    before = json.loads(_u.urlopen(ACCOUNT_SERVER + "/last").read())
+    pg.click("#chat-mic")
+    pg.wait_for_timeout(2500)
+    check("dictation: a waveform shows while listening", pg.locator("#chat-listen .lc-wave").is_visible())
+    pg.click('#chat-listen [data-listen="done"]')
+    pg.wait_for_timeout(1500)
+    after = json.loads(_u.urlopen(ACCOUNT_SERVER + "/last").read())
+    body = pg.evaluate("() => document.body.innerText")
+    check("dictation: silence is not sent to be written down", before == after, (before.get("bytes"), after.get("bytes")))
+    check("dictation: silence says Lune didn’t catch that, and the box stays empty", "Lune didn’t catch that" in body and pg.input_value("#chat-input") == "")
+    # voice chat over silence says so too
+    pg.click("#chat-talk")
+    pg.wait_for_selector("#lune-talk[open]")
+    pg.wait_for_function("() => /didn’t catch that/.test(document.getElementById('lt-caption').textContent)", timeout=60000)
+    check("voice chat: silence is answered with “Lune didn’t catch that.”", True)
+    check("voice chat: two round controls, the microphone and End", pg.locator("#lune-talk .lt-round").count() == 2)
+    pg.click('#lune-talk [data-talk="end"]')
+    check("voice: no page errors", not pg.errors, pg.errors)
+    ctx.close()
+    # + adds a tab on a computer as well as on a phone
+    for width in (1280, 390):
+        pg = new_page(browser, width=width, height=844)
+        open_piece(pg)
+        sel = ".piece-tab-new" if width > 900 else "#st-add"
+        check(f"tabs ({width}px): + for a new tab is on screen with one piece open", pg.locator(sel).first.is_visible())
+        pg.locator(sel).first.click()
+        pg.wait_for_timeout(500)
+        check(f"tabs ({width}px): + opens search, ready to type", pg.locator("#q").is_visible() and pg.evaluate("() => document.activeElement.id") == "q")
+        pg.fill("#q", "clair de lune")
+        pg.wait_for_timeout(1200)
+        pg.locator("#results button, #results a, #results li").first.click()
+        pg.wait_for_function("() => state.sessions.length === 2 && state.piece", timeout=60000)
+        pg.wait_for_timeout(1500)
+        tabs = pg.eval_on_selector_all("#piece-tabs .piece-tab-label", "els => els.map(e => e.textContent)")
+        check(f"tabs ({width}px): the piece opens in a second tab, the first kept", len(tabs) == 2 and tabs[0] == "Für Elise" and pg.locator("#piece-tabs").is_visible(), tabs)
+        check(f"tabs ({width}px): no page errors", not pg.errors, pg.errors)
+        pg.context.close()
+    # Ollama: Lune lists the models on this computer, including OpenAI's open model
+    pg = new_page(browser, width=390, height=844)
+    pg.route("http://localhost:11434/api/tags", lambda r: r.fulfill(status=200, content_type="application/json", headers={"Access-Control-Allow-Origin": "*"},
+             body=json.dumps({"models": [{"name": "llama3.2:latest"}, {"name": "gpt-oss:20b"}]})))
+    open_piece(pg)
+    pg.evaluate("() => document.getElementById('btn-settings').click()")
+    pg.wait_for_timeout(600)
+    pg.evaluate("() => { document.querySelector('.settings-advanced').open = true; }")
+    pg.click('[data-ai="ollama"]')
+    pg.wait_for_selector('[data-ai="pick"]', timeout=8000)
+    picks = pg.eval_on_selector_all('[data-ai="pick"]', "els => els.map(e => e.textContent)")
+    check("ollama: Find Ollama lists the models on this computer, gpt-oss named as OpenAI's open model", picks == ["llama3.2:latest · Meta", "gpt-oss:20b · OpenAI open model"], picks)
+    pg.click('[data-ai="pick"][data-model="gpt-oss:20b"]')
+    got = pg.evaluate("() => [localStorage.getItem('lune.ai.endpoint'), localStorage.getItem('lune.ai.model')]")
+    check("ollama: tapping one connects Ask Lune to it", got == ["http://localhost:11434/v1/chat/completions", "gpt-oss:20b"], got)
+    check("ollama: no page errors", not pg.errors, pg.errors)
+    pg.context.close()
+
+
+def section_aipage(browser):
+    """Lune AI has its own page (#/ai) with chat history, like ChatGPT."""
+    for width in (1280, 390):
+        ctx = browser.new_context(viewport={"width": width, "height": 844}, is_mobile=width < 600, has_touch=width < 600)
+        ctx.add_init_script(POINT_AT_SERVER)
+        pg = ctx.new_page()
+        pg.errors = []
+        pg.on("pageerror", lambda e: pg.errors.append(str(e)[:200]))
+        open_piece(pg)
+        pg.evaluate(SIGN_IN)
+        pg.evaluate("() => { localStorage.removeItem('lune.chats.v2'); localStorage.setItem('lune.chat.v1', JSON.stringify([{who:'you', text:'An older question about scales', t: 1}, {who:'lune', text:'Older answer', via:'model', t: 2}])); location.hash = '#/ai'; }")
+        pg.wait_for_selector("#lune-chat[open].is-page #chat-form", timeout=10000)
+        pg.wait_for_timeout(600)  # the opening animation
+        check(f"ai page ({width}px): #/ai opens Lune AI full screen", pg.evaluate("() => { const r = document.getElementById('lune-chat').getBoundingClientRect(); return r.width >= innerWidth - 1 && r.height >= innerHeight - 1; }"))
+        if width < 900:
+            pg.click("#chat-hist-btn")
+        check(f"ai page ({width}px): the earlier chat is kept in history", "An older question about scales" in pg.inner_text("#chat-hist-list"))
+        pg.click("[data-chat-new]")
+        pg.fill("#chat-input", "How do I practise octaves?")
+        pg.press("#chat-input", "Enter")
+        pg.wait_for_function("() => document.querySelectorAll('#chat-log .chat-from-lune').length >= 1 && !document.querySelector('.chat-wait')", timeout=15000)
+        pg.wait_for_timeout(1200)
+        st = pg.evaluate("() => LuneAsk.chatStore()")
+        titles = [c["title"] for c in st["convs"]]
+        check(f"ai page ({width}px): a new chat is added to history, newest first, titled by its question", titles[:2] == ["How do I practise octaves?", "An older question about scales"], titles)
+        if width < 900:
+            pg.click("#chat-hist-btn")
+        pg.click("#chat-hist-list [data-conv]:has-text('An older question')")
+        pg.wait_for_timeout(300)
+        check(f"ai page ({width}px): tapping a past chat brings it back", "Older answer" in pg.inner_text("#chat-log"))
+        if width < 900:
+            pg.click("#chat-hist-btn")
+        pg.click("#chat-hist-list .ch-item:has-text('An older question') .ch-del")
+        pg.wait_for_timeout(200)
+        check(f"ai page ({width}px): a chat can be deleted", [c["title"] for c in pg.evaluate("() => LuneAsk.chatStore()")["convs"]] == ["How do I practise octaves?"])
+        pg.keyboard.press("Escape")
+        pg.wait_for_timeout(800)
+        check(f"ai page ({width}px): closing it leaves the #/ai address", pg.evaluate("() => location.hash") != "#/ai")
+        check(f"ai page ({width}px): no page errors", not pg.errors, pg.errors)
+        ctx.close()
+
+
+SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week, "catalogue": section_catalogue, "console": section_console, "account": section_account, "latest": section_latest, "voice": section_voice, "progress": section_progress, "home": section_home, "loop": section_practice_loop, "studio": section_studio, "plans": section_plans, "voice2": section_voice2, "aipage": section_aipage}
 
 if __name__ == "__main__":
     want = sys.argv[1:] or list(SECTIONS)

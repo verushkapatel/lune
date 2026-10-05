@@ -10147,3 +10147,127 @@ body.studio-compact.is-studio .tempo-control .bpm-wrap { position: relative !imp
 /* the AI chapter carries a slow aurora; its content sits above it */
 .ai-chapter[data-fx-aurora] { position: relative; overflow: hidden; isolation: isolate; }
 .ai-chapter[data-fx-aurora] > :not(.fx-aurora) { position: relative; z-index: 1; }
+
+/* ---------- Lune AI, the ChatGPT way: one pill composer, plain answers, a quiet centred header ---------- */
+.ask-head, .lune-chat .chat-head { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 4px; padding: 8px 8px; border-bottom: 0; }
+.ask-id, .chat-id { text-align: center; min-width: 0; }
+.ask-title, .lune-chat .chat-head h2 { margin: 0; font-family: inherit; font-size: 16px; font-weight: 600; letter-spacing: 0; }
+.ask-where, .lune-chat .chat-sub { margin: 0; font-size: 12px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ask-head .lc-tool, .chat-head .lc-tool { width: 40px; min-width: 40px; padding: 0; }
+.ask-fine { text-align: center; border: 0; background: transparent; padding: 0 20px 8px; font-size: 12px; color: var(--dim); }
+
+/* messages: yours in a soft bubble on the right, Lune's as plain text */
+.ask-log, .lune-chat .chat-log { gap: 22px; padding: 16px 18px 10px; }
+.ask-from-you, .chat-from-you .chat-bubble {
+  max-width: 80%; padding: 10px 16px; border-radius: 22px; border: 0;
+  background: color-mix(in srgb, var(--text) 9%, transparent); color: var(--text); font-size: 16px; line-height: 1.5;
+}
+.ask-row-lune .ask-msg, .chat-from-lune .chat-bubble { font-size: 16px; line-height: 1.65; color: var(--text); padding: 0; background: transparent; border: 0; max-width: 100%; }
+.ask-body { width: 100%; }
+.ask-actions { display: flex; align-items: center; gap: 0; margin: 4px 0 0 -8px; opacity: 1; }
+.ask-actions .lc-mini { width: 32px; height: 32px; border-radius: 8px; color: var(--dim); }
+.ask-actions .lc-mini:hover { color: var(--text); background: color-mix(in srgb, var(--text) 8%, transparent); }
+.ask-actions .ask-src { margin: 0 0 0 6px; font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--dim); }
+.ask-actions .ask-src-ai { color: var(--dim); }
+.ask-note { font-size: 13px; color: var(--dim); }
+.chat-from-lune { flex-direction: column; align-items: flex-start; }
+
+/* the empty screen: one question, centred, with the orb small above it */
+.ask-empty-orb { width: 56px; height: 56px; margin-bottom: 16px; }
+.ask-empty-h { font-family: inherit; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+.ask-empty-sub { display: none; }
+
+/* suggestions: one row that scrolls sideways, above the composer */
+.ask-chips, .chat-starters { display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto; padding: 0 14px 10px; scrollbar-width: none; -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); mask-image: linear-gradient(90deg, #000 88%, transparent); }
+.ask-chips::-webkit-scrollbar, .chat-starters::-webkit-scrollbar { display: none; }
+.ask-chips button, .chat-starters button {
+  flex: 0 0 auto; white-space: nowrap; padding: 10px 14px; border-radius: 16px; border: 1px solid var(--line);
+  background: transparent; color: var(--text); font: inherit; font-size: 14px; cursor: pointer; transition: background-color 0.2s;
+}
+.ask-chips button:hover, .chat-starters button:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+
+/* the composer: one pill */
+.ask-form, .lune-chat .chat-form { padding: 4px 12px 12px; border: 0; background: transparent; }
+.lc-composer {
+  display: flex; align-items: flex-end; gap: 4px; padding: 6px 6px 6px 18px; border-radius: 28px; border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--text) 7%, var(--bg)); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+}
+.lc-composer:focus-within { border-color: var(--line-strong); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18); }
+.lc-composer textarea { flex: 1; min-width: 0; width: auto; align-self: center; padding: 8px 0; font-size: 16px; line-height: 1.45; }
+.lc-composer .lc-mic { width: 40px; min-width: 40px; height: 40px; padding: 0; color: var(--muted); }
+.lc-round {
+  flex: 0 0 auto; width: 40px; height: 40px; border-radius: 50%; border: 0; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--text); color: var(--bg); cursor: pointer; transition: transform 0.15s, opacity 0.2s;
+}
+.lc-round[hidden] { display: none; }
+.lc-round:active { transform: scale(0.92); }
+.lc-composer .lc-send:disabled { opacity: 1; }
+
+/* dictation: the waveform fills the pill, bars rising and falling with your voice */
+.lc-listen { border-radius: 28px; border: 1px solid var(--line); background: color-mix(in srgb, var(--text) 7%, var(--bg)); padding: 6px; gap: 6px; min-height: 54px; }
+.lc-listen .lc-tool { width: 40px; min-width: 40px; padding: 0; }
+.lc-wave { height: 40px; }
+.lc-done { width: 40px; height: 40px; }
+
+.chat-fine, .lune-chat .chat-fine { text-align: center; font-size: 12px; color: var(--dim); margin: 0; padding: 0 16px calc(10px + env(safe-area-inset-bottom)); }
+.ask-lune { background: var(--bg); }
+@media (max-width: 640px) {
+  .ask-lune { height: 100dvh; max-height: 100dvh; border-radius: 0; border: 0; }
+}
+@media (max-width: 640px) {
+  .lune-chat { width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; border: 0; border-radius: 0; }
+}
+/* the AI surfaces read in the device's own sans, as ChatGPT and Claude do */
+.ask-lune, .lune-chat, .lune-talk .lt-caption { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+.ask-lune textarea, .lune-chat textarea, .ask-lune button, .lune-chat button { font-family: inherit; }
+/* voice chat controls: two round buttons, as in ChatGPT */
+.lt-state { letter-spacing: 0; text-transform: none; font-size: 14px; color: #9aa6c6; }
+.lt-actions { gap: 28px; }
+.lt-round { width: 64px; height: 64px; border-radius: 50%; border: 0; display: inline-flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.1); color: #f5f5f5; cursor: pointer; transition: background-color 0.2s, transform 0.15s; }
+.lt-round svg { width: 24px; height: 24px; }
+.lt-round:active { transform: scale(0.94); }
+.lt-round.off { background: rgba(229,72,77,0.18); color: #ff8a8d; }
+.lt-round.lt-end { background: #f5f5f5; color: #0a0a0a; }
+/* the open pieces strip shows on phones once a second piece is open */
+body.studio-compact.is-studio header.bar #piece-tabs:not([hidden]) { display: flex !important; max-width: none; border-bottom: 0; }
+body.studio-compact.is-studio .piece-tab-new { flex: 0 0 auto; width: 34px; height: 34px; border-radius: 50%; }
+/* + opens search for a new tab, signed in or not */
+body.is-studio.studio-search-open .top-search { display: flex !important; }
+body.is-studio:not(.studio-compact).studio-search-open .top-search { flex: 0 1 320px; }
+.settings-ai-picks { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.settings-ai-picks:empty { display: none; }
+.settings-ai-picks [aria-pressed="true"] { border-color: var(--text); }
+.settings-ai-how summary { cursor: pointer; font-size: 14px; color: var(--muted); margin: 6px 0; }
+
+/* ---------- Lune AI page and chat history ---------- */
+.lune-chat[open] { flex-direction: row; }
+.chat-main { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+.chat-main .chat-log { flex: 1; overflow-y: auto; }
+.lune-chat .chat-head { grid-template-columns: auto 1fr 44px; }
+.chat-lead { display: inline-flex; gap: 2px; }
+.chat-hist { display: none; flex-direction: column; width: 270px; flex: 0 0 270px; padding: 10px 10px 14px; border-right: 1px solid var(--line); background: color-mix(in srgb, var(--text) 3%, var(--bg)); min-height: 0; }
+.lune-chat.hist-open .chat-hist { display: flex; }
+.ch-top { display: flex; align-items: center; justify-content: space-between; padding: 2px 4px 6px 8px; }
+.ch-h { margin: 0; font-size: 14px; font-weight: 600; color: var(--muted); }
+.ch-new { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 0 12px; border-radius: 12px; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 15px; cursor: pointer; }
+.ch-new:hover, .ch-item:hover { background: color-mix(in srgb, var(--text) 7%, transparent); }
+.ch-list { flex: 1; overflow-y: auto; margin-top: 8px; display: flex; flex-direction: column; gap: 2px; }
+.ch-item { display: flex; align-items: center; border-radius: 12px; }
+.ch-item.on { background: color-mix(in srgb, var(--text) 10%, transparent); }
+.ch-item > button:first-child { flex: 1; min-width: 0; min-height: 44px; text-align: left; padding: 0 12px; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.ch-del { width: 36px; height: 36px; border: 0; border-radius: 10px; background: transparent; color: var(--dim); cursor: pointer; opacity: 0; transition: opacity 0.15s; }
+.ch-item:hover .ch-del, .ch-item.on .ch-del, .ch-del:focus-visible { opacity: 1; }
+.ch-empty, .ch-foot { margin: 8px 12px; font-size: 12.5px; color: var(--dim); }
+/* the page: full screen everywhere */
+.lune-chat.is-page { width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; border: 0; border-radius: 0; }
+.lune-chat.is-page .chat-main > * { width: 100%; max-width: 780px; margin-left: auto; margin-right: auto; }
+.lune-chat.is-page .chat-main > .chat-head { max-width: none; }
+@media (max-width: 899px) {
+  /* on a phone the history slides over the chat */
+  .lune-chat.hist-open .chat-hist { position: absolute; inset: 0 auto 0 0; width: min(84vw, 320px); z-index: 3; box-shadow: 20px 0 60px rgba(0, 0, 0, 0.5); animation: ch-in 0.22s var(--ease-out, ease); }
+  @keyframes ch-in { from { transform: translateX(-100%); } to { transform: none; } }
+}
+@media (min-width: 900px) { .lune-chat .ch-close { display: none; } }
+@media (hover: none) { .ch-del { opacity: 1; } }
+.piece-tab-close { color: var(--dim); opacity: 1; }
+.piece-tab-close:hover { color: var(--text); }
