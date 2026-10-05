@@ -216,8 +216,17 @@ function hideLoader() {
   const el = $("lune-loader");
   if (!el) return;
   _loaderCount = Math.max(0, _loaderCount - 1);
-  if (_loaderCount === 0) el.hidden = true;
+  if (_loaderCount === 0) {
+    el.hidden = true;
+    endBootLoader();
+  }
 }
+
+/** The loader shown from the first frame when a link opens a piece; it goes once the piece is up. */
+function endBootLoader() {
+  document.documentElement.classList.remove("boot-piece");
+}
+setTimeout(endBootLoader, 20000); // never stuck behind it
 
 /** Run an async task under the piano loader; always hides it afterwards. */
 async function withLoader(text, task) {
@@ -2638,6 +2647,29 @@ function playheadX(g, progress) {
 let _playheadScrollAt = 0;
 let _playheadLastBar = null;
 
+/** Ease the score to a position (or jump, for reduced motion or a scrub). */
+let _glide = 0;
+function glideScroll(el, top, left, ms) {
+  cancelAnimationFrame(_glide);
+  const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  if (!ms || reduced) {
+    el.scrollTo({ top, left, behavior: "auto" });
+    return;
+  }
+  const t0 = performance.now();
+  const y0 = el.scrollTop;
+  const x0 = el.scrollLeft;
+  const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+  const step = (now) => {
+    const k = Math.min(1, (now - t0) / ms);
+    const e = ease(k);
+    el.scrollTop = y0 + (top - y0) * e;
+    el.scrollLeft = x0 + (left - x0) * e;
+    if (k < 1) _glide = requestAnimationFrame(step);
+  };
+  _glide = requestAnimationFrame(step);
+}
+
 function placePlayhead(bar, progress = 0, total = 0) {
   const line = $("playhead-line");
   const hilite = $("measure-hilite");
@@ -2693,54 +2725,27 @@ function placePlayhead(bar, progress = 0, total = 0) {
     }
     line.style.transform = `translate3d(${x}px,0,0)`;
 
-    // Follow the sounding measure without smooth-scroll rocking.
-    // During playback: instant scroll, only on bar change, and only when
-    // the measure is substantially out of view. Prefer vertical; skip tiny
-    // horizontal nudges so we don’t fight the reader.
+    // Follow the music: while it plays, the page glides so the sounding bar sits in the
+    // upper part of the view, the next line already showing beneath it.
     const barChanged = _playheadLastBar !== Number(bar);
     _playheadLastBar = Number(bar);
     if (barChanged || (!playing && state.scrubbing)) {
-      const pad = 72;
       const viewTop = scroll.scrollTop;
-      const viewBottom = viewTop + scroll.clientHeight;
+      const viewH = scroll.clientHeight;
       const mTop = bounds.top;
       const mBottom = bounds.top + bounds.height;
-      const substantiallyOut =
-        mTop < viewTop + pad * 0.35 || mBottom > viewBottom - pad * 0.35;
-      let nextTop = scroll.scrollTop;
-      let nextLeft = scroll.scrollLeft;
-      let moved = false;
-      if (substantiallyOut) {
-        if (mTop < viewTop + pad) {
-          nextTop = Math.max(0, mTop - pad);
-          moved = true;
-        } else if (mBottom > viewBottom - pad) {
-          nextTop = Math.max(0, mBottom - scroll.clientHeight + pad);
-          moved = true;
-        }
-      }
-      // Horizontal: only when the playhead is well off-screen (not every tick).
+      // keep the bar between 12% and 60% of the view; outside that, glide it to 22%
+      const comfy = mTop >= viewTop + viewH * 0.12 && mBottom <= viewTop + viewH * 0.6 + bounds.height * 0.4;
+      let nextTop = viewTop;
+      if (!comfy) nextTop = Math.max(0, mTop - viewH * 0.22);
       const viewLeft = scroll.scrollLeft;
-      const viewRight = viewLeft + scroll.clientWidth;
       const hPad = Math.max(96, scroll.clientWidth * 0.18);
-      if (x < viewLeft + 24 || x > viewRight - 24) {
-        if (x < viewLeft + hPad) {
-          nextLeft = Math.max(0, x - hPad);
-          moved = true;
-        } else if (x > viewRight - hPad) {
-          nextLeft = Math.max(0, x - scroll.clientWidth + hPad);
-          moved = true;
-        }
-      }
-      if (moved) {
+      let nextLeft = viewLeft;
+      if (x < viewLeft + 24) nextLeft = Math.max(0, x - hPad);
+      else if (x > viewLeft + scroll.clientWidth - 24) nextLeft = Math.max(0, x - scroll.clientWidth + hPad);
+      if (Math.abs(nextTop - viewTop) > 4 || nextLeft !== viewLeft) {
         _playheadScrollAt = performance.now();
-        const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-        scroll.scrollTo({
-          top: nextTop,
-          left: nextLeft,
-          // Instant during playback — smooth + frequent updates rocks the page.
-          behavior: playing || reduced ? "auto" : "smooth",
-        });
+        glideScroll(scroll, nextTop, nextLeft, playing ? 520 : 0);
       }
     }
     return;
@@ -2957,6 +2962,8 @@ function applyKeyboardVisibility(on) {
 
   dock.classList.toggle("collapsed", !show);
   dock.hidden = !show;
+  // the compact studio shows the metronome and speed at the bottom only when the piano is hidden
+  document.body.classList.toggle("kbd-on", show);
   dock.classList.toggle("is-focus", state.panel === "piano");
   dock.classList.toggle("is-slim", state.panel === "score" && show);
 
@@ -3788,6 +3795,16 @@ function staggerLaneLabels(host) {
  * negative widths, so the panel is laid out off screen at full width meanwhile.
  */
 async function renderScore() {
+  const pane = $("panel-score");
+  pane?.classList.add("is-engraving");
+  try {
+    await renderScoreInner();
+  } finally {
+    pane?.classList.remove("is-engraving");
+  }
+}
+
+async function renderScoreInner() {
   const pane = $("panel-score");
   const offstage = !!pane?.hidden;
   if (offstage) {

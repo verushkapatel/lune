@@ -1015,6 +1015,9 @@ window.LuneStore = (function () {
       "displayName",
       "impactPublic",
       "planCount",
+      "pieceProgress",
+      "pieceSummaries",
+      "weekPlan",
     ];
     const out = {};
     for (const k of keys) if (p[k] !== undefined) out[k] = p[k];

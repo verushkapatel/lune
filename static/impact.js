@@ -746,6 +746,8 @@ window.LuneImpact = (function () {
       return;
     }
     const p = row.payload;
+    // a shared week plan or a piece's progress has its own page
+    if (p.kind && window.LunePlans?.renderShare?.(page, p)) return;
     const invited = !!p.invite;
     if (invited) markInvite();
     const range = p.weekLabel || weekRangeLabel(p.week) || p.week || "";

@@ -1781,7 +1781,7 @@ window.LuneOnboard = (function () {
       barAuth.setAttribute("aria-hidden", authed ? "true" : "false");
     }
     paintAppMode();
-    if (!authed && !appMode()) {
+    if (!authed && !appMode() && !document.body.classList.contains("is-studio")) {
       document.body.classList.remove("phone-search-open", "studio-search-open");
       $("btn-search")?.setAttribute("aria-expanded", "false");
     }

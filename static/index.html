@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- lune15 -->
-  <!-- deploy-lune15 -->
-  <!-- deploy-lune15 -->
+  <!-- lune16 -->
+  <!-- deploy-lune16 -->
+  <!-- deploy-lune16 -->
 
 <meta charset="UTF-8">
   <script>
@@ -34,15 +34,16 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Lune">
-  <link rel="icon" href="static/assets/favicon.svg?v=lune15" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=lune15">
+  <link rel="icon" href="static/assets/favicon.svg?v=lune16" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=lune16">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2?v=lune15" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="static/styles.css?v=lune15">
-  <link rel="stylesheet" href="static/theme-light.css?v=lune15">
-  <link rel="preload" href="static/search-index.json?v=lune15" as="fetch" crossorigin>
+  <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2?v=lune16" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="static/styles.css?v=lune16">
+  <link rel="stylesheet" href="static/theme-light.css?v=lune16">
+  <link rel="preload" href="static/search-index.json?v=lune16" as="fetch" crossorigin>
 </head>
 <body>
+  <script>if (/^#\/[a-z0-9]/i.test(location.hash)) document.documentElement.classList.add("boot-piece");</script>
   <div id="app">
     <header class="bar">
       <button type="button" class="brand" id="btn-home" title="Home" aria-label="Home">
@@ -196,12 +197,12 @@
         <div class="home-app-head">
           <svg class="lune-mark" viewBox="0 0 40 40" width="40" height="40" aria-hidden="true" focusable="false"><path fill="currentColor" d="M26.2 7.2c-5.9.9-10.4 6-10.4 12.1 0 6.1 4.5 11.2 10.4 12.1A12.2 12.2 0 0 1 14 19.3c0-6.6 5.2-12 11.8-12.2.1 0 .3 0 .4 0z"/></svg>
           <h1 id="home-app-h">Welcome to Lune</h1>
-          <p class="lead">Open any piece and the studio is ready: names under the notes, fingering, playback at your tempo, falling notes, braille and Ask Lune.</p>
+          <p class="lead">Open any piece. Everything you need is already there.</p>
         </div>
         <div class="home-app-signin" id="home-app-signin">
           <div>
             <h2>Keep everything, everywhere</h2>
-            <p>A free account keeps your Repertoire, plans and practice on every device, and turns on Lune AI.</p>
+            <p>A free account syncs your practice and turns on Lune AI.</p>
           </div>
           <div class="home-app-signin-actions">
             <button type="button" class="primary" data-lp-signin-only>Sign in or create an account</button>
@@ -247,7 +248,7 @@
             <p class="home-brand">Lune</p>
           </div>
           <div class="home-continue" id="home-continue" hidden></div>
-          <h1>When practice feels lost.<br>Find the light again.</h1>
+          <h1 data-fx-blur>When practice feels lost.<br>Find the light again.</h1>
           <p class="lead">
             Named for Clair de lune — a night studio that helps practice feel right again.
           </p>
@@ -269,7 +270,7 @@
       <section class="home-feat-intro" id="tour" data-reveal>
         <p class="about-kicker">Inside the studio</p>
         <h2 id="sim-h">Each tool, as you’ll use it.</h2>
-        <p>These are the opening bars of Clair de lune, engraved live on this page. Press the buttons — they work.</p>
+        <p>The opening of Clair de lune, live. Press the buttons.</p>
       </section>
 
       <div id="features" class="home-feat-stack" aria-label="Lune features">
@@ -278,7 +279,6 @@
         <div class="home-feat-copy">
           <p class="about-kicker">01 · Annotate</p>
           <h2>Every note, named.</h2>
-          <p class="home-feat-why"><strong>Why:</strong> Labels sit under the staff in their own lane — never painted on the note heads — so the page stays readable while you learn.</p>
           <p>Toggle <strong>Notes</strong>, <strong>Fingers</strong>, or <strong>Off</strong> in the score tools. One mode at a time.</p>
         </div>
         <figure class="home-feat-device">
@@ -302,8 +302,7 @@
         <div class="home-feat-copy">
           <p class="about-kicker">02 · Hear</p>
           <h2>Your tempo. The original marked.</h2>
-          <p class="home-feat-why"><strong>Why:</strong> Slowing down shouldn’t lose the piece’s pulse. The slider keeps the original bpm visible so you always know where “real” sits.</p>
-          <p>Play with a metronome in the piece’s meter. The playhead stays with you on the page.</p>
+          <p>A metronome in the piece’s meter. The score follows you.</p>
         </div>
         <figure class="home-feat-device">
           <div class="fx-chrome" aria-hidden="true">
@@ -325,8 +324,7 @@
         <div class="home-feat-copy">
           <p class="about-kicker">03 · Piano</p>
           <h2>Falling notes onto real keys.</h2>
-          <p class="home-feat-why"><strong>Why:</strong> Hard bars make more sense under the hands. Same tempo control as the score — filter right, left, or both.</p>
-          <p>Open the Piano tab. Notes drop onto the keyboard; pressed keys can show the finger digit.</p>
+          <p>Notes fall onto the keys, with fingers if you want them.</p>
         </div>
         <figure class="home-feat-device fx-device-piano" aria-hidden="true">
           <div class="fx-chrome">
@@ -374,8 +372,7 @@
         <div class="home-feat-copy">
           <p class="about-kicker">04 · Ask Lune</p>
           <h2>Tap the bar that won’t sit. Then ask.</h2>
-          <p class="home-feat-why"><strong>Why:</strong> Help should answer the bar in front of you. Ask Lune reads the score’s own analysis: the notes, the fingering, why the bar is hard and how to work it.</p>
-          <p>Type or speak. Leave a remark and it is flagged on the bar. Say how it went, or ask for a plan built from your remarks.</p>
+          <p>Type or speak. Remarks are flagged on the bar.</p>
         </div>
         <figure class="home-feat-device">
           <div class="fx-chrome" aria-hidden="true">
@@ -398,7 +395,6 @@
         <div class="home-feat-copy">
           <p class="about-kicker">06 · Easy read</p>
           <h2>Letters that refuse to blur.</h2>
-          <p class="home-feat-why"><strong>Why:</strong> Similar note names mix up under fatigue. Atkinson Hyperlegible keeps every letter shape distinct under the staff.</p>
           <p>Tap <strong>Aa</strong> on Score or Overview. Large print and high contrast live in Reading &amp; access.</p>
         </div>
         <figure class="home-feat-device fx-readable">
@@ -419,7 +415,6 @@
         <div class="home-feat-copy">
           <p class="about-kicker">06 · Braille</p>
           <h2>Music you can feel.</h2>
-          <p class="home-feat-why"><strong>Why:</strong> When a library piece has a braille file, download should be one quiet chip away — for an embosser or refreshable display.</p>
           <p>Most library pieces have one, made automatically and labelled as such. Where a piece has none, its Overview says so.</p>
         </div>
         <figure class="home-feat-device" aria-hidden="true">
@@ -444,7 +439,6 @@
         <div class="home-feat-copy">
           <p class="about-kicker">07 · Notes</p>
           <h2>Speak or jot what you’d forget.</h2>
-          <p class="home-feat-why"><strong>Why:</strong> Practice thoughts vanish between sessions. Put them on the bar — typed or spoken — and rate it after you work it.</p>
           <p>Markers sit on the score. Hard bars come back as Today’s work.</p>
         </div>
         <figure class="home-feat-device" aria-hidden="true">
@@ -466,7 +460,6 @@
         <div class="home-feat-copy">
           <p class="about-kicker">08 · Repertoire</p>
           <h2>Plans that stay with you.</h2>
-          <p class="home-feat-why"><strong>Why:</strong> Select bars, speak or jot a note, save a plan into Repertoire. Sign in and it syncs — no ads, no payments.</p>
           <p>Today’s bars bring back what you’d forget. Sign in when you want them on every device.</p>
         </div>
         <figure class="home-feat-device" aria-hidden="true">
@@ -492,15 +485,15 @@
 
       </div>
 
-      <section class="ai-chapter" id="ai" aria-labelledby="ai-h">
+      <section class="ai-chapter" id="ai" aria-labelledby="ai-h" data-fx-aurora>
         <div class="ai-intro" data-reveal>
           <p class="about-kicker">Lune AI</p>
-          <h2 id="ai-h">Help that reads<br>your score first.</h2>
-          <p class="ai-lead">Lune AI answers from what Lune has read in the music in front of you: the notes, the fingering, the leaps and the harmony. It also uses your own remarks and ratings. Here is what that looks like, using real bars of Für Elise.</p>
+          <h2 id="ai-h" data-fx-blur>Help that reads<br>your score first.</h2>
+          <p class="ai-lead">It reads the notes, fingering and harmony in front of you, and your own remarks. Here it is on real bars of Für Elise.</p>
         </div>
 
         <div class="ai-scenes">
-          <article class="ai-scene" data-ai-scene>
+          <article class="ai-scene fx-spot" data-ai-scene>
             <p class="ai-scene-k">1 · Understand a bar</p>
             <h3>Tap a bar. Ask what is going on.</h3>
             <div class="ai-chat">
@@ -510,7 +503,7 @@
             <p class="ai-where">On any score: tap a bar, then Ask Lune.</p>
           </article>
 
-          <article class="ai-scene" data-ai-scene>
+          <article class="ai-scene fx-spot" data-ai-scene>
             <p class="ai-scene-k">2 · A plan for the time you have</p>
             <h3>Say how long you have. Get the steps.</h3>
             <div class="ai-chat">
@@ -520,7 +513,7 @@
             <p class="ai-where">Saved to Repertoire with a one-line summary, so tomorrow starts where tonight stopped.</p>
           </article>
 
-          <article class="ai-scene" data-ai-scene>
+          <article class="ai-scene fx-spot" data-ai-scene>
             <p class="ai-scene-k">3 · When a bar falls apart</p>
             <h3>Rate it Hard. Get one thing to try.</h3>
             <div class="ai-chat">
@@ -530,7 +523,7 @@
             <p class="ai-where">Hard and Again bars also come back sooner in Today’s bars.</p>
           </article>
 
-          <article class="ai-scene" data-ai-scene>
+          <article class="ai-scene fx-spot" data-ai-scene>
             <p class="ai-scene-k">4 · Speak, and it is written down</p>
             <h3>Talk while your hands are busy.</h3>
             <div class="ai-chat">
@@ -540,7 +533,7 @@
             <p class="ai-where">Whisper writes down what you say, with punctuation. Answers can be read back in a natural voice.</p>
           </article>
 
-          <article class="ai-scene" data-ai-scene>
+          <article class="ai-scene fx-spot" data-ai-scene>
             <p class="ai-scene-k">5 · Chat with Lune</p>
             <h3>Ask about practice, not just one bar.</h3>
             <div class="ai-chat">
@@ -550,7 +543,7 @@
             <p class="ai-where">From Home or Settings. It knows your Repertoire, your plans and your goal.</p>
           </article>
 
-          <article class="ai-scene" data-ai-scene>
+          <article class="ai-scene fx-spot" data-ai-scene>
             <p class="ai-scene-k">6 · Your week, summed up</p>
             <h3>See what moved, and what is next.</h3>
             <div class="ai-chat">
@@ -567,7 +560,7 @@
       <section class="lp-compare" id="compare" aria-labelledby="compare-h">
         <div class="lp-compare-intro" data-reveal>
           <p class="about-kicker">How Lune compares</p>
-          <h2 id="compare-h">Different on purpose.</h2>
+          <h2 id="compare-h" data-fx-blur>Different on purpose.</h2>
           <p class="lp-lead">The biggest piano apps, flowkey, Simply Piano, Yousician and Skoove, are polished courses. They teach from their own song libraries and charge a subscription. Lune is a practice studio for the music you are actually learning. Here is the honest difference, including what they do better.</p>
         </div>
         <div class="lp-compare-table-wrap" data-reveal>
@@ -625,23 +618,23 @@
       <section class="lp-free" id="free" aria-labelledby="free-h">
         <div class="lp-free-inner" data-reveal>
           <p class="about-kicker">Free, for good</p>
-          <h2 id="free-h">No payments.<br>Not now, not later.</h2>
+          <h2 id="free-h" data-fx-blur>No payments.<br>Not now, not later.</h2>
           <div class="lp-free-grid">
             <div>
               <h3>Nothing to pay</h3>
-              <p>No subscription, no trial that turns into a bill, no premium tier, no in-app purchases. Every feature is for everyone.</p>
+              <p>No subscription, no trial, no premium tier. Every feature is for everyone.</p>
             </div>
             <div>
               <h3>Nothing to watch</h3>
-              <p>No ads and no ad-tracking scripts. Your remarks and ratings are there to help you practise, and for nothing else.</p>
+              <p>No ads and no ad tracking. Your practice is yours.</p>
             </div>
             <div>
               <h3>Lune AI included</h3>
-              <p>Lune AI is free with an account. It runs inside a free daily allowance; when that runs out, it pauses until the next day instead of asking you to pay.</p>
+              <p>Lune AI is free with an account. If its daily allowance runs out, it pauses until tomorrow.</p>
             </div>
             <div>
               <h3>Why it can stay free</h3>
-              <p>Lune runs on free services: GitHub Pages, and the free tiers of Supabase and Cloudflare. There is no server bill to pass on to you.</p>
+              <p>Lune runs on free tiers of GitHub Pages, Supabase and Cloudflare. No bill to pass on.</p>
             </div>
           </div>
         </div>
@@ -733,7 +726,7 @@
 
       <section class="home-close home-close-cinema" id="get-lune" aria-labelledby="home-close-h" data-reveal>
         <p class="about-kicker">Free, for every pianist</p>
-        <h2 id="home-close-h">Get Lune.</h2>
+        <h2 id="home-close-h" data-fx-blur>Get Lune.</h2>
         <p>Install Lune on your phone, tablet or computer. It opens like an app, full screen. Sign in inside the app when you want your Repertoire, plans and Lune AI on every device.</p>
         <div class="home-cta-row">
           <button type="button" class="primary big" id="btn-install" data-install>Install Lune</button>
@@ -979,15 +972,12 @@
   </aside>
 
   <div class="lune-loader" id="lune-loader" hidden role="status" aria-live="polite">
-    <div class="lune-loader-box">
-      <div class="loader-piano" aria-hidden="true">
-        <span class="lk w"></span><span class="lk w"></span><span class="lk w"></span><span class="lk w"></span><span class="lk w"></span><span class="lk w"></span><span class="lk w"></span>
-        <span class="lk b b1"></span><span class="lk b b2"></span><span class="lk b b3"></span><span class="lk b b4"></span><span class="lk b b5"></span>
-      </div>
-      <p class="lune-loader-text" id="lune-loader-text">Opening the score</p>
+    <div class="lune-loader-stage">
+      <svg class="lune-loader-mark" viewBox="0 0 40 40" width="34" height="34" aria-hidden="true" focusable="false"><path fill="currentColor" d="M26.2 7.2c-5.9.9-10.4 6-10.4 12.1 0 6.1 4.5 11.2 10.4 12.1A12.2 12.2 0 0 1 14 19.3c0-6.6 5.2-12 11.8-12.2.1 0 .3 0 .4 0z"/></svg>
+      <div class="lune-loader-keys" aria-hidden="true"><span style="--k:0"></span><span style="--k:1"></span><span style="--k:2"></span><span style="--k:3"></span><span style="--k:4"></span><span style="--k:5"></span><span style="--k:6"></span><span style="--k:7"></span><b style="--b:0"></b><b style="--b:1"></b><b style="--b:3"></b><b style="--b:4"></b><b style="--b:5"></b></div>
+      <p class="lune-loader-text" id="lune-loader-text">Opening</p>
     </div>
   </div>
-
 
   <dialog class="credits-dialog" id="credits-dialog" aria-labelledby="credits-title">
     <form method="dialog" class="credits-close-row">
@@ -1006,6 +996,7 @@
       <li><a href="https://github.com/OpenScore" target="_blank" rel="noopener">OpenScore</a> (CC0) — Lieder, string quartets, and other CC0 MusicXML encodings.</li>
       <li>The <a href="https://github.com/musetrainer/library" target="_blank" rel="noopener">musetrainer/library</a> public-domain MusicXML collection.</li>
       <li>Piano scores from the <a href="https://github.com/fosfrancesco/asap-dataset" target="_blank" rel="noopener">ASAP dataset</a> (Foscarin, McLeod, Rigaux, Jacquemard and Sakai), licensed <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a>. They are fetched from that project when you open one.</li>
+      <li>Motion effects (the orb, blur-in text, aurora and spotlight) were written for Lune in plain JavaScript, inspired by <a href="https://reactbits.dev" target="_blank" rel="noopener">React Bits</a> by David Haz. No React Bits code is included.</li>
       <li data-ai-credit hidden>Lune AI answers with Llama 3.3 70B Instruct by Meta, with Llama 3.1 8B Instruct when it is busy, open-weight models run on Cloudflare Workers AI. Built with Llama. Llama 3.3 and Llama 3.1 are licensed under the <a href="https://www.llama.com/llama3_3/license/" target="_blank" rel="noopener">Llama 3.3 Community License</a> and the <a href="https://www.llama.com/llama3_1/license/" target="_blank" rel="noopener">Llama 3.1 Community License</a>.</li>
       <li>Mozart’s Piano Sonata no. 18, K. 576, from <a href="https://github.com/DCMLab/mozart_piano_sonatas" target="_blank" rel="noopener">The Annotated Mozart Sonatas</a> (DCML: Hentschel, Neuwirth and Rohrmeier), licensed <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a>, as MusicXML from the <a href="https://github.com/MarkGotham/When-in-Rome" target="_blank" rel="noopener">When in Rome</a> corpus (Gotham and others). Fetched from there when you open it.</li>
       <li>Other allowlisted open MusicXML hosts (e.g. Mutopia / Wikimedia Commons when a free MusicXML file is listed) — fetched on demand, never paid APIs, never random PDFs.</li>
@@ -1046,23 +1037,26 @@
   <script src="static/vendor/opensheetmusicdisplay.min.js"></script>
   <script src="static/vendor/pdf.min.js"></script>
   <script src="static/vendor/Tone.js"></script>
-  <script src="static/piano.js?v=lune15"></script>
-  <script src="static/annotate.js?v=lune15"></script>
-  <script src="static/lite-analyze.js?v=lune15"></script>
-  <script src="static/fetch-score.js?v=lune15"></script>
-  <script src="static/lyric-lane.js?v=lune15"></script>
-  <script src="static/menu.js?v=lune15"></script>
-  <script src="static/lune-config.js?v=lune15"></script>
-  <script src="static/store.js?v=lune15"></script>
-  <script src="static/onboard.js?v=lune15"></script>
-  <script src="static/impact.js?v=lune15"></script>
-  <script src="static/feedback.js?v=lune15"></script>
-  <script src="static/ai-device.js?v=lune15"></script>
-  <script src="static/ask.js?v=lune15"></script>
-  <script src="static/app.js?v=lune15"></script>
-  <script src="static/landing-score.js?v=lune15"></script>
-  <script src="static/practice.js?v=lune15"></script>
-  <script src="static/study.js?v=lune15"></script>
-  <script src="static/install.js?v=lune15"></script>
+  <script src="static/piano.js?v=lune16"></script>
+  <script src="static/annotate.js?v=lune16"></script>
+  <script src="static/lite-analyze.js?v=lune16"></script>
+  <script src="static/fetch-score.js?v=lune16"></script>
+  <script src="static/lyric-lane.js?v=lune16"></script>
+  <script src="static/menu.js?v=lune16"></script>
+  <script src="static/lune-fx.js?v=lune16"></script>
+  <script src="static/lune-config.js?v=lune16"></script>
+  <script src="static/store.js?v=lune16"></script>
+  <script src="static/onboard.js?v=lune16"></script>
+  <script src="static/impact.js?v=lune16"></script>
+  <script src="static/feedback.js?v=lune16"></script>
+  <script src="static/ai-device.js?v=lune16"></script>
+  <script src="static/ask.js?v=lune16"></script>
+  <script src="static/plans.js?v=lune16"></script>
+  <script src="static/app.js?v=lune16"></script>
+  <script src="static/studio-ui.js?v=lune16"></script>
+  <script src="static/landing-score.js?v=lune16"></script>
+  <script src="static/practice.js?v=lune16"></script>
+  <script src="static/study.js?v=lune16"></script>
+  <script src="static/install.js?v=lune16"></script>
 </body>
 </html>

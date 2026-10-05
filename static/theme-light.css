@@ -2005,6 +2005,12 @@ html[data-theme="light"] .access-option[aria-pressed="true"] {
 html[data-theme="light"] .lune-chat::backdrop {
   background: rgba(255, 255, 255, 0.55);
 }
+html[data-theme="light"] .studio-menu::backdrop {
+  background: rgba(255, 255, 255, 0.5);
+}
+html[data-theme="light"] .wp-dialog::backdrop {
+  background: rgba(255, 255, 255, 0.55);
+}
 /* KEEP: hand fixes */
 /* --dim text reaches 4.5:1 on the page and on surfaces (was #8a8a8a, 3.4:1) */
 html[data-theme="light"] { --dim: #666666; }
