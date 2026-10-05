@@ -1416,7 +1416,7 @@ def section_fixes(browser):
     pg.wait_for_function("() => /How should I practise/.test(document.getElementById('chat-log')?.innerText || '')", timeout=15000)
     check("repertoire: Ask Lune on a piece asks about that piece on the Lune AI page", "How should I practise" in pg.inner_text("#chat-log"))
     # voice replies: one tap, and every answer is read aloud
-    pg.evaluate("() => { window.__spoken = []; LunePractice.speak = (t) => window.__spoken.push(t); localStorage.removeItem('lune.voiceReplies'); }")
+    pg.evaluate("() => { window.__spoken = []; LunePractice.speak = (t) => window.__spoken.push(t); LunePractice.speakAndWait = async (t, o) => { window.__spoken.push(t); o?.onProgress?.(0.5); o?.onProgress?.(1); }; localStorage.removeItem('lune.voiceReplies'); }")
     pg.click("#chat-voice")
     check("voice replies: the speaker in the header turns them on", pg.get_attribute("#chat-voice", "aria-pressed") == "true")
     pg.fill("#chat-input", "What is a trill?")
@@ -1439,6 +1439,15 @@ def section_timing(browser):
     worst = max((lens[i] / min(lens[i - 1], lens[i + 1]), i + 1) for i in range(1, len(lens) - 1))
     check("timing: no bar of Clair de lune lasts more than twice its neighbours", worst[0] < 2, (worst, lens[20:30]))
     check("timing: bar 26 keeps its ritardando without stalling (under 6 s)", 3 < lens[25] < 6, lens[25])
+    # any piece: search offers MuseScore and opening the downloaded file
+    pg.evaluate("() => { document.body.classList.add('studio-search-open'); const f = document.getElementById('top-search'); if (f) f.hidden = false; }")
+    pg.fill("#q", "interstellar")
+    pg.wait_for_timeout(900)
+    href = pg.evaluate("() => document.querySelector('.result-anywhere-find')?.href || ''")
+    check("search: any piece can be found on MuseScore from Lune's search", href.startswith("https://musescore.com/sheetmusic?text=interstellar"), href)
+    with pg.expect_file_chooser(timeout=5000) as fc:
+        pg.click(".result-anywhere-open")
+    check("search: the downloaded MusicXML opens from the same row", fc.value is not None)
     check("timing: no page errors", not pg.errors, pg.errors)
     pg.context.close()
 
