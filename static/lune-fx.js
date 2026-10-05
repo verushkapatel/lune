@@ -43,9 +43,10 @@ window.LuneFX = (function () {
       shown += (level - shown) * 0.18;
       const pulse = mode === "speaking" || mode === "listening" ? shown : mode === "thinking" ? 0.18 + 0.12 * Math.sin(t * 0.004) : 0.06 + 0.04 * Math.sin(t * 0.0015);
       ctx.clearRect(0, 0, w, w);
-      const base = w * 0.36 * (1 + pulse * 0.32);
+      const base = Math.min(w * 0.36 * (1 + pulse * 0.32), c * 0.8);
       // soft halo
-      const halo = ctx.createRadialGradient(c, c, base * 0.6, c, c, base * 1.45);
+      // the glow fades out before the canvas edge, so no square corner ever shows
+      const halo = ctx.createRadialGradient(c, c, base * 0.6, c, c, Math.min(base * 1.45, c * 0.98));
       halo.addColorStop(0, "rgba(120,150,230,0.22)");
       halo.addColorStop(1, "rgba(120,150,230,0)");
       ctx.fillStyle = halo;

@@ -1875,7 +1875,12 @@ function extractTempoMap(xml) {
 
 function pieceTempoMap() {
   try {
-    return extractTempoMap(state.piece?.musicxml);
+    // a mark written at (or a hair past) the barline belongs to its own bar, never to the next
+    const lens = measureLengths(state.piece);
+    return extractTempoMap(state.piece?.musicxml).map((r) => {
+      const len = lens?.get(r.bar);
+      return len > 0 && r.off != null && r.off >= len ? { ...r, off: Math.max(0, len - 0.001) } : r;
+    });
   } catch {
     return [];
   }
@@ -2115,7 +2120,74 @@ function signatureBarQuarters() {
 }
 
 /** True span of one bar in quarter notes — never "last onset + 1". */
+/*
+ * How long each bar really is, read from the MusicXML: the furthest point any
+ * voice reaches in the bar. The analysis's own length counts how long notes
+ * ring, so a held chord made a 6/4 bar last 9 or 24 beats and playback sat in
+ * silence before the next bar. Cadenzas written as one long bar stay long.
+ */
+const _measureLenCache = new WeakMap();
+function measureLengths(piece) {
+  if (!piece?.musicxml) return null;
+  if (_measureLenCache.has(piece)) return _measureLenCache.get(piece);
+  const out = new Map();
+  const squeeze = new Set();
+  out.squeeze = squeeze;
+  try {
+    const src = String(piece.musicxml);
+    const firstPart = (src.match(/<part\b[\s\S]*?<\/part>/i) || [src])[0];
+    let divisions = 1;
+    let sig = 4; // crotchets in a bar of the current time signature
+    for (const chunk of firstPart.split(/(?=<measure\b)/i)) {
+      const nm = chunk.match(/<measure[^>]*\bnumber\s*=\s*["'](-?\d+)/i);
+      if (!nm) continue;
+      const bar = Number(nm[1]);
+      const ts = chunk.match(/<time\b[^>]*>[\s\S]*?<beats>\s*(\d+)[\s\S]*?<beat-type>\s*(\d+)/i);
+      if (ts) sig = (Number(ts[1]) * 4) / Math.max(1, Number(ts[2]));
+      let pos = 0;
+      let reach = 0; // how far any voice reaches, rests included
+      let sounded = 0; // how far real notes reach
+      for (const m of chunk.matchAll(/<(divisions|note|backup|forward)\b[^>]*>([\s\S]*?)<\/\1>/gi)) {
+        const tag = m[1].toLowerCase();
+        const body = m[2];
+        if (tag === "divisions") {
+          divisions = Math.max(1, Number(body.trim()) || 1);
+          continue;
+        }
+        const dur = Number((body.match(/<duration>\s*(\d+(?:\.\d+)?)\s*<\/duration>/i) || [])[1]) || 0;
+        if (tag === "note") {
+          if (/<grace\b/i.test(body)) continue;
+          const chord = /<chord\s*\/?>/i.test(body);
+          const start = chord ? pos - dur / divisions : pos;
+          if (!/<rest\b/i.test(body)) sounded = Math.max(sounded, start + dur / divisions);
+          if (!chord) pos += dur / divisions;
+        } else pos += (tag === "backup" ? -dur : dur) / divisions;
+        if (pos > reach) reach = pos;
+      }
+      /*
+       * A bar lasts its time signature. Exports often pad a voice with extra
+       * rests past the barline; those must not stretch the bar. Only real
+       * notes running past it (a cadenza) make it longer, and a pickup bar
+       * that is shorter than the signature stays short.
+       */
+      // a cadenza is written in small (cue) notes and may run as long as it likes
+      const cadenza = /<cue\s*\/>|size\s*=\s*["']cue["']/i.test(chunk);
+      let len = sig;
+      if (sounded > sig + 0.01 && cadenza) len = sounded;
+      else if (sounded > sig + 0.01) squeeze.add(bar); // a voice spills over: it is fitted back into the bar
+      else if (reach < sig - 0.2) len = reach;
+      if (len > 0) out.set(bar, Math.max(out.get(bar) || 0, len));
+    }
+  } catch {
+    /* fall back to the analysis below */
+  }
+  _measureLenCache.set(piece, out.size ? out : null);
+  return out.size ? out : null;
+}
+
 function barLengthQuarters(barNum, pack) {
+  const written = measureLengths(state.piece)?.get(Number(barNum));
+  if (written > 0) return written;
   const d = debriefFor(barNum) || state.piece?.debriefs?.[String(barNum)];
   if (Number(d?.ql) > 0) return Number(d.ql);
   const fromNotes = (pack || []).length
@@ -2240,6 +2312,25 @@ function collectNotes(fromBar, toBar) {
           ...(d?.lh || []).map((n) => ({ ...n, hand: normalizeNoteHand(n.hand, "lh") })),
         ];
     const seen = new Set();
+    // an export that writes triplets at full length makes a voice spill past the
+    // barline; that voice is fitted back into the bar, keeping its proportions
+    const lens = measureLengths(state.piece);
+    if (lens?.squeeze?.has(b)) {
+      const barLen = lens.get(b) || signatureBarQuarters();
+      const ends = new Map();
+      for (const n of pack) {
+        const v = n.voice ?? n.hand ?? "x";
+        ends.set(v, Math.max(ends.get(v) || 0, (Number(n.offset) || 0) + (Number(n.duration) || 0)));
+      }
+      for (const n of pack) {
+        const end = ends.get(n.voice ?? n.hand ?? "x") || 0;
+        if (end > barLen + 0.01) {
+          const k = barLen / end;
+          n.offset = (Number(n.offset) || 0) * k;
+          n.duration = (Number(n.duration) || 0) * k;
+        }
+      }
+    }
     for (const n of pack) {
       if (!n.midi) continue;
       // Same pitch at the same onset from mirrored voices → one attack.
