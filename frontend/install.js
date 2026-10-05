@@ -165,9 +165,58 @@
 
   if ("serviceWorker" in navigator && window.isSecureContext) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("sw.js").catch(() => {
+      navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch(() => {
         /* not served here (e.g. a file preview): the site works as before */
       });
     });
   }
+
+  /*
+   * Always the newest Lune. Each publish writes its stamp to deploy-stamp.txt.
+   * Opening Lune on an older copy reloads once, straight away; a newer copy
+   * published while Lune is open is offered with one tap, never forced
+   * mid-practice.
+   */
+  const mine = (document.querySelector('script[src*="?v="]')?.getAttribute("src") || "").match(/v=([\w-]+)/)?.[1] || "";
+  let offered = false;
+  async function checkForUpdate(first) {
+    if (!mine || offered || !/^https?:$/.test(location.protocol)) return;
+    let live = "";
+    try {
+      const r = await fetch(`deploy-stamp.txt?t=${Date.now()}`, { cache: "no-store" });
+      if (!r.ok) return;
+      live = (await r.text()).trim();
+    } catch {
+      return;
+    }
+    if (!/^[\w-]{3,40}$/.test(live) || live === mine) return;
+    const tried = (() => {
+      try {
+        return sessionStorage.getItem("lune.updated-to");
+      } catch {
+        return null;
+      }
+    })();
+    if (first && tried !== live) {
+      try {
+        sessionStorage.setItem("lune.updated-to", live);
+      } catch {
+        /* private mode */
+      }
+      const reg = await navigator.serviceWorker?.getRegistration?.().catch(() => null);
+      await reg?.update?.().catch(() => {});
+      location.reload();
+      return;
+    }
+    offered = true;
+    const pill = document.createElement("button");
+    pill.type = "button";
+    pill.className = "lune-update";
+    pill.innerHTML = '<span class="lune-update-dot" aria-hidden="true"></span>A new Lune is ready · Update';
+    pill.addEventListener("click", () => location.reload());
+    document.body.appendChild(pill);
+  }
+  window.addEventListener("load", () => setTimeout(() => checkForUpdate(true), 800));
+  document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && checkForUpdate(false));
+  setInterval(() => checkForUpdate(false), 10 * 60 * 1000);
 })();

@@ -754,7 +754,7 @@ window.LunePiano = (function () {
         continue;
       }
       // Bar-indexed maps are resolved against sourceNotes when arming.
-      byQ.push({ bar: Number(row.bar), bpm, q: null });
+      byQ.push({ bar: Number(row.bar), off: Math.max(0, Number(row.off) || 0), bpm, q: null });
     }
     tempoMapQ = byQ;
     if (Number.isFinite(Number(base)) && Number(base) > 0) {
@@ -785,8 +785,9 @@ window.LunePiano = (function () {
         resolved.push({ q: row.q, bpm: row.bpm });
         continue;
       }
+      // a change written partway through a bar starts there, not at the barline
       if (row.bar != null && barStart.has(row.bar)) {
-        resolved.push({ q: barStart.get(row.bar), bpm: row.bpm });
+        resolved.push({ q: barStart.get(row.bar) + (row.off || 0), bpm: row.bpm });
       }
     }
     resolved.sort((a, b) => a.q - b.q);

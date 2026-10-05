@@ -104,7 +104,7 @@ def section_ai(browser):
     row = pg.eval_on_selector_all(".lp-ai-row button", "els => els.map(e => e.textContent)")
     check(
         "ai: bar panel has the Lune AI row when a model is connected",
-        row == ["Explain this bar", "Why is this hard?", "Suggest practice", "Explain the fingering"],
+        row == ["Explain", "Why it’s hard", "How to practise", "Fingering"],
         row,
     )
     pg.evaluate("() => LuneAsk.open({bar: 7})")
@@ -880,7 +880,8 @@ def section_voice(browser):
         if pg.locator('#ask-listen [data-listen="done"]').is_visible():
             pg.click('#ask-listen [data-listen="done"]')
         pg.wait_for_timeout(2500)
-        said = pg.input_value("#ask-input")
+        # once you stop speaking it is sent: the words are the newest question in the panel
+        said = pg.evaluate("() => (() => { const y = [...document.querySelectorAll('#ask-log .ask-from-you')].pop(); return y ? y.textContent : document.getElementById('ask-input').value; })()")
         if signed:
             got = json.loads(_u.urlopen(ACCOUNT_SERVER + "/last").read())
             check("voice: signed in, the microphone works without the browser's speech recognition", said == "Bar 12, keep the thumb light.", said)
@@ -1233,7 +1234,8 @@ def section_plans(browser):
     check("voice: while listening, a waveform and timer replace the text box", pg.locator("#ask-listen .lc-wave").is_visible() and pg.locator("#ask-listen .lc-timer").is_visible())
     pg.click('#ask-listen [data-listen="done"]')
     pg.wait_for_timeout(2500)
-    check("voice: the words land in the box to check before sending", pg.input_value("#ask-input") == "Bar 12, keep the thumb light.", pg.input_value("#ask-input"))
+    sent = pg.evaluate("() => (() => { const y = [...document.querySelectorAll('#ask-log .ask-from-you')].pop(); return y ? y.textContent : document.getElementById('ask-input').value; })()")
+    check("voice: once you stop speaking, the words are sent to Lune", sent == "Bar 12, keep the thumb light.", sent)
     # talk: Lune listens, then answers aloud (the round button is voice chat while the box is empty)
     pg.fill("#ask-input", "")
     pg.click("#ask-talk")
@@ -1413,11 +1415,35 @@ def section_fixes(browser):
     pg.locator("#repertoire [data-ask-piece]").first.click()
     pg.wait_for_function("() => /How should I practise/.test(document.getElementById('chat-log')?.innerText || '')", timeout=15000)
     check("repertoire: Ask Lune on a piece asks about that piece on the Lune AI page", "How should I practise" in pg.inner_text("#chat-log"))
+    # voice replies: one tap, and every answer is read aloud
+    pg.evaluate("() => { window.__spoken = []; LunePractice.speak = (t) => window.__spoken.push(t); localStorage.removeItem('lune.voiceReplies'); }")
+    pg.click("#chat-voice")
+    check("voice replies: the speaker in the header turns them on", pg.get_attribute("#chat-voice", "aria-pressed") == "true")
+    pg.fill("#chat-input", "What is a trill?")
+    pg.press("#chat-input", "Enter")
+    pg.wait_for_function("() => window.__spoken.length > 0", timeout=15000)
+    check("voice replies: Lune's answer is read aloud", "STANDIN" in pg.evaluate("() => window.__spoken[0]"))
+    pg.click("#chat-voice")
+    check("voice replies: and off again", pg.get_attribute("#chat-voice", "aria-pressed") == "false")
     check("fixes: no page errors", not pg.errors, pg.errors)
     ctx.close()
 
 
-SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week, "catalogue": section_catalogue, "console": section_console, "account": section_account, "latest": section_latest, "voice": section_voice, "progress": section_progress, "home": section_home, "loop": section_practice_loop, "studio": section_studio, "plans": section_plans, "voice2": section_voice2, "aipage": section_aipage, "fixes": section_fixes}
+def section_timing(browser):
+    """Tempo changes written inside a bar start where they are written, so no bar stalls (Clair de lune's rubato)."""
+    pg = new_page(browser)
+    open_piece(pg, BASE + "#/claude-debussy-suite-bergamasque-clair-de-lune/score")
+    pg.wait_for_timeout(1500)
+    marks = pg.evaluate("() => LunePiano.barMarkers().slice(0, 80).map(x => x.t)")
+    lens = [round(b - a, 3) for a, b in zip(marks, marks[1:])]
+    worst = max((lens[i] / min(lens[i - 1], lens[i + 1]), i + 1) for i in range(1, len(lens) - 1))
+    check("timing: no bar of Clair de lune lasts more than twice its neighbours", worst[0] < 2, (worst, lens[20:30]))
+    check("timing: bar 26 keeps its ritardando without stalling (under 6 s)", 3 < lens[25] < 6, lens[25])
+    check("timing: no page errors", not pg.errors, pg.errors)
+    pg.context.close()
+
+
+SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week, "catalogue": section_catalogue, "console": section_console, "account": section_account, "latest": section_latest, "voice": section_voice, "progress": section_progress, "home": section_home, "loop": section_practice_loop, "studio": section_studio, "plans": section_plans, "voice2": section_voice2, "aipage": section_aipage, "fixes": section_fixes, "timing": section_timing}
 
 if __name__ == "__main__":
     want = sys.argv[1:] or list(SECTIONS)
