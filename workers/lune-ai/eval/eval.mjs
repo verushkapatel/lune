@@ -99,7 +99,9 @@ const CASES = [
     q: "Which bars are hardest?",
     c: ctx.piece,
     ok: (t) => {
-      const said = new Set([...t.matchAll(/\b(\d{1,3})\b/g)].map((m) => Number(m[1])).filter((n) => n > 0 && n < 400));
+      // step numbers ("1. Bar 27…") are list markers, not bars
+      const prose = t.replace(/(^|[\s:])\d{1,2}[.)]\s+(?=\S)/g, "$1");
+      const said = new Set([...prose.matchAll(/\b(\d{1,3})\b/g)].map((m) => Number(m[1])).filter((n) => n > 0 && n < 400));
       return said.size > 0 && [...said].every((n) => hardest.has(n));
     },
   },
