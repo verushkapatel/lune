@@ -941,7 +941,10 @@ async function landOnDiscover(piece) {
     openPieceSession(piece, { panel: "explain", analyze: false });
     return;
   }
-  openPieceSession(piece, { panel: "explain", analyze: false });
+  // a new tab opened from the score (the + button) opens on its score, ready to play
+  const fromScore = document.body.classList.contains("is-studio") && state.panel === "score";
+  await openPieceSession(piece, { panel: "explain", analyze: false });
+  if (fromScore && state.piece?.musicxml) await switchToScorePanel();
 }
 
 /* ---------- composer faces ---------- */
@@ -1928,7 +1931,9 @@ async function activateSession(id) {
   setStudioPanel(s.panel || "explain", { skipScore: true });
   setRoute(s.piece, s.panel || "explain");
   if ((s.panel || "explain") === "score" && s.piece?.musicxml) {
-    await renderScore();
+    // a tab restored from the last visit has its notes but not yet its bars: read them first
+    if (!state.piece?.debriefs || !Object.keys(state.piece.debriefs).length) await ensureScoreReady();
+    else await renderScore();
     primeTimeline();
   } else if ((s.panel || "explain") === "explain") {
     renderExplainPanel(s.piece);
@@ -3120,6 +3125,11 @@ async function togglePlayback() {
 }
 
 async function startPiecePlayback(seekRatio = 0) {
+  // a piece not yet read (a restored tab, or straight from Explain) is read before anything plays
+  if (!Object.keys(state.piece?.debriefs || {}).length && state.piece?.musicxml) {
+    if (state.panel === "explain") setStudioPanel("score", { skipScore: true });
+    await ensureScoreReady();
+  }
   const notes = pieceNotes();
   if (!notes.length) {
     toast("Nothing to play");

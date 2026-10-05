@@ -1366,7 +1366,58 @@ def section_aipage(browser):
         ctx.close()
 
 
-SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week, "catalogue": section_catalogue, "console": section_console, "account": section_account, "latest": section_latest, "voice": section_voice, "progress": section_progress, "home": section_home, "loop": section_practice_loop, "studio": section_studio, "plans": section_plans, "voice2": section_voice2, "aipage": section_aipage}
+def section_fixes(browser):
+    """Restored tabs play; + opens on the score; Lune AI is one tap from Home and Repertoire and Back returns."""
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+    ctx.add_init_script(POINT_AT_SERVER)
+    pg = ctx.new_page()
+    pg.errors = []
+    pg.on("pageerror", lambda e: pg.errors.append(str(e)[:200]))
+    open_piece(pg)
+    # + from the score opens the new piece on its score
+    pg.click("#st-add")
+    pg.wait_for_timeout(400)
+    pg.fill("#q", "gymnopedie")
+    pg.wait_for_timeout(1200)
+    pg.locator("#results button, #results a, #results li").first.click()
+    pg.wait_for_function("() => state.sessions.length === 2", timeout=60000)
+    pg.wait_for_timeout(4000)
+    check("tabs: a piece opened with + from the score opens on its score", pg.evaluate("() => state.panel") == "score" and "/score" in pg.evaluate("() => location.hash"))
+    # a tab restored from the last visit plays
+    pg.reload(wait_until="networkidle")
+    pg.wait_for_timeout(4000)
+    lazy = pg.evaluate("() => state.sessions.some(s => s.lazy)")
+    other = pg.evaluate("() => state.sessions.findIndex(s => s.id !== state.activeSessionId)")
+    pg.locator("#piece-tabs .piece-tab-label").nth(other).click()
+    pg.wait_for_timeout(6000)
+    pg.click("#st-play")
+    pg.wait_for_timeout(3000)
+    check("tabs: a tab restored from the last visit plays when switched to", lazy and pg.get_attribute("#st-play", "aria-label") == "Pause", (lazy, pg.get_attribute("#st-play", "aria-label")))
+    pg.click("#st-play")
+    # Lune AI from Home: the Ask bar
+    pg.evaluate(SIGN_IN)
+    back = pg.evaluate("() => location.hash")
+    pg.evaluate("() => { document.body.classList.add('is-signed-in'); document.getElementById('btn-home').click(); }")
+    pg.wait_for_timeout(1200)
+    check("home: Lune AI's Ask bar comes first on the signed-in home", pg.locator("#home-ask").is_visible())
+    pg.fill("#home-ask-input", "How do I practise octaves?")
+    pg.press("#home-ask-input", "Enter")
+    pg.wait_for_function("() => document.querySelectorAll('#chat-log .chat-from-lune').length >= 1 && !document.querySelector('.chat-wait')", timeout=15000)
+    check("home: a question there opens the Lune AI page and is answered", pg.evaluate("() => location.hash") == "#/ai" and "How do I practise octaves?" in pg.inner_text("#chat-log"))
+    pg.click("#chat-close")
+    pg.wait_for_timeout(600)
+    check("ai page: closing it puts the address back where it was", pg.evaluate("() => location.hash") != "#/ai")
+    # Repertoire: Ask Lune about a piece
+    pg.evaluate("async () => { await LuneStore.addPiece({ piece_key: LunePractice.keyFor(state.piece), title: 'Für Elise', composer: 'Beethoven' }); await LunePractice.showRepertoire(); }")
+    pg.wait_for_timeout(1000)
+    pg.locator("#repertoire [data-ask-piece]").first.click()
+    pg.wait_for_function("() => /How should I practise/.test(document.getElementById('chat-log')?.innerText || '')", timeout=15000)
+    check("repertoire: Ask Lune on a piece asks about that piece on the Lune AI page", "How should I practise" in pg.inner_text("#chat-log"))
+    check("fixes: no page errors", not pg.errors, pg.errors)
+    ctx.close()
+
+
+SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week, "catalogue": section_catalogue, "console": section_console, "account": section_account, "latest": section_latest, "voice": section_voice, "progress": section_progress, "home": section_home, "loop": section_practice_loop, "studio": section_studio, "plans": section_plans, "voice2": section_voice2, "aipage": section_aipage, "fixes": section_fixes}
 
 if __name__ == "__main__":
     want = sys.argv[1:] or list(SECTIONS)
