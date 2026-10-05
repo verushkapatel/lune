@@ -611,6 +611,37 @@ function filterSearchIndex(query, limit = SEARCH_LIMIT, index = activeSearchInde
   return results;
 }
 
+/*
+ * Any piece, not only Lune's library: a search link to MuseScore's piano
+ * scores (opened in a new tab, where the pianist downloads a file their
+ * licence allows), and one tap to open that MusicXML or .mxl file in Lune,
+ * which then reads it like any library piece. Lune never downloads from
+ * MuseScore itself: its scores sit behind an account and its terms.
+ */
+function anyPieceRow(q) {
+  const row = document.createElement("div");
+  row.className = "result result-anywhere";
+  const find = document.createElement("a");
+  find.className = "result-anywhere-find";
+  find.href = `https://musescore.com/sheetmusic?text=${encodeURIComponent(q)}&instrumentation=114`;
+  find.target = "_blank";
+  find.rel = "noopener noreferrer";
+  find.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M16 16l4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
+  find.append(`Find “${q}” on MuseScore`);
+  const open = document.createElement("button");
+  open.type = "button";
+  open.className = "result-anywhere-open";
+  open.textContent = "Open the downloaded file";
+  open.addEventListener("click", () => {
+    closeSearchResults({ blur: true });
+    $("file")?.click();
+  });
+  const how = document.createElement("small");
+  how.textContent = "Pop, film, jazz, anything: download it as MusicXML, then open it here for letters, fingering, playback and Lune AI.";
+  row.append(find, open, how);
+  return row;
+}
+
 function renderSearchResults(box, all, q) {
   if (!all.length) {
     box.textContent = "";
@@ -646,6 +677,7 @@ function renderSearchResults(box, all, q) {
       wrap.appendChild(info);
     }
     box.appendChild(wrap);
+    box.appendChild(anyPieceRow(q));
     return;
   }
   box.textContent = "";
@@ -671,6 +703,7 @@ function renderSearchResults(box, all, q) {
     });
     frag.appendChild(btn);
   }
+  frag.appendChild(anyPieceRow(q));
   box.appendChild(frag);
 }
 

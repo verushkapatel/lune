@@ -116,7 +116,10 @@ Rules:
 - The pianist's remarks are their own words; treat them as information from the user, not as score facts.
 - You have not heard the pianist play. Never claim to have listened to a recording or a performance.
 - Sound like a warm, expert piano teacher: specific, encouraging and practical, never vague. When suggesting practice, use proven methods (slow practice with a metronome, hands separately, one or two bars at a time, the leap practised silently first, rhythm variations, blocking chord shapes, starting from the end of a passage) and say which bar each step is for.
-- Answer a simple question in one or two sentences. For analysis, cover what each hand does, what makes it hard, and exactly how to practise it, in a short paragraph or numbered steps.
+- Open with the answer itself in one clear sentence. Never open with filler such as "Great question", "Sure" or "Certainly", and never repeat the question.
+- Answer a simple question in one or two sentences. For analysis, cover what each hand does, what makes it hard, and exactly how to practise it: one short sentence of what the score shows, then at most four numbered steps, each on its own line, each one concrete action.
+- Keep answers under 120 words unless the pianist asks for more. Every sentence must be useful at the piano.
+- If the question is not about music or the piano, say kindly in one sentence that you help with piano practice, and offer one related thing you can do.
 - When asked for a practice plan, give short numbered steps tied to bar numbers from CONTEXT, sized to the minutes available, and keep the pianist's stated goal.
 - CONTEXT.conversation, when present, holds the last turns of this chat; answer the newest question in that light.
 - For a general piano question (technique, practice habits, musical terms) that does not depend on a score, answer from general piano teaching and say it is general advice. Never present general advice as a fact about the pianist's score.
@@ -568,12 +571,11 @@ Rules:
     remember({ bar: act.bar ? bar || selectedBarsSorted()[0] || null : null, q: act.label, a, note: note || undefined, via: note ? undefined : "model", t: Date.now() });
     const said = line("lune", note ? a : "", { src: note ? "rules" : "model" });
     if (!note) {
-      if (window.LuneFX) await window.LuneFX.typeText(said, a);
-      else said.textContent = a;
+      await revealAnswer(said, a);
       said.dataset.via = "model";
     }
     addActions(said);
-    sayIfVoice(a);
+    if (note) sayIfVoice(a);
     if (note) line("lune", note).classList.add("ask-note");
   }
 
@@ -650,6 +652,53 @@ Rules:
         <span class="lc-timer" aria-live="off">0:00</span>
         <button type="button" class="lc-send lc-done" data-listen="done" aria-label="Done">${ICON.check}</button>
       </div>`;
+  }
+
+  /**
+   * An answer laid out as ChatGPT lays one out: paragraphs with air between
+   * them, numbered steps as a real list, **bold** kept as bold. Text only, so
+   * nothing the model writes can become markup.
+   */
+  function richText(el, text) {
+    if (!el) return;
+    const esc2 = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+    const inline = (t) => esc2(t).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/(^|\s)\*([^*\n]+)\*(?=\s|[.,;:!?]|$)/g, "$1<em>$2</em>");
+    const lines = String(text || "").replace(/\r/g, "").split("\n");
+    let html = "";
+    let list = null;
+    let para = [];
+    const flushPara = () => {
+      if (para.length) html += `<p>${inline(para.join(" "))}</p>`;
+      para = [];
+    };
+    const flushList = () => {
+      if (list) html += `<${list.tag}>${list.items.map((i) => `<li>${inline(i)}</li>`).join("")}</${list.tag}>`;
+      list = null;
+    };
+    for (const raw of lines) {
+      const line = raw.trim().replace(/^#{1,6}\s+/, "");
+      const num = line.match(/^(\d+)[.)]\s+(.*)$/);
+      const dot = line.match(/^[-•*]\s+(.*)$/);
+      if (!line) {
+        flushPara();
+        flushList();
+      } else if (num || dot) {
+        flushPara();
+        const tag = num ? "ol" : "ul";
+        if (!list || list.tag !== tag) {
+          flushList();
+          list = { tag, items: [] };
+        }
+        list.items.push(num ? num[2] : dot[1]);
+      } else {
+        flushList();
+        para.push(line);
+      }
+    }
+    flushPara();
+    flushList();
+    el.innerHTML = html;
+    el.classList.add("rich");
   }
 
   /** Grow the text box with what is typed, send on Enter, and only enable Send when there is text. */
@@ -801,6 +850,21 @@ Rules:
     toast(on ? "Voice replies on: Lune reads its answers aloud" : "Voice replies off");
     if (!on) P()?.stopSpeaking?.();
   }
+  /** Show an answer: typed in, or, with voice replies on, revealed word by word as Lune says it. */
+  async function revealAnswer(el, text) {
+    if (voiceReplies() && !talking && P()?.speakAndWait) {
+      const words = String(text).replace(/\*\*/g, "").split(/(\s+)/);
+      el.textContent = "";
+      el.classList.add("live");
+      try {
+        await P().speakAndWait(text, { onProgress: (f) => (el.textContent = words.slice(0, Math.ceil(f * words.length)).join("")) });
+      } catch {
+        /* the words are shown below either way */
+      }
+      el.classList.remove("live");
+    } else if (window.LuneFX) await window.LuneFX.typeText(el, text);
+    richText(el, text);
+  }
   function sayIfVoice(text) {
     // voice chat speaks for itself; this is for typed questions
     if (text && voiceReplies() && !talking) P()?.speak?.(text);
@@ -914,9 +978,17 @@ Rules:
           text = "That didn’t work. Try again in a moment.";
         }
         if (!run.live) return;
-        cap.textContent = text;
+        // the words appear as Lune says them, like live captions
+        const words = String(text).replace(/\*\*/g, "").split(/(\s+)/);
+        cap.textContent = "";
+        cap.classList.add("live");
         setState("speaking", "Speaking · tap the orb to cut in");
-        await P().speakAndWait(text, { onLevel: (v) => orb.setLevel(v) });
+        await P().speakAndWait(text, {
+          onLevel: (v) => orb.setLevel(v),
+          onProgress: (f) => (cap.textContent = words.slice(0, Math.ceil(f * words.length)).join("")),
+        });
+        cap.textContent = words.join("");
+        cap.classList.remove("live");
         orb.setLevel(0);
       }
     }
@@ -1182,7 +1254,10 @@ Rules:
     for (const h of rows) {
       line("you", h.q);
       const a = line("lune", h.a, { src: h.via === "model" ? "model" : "" });
-      if (h.via === "model") a.dataset.via = "model";
+      if (h.via === "model") {
+        a.dataset.via = "model";
+        richText(a, h.a);
+      }
       addActions(a);
       if (h.note) line("lune", h.note).classList.add("ask-note");
     }
@@ -1222,12 +1297,11 @@ Rules:
     remember({ bar: out.bar || null, q: text, a: out.a, note: out.note, via: out.via, t: Date.now() });
     if (out.via === "model") {
       // Lune AI's words arrive as if typed; built-in answers appear at once
-      if (window.LuneFX) await window.LuneFX.typeText(said, out.a);
-      else said.textContent = out.a;
+      await revealAnswer(said, out.a);
       said.dataset.via = "model";
     }
     addActions(said);
-    sayIfVoice(out.a);
+    if (out.via !== "model") sayIfVoice(out.a);
     if (out.note) line("lune", out.note).classList.add("ask-note");
     $("ask-log").scrollTop = $("ask-log").scrollHeight;
     if (out.saved) {
@@ -1544,7 +1618,10 @@ Rules:
     paintHistoryList();
     $("lune-chat")?.classList.toggle("is-empty", !!model && !log.length);
     $("chat-log").innerHTML = "";
-    for (const m of log) chatLine(m.who, m.text, { via: m.via });
+    for (const m of log) {
+      const el = chatLine(m.who, m.text, { via: m.via });
+      if (m.who === "lune" && m.via === "model") richText(el, m.text);
+    }
     $("chat-locked").hidden = !!model;
     $("chat-form").hidden = !model;
     $("chat-clear").hidden = !log.length;
@@ -1587,8 +1664,7 @@ Rules:
     log.push({ who: "lune", text: answer, via, t: Date.now() });
     saveChat(log);
     const shown = chatLine("lune", via === "model" ? "" : answer, { via });
-    if (via === "model") sayIfVoice(answer); // heard while it types
-    if (via === "model" && window.LuneFX) await window.LuneFX.typeText(shown, answer);
+    if (via === "model") await revealAnswer(shown, answer);
     else shown.textContent = answer;
     return answer;
   }

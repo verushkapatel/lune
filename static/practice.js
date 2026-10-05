@@ -582,7 +582,9 @@ window.LunePractice = (function () {
     speakOnDevice(text);
   }
   /** Say something and resolve when it has been said; onLevel gets 0-1 while it plays. */
-  async function speakAndWait(text, { onLevel } = {}) {
+  async function speakAndWait(text, { onLevel, onProgress } = {}) {
+    // spoken without the marks that only make sense on screen
+    text = String(text || "").replace(/\*\*/g, "").replace(/^#+\s*/gm, "");
     lastSpoken = text;
     stopAudio();
     try {
@@ -618,6 +620,7 @@ window.LunePractice = (function () {
           let raf = 0;
           const loop = () => {
             meter?.tick();
+            if (audio.duration > 0) onProgress?.(Math.min(1, audio.currentTime / audio.duration));
             raf = requestAnimationFrame(loop);
           };
           audio.onended = audio.onpause = () => {
@@ -647,8 +650,9 @@ window.LunePractice = (function () {
       u.pitch = 1.04; // a touch warmer than flat
       // the device voice gives no level, so the orb breathes with the words instead
       let pulse = 0;
-      u.onboundary = () => {
+      u.onboundary = (ev) => {
         pulse = 0.8;
+        if (ev?.charIndex != null) onProgress?.(Math.min(1, (ev.charIndex + (ev.charLength || 1)) / Math.max(1, text.length)));
       };
       const iv = setInterval(() => {
         pulse *= 0.82;
