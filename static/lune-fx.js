@@ -296,3 +296,39 @@ window.LuneFX = (function () {
 
   return { orb, typeText, blurText, spotlight, aurora, loaderHtml, reduced };
 })();
+
+/* Landing nav: jump smoothly inside the landing's own scroller, and light the
+   section in view. */
+(function () {
+  const nav = document.getElementById("lp-nav");
+  if (!nav) return;
+  const scroller = () => document.getElementById("home");
+  nav.addEventListener("click", (e) => {
+    const a = e.target.closest("[data-lp-jump]");
+    if (!a) return;
+    e.preventDefault();
+    const el = document.getElementById(a.dataset.lpJump);
+    const sc = scroller();
+    if (!el || !sc) return;
+    const smooth = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
+    // demos above may finish loading and change height mid-glide: settle once more
+    setTimeout(() => {
+      const off = el.getBoundingClientRect().top - sc.getBoundingClientRect().top - 12;
+      if (Math.abs(off) > 24) el.scrollIntoView({ behavior: "auto", block: "start" });
+    }, smooth ? 900 : 50);
+  });
+  const links = [...nav.querySelectorAll("[data-lp-jump]")];
+  if (!("IntersectionObserver" in window)) return;
+  const io = new IntersectionObserver((entries) => {
+    for (const en of entries) {
+      if (!en.isIntersecting) continue;
+      links.forEach((l) => {
+        const on = l.dataset.lpJump === en.target.id;
+        l.classList.toggle("on", on);
+        if (on) l.setAttribute("aria-current", "true"); else l.removeAttribute("aria-current");
+      });
+    }
+  }, { rootMargin: "-40% 0px -55% 0px" });
+  links.forEach((l) => { const t = document.getElementById(l.dataset.lpJump); if (t) io.observe(t); });
+})();
