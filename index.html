@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- lune23 -->
-  <!-- deploy-lune23 -->
-  <!-- deploy-lune23 -->
+  <!-- lune24 -->
+  <!-- deploy-lune24 -->
+  <!-- deploy-lune24 -->
 
 <meta charset="UTF-8">
   <script>
@@ -34,13 +34,13 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Lune">
-  <link rel="icon" href="static/assets/favicon.svg?v=lune23" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=lune23">
+  <link rel="icon" href="static/assets/favicon.svg?v=lune24" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=lune24">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2?v=lune23" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="static/styles.css?v=lune23">
-  <link rel="stylesheet" href="static/theme-light.css?v=lune23">
-  <link rel="preload" href="static/search-index.json?v=lune23" as="fetch" crossorigin>
+  <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2?v=lune24" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="static/styles.css?v=lune24">
+  <link rel="stylesheet" href="static/theme-light.css?v=lune24">
+  <link rel="preload" href="static/search-index.json?v=lune24" as="fetch" crossorigin>
 </head>
 <body>
   <script>if (/^#\/[a-z0-9]/i.test(location.hash) && !/^#\/(ai|repertoire|study|assign)\b/.test(location.hash)) document.documentElement.classList.add("boot-piece");</script>
@@ -192,7 +192,6 @@
           <p class="home-footer-line">Lune · so practice feels right again</p>
           <p class="member-footer-links">
             <button type="button" class="link-btn" data-show-story>See everything Lune can do</button> ·
-            <button type="button" class="link-btn" data-show-compare>How Lune compares</button> ·
             <button type="button" class="link-btn" id="btn-member-install" data-install>Install Lune</button>
           </p>
           <p class="fine-print home-footer-legal member-footer-actions">
@@ -237,7 +236,7 @@
           <button type="button" data-open-piece="johann-sebastian-bach-prelude-in-c-major-bwv-846" data-open-panel="score"><strong>Prelude in C major</strong><span>Bach</span></button>
         </div>
         <div class="lune-ai-home" data-ai-home></div>
-        <p class="home-app-tour"><button type="button" class="link-btn" data-show-story>See everything Lune can do</button> · <button type="button" class="link-btn" data-show-compare>How Lune compares</button></p>
+        <p class="home-app-tour"><button type="button" class="link-btn" data-show-story>See everything Lune can do</button></p>
       </section>
       <section class="home-hero home-hero-cinema" id="hero">
         <div class="home-hero-motif" aria-hidden="true">
@@ -278,44 +277,109 @@
         </div>
       </section>
 
-      <section class="lp-feats" id="features" aria-labelledby="feats-h">
-        <div class="lp-sec-head" data-reveal>
-          <p class="about-kicker">The studio</p>
-          <h2 id="feats-h" data-fx-blur>Everything a practice needs.</h2>
-        </div>
-        <div class="lp-tiles">
-          <article class="lp-tile fx-spot" data-reveal>
-            <span class="lp-tile-ic"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M9 18V6l10-2v12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="6.5" cy="18" r="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="16.5" cy="16" r="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></span>
-            <h3>Every note, named</h3>
-            <p>Letter names and suggested fingering under the staff, never on the notes.</p>
-          </article>
-          <article class="lp-tile fx-spot" data-reveal>
-            <span class="lp-tile-ic"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M7 5v14l11-7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></span>
-            <h3>Play it at your tempo</h3>
-            <p>Hear any piece, slow it down, and watch the score roll with the music.</p>
-          </article>
-          <article class="lp-tile fx-spot" data-reveal>
-            <span class="lp-tile-ic"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="3" y="7" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 7v7M12 7v7M16 7v7" stroke="currentColor" stroke-width="1.6"/></svg></span>
-            <h3>Falling notes</h3>
-            <p>Notes fall onto a real keyboard, finger by finger.</p>
-          </article>
-          <article class="lp-tile fx-spot" data-reveal>
-            <span class="lp-tile-ic"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M17 15l2 2 3-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-            <h3>Plans that come back</h3>
-            <p>Rate a bar. Lune brings it back when it is due, and plans your week.</p>
-          </article>
-          <article class="lp-tile fx-spot" data-reveal>
-            <span class="lp-tile-ic"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="10" r="1" fill="currentColor"/><circle cx="15" cy="10" r="1" fill="currentColor"/><circle cx="9" cy="14" r="1" fill="currentColor"/></svg></span>
-            <h3>Made for every reader</h3>
-            <p>Braille music, bars read aloud, large print and easy-read letters.</p>
-          </article>
-          <article class="lp-tile fx-spot" data-reveal>
-            <span class="lp-tile-ic"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 3v12M8 11l4 4 4-4M5 21h14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-            <h3>Any score you have</h3>
-            <p>2,820 free classics, or open any MusicXML: pop, film, jazz.</p>
-          </article>
-        </div>
+      <section class="home-feat-intro" id="tour" data-reveal>
+        <p class="about-kicker">Inside the studio</p>
+        <h2 id="sim-h" data-fx-blur>Clair de lune, live.<br>Press the buttons.</h2>
       </section>
+
+      <div id="features" class="home-feat-stack" aria-label="Lune features">
+
+      <section class="home-feat" id="feat-letters" data-reveal>
+        <div class="home-feat-copy">
+          <p class="about-kicker">01 · Read</p>
+          <h2>Every note, named.</h2>
+          <p>Toggle <strong>Notes</strong>, <strong>Fingers</strong>, or <strong>Off</strong> in the score tools. One mode at a time.</p>
+        </div>
+        <figure class="home-feat-device">
+          <div class="fx-chrome" aria-hidden="true">
+            <span class="fx-brand">Lune</span>
+            <span class="fx-piece">Clair de lune</span>
+            <div class="fx-tabs"><span class="on">Score</span><span>Explain</span><span>Piano</span></div>
+          </div>
+          <div class="fx-tools" role="group" aria-label="Labels under the notes">
+            <span class="fx-seg">
+              <button type="button" class="on" data-lane-set="letters" aria-pressed="true">Notes</button>
+              <button type="button" data-lane-set="fingers" aria-pressed="false">Fingers</button>
+              <button type="button" data-lane-set="off" aria-pressed="false">Off</button>
+            </span>
+          </div>
+          <div class="fx-paper"><div class="fx-score" data-live-score data-lane="letters"></div></div>
+        </figure>
+      </section>
+
+      <section class="home-feat home-feat-flip" id="feat-play" data-reveal>
+        <div class="home-feat-copy">
+          <p class="about-kicker">02 · Hear</p>
+          <h2>Your tempo. The original marked.</h2>
+          <p>A metronome in the piece’s meter. The score follows you.</p>
+        </div>
+        <figure class="home-feat-device">
+          <div class="fx-chrome" aria-hidden="true">
+            <span class="fx-brand">Lune</span>
+            <span class="fx-piece">Clair de lune</span>
+            <div class="fx-tabs"><span class="on">Score</span><span>Explain</span><span>Piano</span></div>
+          </div>
+          <div class="fx-transport">
+            <button type="button" class="fx-play" data-play aria-pressed="false">Play</button>
+            <input class="fx-tempo" type="range" data-tempo min="25" max="60" step="1" value="50" aria-label="Tempo in beats per minute">
+            <span class="fx-bpm" data-tempo-out>50 bpm</span>
+            <span class="fx-orig">Original 50</span>
+          </div>
+          <div class="fx-paper"><div class="fx-score" data-live-score data-lane="off"></div></div>
+        </figure>
+      </section>
+
+      <section class="home-feat" id="feat-piano" data-reveal>
+        <div class="home-feat-copy">
+          <p class="about-kicker">03 · Piano</p>
+          <h2>Falling notes onto real keys.</h2>
+          <p>Notes fall onto the keys, with fingers if you want them.</p>
+        </div>
+        <figure class="home-feat-device fx-device-piano" aria-hidden="true">
+          <div class="fx-chrome">
+            <span class="fx-brand">Lune</span>
+            <span class="fx-piece">Clair de lune</span>
+            <div class="fx-tabs"><span>Score</span><span>Explain</span><span class="on">Piano</span></div>
+          </div>
+          <div class="sim-piano">
+            <div class="sim-piano-chrome">
+              <span class="sim-pill on">Both</span>
+              <span class="sim-pill">RH</span>
+              <span class="sim-pill">LH</span>
+              <span class="sim-piano-meta">KEYBOARD · 0.75×</span>
+            </div>
+            <div class="sim-fall" aria-hidden="true">
+              <b class="rh" style="--col:2;--h:48%;--d:0s"></b>
+              <b class="lh" style="--col:4;--h:32%;--d:0.35s"></b>
+              <b class="rh" style="--col:6;--h:62%;--d:0.7s"></b>
+              <b class="rh black-note" style="--col:3;--h:38%;--d:1.05s"></b>
+              <b class="lh" style="--col:9;--h:44%;--d:1.4s"></b>
+              <b class="rh" style="--col:11;--h:52%;--d:1.75s"></b>
+              <div class="sim-fall-hit"></div>
+            </div>
+            <div class="sim-piano-board" role="img" aria-label="Two-octave piano keyboard">
+              <div class="sim-piano-rail"></div>
+              <div class="sim-piano-felt"></div>
+              <div class="sim-piano-whites">
+                <i class="w" data-pc="C"></i><i class="w" data-pc="D"></i><i class="w on" data-pc="E"></i><i class="w" data-pc="F"></i>
+                <i class="w" data-pc="G"></i><i class="w on" data-pc="A"></i><i class="w" data-pc="B"></i>
+                <i class="w" data-pc="C"></i><i class="w" data-pc="D"></i><i class="w on" data-pc="E"></i><i class="w" data-pc="F"></i>
+                <i class="w" data-pc="G"></i><i class="w" data-pc="A"></i><i class="w" data-pc="B"></i>
+              </div>
+              <div class="sim-piano-blacks" aria-hidden="true">
+                <i class="bk" style="--n:0"></i><i class="bk" style="--n:1"></i>
+                <i class="bk on" style="--n:3"></i><i class="bk" style="--n:4"></i><i class="bk" style="--n:5"></i>
+                <i class="bk" style="--n:7"></i><i class="bk" style="--n:8"></i>
+                <i class="bk" style="--n:10"></i><i class="bk" style="--n:11"></i><i class="bk" style="--n:12"></i>
+              </div>
+            </div>
+          </div>
+        </figure>
+      </section>
+
+      <p class="lp-more" data-reveal><span>Braille music</span><span>Bars read aloud</span><span>Plans that come back</span><span>Any MusicXML score</span></p>
+
+      </div>
 
       <section class="ai-chapter" id="ai" aria-labelledby="ai-h" data-fx-aurora>
         <div class="ai-intro" data-reveal>
@@ -388,64 +452,6 @@
 
         <div class="ai-dots" id="ai-dots" role="group" aria-label="Lune AI examples"></div>
         <p class="ai-truth" data-reveal>Lune AI is Llama 3.3 70B, an open-weight model, free with a Lune account. It reads your score; your chats stay in your browser. It can be wrong, so the score has the last word. Built with Llama.</p>
-      </section>
-
-      <section class="lp-compare" id="compare" aria-labelledby="compare-h">
-        <div class="lp-sec-head" data-reveal>
-          <p class="about-kicker">How Lune compares</p>
-          <h2 id="compare-h" data-fx-blur>Built for the music<br>you’re learning.</h2>
-          <p class="lp-lead">Next to the biggest piano apps, side by side, including where they are ahead.</p>
-        </div>
-        <div class="lp-compare-table-wrap" data-reveal>
-          <table class="lp-cmp">
-            <caption class="visually-hidden">Lune compared with flowkey, Simply Piano, Yousician and Skoove</caption>
-            <thead>
-              <tr>
-                <td></td>
-                <th scope="col" class="lp-col-lune">Lune</th>
-                <th scope="col">flowkey</th>
-                <th scope="col">Simply Piano</th>
-                <th scope="col">Yousician</th>
-                <th scope="col">Skoove</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <th scope="row">Free, every feature<small>Free, with no subscription or ads. The others charge after a trial.</small></th>
-                <td data-label="Lune"><span class="cmp-y" aria-label="Yes">✓</span></td><td data-label="flowkey"><span class="cmp-n" aria-label="No">–</span></td><td data-label="Simply Piano"><span class="cmp-n" aria-label="No">–</span></td><td data-label="Yousician"><span class="cmp-n" aria-label="No">–</span></td><td data-label="Skoove"><span class="cmp-n" aria-label="No">–</span></td>
-              </tr>
-              <tr>
-                <th scope="row">Any score, your own included<small>Lune opens 2,820 free classics or any MusicXML. The others use their own libraries.</small></th>
-                <td data-label="Lune"><span class="cmp-y" aria-label="Yes">✓</span></td><td data-label="flowkey"><span class="cmp-n" aria-label="No">–</span></td><td data-label="Simply Piano"><span class="cmp-n" aria-label="No">–</span></td><td data-label="Yousician"><span class="cmp-n" aria-label="No">–</span></td><td data-label="Skoove"><span class="cmp-n" aria-label="No">–</span></td>
-              </tr>
-              <tr>
-                <th scope="row">AI that explains any bar<small>Tap a bar; Lune AI explains it from the notes on the page.</small></th>
-                <td data-label="Lune"><span class="cmp-y" aria-label="Yes">✓</span></td><td data-label="flowkey"><span class="cmp-n" aria-label="No">–</span></td><td data-label="Simply Piano"><span class="cmp-n" aria-label="No">–</span></td><td data-label="Yousician"><span class="cmp-n" aria-label="No">–</span></td><td data-label="Skoove"><span class="cmp-n" aria-label="No">–</span></td>
-              </tr>
-              <tr>
-                <th scope="row">Bars that come back when due<small>Rate a bar and it returns on schedule, with a weekly plan.</small></th>
-                <td data-label="Lune"><span class="cmp-y" aria-label="Yes">✓</span></td><td data-label="flowkey"><span class="cmp-n" aria-label="No">–</span></td><td data-label="Simply Piano"><span class="cmp-n" aria-label="No">–</span></td><td data-label="Yousician"><span class="cmp-n" aria-label="No">–</span></td><td data-label="Skoove"><span class="cmp-n" aria-label="No">–</span></td>
-              </tr>
-              <tr>
-                <th scope="row">Braille music and read-aloud<small>Braille files for 831 pieces. flowkey works partly with VoiceOver.</small></th>
-                <td data-label="Lune"><span class="cmp-y" aria-label="Yes">✓</span></td><td data-label="flowkey"><span class="cmp-p" aria-label="Partly">◐</span></td><td data-label="Simply Piano"><span class="cmp-n" aria-label="No">–</span></td><td data-label="Yousician"><span class="cmp-n" aria-label="No">–</span></td><td data-label="Skoove"><span class="cmp-n" aria-label="No">–</span></td>
-              </tr>
-              <tr>
-                <th scope="row">No download needed<small>Lune runs in any browser and installs like an app.</small></th>
-                <td data-label="Lune"><span class="cmp-y" aria-label="Yes">✓</span></td><td data-label="flowkey"><span class="cmp-y" aria-label="Yes">✓</span></td><td data-label="Simply Piano"><span class="cmp-n" aria-label="No">–</span></td><td data-label="Yousician"><span class="cmp-n" aria-label="No">–</span></td><td data-label="Skoove"><span class="cmp-y" aria-label="Yes">✓</span></td>
-              </tr>
-              <tr class="lp-they-win">
-                <th scope="row">Listening as you play<small>They hear you through the microphone or MIDI. Lune asks you to rate each bar.</small></th>
-                <td data-label="Lune"><span class="cmp-n" aria-label="No">–</span></td><td data-label="flowkey"><span class="cmp-y" aria-label="Yes">✓</span></td><td data-label="Simply Piano"><span class="cmp-y" aria-label="Yes">✓</span></td><td data-label="Yousician"><span class="cmp-y" aria-label="Yes">✓</span></td><td data-label="Skoove"><span class="cmp-y" aria-label="Yes">✓</span></td>
-              </tr>
-              <tr class="lp-they-win">
-                <th scope="row">Courses from the first note<small>They teach complete beginners step by step. Lune helps with the pieces you choose.</small></th>
-                <td data-label="Lune"><span class="cmp-n" aria-label="No">–</span></td><td data-label="flowkey"><span class="cmp-y" aria-label="Yes">✓</span></td><td data-label="Simply Piano"><span class="cmp-y" aria-label="Yes">✓</span></td><td data-label="Yousician"><span class="cmp-y" aria-label="Yes">✓</span></td><td data-label="Skoove"><span class="cmp-y" aria-label="Yes">✓</span></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <p class="lp-compare-fine" data-reveal>From each app’s public pricing and recent reviews, checked in October 2026; features vary by country and change often. flowkey, Simply Piano, Yousician and Skoove are trademarks of their owners; Lune is not connected with any of them.</p>
       </section>
 
       <section class="lp-free" id="free" aria-labelledby="free-h">
@@ -870,26 +876,26 @@
   <script src="static/vendor/opensheetmusicdisplay.min.js"></script>
   <script src="static/vendor/pdf.min.js"></script>
   <script src="static/vendor/Tone.js"></script>
-  <script src="static/piano.js?v=lune23"></script>
-  <script src="static/annotate.js?v=lune23"></script>
-  <script src="static/lite-analyze.js?v=lune23"></script>
-  <script src="static/fetch-score.js?v=lune23"></script>
-  <script src="static/lyric-lane.js?v=lune23"></script>
-  <script src="static/menu.js?v=lune23"></script>
-  <script src="static/lune-fx.js?v=lune23"></script>
-  <script src="static/lune-config.js?v=lune23"></script>
-  <script src="static/store.js?v=lune23"></script>
-  <script src="static/onboard.js?v=lune23"></script>
-  <script src="static/impact.js?v=lune23"></script>
-  <script src="static/feedback.js?v=lune23"></script>
-  <script src="static/ai-device.js?v=lune23"></script>
-  <script src="static/ask.js?v=lune23"></script>
-  <script src="static/plans.js?v=lune23"></script>
-  <script src="static/app.js?v=lune23"></script>
-  <script src="static/studio-ui.js?v=lune23"></script>
-  <script src="static/landing-score.js?v=lune23"></script>
-  <script src="static/practice.js?v=lune23"></script>
-  <script src="static/study.js?v=lune23"></script>
-  <script src="static/install.js?v=lune23"></script>
+  <script src="static/piano.js?v=lune24"></script>
+  <script src="static/annotate.js?v=lune24"></script>
+  <script src="static/lite-analyze.js?v=lune24"></script>
+  <script src="static/fetch-score.js?v=lune24"></script>
+  <script src="static/lyric-lane.js?v=lune24"></script>
+  <script src="static/menu.js?v=lune24"></script>
+  <script src="static/lune-fx.js?v=lune24"></script>
+  <script src="static/lune-config.js?v=lune24"></script>
+  <script src="static/store.js?v=lune24"></script>
+  <script src="static/onboard.js?v=lune24"></script>
+  <script src="static/impact.js?v=lune24"></script>
+  <script src="static/feedback.js?v=lune24"></script>
+  <script src="static/ai-device.js?v=lune24"></script>
+  <script src="static/ask.js?v=lune24"></script>
+  <script src="static/plans.js?v=lune24"></script>
+  <script src="static/app.js?v=lune24"></script>
+  <script src="static/studio-ui.js?v=lune24"></script>
+  <script src="static/landing-score.js?v=lune24"></script>
+  <script src="static/practice.js?v=lune24"></script>
+  <script src="static/study.js?v=lune24"></script>
+  <script src="static/install.js?v=lune24"></script>
 </body>
 </html>

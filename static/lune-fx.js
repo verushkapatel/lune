@@ -218,7 +218,7 @@ window.LuneFX = (function () {
         if (this.open) realClose.call(this, value);
       };
       const onEnd = (e) => e.target === this && done();
-      const timer = setTimeout(done, 240);
+      const timer = setTimeout(done, 200);
       this.addEventListener("animationend", onEnd);
     };
     document.addEventListener(
