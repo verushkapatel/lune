@@ -1449,6 +1449,12 @@ def section_timing(browser):
     marks = pg.evaluate("() => LunePiano.barMarkers().slice(0, 25).map(x => x.t)")
     lens = [round(b - a, 2) for a, b in zip(marks, marks[1:])][1:24]
     check("timing: every 6/4 bar of Liebestraum's opening takes the same time (no stalls)", max(lens) - min(lens) < 0.05, lens)
+    grid = pg.evaluate("""() => { const ev = LunePiano.getEvents().filter(e => !e.ornament);
+      const off = [...new Set(ev.filter(e => Math.abs(e.barOff * 2 - Math.round(e.barOff * 2)) > 0.02).map(e => e.bar))];
+      const b7 = ev.filter(e => e.bar === 7 && e.hand === 'rh').map(e => +e.barOff.toFixed(3)).sort((a, c) => a - c);
+      return { off, b7 }; }""")
+    check("timing: Liebestraum's hands meet on the beat (only bar 53's real triplets leave the eighth grid)", grid["off"] == [53], grid["off"])
+    check("timing: bar 7's arpeggio starts on the second eighth, not three beats late", grid["b7"][:3] == [0.5, 1, 1.5], grid["b7"])
     bpm = int(pg.evaluate("() => document.getElementById('bpm-slider').value"))
     check("timing: Liebestraum's Poco allegro plays near recorded tempos (100 to 115 a crotchet), not a full Allegro", 100 <= bpm <= 115, bpm)
     # any piece: search offers MuseScore and opening the downloaded file

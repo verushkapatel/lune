@@ -2403,6 +2403,62 @@ function realiseOrnaments(notes, idx) {
 }
 
 /**
+ * Some exports write a voice longer than its bar: hidden rests far too long
+ * (Liebestraum no. 3 starts a bar's arpeggio three beats late), or triplets at
+ * full length. Squeezing the whole voice drags its notes off the other hand's
+ * beats, so first take the excess out of the silences (the lead-in, then the
+ * longest gaps), which puts the notes back on the beat; only if the silences
+ * cannot absorb it is the voice scaled to fit.
+ */
+function fitVoicesInBar(pack, barLen) {
+  const voices = new Map();
+  for (const n of pack) {
+    const k = `${n.staff ?? n.hand ?? ""}|${n.voice ?? n.hand ?? "x"}`;
+    if (!voices.has(k)) voices.set(k, []);
+    voices.get(k).push(n);
+  }
+  for (const list of voices.values()) {
+    const on = (n) => Number(n.offset) || 0;
+    const end = Math.max(...list.map((n) => on(n) + (Number(n.duration) || 0)));
+    let over = end - barLen;
+    if (over <= 0.01) continue;
+    const onsets = [...new Set(list.map((n) => Math.round(on(n) * 1000) / 1000))].sort((a, c) => a - c);
+    // silences before each onset: [at, length]
+    const gaps = [];
+    let reach = 0;
+    for (const t of onsets) {
+      if (t - reach > 0.01) gaps.push({ at: t, len: t - reach });
+      reach = Math.max(reach, ...list.filter((n) => Math.abs(on(n) - t) < 0.001).map((n) => t + (Number(n.duration) || 0)));
+    }
+    const room = gaps.reduce((a, g) => a + g.len, 0);
+    if (room + 0.01 >= over) {
+      // lead-in first, then the longest gaps, latest first on ties
+      const order = [...gaps].sort((a, c) => (a.at === onsets[0] ? -1 : c.at === onsets[0] ? 1 : c.len - a.len || c.at - a.at));
+      const cut = new Map();
+      for (const g of order) {
+        if (over <= 0.001) break;
+        const take = Math.min(g.len, over);
+        cut.set(g.at, take);
+        over -= take;
+      }
+      for (const n of list) {
+        let shift = 0;
+        for (const [at, take] of cut) if (on(n) >= at - 0.001) shift += take;
+        n.offset = on(n) - shift;
+      }
+      // a note may still ring past the barline: let it end there
+      for (const n of list) n.duration = Math.min(Number(n.duration) || 0, Math.max(0.05, barLen - on(n)));
+    } else {
+      const k = barLen / end;
+      for (const n of list) {
+        n.offset = on(n) * k;
+        n.duration = (Number(n.duration) || 0) * k;
+      }
+    }
+  }
+}
+
+/**
  * Bars in the order the file writes them. Counting upward from the first
  * number breaks on files that skip a number (a silent bar appears) or that
  * number a closing bar 0 (it would play first).
@@ -2461,22 +2517,7 @@ function collectNotes(fromBar, toBar) {
     // an export that writes triplets at full length makes a voice spill past the
     // barline; that voice is fitted back into the bar, keeping its proportions
     const lens = measureLengths(state.piece);
-    if (lens?.squeeze?.has(b)) {
-      const barLen = lens.get(b) || signatureBarQuarters();
-      const ends = new Map();
-      for (const n of pack) {
-        const v = n.voice ?? n.hand ?? "x";
-        ends.set(v, Math.max(ends.get(v) || 0, (Number(n.offset) || 0) + (Number(n.duration) || 0)));
-      }
-      for (const n of pack) {
-        const end = ends.get(n.voice ?? n.hand ?? "x") || 0;
-        if (end > barLen + 0.01) {
-          const k = barLen / end;
-          n.offset = (Number(n.offset) || 0) * k;
-          n.duration = (Number(n.duration) || 0) * k;
-        }
-      }
-    }
+    if (lens?.squeeze?.has(b)) fitVoicesInBar(pack, lens.get(b) || signatureBarQuarters());
     for (const n of pack) {
       if (!n.midi) continue;
       // Same pitch at the same onset from mirrored voices → one attack.
