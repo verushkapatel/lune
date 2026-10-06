@@ -2180,6 +2180,42 @@ html[data-theme="light"] body.is-home:not(.is-signed-in) .home-feat-device {
 html[data-theme="light"] body.is-home:not(.is-signed-in) .home-feat-copy p {
   color: #404040;
 }
+html[data-theme="light"] body.is-home:not(.is-signed-in) header.bar .lp-nav {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.05);
+}
+html[data-theme="light"] .lp-nav a {
+  color: #313131;
+}
+html[data-theme="light"] .lp-nav a:hover {
+  color: #000000;
+  background: rgba(0, 0, 0, 0.06);
+}
+html[data-theme="light"] .lp-nav a.on {
+  color: #000000;
+  background: rgba(0, 0, 0, 0.1);
+}
+html[data-theme="light"] .lp-nav-cta {
+  color: #000000;
+  background: linear-gradient(180deg, #0f28b5, #273fcf);
+  box-shadow: 0 6px 20px rgba(15, 45, 195, 0.35), inset 0 1px 0 rgba(0, 0, 0, 0.2);
+}
+html[data-theme="light"] .lp-nav-cta:hover {
+  box-shadow: 0 8px 28px rgba(15, 45, 195, 0.5), inset 0 1px 0 rgba(0, 0, 0, 0.25);
+}
+html[data-theme="light"] #hero h1 {
+  color: #070708 !important;
+}
+html[data-theme="light"] #hero .hero-cta-alt {
+  background: rgba(15, 40, 181, 0.16);
+}
+html[data-theme="light"] #hero .hero-cta-alt:hover {
+  background: rgba(15, 40, 181, 0.28);
+}
+html[data-theme="light"] .ai-chapter .ai-scene {
+  background: rgba(231, 231, 235, 0.82);
+  border-color: rgba(0, 0, 0, 0.08);
+}
 /* KEEP: hand fixes */
 /* --dim text reaches 4.5:1 on the page and on surfaces (was #8a8a8a, 3.4:1) */
 html[data-theme="light"] { --dim: #666666; }

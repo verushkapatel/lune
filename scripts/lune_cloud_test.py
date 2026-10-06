@@ -594,8 +594,10 @@ def section_account(browser):
     # a guest: the landing page tells the story first, with Lune AI's examples, then Install
     pg.goto(BASE, wait_until="networkidle")
     pg.wait_for_timeout(300)
-    hero = pg.evaluate("() => [...document.querySelectorAll('#hero button')].map(b => b.textContent.trim()).filter(t => t && !/scroll/i.test(t))")
-    check("landing: the opening screen has no sign-in or install buttons, only the Lune AI pill", hero == ["New · Lune AI, built into Lune"], hero)
+    hero = pg.evaluate("() => [...document.querySelectorAll('#hero button')].filter(b => b.offsetParent).map(b => b.textContent.trim()).filter(t => t && !/scroll/i.test(t))")
+    check("landing: the opening screen offers the piece and Make Lune yours, nothing else", hero == ["Open Clair de lune", "Make Lune yours"], hero)
+    nav = pg.evaluate("() => [...document.querySelectorAll('#lp-nav a, #lp-nav button')].filter(b => b.offsetParent).map(b => b.textContent.trim())")
+    check("landing: the top bar has the section links and Make Lune yours", nav == ["Tour", "Lune AI", "Free", "Get Lune", "Make Lune yours"], nav)
     order = pg.evaluate("""() => { const ids = [...document.querySelectorAll('#home-guest > section, #home-guest > div')].map(e => e.id).filter(Boolean);
       return [ids.indexOf('features'), ids.indexOf('ai'), ids.indexOf('free'), ids.indexOf('get-lune')]; }""")
     check("landing: the live studio, Lune AI and No payments come before Get Lune", order[0] >= 0 and order[0] < order[1] < order[2] < order[3], order)
@@ -612,10 +614,10 @@ def section_account(browser):
           not pg.evaluate("() => /original (ai|llm|model)|trained (for|on) lune|our own (ai|model)|built (for|by) lune from scratch/i.test(document.getElementById('home-guest').textContent)"))
     close = pg.eval_on_selector_all("#get-lune button", "els => els.map(e => e.textContent.trim())")
     check("landing: the end offers Install first, then the browser, and no sign-in", close == ["Install Lune", "Use it in your browser"], close)
-    pg.click("#hero [data-show-ai]")
+    pg.click('#lp-nav [data-lp-jump="ai"]')
     # a smooth scroll, then one re-landing once the demos above have drawn
     pg.wait_for_timeout(3000)
-    check("landing: the pill scrolls to Lune AI without changing the address",
+    check("landing: the nav scrolls to Lune AI without changing the address",
           pg.evaluate("() => location.hash === '' && Math.abs(document.getElementById('ai').getBoundingClientRect().top) < 120"),
           pg.evaluate("() => [location.hash, document.getElementById('ai').getBoundingClientRect().top]"))
     credit = pg.evaluate("() => !document.querySelector('[data-ai-credit]').hidden")
