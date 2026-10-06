@@ -10735,3 +10735,31 @@ body.is-home:not(.is-signed-in) header.bar { background: rgba(10, 10, 10, 0.62);
 body.is-home:not(.is-signed-in) header.bar #btn-home { display: inline-flex !important; opacity: 1; }
 #hero.home-hero-cinema::after { display: none; }
 body.is-home:not(.is-signed-in) header.bar #btn-home { order: -1; margin-right: auto; }
+
+/* Landing, one continuous night: no bands, no borders between sections */
+body.is-home:not(.is-signed-in) #home-guest { background: #0a0a0a; }
+body.is-home:not(.is-signed-in) #home-guest > section:not(#hero),
+body.is-home:not(.is-signed-in) #home-guest .home-feat,
+body.is-home:not(.is-signed-in) #home-guest .home-feat-stack,
+body.is-home:not(.is-signed-in) #home-guest .home-feat-intro {
+  background: transparent !important; border-top: 0 !important; border-bottom: 0 !important; box-shadow: none !important;
+}
+#hero.home-hero-cinema { background: radial-gradient(90% 70% at 50% 18%, #121528 0%, #0c0d14 45%, #0a0a0a 78%) !important; }
+#hero.home-hero-cinema::before { opacity: 0.35; }
+body.is-home:not(.is-signed-in) header.bar { border-bottom: 0 !important; box-shadow: none !important; background: linear-gradient(180deg, rgba(10,10,12,0.78), rgba(10,10,12,0.42)); }
+
+/* the logo, back in the hero as a centred lockup */
+#hero .home-lockup {
+  display: flex !important; flex-direction: column; align-items: center; gap: 14px; margin: 0 0 30px;
+  animation: lune-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+#hero .home-lockup .home-mark { width: 64px; height: 64px; color: #f5f5f5; filter: drop-shadow(0 0 24px rgba(150, 170, 255, 0.35)); }
+#hero .home-lockup .home-brand {
+  margin: 0; font-size: 15px; letter-spacing: 0.42em; text-transform: uppercase; color: #e9e9e9; padding-left: 0.42em; line-height: 1;
+}
+#hero .lune-ai-badge { display: none; }
+#hero .home-motif-mark { display: none; }
+#hero h1 { margin-top: 0; }
+@media (max-width: 600px) { #hero .home-lockup .home-mark { width: 52px; height: 52px; } #hero .home-lockup { margin-bottom: 24px; } }
+@media (prefers-reduced-motion: reduce) { #hero .home-lockup { animation: none; } }
+#hero.home-hero-cinema { box-shadow: none !important; }
