@@ -255,7 +255,38 @@ window.LuneFX = (function () {
   }
   smoothDialogs();
 
+  /* The Lune AI examples on the landing page: swipe cards with dots that follow and jump. */
+  function aiCarousel() {
+    const track = document.querySelector("#ai .ai-scenes");
+    const dots = document.getElementById("ai-dots");
+    if (!track || !dots || dots.childElementCount) return;
+    const cards = [...track.querySelectorAll(".ai-scene")];
+    cards.forEach((c, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.setAttribute("aria-label", `Example ${i + 1} of ${cards.length}`);
+      b.addEventListener("click", () => track.scrollTo({ left: c.offsetLeft - (track.clientWidth - c.clientWidth) / 2, behavior: reduced() ? "auto" : "smooth" }));
+      dots.appendChild(b);
+    });
+    const mark = () => {
+      const mid = track.scrollLeft + track.clientWidth / 2;
+      let best = 0;
+      cards.forEach((c, i) => {
+        if (Math.abs(c.offsetLeft + c.clientWidth / 2 - mid) < Math.abs(cards[best].offsetLeft + cards[best].clientWidth / 2 - mid)) best = i;
+      });
+      [...dots.children].forEach((d, i) => d.setAttribute("aria-current", String(i === best)));
+    };
+    track.addEventListener("scroll", () => requestAnimationFrame(mark), { passive: true });
+    track.addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+      e.preventDefault();
+      track.scrollBy({ left: (e.key === "ArrowRight" ? 1 : -1) * (cards[0]?.clientWidth || 300), behavior: reduced() ? "auto" : "smooth" });
+    });
+    mark();
+  }
+
   function init() {
+    aiCarousel();
     spotlight();
     document.querySelectorAll("[data-fx-blur]").forEach(blurText);
     document.querySelectorAll("[data-fx-aurora]").forEach(aurora);

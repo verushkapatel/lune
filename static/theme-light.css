@@ -2051,6 +2051,12 @@ html[data-theme="light"] .lp-ai-row button:hover {
 html[data-theme="light"] .lp-switch input[type="checkbox"]::after {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.081);
 }
+html[data-theme="light"] .cmp-y {
+  color: #154f23;
+}
+html[data-theme="light"] .cmp-p {
+  color: #5a3f0e;
+}
 /* KEEP: hand fixes */
 /* --dim text reaches 4.5:1 on the page and on surfaces (was #8a8a8a, 3.4:1) */
 html[data-theme="light"] { --dim: #666666; }
