@@ -2057,6 +2057,76 @@ html[data-theme="light"] .cmp-y {
 html[data-theme="light"] .cmp-p {
   color: #5a3f0e;
 }
+html[data-theme="light"] body.is-studio header.bar .top-search .search-go::before {
+  background: #f5f5f5;
+}
+html[data-theme="light"] .st-rail-handle {
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  background: rgba(231, 231, 233, 0.86);
+  color: #171717;
+}
+html[data-theme="light"] .st-rail-tools {
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  background: rgba(231, 231, 233, 0.9);
+  box-shadow: -12px 18px 40px rgba(0, 0, 0, 0.104);
+}
+html[data-theme="light"] .st-rail-btn {
+  color: #121212;
+}
+html[data-theme="light"] .st-rail-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+html[data-theme="light"] .st-rail-bpm {
+  color: #0d0d0d;
+}
+html[data-theme="light"] .st-rail-bpm small {
+  color: #4a4a4a;
+}
+html[data-theme="light"] .st-rail-sep {
+  background: rgba(0, 0, 0, 0.14);
+}
+html[data-theme="light"] body:not(.studio-compact) .piece-tabs {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.03);
+}
+html[data-theme="light"] body:not(.studio-compact) .piece-tabs.piece-tabs-solo {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+html[data-theme="light"] body:not(.studio-compact) .piece-tab,
+html[data-theme="light"] body:not(.studio-compact).is-studio .piece-tab {
+  color: #484848;
+}
+html[data-theme="light"] body:not(.studio-compact) .piece-tab:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #272727;
+}
+html[data-theme="light"] body:not(.studio-compact) .piece-tab.on,
+html[data-theme="light"] body:not(.studio-compact).is-studio .piece-tab.on {
+  background: #e1e1e3;
+  color: #0a0a0a;
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06) inset, 0 6px 16px rgba(0, 0, 0, 0.081);
+}
+html[data-theme="light"] body:not(.studio-compact) .piece-tab-close:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+html[data-theme="light"] body:not(.studio-compact) .piece-tab-new {
+  color: #535353;
+}
+html[data-theme="light"] body:not(.studio-compact) .piece-tab-new:hover {
+  background: rgba(0, 0, 0, 0.07);
+  color: #0d0d0d;
+}
+html[data-theme="light"] body:not(.studio-compact) .piece-tab,
+html[data-theme="light"] body:not(.studio-compact) .piece-tab.piece-tab-lazy {
+  color: #484848;
+}
+html[data-theme="light"] body:not(.studio-compact) .piece-tab .piece-tab-close {
+  color: #3d3d3d;
+}
+html[data-theme="light"] body:not(.studio-compact) .piece-tab .piece-tab-close:hover {
+  color: #000000;
+}
 /* KEEP: hand fixes */
 /* --dim text reaches 4.5:1 on the page and on surfaces (was #8a8a8a, 3.4:1) */
 html[data-theme="light"] { --dim: #666666; }

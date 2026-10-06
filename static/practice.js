@@ -273,7 +273,8 @@ window.LunePractice = (function () {
         if (voicedMs > 220) heardVoice = true;
         quietSince = 0;
       } else if (heardVoice) quietSince ||= now;
-      if ((meterLive && heardVoice && quietSince && now - quietSince > 1600) || now - started > 45000) rec.stop();
+      // a little over a second of quiet ends the phrase: long enough for a breath, short enough to feel quick
+      if ((meterLive && heardVoice && quietSince && now - quietSince > 1100) || now - started > 45000) rec.stop();
       else requestAnimationFrame(watch);
     };
     requestAnimationFrame(watch);
@@ -328,7 +329,14 @@ window.LunePractice = (function () {
     return new Blob([out], { type: "audio/wav" });
   }
 
-  function hearPhrase({ onPartial, onLevel } = {}) {
+  function hearPhrase({ onPartial, onLevel, fast = false } = {}) {
+    // voice chat wants speed: the browser's own recognition writes words as you speak, with nothing to upload;
+    // Lune AI's ear (Whisper) is the fallback when the browser has none or it fails
+    if (fast && Recognition && window.isSecureContext) {
+      return browserPhrase({ onPartial, startWithin: 2500 }).catch(() =>
+        window.LuneAsk?.voice?.available?.() ? recordPhrase({ onPartial, onLevel }) : ""
+      );
+    }
     if (window.LuneAsk?.voice?.available?.() && window.isSecureContext) {
       // Lune AI's ear; the browser's own recognition if that fails
       return recordPhrase({ onPartial, onLevel }).catch((err) => {
@@ -343,7 +351,7 @@ window.LunePractice = (function () {
     return browserPhrase({ onPartial });
   }
 
-  function browserPhrase({ onPartial } = {}) {
+  function browserPhrase({ onPartial, startWithin = 0 } = {}) {
     return new Promise((resolve, reject) => {
       if (!window.isSecureContext) {
         reject(new Error("Voice needs a secure connection (HTTPS) — type your note instead."));
@@ -366,6 +374,20 @@ window.LunePractice = (function () {
       rec.maxAlternatives = 1;
       rec.continuous = false;
       let finalText = "";
+      // some browsers list speech recognition but never start it: give up quickly so Whisper can listen instead
+      let watchdog = 0;
+      if (startWithin) {
+        watchdog = setTimeout(() => {
+          try {
+            rec.abort();
+          } catch {
+            /* ignore */
+          }
+          activeRec = null;
+          reject(new Error("recognition did not start"));
+        }, startWithin);
+        rec.onaudiostart = () => clearTimeout(watchdog);
+      }
       rec.onresult = (e) => {
         let interim = "";
         for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -376,6 +398,7 @@ window.LunePractice = (function () {
         onPartial?.((finalText + " " + interim).trim());
       };
       rec.onerror = (e) => {
+        clearTimeout(watchdog);
         activeRec = null;
         // stopping it yourself is not a failure: keep whatever was heard
         if (e.error === "aborted") {
@@ -395,6 +418,7 @@ window.LunePractice = (function () {
         reject(new Error(why));
       };
       rec.onend = () => {
+        clearTimeout(watchdog);
         activeRec = null;
         resolve(tidySpoken(finalText));
       };
@@ -594,47 +618,45 @@ window.LunePractice = (function () {
     }
     const V = window.LuneAsk?.voice;
     if (V?.available?.() && !premiumVoice()) {
-      try {
-        let blob = voiceCache.get(text);
-        if (!blob) {
-          blob = await V.speak(text);
-          voiceCache.set(text, blob);
-        }
-        const audio = new Audio(URL.createObjectURL(blob));
-        audio.playbackRate = Number(store.prefs().speechRate) || 1;
-        currentAudio = audio;
-        let meter = null;
-        try {
-          const ac = new (window.AudioContext || window.webkitAudioContext)();
-          const srcNode = ac.createMediaElementSource(audio);
-          const an = ac.createAnalyser();
-          an.fftSize = 512;
-          srcNode.connect(an);
-          an.connect(ac.destination);
-          const buf = new Float32Array(an.fftSize);
-          meter = { ac, tick: () => { an.getFloatTimeDomainData(buf); onLevel?.(Math.min(1, Math.sqrt(buf.reduce((a, v) => a + v * v, 0) / buf.length) * 6)); } };
-        } catch {
-          meter = null;
-        }
-        await new Promise((resolve, reject) => {
-          let raf = 0;
-          const loop = () => {
-            meter?.tick();
-            if (audio.duration > 0) onProgress?.(Math.min(1, audio.currentTime / audio.duration));
-            raf = requestAnimationFrame(loop);
-          };
-          audio.onended = audio.onpause = () => {
-            cancelAnimationFrame(raf);
-            onLevel?.(0);
-            meter?.ac.close().catch(() => {});
-            if (currentAudio === audio) currentAudio = null;
-            resolve();
-          };
-          audio.onerror = reject;
-          audio.play().then(() => (raf = requestAnimationFrame(loop)), reject);
+      /*
+       * Sentence by sentence: the first is spoken as soon as its audio arrives, and
+       * the next is fetched while it plays, so Lune starts talking in about a second
+       * instead of after the whole answer has been voiced.
+       */
+      const gen = ++speakGen;
+      const parts = [];
+      for (const sentence of text.match(/[^.!?]+[.!?]+["”’)]*\s*|[^.!?]+$/g) || [text]) {
+        const last = parts[parts.length - 1];
+        if (last && last.length < 40) parts[parts.length - 1] = last + sentence;
+        else parts.push(sentence);
+      }
+      const voiceOf = (t) => {
+        const hit = voiceCache.get(t);
+        if (hit) return Promise.resolve(hit);
+        return V.speak(t).then((b) => {
+          voiceCache.set(t, b);
+          return b;
         });
+      };
+      const total = parts.reduce((n, t) => n + t.length, 0) || 1;
+      let done = 0;
+      try {
+        let next = voiceOf(parts[0].trim());
+        for (let i = 0; i < parts.length; i++) {
+          const blob = await next;
+          if (gen !== speakGen) return; // stopped, or something newer is being said
+          if (i + 1 < parts.length) next = voiceOf(parts[i + 1].trim());
+          await playVoice(blob, {
+            onLevel,
+            onFrac: (f) => onProgress?.(Math.min(1, (done + f * parts[i].length) / total)),
+          });
+          done += parts[i].length;
+          if (gen !== speakGen) return;
+        }
+        onProgress?.(1);
         return;
       } catch {
+        if (gen !== speakGen) return;
         stopAudio(); // the device voice says it instead
       }
     }
@@ -666,7 +688,45 @@ window.LunePractice = (function () {
       speechSynthesis.speak(u);
     });
   }
+  /** Play one stretch of Lune's voice; onLevel follows its loudness, onFrac its progress. */
+  function playVoice(blob, { onLevel, onFrac } = {}) {
+    const audio = new Audio(URL.createObjectURL(blob));
+    audio.playbackRate = Number(store.prefs().speechRate) || 1;
+    currentAudio = audio;
+    let meter = null;
+    try {
+      const ac = new (window.AudioContext || window.webkitAudioContext)();
+      const srcNode = ac.createMediaElementSource(audio);
+      const an = ac.createAnalyser();
+      an.fftSize = 512;
+      srcNode.connect(an);
+      an.connect(ac.destination);
+      const buf = new Float32Array(an.fftSize);
+      meter = { ac, tick: () => { an.getFloatTimeDomainData(buf); onLevel?.(Math.min(1, Math.sqrt(buf.reduce((a, v) => a + v * v, 0) / buf.length) * 6)); } };
+    } catch {
+      meter = null;
+    }
+    return new Promise((resolve, reject) => {
+      let raf = 0;
+      const loop = () => {
+        meter?.tick();
+        if (audio.duration > 0) onFrac?.(Math.min(1, audio.currentTime / audio.duration));
+        raf = requestAnimationFrame(loop);
+      };
+      audio.onended = audio.onpause = () => {
+        cancelAnimationFrame(raf);
+        onLevel?.(0);
+        meter?.ac.close().catch(() => {});
+        if (currentAudio === audio) currentAudio = null;
+        resolve();
+      };
+      audio.onerror = reject;
+      audio.play().then(() => (raf = requestAnimationFrame(loop)), reject);
+    });
+  }
+  let speakGen = 0;
   function stopSpeaking() {
+    speakGen += 1;
     stopAudio();
     try {
       speechSynthesis?.cancel();
@@ -814,7 +874,9 @@ window.LunePractice = (function () {
         <span class="lp-askbar-orb" aria-hidden="true"></span>
         <label class="visually-hidden" for="lp-ask-input">Ask Lune about bar ${primary}</label>
         <input id="lp-ask-input" type="text" maxlength="600" placeholder="Ask Lune about bar ${primary}…" enterkeyhint="send">
-        <button type="button" class="lc-round lp-ask-go" data-lp="ask" aria-label="Ask Lune about bar ${primary}"><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button type="button" class="lc-tool lp-ask-mic" data-lp="ask-mic" aria-label="Ask by voice: dictate a question"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+        <button type="button" class="lc-round lp-ask-talk" data-lp="ask-talk" aria-label="Voice chat with Lune about bar ${primary}"><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+        <button type="button" class="lc-round lp-ask-go" data-lp="ask" hidden aria-label="Ask Lune about bar ${primary}"><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </div>
       ${
         window.LuneAsk?.modelConnected?.()
@@ -887,6 +949,15 @@ window.LunePractice = (function () {
         dueEl.textContent = "";
       }
     };
+    // as in ChatGPT: the round button is voice mode while the box is empty, and Send once you type
+    const syncAskButtons = () => {
+      const has = !!wrap.querySelector("#lp-ask-input")?.value.trim();
+      const go = wrap.querySelector('[data-lp="ask"]');
+      const talk = wrap.querySelector('[data-lp="ask-talk"]');
+      if (go) go.hidden = !has;
+      if (talk) talk.hidden = has;
+    };
+    wrap.querySelector("#lp-ask-input")?.addEventListener("input", syncAskButtons);
     wrap.querySelector("#lp-ask-input")?.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.isComposing) {
         e.preventDefault();
@@ -922,12 +993,46 @@ window.LunePractice = (function () {
       if (!btn) return;
       if (btn.dataset.lpTask) window.LuneAsk?.runTask?.(btn.dataset.lpTask, primary);
       else if (btn.dataset.lp === "aloud") readSelectedAloud();
+      else if (btn.dataset.lp === "ask-talk") {
+        // voice mode, about this bar: Lune listens, answers aloud, listens again
+        window.LuneAsk?.open?.({ bar: primary });
+        window.LuneAsk?.openTalk?.({ title: `Lune AI · bar ${primary}`, answer: async (said) => (await window.LuneAsk.ask(said)) || "" });
+      }
+      else if (btn.dataset.lp === "ask-mic") {
+        const q = wrap.querySelector("#lp-ask-input");
+        if (!canListenForWords()) {
+          toast("Voice isn’t available in this browser. Type your question.");
+          q?.focus();
+          return;
+        }
+        btn.classList.add("on");
+        btn.setAttribute("aria-pressed", "true");
+        q.placeholder = "Listening…";
+        try {
+          const said = await hearPhrase({ fast: true, onPartial: (t) => !/^Listening|^Writing/.test(t) && (q.value = t) });
+          if (!said) {
+            toast("Lune didn’t catch that. Try again, or type.");
+            return;
+          }
+          // sent as soon as you stop speaking
+          q.value = said;
+          wrap.querySelector('[data-lp="ask"]')?.click();
+        } catch (err) {
+          toast(err.message || "Type your question instead.");
+        } finally {
+          btn.classList.remove("on");
+          btn.setAttribute("aria-pressed", "false");
+          q.placeholder = `Ask Lune about bar ${primary}…`;
+          syncAskButtons();
+        }
+      }
       else if (btn.dataset.lp === "ask") {
         const q = wrap.querySelector("#lp-ask-input");
         const text = (q?.value || "").trim();
         window.LuneAsk?.open?.({ bar: primary });
         if (text) {
           q.value = "";
+          syncAskButtons();
           window.LuneAsk?.ask?.(text);
         }
       }

@@ -297,7 +297,8 @@ window.LunePiano = (function () {
           barStartQ,
           barStartT: secondsAtQuarter(barStartQ),
           midi: n.midi,
-          bar: n.bar || null,
+          bar: n.bar ?? null,
+          ornament: !!n.ornament,
           name: midiToNote(n.midi),
           // the score's own spelling (A♭, not G♯) for labels
           label: String(n.letter || n.pitch || "")
@@ -318,7 +319,7 @@ window.LunePiano = (function () {
       const key = Math.round(e.t * 40);
       // The score's dynamics and voicing, with the small unevenness of real fingers.
       const wobble = 1 + (((e.midi * 7919 + Math.round(e.t * 1000) * 31) % 100) / 100 - 0.5) * 0.07;
-      e.vel = Math.min(0.94, Math.max(0.2, velocityFor(e.midi, density.get(key) || 1) * e.dyn * wobble));
+      e.vel = Math.min(1, Math.max(0.12, velocityFor(e.midi, density.get(key) || 1) * e.dyn * wobble));
     }
     return raw;
   }
@@ -356,7 +357,7 @@ window.LunePiano = (function () {
   function barAtTime(at) {
     const marks = barMarkers();
     if (!marks.length) {
-      let bar = events[0]?.bar || null;
+      let bar = events[0]?.bar ?? null;
       for (const e of events) {
         if (e.t <= at + 0.01) bar = e.bar;
         else break;
@@ -462,6 +463,7 @@ window.LunePiano = (function () {
     // Look-ahead is in musical time, so scale it by the rate to keep the same
     // wall-clock margin; hidden tabs get a long one because timers crawl there.
     const horizon = at + (document.hidden ? LOOKAHEAD_HIDDEN : LOOKAHEAD) * r;
+    pumpMetro(horizon, r);
     const soonest = Tone.now() + 0.01;
     while (pumpCursor < events.length) {
       const i = pumpCursor;
@@ -550,6 +552,9 @@ window.LunePiano = (function () {
     cutLiveSources();
     anchorAudio = Tone.now() + SCHEDULE_PAD;
     anchorAt = at;
+    stopMetroTimer(); // the music's clock takes over the clicks
+    if (metroBus) metroBus.gain.value = 1;
+    seekMetro(at);
     // Kill anything that may have started while the bus was muted
     try {
       sampler.releaseAll();
@@ -587,6 +592,7 @@ window.LunePiano = (function () {
       // Mute the bus so any look-ahead note that already crossed into Web Audio
       // cannot be heard — Stop / Pause must be instant.
       if (output) output.mute = true;
+      if (metroBus) metroBus.gain.value = 0; // playback clicks already queued are silenced too
     } catch {
       /* ignore */
     }
@@ -620,25 +626,32 @@ window.LunePiano = (function () {
 
   async function ensureMetroSounds() {
     await unlockAudio();
-    if (!metroClick) {
-      metroClick = new Tone.MembraneSynth({
-        pitchDecay: 0.008,
-        octaves: 2,
-        oscillator: { type: "sine" },
-        envelope: { attack: 0.001, decay: 0.08, sustain: 0, release: 0.04 },
+    // a short, bright click that phone and laptop speakers reproduce clearly (a low thud is lost on them)
+    const click = () =>
+      new Tone.Synth({
+        oscillator: { type: "triangle" },
+        envelope: { attack: 0.001, decay: 0.045, sustain: 0, release: 0.02 },
       }).toDestination();
-      metroClick.volume.value = -14;
+    if (!metroClick) {
+      metroClick = click();
+      metroClick.volume.value = 2;
     }
     if (!metroAccent) {
-      metroAccent = new Tone.MembraneSynth({
-        pitchDecay: 0.012,
-        octaves: 3,
-        oscillator: { type: "triangle" },
-        envelope: { attack: 0.001, decay: 0.12, sustain: 0, release: 0.06 },
-      }).toDestination();
-      metroAccent.volume.value = -10;
+      metroAccent = click();
+      metroAccent.volume.value = 5;
+    }
+    // the clicks that ride along with playback go through their own channel, muted the instant playback stops
+    if (!metroBus) {
+      metroBus = new Tone.Gain(1).toDestination();
+      metroPlayClick = new Tone.Synth({ oscillator: { type: "triangle" }, envelope: { attack: 0.001, decay: 0.045, sustain: 0, release: 0.02 } }).connect(metroBus);
+      metroPlayClick.volume.value = 2;
+      metroPlayAccent = new Tone.Synth({ oscillator: { type: "triangle" }, envelope: { attack: 0.001, decay: 0.045, sustain: 0, release: 0.02 } }).connect(metroBus);
+      metroPlayAccent.volume.value = 5;
     }
   }
+  let metroBus = null;
+  let metroPlayClick = null;
+  let metroPlayAccent = null;
 
   function stopMetroTimer() {
     if (metroTimer) {
@@ -652,17 +665,69 @@ window.LunePiano = (function () {
     const accent = metroBeat % Math.max(1, metroBeats) === 0;
     try {
       const now = Tone.now();
-      if (accent) metroAccent?.triggerAttackRelease("C3", "32n", now, 0.7);
-      else metroClick?.triggerAttackRelease("C2", "32n", now, 0.45);
+      if (accent) metroAccent?.triggerAttackRelease("A6", 0.04, now, 1);
+      else metroClick?.triggerAttackRelease("E6", 0.04, now, 0.85);
     } catch {
       /* ignore */
     }
     metroBeat += 1;
   }
 
+  /*
+   * While the piece plays, the metronome is part of the music: its clicks are
+   * placed on the same audio clock as the notes, on the beats of each bar as
+   * the timeline actually runs them (written tempo changes included). Compound
+   * metres (6/8, 9/8, 12/8, 6/4…) click the dotted beat.
+   */
+  let metroClicks = null;
+  let metroClicksFor = null;
+  let metroCursor = 0;
+  function beatsPerBar() {
+    const b = Math.max(1, metroBeats);
+    return b > 3 && b % 3 === 0 && metroUnit >= 4 ? b / 3 : b;
+  }
+  function clickTimes() {
+    if (metroClicks && metroClicksFor === events) return metroClicks;
+    const marks = barMarkers();
+    const out = [];
+    const per = beatsPerBar();
+    for (let i = 0; i < marks.length; i++) {
+      const t0 = marks[i].t;
+      const t1 = i + 1 < marks.length ? marks[i + 1].t : t0 + (i > 0 ? t0 - marks[i - 1].t : 0);
+      if (!(t1 > t0)) continue;
+      for (let k = 0; k < per; k++) out.push({ t: t0 + ((t1 - t0) * k) / per, accent: k === 0 });
+    }
+    metroClicks = out;
+    metroClicksFor = events;
+    return out;
+  }
+  function seekMetro(at) {
+    const list = clickTimes();
+    metroCursor = 0;
+    while (metroCursor < list.length && list[metroCursor].t < at - 0.001) metroCursor += 1;
+  }
+  function pumpMetro(horizon, r) {
+    if (!metroOn || anchorAudio == null || !metroPlayAccent) return;
+    const list = clickTimes();
+    const soonest = Tone.now() + 0.01;
+    while (metroCursor < list.length && list[metroCursor].t <= horizon) {
+      const c = list[metroCursor++];
+      const when = anchorAudio + (c.t - anchorAt) / r;
+      if (when < soonest - 0.02) continue;
+      try {
+        if (c.accent) metroPlayAccent.triggerAttackRelease("A6", 0.04, Math.max(soonest, when), 1);
+        else metroPlayClick.triggerAttackRelease("E6", 0.04, Math.max(soonest, when), 0.85);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
   function scheduleMetro() {
     stopMetroTimer();
     if (!metroOn) return;
+    // during playback the clicks ride the music's own clock (pumpMetro)
+    if (playing) return;
     fireMetroClick();
     const step = Math.max(0.12, metroInterval()) * 1000;
     metroTimer = setTimeout(scheduleMetro, step);
@@ -693,6 +758,8 @@ window.LunePiano = (function () {
     await ensureMetroSounds();
     metroBeat = 0;
     metroStartedAt = performance.now();
+    // switched on mid-piece: the next click falls on the next beat of the music
+    if (playing) seekMetro(progress());
     scheduleMetro();
     return true;
   }
@@ -880,6 +947,7 @@ window.LunePiano = (function () {
     pauseAt = progress();
     playing = false;
     clearAudio();
+    if (metroOn) scheduleMetro(); // paused: the metronome keeps the beat on its own
     if (onTick) onTick({ progress: pauseAt, total: duration(), bar: currentBar() });
     emitKeys(pauseAt);
     return pauseAt;
@@ -989,6 +1057,7 @@ window.LunePiano = (function () {
     progress,
     duration,
     currentBar,
+    metronomeClicks: () => clickTimes().map((c) => ({ t: c.t, accent: c.accent })),
     barMarkers,
     isPlaying,
     hasTimeline,
