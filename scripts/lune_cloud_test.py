@@ -367,7 +367,8 @@ def section_ratings(browser):
     strict = all(a[1] < b[1] for a, b in zip(order["reps2"], order["reps2"][1:]))
     check("ratings: Again < Hard ≤ Okay ≤ Good ≤ Strong for new and seasoned bars", mono, order)
     check("ratings: on a bar with history each rating gives a different, later review", strict, order["reps2"])
-    eased = pg.evaluate("() => [LuneStore.schedule({reps: 2, interval_days: 3, ease: 2.5}, 'easy').due_at === LuneStore.schedule({reps: 2, interval_days: 3, ease: 2.5}, 'strong').due_at, LuneStore.schedule({}, 'again').lapses]")
+    # the interval, not the timestamp: two calls a millisecond apart give different due times
+    eased = pg.evaluate("() => [LuneStore.schedule({reps: 2, interval_days: 3, ease: 2.5}, 'easy').interval_days === LuneStore.schedule({reps: 2, interval_days: 3, ease: 2.5}, 'strong').interval_days, LuneStore.schedule({}, 'again').lapses]")
     check("ratings: the old name schedules exactly like Strong, and Again is a lapse", eased == [True, 1], eased)
 
     # the bar panel offers the five, and a press is saved with its name
@@ -596,16 +597,10 @@ def section_account(browser):
     hero = pg.evaluate("() => [...document.querySelectorAll('#hero button')].map(b => b.textContent.trim()).filter(t => t && !/scroll/i.test(t))")
     check("landing: the opening screen has no sign-in or install buttons, only the Lune AI pill", hero == ["New · Lune AI, built into Lune"], hero)
     order = pg.evaluate("""() => { const ids = [...document.querySelectorAll('#home-guest > section, #home-guest > div')].map(e => e.id).filter(Boolean);
-      return [ids.indexOf('features'), ids.indexOf('ai'), ids.indexOf('compare'), ids.indexOf('free'), ids.indexOf('get-lune')]; }""")
-    check("landing: features, Lune AI, the comparison and No payments come before Get Lune", order[0] >= 0 and order[0] < order[1] < order[2] < order[3] < order[4], order)
-    cmp = pg.evaluate("""() => ({ rows: [...document.querySelectorAll('#compare tbody th')].map(t => t.firstChild.textContent.trim()),
-      theyWin: [...document.querySelectorAll('#compare .lp-they-win th')].map(t => t.firstChild.textContent.trim()),
-      fine: document.querySelector('#compare .lp-compare-fine').textContent, names: document.querySelector('#compare thead').textContent })""")
-    check("landing: the comparison names flowkey, Simply Piano, Yousician and Skoove", all(n in cmp["names"] for n in ("flowkey", "Simply Piano", "Yousician", "Skoove")), cmp["names"])
-    check("landing: it says plainly what they do better (listening as you play, beginner courses)", cmp["theyWin"] == ["Listening as you play", "Courses from the first note"], cmp["theyWin"])
-    check("landing: it dates its sources and says Lune is not connected with them", "October 2026" in cmp["fine"] and "not connected" in cmp["fine"], cmp["fine"])
-    check("landing: no best, first or only claims in the comparison",
-          not pg.evaluate("() => /\\b(best|first|only|number one|#1)\\b/i.test(document.getElementById('compare').innerText.replace(/first note/gi, ''))"))
+      return [ids.indexOf('features'), ids.indexOf('ai'), ids.indexOf('free'), ids.indexOf('get-lune')]; }""")
+    check("landing: the live studio, Lune AI and No payments come before Get Lune", order[0] >= 0 and order[0] < order[1] < order[2] < order[3], order)
+    check("landing: no comparison with other apps", not pg.evaluate("() => !!document.getElementById('compare')"))
+    check("landing: three live demos of the studio", pg.locator("#features .home-feat").count() == 3)
     free = pg.text_content("#free")
     check("landing: No payments says no subscription, no ads and Lune AI included", "No payments" in free and "No subscription" in free and "No ads" in free and "Lune AI is free" in free, free[:200])
     scenes = pg.eval_on_selector_all("#ai .ai-scene h3", "els => els.map(e => e.textContent)")
@@ -635,10 +630,6 @@ def section_account(browser):
     check("app: Use it in your browser opens the app home, not the story", app["on"] and not app["story"], app)
     check("app: sign-in is offered inside the app, with search and pieces to start", app["signin"] == "Sign in or create an account" and app["pieces"] == 4 and app["search"], app)
     check("app: the Lune AI section says what it does and how to turn it on", app["ai"] == "Sign in to use Lune AI", app)
-    pg.click("#home-app [data-show-compare]")
-    pg.wait_for_timeout(1800)
-    check("app: How Lune compares opens the comparison from the app home",
-          pg.evaluate("() => !!document.getElementById('compare').offsetParent && Math.abs(document.getElementById('compare').getBoundingClientRect().top) < 140"))
     pg.evaluate("() => document.querySelector('[data-enter-app]').click()")
     pg.wait_for_timeout(400)
     pg.reload(wait_until="networkidle")
@@ -1009,19 +1000,6 @@ def section_home(browser):
     check("home: Lune AI's Ask bar, then the next step, both on the first screen, above suggestions", lay["askTop"] < lay["nextTop"] < lay["vh"] * 0.5 and lay["nextTop"] < lay["recsTop"], lay)
     check("home: one primary button on the first screen, at least 44 px tall", lay["primaries"] == 1 and lay["btn"] >= 44, lay)
     check("home: no feature tour on the signed-in home, no sideways scrolling", not lay["tour"] and not lay["overflow"], lay)
-    # signed in, the comparison is one tap away: from the footer and from Settings
-    pg.click("#home-member [data-show-compare]")
-    pg.wait_for_timeout(1800)
-    seen = pg.evaluate("() => { const c = document.getElementById('compare'); const r = c.getBoundingClientRect(); return { visible: !!c.offsetParent, top: Math.round(r.top) }; }")
-    check("home: signed in, How Lune compares opens the comparison", seen["visible"] and abs(seen["top"]) < 140, seen)
-    pg.evaluate("() => document.getElementById('btn-home').click()")
-    pg.wait_for_timeout(400)
-    pg.evaluate("() => document.getElementById('btn-settings').click()")
-    pg.wait_for_timeout(400)
-    check("home: Settings has How Lune compares", pg.locator("[data-set=compare]").count() == 1)
-    pg.click("[data-set=compare]")
-    pg.wait_for_timeout(1800)
-    check("home: from Settings it lands on the comparison", pg.evaluate("() => !!document.getElementById('compare').offsetParent && Math.abs(document.getElementById('compare').getBoundingClientRect().top) < 140"))
     check("home: no page errors", not pg.errors, pg.errors)
     ctx.close()
 

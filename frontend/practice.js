@@ -2157,7 +2157,6 @@ window.LunePractice = (function () {
         ${install}
         ${row("feedback", "Send feedback", "To the maker")}
         ${row("privacy", "Privacy", "What Lune keeps")}
-        ${row("compare", "How Lune compares", "Next to other piano apps")}
         ${row("credits", "Credits and licences", "Scores, sounds, models")}
         <p class="settings-note">Free, no ads. Made by Verushka Patel.</p>
       </section>
@@ -2331,7 +2330,6 @@ window.LunePractice = (function () {
       else if (act === "example-week") openExampleWeek();
       else if (act === "chat") window.LuneAsk?.goAiPage?.();
       else if (act === "plan-week") window.LunePlans?.openWizard?.();
-      else if (act === "compare") document.querySelector("[data-show-compare]")?.click();
       else if (act === "upload") $("file")?.click();
       else if (act === "feedback") window.LuneFeedback?.open?.();
       else if (act === "credits") document.querySelector("[data-open-credits]")?.click();
