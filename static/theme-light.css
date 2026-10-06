@@ -2170,6 +2170,16 @@ html[data-theme="light"] #hero .home-lockup .home-mark {
 html[data-theme="light"] #hero .home-lockup .home-brand {
   color: #161616;
 }
+html[data-theme="light"] body.is-home:not(.is-signed-in) #ai.ai-chapter {
+  background: radial-gradient(60% 55% at 50% 30%, rgba(85, 105, 195, 0.22), rgba(145, 155, 215, 0.08) 55%, transparent 80%) !important;
+}
+html[data-theme="light"] body.is-home:not(.is-signed-in) .home-feat-device {
+  border: 1px solid rgba(0, 0, 0, 0.09) !important;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06) inset, 0 40px 120px -30px rgba(90, 110, 220, 0.25), 0 30px 60px -20px rgba(0, 0, 0, 0.161) !important;
+}
+html[data-theme="light"] body.is-home:not(.is-signed-in) .home-feat-copy p {
+  color: #404040;
+}
 /* KEEP: hand fixes */
 /* --dim text reaches 4.5:1 on the page and on surfaces (was #8a8a8a, 3.4:1) */
 html[data-theme="light"] { --dim: #666666; }
