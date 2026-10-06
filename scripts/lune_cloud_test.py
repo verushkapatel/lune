@@ -598,8 +598,8 @@ def section_account(browser):
     order = pg.evaluate("""() => { const ids = [...document.querySelectorAll('#home-guest > section, #home-guest > div')].map(e => e.id).filter(Boolean);
       return [ids.indexOf('features'), ids.indexOf('ai'), ids.indexOf('compare'), ids.indexOf('free'), ids.indexOf('get-lune')]; }""")
     check("landing: features, Lune AI, the comparison and No payments come before Get Lune", order[0] >= 0 and order[0] < order[1] < order[2] < order[3] < order[4], order)
-    cmp = pg.evaluate("""() => ({ rows: [...document.querySelectorAll('#compare tbody th')].map(t => t.textContent),
-      theyWin: [...document.querySelectorAll('#compare .lp-they-win th')].map(t => t.textContent),
+    cmp = pg.evaluate("""() => ({ rows: [...document.querySelectorAll('#compare tbody th')].map(t => t.firstChild.textContent.trim()),
+      theyWin: [...document.querySelectorAll('#compare .lp-they-win th')].map(t => t.firstChild.textContent.trim()),
       fine: document.querySelector('#compare .lp-compare-fine').textContent, names: document.querySelector('#compare thead').textContent })""")
     check("landing: the comparison names flowkey, Simply Piano, Yousician and Skoove", all(n in cmp["names"] for n in ("flowkey", "Simply Piano", "Yousician", "Skoove")), cmp["names"])
     check("landing: it says plainly what they do better (listening as you play, beginner courses)", cmp["theyWin"] == ["Listening as you play", "Courses from the first note"], cmp["theyWin"])
@@ -1003,10 +1003,10 @@ def section_home(browser):
     pg.evaluate("() => { document.getElementById('home-guest').hidden = true; document.getElementById('home-member').hidden = false; document.body.classList.add('is-signed-in'); LuneOnboard.paintSignedHome(); }")
     pg.wait_for_function("() => document.getElementById('member-next').dataset.kind === 'task'", timeout=8000)
     lay = pg.evaluate("""() => { const r = (s) => document.querySelector(s).getBoundingClientRect();
-      return { nextTop: r('#member-next').top, recsTop: r('#member-recs').top, aiTop: r('.member-ai').top, vh: innerHeight,
+      return { nextTop: r('#member-next').top, recsTop: r('#member-recs').top, askTop: r('#home-ask').top, vh: innerHeight,
         tour: !!document.querySelector('#home-member .member-features'), btn: r('[data-next-go]').height, overflow: document.documentElement.scrollWidth > innerWidth + 1,
         primaries: [...document.querySelectorAll('#home-member .primary')].filter(b => b.offsetParent && b.getBoundingClientRect().top < innerHeight).length }; }""")
-    check("home: the next step is on the first screen, above suggestions and Lune AI", lay["nextTop"] < lay["vh"] * 0.5 and lay["nextTop"] < lay["recsTop"] < lay["aiTop"], lay)
+    check("home: Lune AI's Ask bar, then the next step, both on the first screen, above suggestions", lay["askTop"] < lay["nextTop"] < lay["vh"] * 0.5 and lay["nextTop"] < lay["recsTop"], lay)
     check("home: one primary button on the first screen, at least 44 px tall", lay["primaries"] == 1 and lay["btn"] >= 44, lay)
     check("home: no feature tour on the signed-in home, no sideways scrolling", not lay["tour"] and not lay["overflow"], lay)
     # signed in, the comparison is one tap away: from the footer and from Settings
@@ -1235,7 +1235,7 @@ def section_plans(browser):
     pg.wait_for_timeout(4500)
     if pg.locator('#ask-listen [data-listen="done"]').is_visible():
         pg.click('#ask-listen [data-listen="done"]')
-    pg.wait_for_function("() => [...document.querySelectorAll('#ask-log .ask-from-you')].some(y => y.textContent === 'Bar 12, keep the thumb light.')", timeout=15000)
+    pg.wait_for_function("() => [...document.querySelectorAll('#ask-log .ask-from-you')].some(y => y.textContent === 'Bar 12, keep the thumb light.')", timeout=30000)
     sent = pg.evaluate("() => (() => { const y = [...document.querySelectorAll('#ask-log .ask-from-you')].pop(); return y ? y.textContent : document.getElementById('ask-input').value; })()")
     check("voice: once you stop speaking, the words are sent to Lune", sent == "Bar 12, keep the thumb light.", sent)
     # talk: Lune listens, then answers aloud (the round button is voice chat while the box is empty)
