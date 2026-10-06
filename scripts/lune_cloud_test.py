@@ -1395,6 +1395,17 @@ def section_fixes(browser):
     pg.locator("#repertoire [data-ask-piece]").first.click()
     pg.wait_for_function("() => /How should I practise/.test(document.getElementById('chat-log')?.innerText || '')", timeout=15000)
     check("repertoire: Ask Lune on a piece asks about that piece on the Lune AI page", "How should I practise" in pg.inner_text("#chat-log"))
+    # "bar 2 is hard": logged, and answered with real help, not only a receipt
+    open_piece(pg)
+    pg.evaluate(SIGN_IN)
+    pg.evaluate("() => { LuneAsk.open({bar: 2}); }")
+    pg.wait_for_timeout(300)
+    pg.evaluate("() => LuneAsk.ask('Bar 2 is hard, how should I practise it?')")
+    pg.wait_for_function("() => [...document.querySelectorAll('#ask-log .ask-msg')].some(m => /STANDIN/.test(m.textContent))", timeout=15000)
+    log_text = pg.inner_text("#ask-log")
+    check("ask: telling Lune a bar is hard gets practice help from Lune AI", "STANDIN" in log_text, log_text[-200:])
+    check("ask: and the rating is still logged, as a small note", "Logged bar 2 as hard" in log_text, log_text[-200:])
+    pg.evaluate("() => LuneAsk.close()")
     # voice replies: one tap, and every answer is read aloud
     pg.evaluate("() => { window.__spoken = []; LunePractice.speak = (t) => window.__spoken.push(t); LunePractice.speakAndWait = async (t, o) => { window.__spoken.push(t); o?.onProgress?.(0.5); o?.onProgress?.(1); }; localStorage.removeItem('lune.voiceReplies'); }")
     pg.click("#chat-voice")
@@ -1419,12 +1430,25 @@ def section_timing(browser):
     worst = max((lens[i] / min(lens[i - 1], lens[i + 1]), i + 1) for i in range(1, len(lens) - 1))
     check("timing: no bar of Clair de lune lasts more than twice its neighbours", worst[0] < 2, (worst, lens[20:30]))
     check("timing: bar 26 keeps its ritardando without stalling (under 6 s)", 3 < lens[25] < 6, lens[25])
+    # the metronome during playback: on the beats of each bar, from the music's own clock
+    open_piece(pg)
+    pg.evaluate("() => { LunePiano.setMetronome(true); }")
+    pg.wait_for_timeout(400)
+    clicks = pg.evaluate("() => { const m = LunePiano.barMarkers().slice(0, 6); const c = LunePiano.metronomeClicks(); return { marks: m.map(x => x.t), clicks: c.slice(0, 18) }; }")
+    marks, cl = clicks["marks"], clicks["clicks"]
+    on_bars = all(any(abs(c["t"] - m) < 0.002 and c["accent"] for c in cl) for m in marks[:5])
+    per_bar = sum(1 for c in cl if marks[1] - 0.002 <= c["t"] < marks[2] - 0.002)
+    check("metronome: an accented click on every barline, from the timeline itself", on_bars, cl[:6])
+    check("metronome: Für Elise in 3/8 clicks three times a bar, evenly", per_bar == 3, per_bar)
+    pg.evaluate("() => { LunePiano.setMetronome(false); }")
     # Liebestraum no. 3: its export pads a voice with rests and writes triplets at full length
     open_piece(pg, BASE + "#/franz-liszt-liebestraum-no-3-in-a-major/score")
     pg.wait_for_timeout(1500)
     marks = pg.evaluate("() => LunePiano.barMarkers().slice(0, 25).map(x => x.t)")
     lens = [round(b - a, 2) for a, b in zip(marks, marks[1:])][1:24]
     check("timing: every 6/4 bar of Liebestraum's opening takes the same time (no stalls)", max(lens) - min(lens) < 0.05, lens)
+    bpm = int(pg.evaluate("() => document.getElementById('bpm-slider').value"))
+    check("timing: Liebestraum's Poco allegro plays near recorded tempos (100 to 115 a crotchet), not a full Allegro", 100 <= bpm <= 115, bpm)
     # any piece: search offers MuseScore and opening the downloaded file
     pg.evaluate("() => { document.body.classList.add('studio-search-open'); const f = document.getElementById('top-search'); if (f) f.hidden = false; }")
     pg.fill("#q", "interstellar")
@@ -1437,8 +1461,67 @@ def section_timing(browser):
     check("timing: no page errors", not pg.errors, pg.errors)
     pg.context.close()
 
+SYNC_JS = """() => {
+  const play = {}; for (const e of LunePiano.getEvents()) { if (e.ornament) continue; (play[e.bar] ||= new Set()).add(e.midi); }
+  const eng = {}; state.osmd.GraphicSheet.MeasureList.forEach(col => col.forEach(gm => { if (!gm) return; const num = gm.parentSourceMeasure?.MeasureNumber;
+    for (const se of gm.staffEntries || []) for (const g of se.graphicalVoiceEntries || []) for (const gn of g.notes || []) { const n = gn.sourceNote; if (!n || n.isRest?.() || !n.Pitch) continue; (eng[num] ||= new Set()).add(n.halfTone + 12); } }));
+  let off = 0, n = 0; for (const b of Object.keys(play)) { const A = play[b], B = eng[b] || new Set(); n++; if ([...A].filter(x => B.has(x)).length / new Set([...A, ...B]).size < 0.5) off++; }
+  return { off, n, nullBars: LunePiano.getEvents().filter(e => e.bar == null).length };
+}"""
 
-SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week, "catalogue": section_catalogue, "console": section_console, "account": section_account, "latest": section_latest, "voice": section_voice, "progress": section_progress, "home": section_home, "loop": section_practice_loop, "studio": section_studio, "plans": section_plans, "voice2": section_voice2, "aipage": section_aipage, "fixes": section_fixes, "timing": section_timing}
+
+def section_sync(browser):
+    """The bar lit on the score is the bar the piano plays; ornaments sound; the top bar lines up."""
+    pg = new_page(browser)
+    open_piece(pg, BASE + "#/frederic-chopin-waltz-in-a-minorchopin/score")
+    pg.wait_for_timeout(1200)
+    r = pg.evaluate(SYNC_JS)
+    check("sync: Chopin's Waltz in A minor plays the bar the score shows (pickup numbered 1)", r["n"] > 40 and r["off"] == 0, r)
+    open_piece(pg, BASE + "#/johann-sebastian-bach-prelude-in-a-minor/score")
+    pg.wait_for_timeout(1200)
+    r = pg.evaluate(SYNC_JS)
+    order = pg.evaluate("() => { const m = LunePiano.barMarkers(); const g = m.slice(1).map((x, i) => x.t - m[i].t); return { first: m[0].bar, last: m[m.length - 1].bar, spread: Math.max(...g) - Math.min(...g) }; }")
+    check("sync: Bach's Prelude matches bar for bar, every note has a bar", r["off"] == 0 and r["nullBars"] == 0, r)
+    check("sync: bars play in the file's order, with no silent bar for a skipped number", order["first"] == 1 and order["last"] == 0 and order["spread"] < 0.05, order)
+    open_piece(pg, BASE + "#/frederic-chopin-chopin-nocturne-op-9-no-2-e-flat-major/score")
+    pg.wait_for_timeout(1500)
+    o = pg.evaluate("""() => { const t = tieIndex(state.piece); const ev = LunePiano.getEvents(); const kinds = new Set(t.orn.values());
+      const m = LunePiano.barMarkers(); const lens = m.slice(1).map((x, i) => x.t - m[i].t);
+      const inBar = ev.filter(e => e.ornament).every(e => e.barOff >= -0.01);
+      return { kinds: [...kinds], graces: t.graces.size, orn: ev.filter(e => e.ornament).length, inBar, maxBar: Math.max(...lens) }; }""")
+    check("ornaments: the nocturne's trills, turns and mordents are played", {"turn", "trill-mark", "inverted-mordent"} <= set(o["kinds"]) and o["orn"] > 40, o)
+    check("ornaments: grace notes are read and stay inside their bar", o["graces"] > 5 and o["inBar"], o)
+    r = pg.evaluate(SYNC_JS)
+    check("sync: the nocturne matches bar for bar", r["off"] == 0, r)
+    # the search field's button sits inside the field and never on the next button
+    pg.evaluate("() => { openStudioSearch(); }")
+    pg.wait_for_timeout(400)
+    g = pg.evaluate("""() => { const go = document.querySelector('.top-search .search-go').getBoundingClientRect(); const inp = document.getElementById('q').getBoundingClientRect();
+      const next = document.getElementById('btn-repertoire').getBoundingClientRect(); return { inside: go.left >= inp.left && go.right <= inp.right + 0.5, clear: go.right <= next.left, mid: Math.abs((go.top + go.bottom) / 2 - (inp.top + inp.bottom) / 2) }; }""")
+    check("top bar: the search button sits inside the field, centred, clear of Repertoire", g["inside"] and g["clear"] and g["mid"] < 1.5, g)
+    check("sync: no page errors", not pg.errors, pg.errors)
+    pg.context.close()
+    # phone: the playback tools rail slides out and works the studio's own controls
+    ph = new_page(browser, 390, 844)
+    open_piece(ph, BASE + "#/frederic-chopin-chopin-nocturne-op-9-no-2-e-flat-major/score")
+    ph.wait_for_timeout(800)
+    before = ph.evaluate("() => document.getElementById('bpm-slider').value")
+    ph.click("#st-rail-handle")
+    ph.wait_for_timeout(500)
+    ph.click('[data-rail="metro"]')
+    ph.click('[data-rail="faster"]')
+    ph.wait_for_timeout(200)
+    st = ph.evaluate("() => ({ open: document.getElementById('st-rail').classList.contains('open'), metro: document.getElementById('btn-metro').getAttribute('aria-pressed'), bpm: document.getElementById('bpm-slider').value, shown: document.querySelector('#st-rail-bpm b').textContent })")
+    check("phone: the side rail opens and turns on the metronome", st["open"] and st["metro"] == "true", st)
+    check("phone: the rail's + speeds the music up and shows the new tempo", int(st["bpm"]) == int(before) + 4 and st["shown"] == st["bpm"], (before, st))
+    ph.click("#st-rail-handle")
+    ph.wait_for_timeout(500)
+    check("phone: the rail hides again", not ph.evaluate("() => document.getElementById('st-rail').classList.contains('open')"))
+    ph.evaluate("() => document.getElementById('btn-metro').getAttribute('aria-pressed') === 'true' && document.getElementById('btn-metro').click()")
+    ph.context.close()
+
+
+SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week, "catalogue": section_catalogue, "console": section_console, "account": section_account, "latest": section_latest, "voice": section_voice, "progress": section_progress, "home": section_home, "loop": section_practice_loop, "studio": section_studio, "plans": section_plans, "voice2": section_voice2, "aipage": section_aipage, "fixes": section_fixes, "timing": section_timing, "sync": section_sync}
 
 if __name__ == "__main__":
     want = sys.argv[1:] or list(SECTIONS)

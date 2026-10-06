@@ -333,7 +333,7 @@ window.LunePlans = (function () {
 
   /** The public page for a shared plan or piece. Returns true when it drew one. */
   function renderShare(page, p) {
-    const MARK = '<svg class="lune-mark" viewBox="0 0 40 40" width="36" height="36" aria-hidden="true"><path fill="currentColor" d="M26.2 7.2c-5.9.9-10.4 6-10.4 12.1 0 6.1 4.5 11.2 10.4 12.1A12.2 12.2 0 0 1 14 19.3c0-6.6 5.2-12 11.8-12.2.1 0 .3 0 .4 0z"/></svg>';
+    const MARK = '<svg class="lune-mark" viewBox="0 0 40 40" width="36" height="36" aria-hidden="true"><path fill="currentColor" d="M17.61 4.58A12 12 0 1 0 27.70 24.77A11.4 11.4 0 1 1 17.61 4.58Z"/></svg>';
     if (p.kind === "weekplan") {
       page.innerHTML = `<section class="share-inner">${MARK}<p class="share-kicker">Practice week</p><h1>${esc(p.displayName || "A Lune pianist")}</h1>
         ${planHtml({ ...p, via: "rules" }).replace(/<div class="wp-actions">[\s\S]*?<\/div>/, "").replace(/<p class="wp-by">[\s\S]*?<\/p>/, `<p class="wp-by">${esc(p.mins)} min a day</p>`)}

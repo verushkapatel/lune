@@ -4,7 +4,7 @@ window.LuneImpact = (function () {
   const store = () => window.LuneStore;
   const $ = (id) => document.getElementById(id);
   const INVITE_KEY = "lune.invite";
-  const MARK = `<svg class="lune-mark impact-mark" viewBox="0 0 40 40" width="40" height="40" aria-hidden="true" focusable="false"><path fill="currentColor" d="M26.2 7.2c-5.9.9-10.4 6-10.4 12.1 0 6.1 4.5 11.2 10.4 12.1A12.2 12.2 0 0 1 14 19.3c0-6.6 5.2-12 11.8-12.2.1 0 .3 0 .4 0z"/></svg>`;
+  const MARK = `<svg class="lune-mark impact-mark" viewBox="0 0 40 40" width="40" height="40" aria-hidden="true" focusable="false"><path fill="currentColor" d="M17.61 4.58A12 12 0 1 0 27.70 24.77A11.4 11.4 0 1 1 17.61 4.58Z"/></svg>`;
 
   const esc = (s) =>
     String(s ?? "")

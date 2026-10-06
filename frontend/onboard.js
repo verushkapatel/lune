@@ -522,7 +522,7 @@ window.LuneOnboard = (function () {
         <div class="welcome-hero-inner">
           <div class="welcome-lockup">
             <svg class="lune-mark welcome-mark" viewBox="0 0 40 40" width="72" height="72" aria-hidden="true">
-              <path fill="currentColor" d="M26.2 7.2c-5.9.9-10.4 6-10.4 12.1 0 6.1 4.5 11.2 10.4 12.1A12.2 12.2 0 0 1 14 19.3c0-6.6 5.2-12 11.8-12.2.1 0 .3 0 .4 0z"/>
+              <path fill="currentColor" d="M17.61 4.58A12 12 0 1 0 27.70 24.77A11.4 11.4 0 1 1 17.61 4.58Z"/>
             </svg>
             <p class="welcome-brand">Lune</p>
           </div>
@@ -550,7 +550,7 @@ window.LuneOnboard = (function () {
         <div class="hello-hero-inner">
           <div class="hello-lockup">
             <svg class="lune-mark hello-mark" viewBox="0 0 40 40" width="64" height="64" aria-hidden="true">
-              <path fill="currentColor" d="M26.2 7.2c-5.9.9-10.4 6-10.4 12.1 0 6.1 4.5 11.2 10.4 12.1A12.2 12.2 0 0 1 14 19.3c0-6.6 5.2-12 11.8-12.2.1 0 .3 0 .4 0z"/>
+              <path fill="currentColor" d="M17.61 4.58A12 12 0 1 0 27.70 24.77A11.4 11.4 0 1 1 17.61 4.58Z"/>
             </svg>
             <p class="hello-brand">Lune</p>
           </div>

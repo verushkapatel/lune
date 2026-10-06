@@ -195,10 +195,87 @@ window.LuneStudioUI = (function () {
     measure();
   }
 
+  /**
+   * A slim rail on the right edge: tap the handle and the playback tools
+   * (metronome, speed, back to the start) slide out; tap again and they hide.
+   * Each one presses the studio's own control.
+   */
+  function injectRail() {
+    if ($("st-rail")) return;
+    const rail = document.createElement("div");
+    rail.className = "st-rail";
+    rail.id = "st-rail";
+    rail.innerHTML = `
+      <button type="button" class="st-rail-handle" id="st-rail-handle" aria-expanded="false" aria-controls="st-rail-tools" aria-label="Playback tools">
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M14.5 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="st-rail-tools" id="st-rail-tools" role="group" aria-label="Playback tools">
+        <button type="button" class="st-rail-btn" data-rail="metro" aria-pressed="false" aria-label="Metronome">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M8 20h8l-3.2-14h-1.6L8 20z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M10.2 11.5l5.2-3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </button>
+        <button type="button" class="st-rail-btn" data-rail="faster" aria-label="Faster">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 6v12M6 12h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </button>
+        <span class="st-rail-bpm" id="st-rail-bpm" aria-live="polite"><b>72</b><small>bpm</small></span>
+        <button type="button" class="st-rail-btn" data-rail="slower" aria-label="Slower">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 12h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </button>
+        <span class="st-rail-sep" aria-hidden="true"></span>
+        <button type="button" class="st-rail-btn" data-rail="restart" aria-label="Back to the start">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M7 6v12M18 6.5v11L9.5 12z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></svg>
+        </button>
+      </div>`;
+    document.body.appendChild(rail);
+    const handle = $("st-rail-handle");
+    const set = (open) => {
+      rail.classList.toggle("open", open);
+      handle.setAttribute("aria-expanded", open ? "true" : "false");
+      handle.setAttribute("aria-label", open ? "Hide playback tools" : "Playback tools");
+    };
+    handle.addEventListener("click", () => set(!rail.classList.contains("open")));
+    const slider = $("bpm-slider");
+    const paintRail = () => {
+      const metro = $("btn-metro");
+      const b = rail.querySelector('[data-rail="metro"]');
+      const on = metro?.getAttribute("aria-pressed") === "true";
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+      b.classList.toggle("on", on);
+      const v = slider?.value || $("bpm-readout")?.textContent || "";
+      rail.querySelector("#st-rail-bpm b").textContent = v;
+    };
+    const nudge = (d) => {
+      if (!slider) return;
+      const v = Math.max(+slider.min || 40, Math.min(+slider.max || 160, (+slider.value || 72) + d));
+      slider.value = String(v);
+      slider.dispatchEvent(new Event("input", { bubbles: true }));
+      slider.dispatchEvent(new Event("change", { bubbles: true }));
+      paintRail();
+    };
+    rail.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-rail]");
+      if (!b) return;
+      const k = b.dataset.rail;
+      if (k === "metro") press("btn-metro");
+      else if (k === "faster") nudge(4);
+      else if (k === "slower") nudge(-4);
+      else if (k === "restart") press("btn-stop");
+      setTimeout(paintRail, 30);
+    });
+    const metro = $("btn-metro");
+    if (metro) new MutationObserver(paintRail).observe(metro, { attributes: true, attributeFilter: ["aria-pressed"] });
+    const read = $("bpm-readout");
+    if (read) new MutationObserver(paintRail).observe(read, { childList: true, characterData: true, subtree: true });
+    slider?.addEventListener("input", paintRail);
+    // tapping the score hides the rail again
+    $("score-scroll")?.addEventListener("pointerdown", () => set(false), { passive: true });
+    paintRail();
+  }
+
   function init() {
     apply();
     narrow.addEventListener?.("change", apply);
     injectTopBar();
+    injectRail();
     trackDock();
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });

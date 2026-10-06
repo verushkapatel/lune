@@ -467,8 +467,17 @@ Rules:
             : /\b(good|fine|better|clean|went well|solid)\b/.test(t)
               ? "good"
               : null;
-    if (grade && !isQuestion && bars.length && /\b(was|went|felt|is|that|it)\b/.test(t)) {
-      return { bar: bars[0], a: await rate(bars, grade), saved: "review" };
+    // "bar 2 is hard, how should I practise it?" is a rating and a question; "is bar 2 hard?" is only a question
+    const ratingStatement = !isQuestion || !/^(is|are|was|were|did|does|do|how hard|which|what)\b/.test(t.trim());
+    if (grade && ratingStatement && bars.length && /\b(was|went|felt|is|that|it)\b/.test(t)) {
+      const logged = await rate(bars, grade);
+      // a hard bar, or a "how do I…", deserves real help, not only a receipt
+      const wantsHelp = grade === "again" || grade === "hard" || /\b(how|help|practi[sc]e|fix|should|what (do|can|should) i)\b/.test(t);
+      if (wantsHelp) {
+        const help = await reply(`How do I practise bar ${bars[0]}?`).catch(() => null);
+        return { bar: bars[0], a: help?.a || logged, saved: "review", question: true, note: logged };
+      }
+      return { bar: bars[0], a: logged, saved: "review" };
     }
     // a remark to keep on the bar
     const remarkLead = /^(note|remark|remember|write|log|mark|flag)\b[:,]?\s*/i;
@@ -805,6 +814,7 @@ Rules:
     let heard = "";
     try {
       const said = await P().hearPhrase({
+        fast: true,
         onPartial: (t) => {
           if (!/^Listening|^Writing/.test(t)) input.value = t;
         },
@@ -961,7 +971,7 @@ Rules:
         setState("listening", "Listening");
         let said = "";
         try {
-          said = await P().hearPhrase({ onLevel: (v) => orb.setLevel(v), onPartial: (t) => !/^Listening|^Writing/.test(t) && (cap.textContent = t) });
+          said = await P().hearPhrase({ fast: true, onLevel: (v) => orb.setLevel(v), onPartial: (t) => !/^Listening|^Writing/.test(t) && (cap.textContent = t) });
         } catch (err) {
           setState("idle", err.message || "Lune couldn’t hear that.");
           return;
@@ -1290,7 +1300,9 @@ Rules:
       const shown = thinkingRow();
       let streamed = "";
       try {
-        out.a = await model.answer(text, await buildContext(out.bar || selectedBarsSorted()[0] || null), {
+        // a bar just rated hard: ask for what to do about it, not a summary of the bar
+        const asked = out.saved === "review" ? `${text}\n\nI find this bar hard. Give me concrete steps to practise it, tied to what is in it.` : text;
+        out.a = await model.answer(asked, await buildContext(out.bar || selectedBarsSorted()[0] || null), {
           onToken: (t) => {
             streamed += t;
             shown.textContent = streamed;
@@ -1298,7 +1310,7 @@ Rules:
         });
         out.via = "model";
       } catch (err) {
-        out.note = fallbackNote(err);
+        out.note = [out.note, fallbackNote(err)].filter(Boolean).join(" ");
       }
       shown.closest(".ask-row")?.remove();
     }
@@ -1321,6 +1333,34 @@ Rules:
       if (state.coachOpen) openBarCoach();
     }
     return out.a;
+  }
+
+  /** A marking tapped on the score: the glossary's answer at once, then Lune AI's, in this piece's context. */
+  async function explainMarking({ label, gloss, question }) {
+    open({});
+    line("you", `What is ${label}?`);
+    const model = active();
+    if (gloss) {
+      const g = line("lune", gloss, { src: "rules" });
+      addActions(g);
+    }
+    if (!model) {
+      if (!gloss) line("lune", "Lune’s glossary doesn’t have that one yet. Sign in and Lune AI explains any marking.", { src: "lune" });
+      return;
+    }
+    const shown = thinkingRow();
+    try {
+      const a = await model.answer(question, await buildContext(selectedBarsSorted()[0] || null));
+      shown.closest(".ask-row")?.remove();
+      const said = line("lune", "", { src: "model" });
+      await revealAnswer(said, a);
+      said.dataset.via = "model";
+      addActions(said);
+      remember({ bar: null, q: question, a, via: "model", t: Date.now() });
+    } catch (err) {
+      shown.closest(".ask-row")?.remove();
+      if (!gloss) line("lune", fallbackNote(err) || "Lune AI didn’t answer just now.").classList.add("ask-note");
+    }
   }
 
   async function speakInto() {
@@ -1815,5 +1855,5 @@ Rules:
   for (const task of Object.keys(TASKS)) LuneAIProvider[task] = (bar, ...args) => LuneAIProvider.run(task, bar, ...args);
   window.LuneAIProvider = LuneAIProvider;
 
-  return { openTalk, openChatPage, goAiPage, askOnPage, chatStore, askModel: async (q, ctx) => { const m = active(); return m ? m.answer(q, ctx) : null; }, openChat, paintAiHome, buildChatContext, open, close, ask, historyFor, onSelection, buildContext, aiSettings, SYSTEM_PROMPT, TASKS, MODEL_ACTIONS, runTask, paintNews, voice, modelConnected: () => !!active(), deviceOfferHtml, turnOnDeviceAI, testModel: () => providers.endpoint.answer("Reply with the single word: ready", { test: true }) };
+  return { explainMarking, openTalk, openChatPage, goAiPage, askOnPage, chatStore, askModel: async (q, ctx) => { const m = active(); return m ? m.answer(q, ctx) : null; }, openChat, paintAiHome, buildChatContext, open, close, ask, historyFor, onSelection, buildContext, aiSettings, SYSTEM_PROMPT, TASKS, MODEL_ACTIONS, runTask, paintNews, voice, modelConnected: () => !!active(), deviceOfferHtml, turnOnDeviceAI, testModel: () => providers.endpoint.answer("Reply with the single word: ready", { test: true }) };
 })();

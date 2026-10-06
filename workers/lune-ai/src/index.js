@@ -201,10 +201,16 @@ export async function handle(req, env, fetchImpl = fetch) {
   if (question.length > MAX_QUESTION || context.length > MAX_CONTEXT) return json(req, env, 413, { error: "That question is too long." });
 
   try {
-    const { text, model } = await runModel(env, [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: `CONTEXT:\n${context}\n\nQUESTION: ${question}` },
-    ]);
+    // a spoken reply is short, so it is written (and heard) sooner
+    const spoken = body?.context?.replyStyle === "spoken";
+    const { text, model } = await runModel(
+      env,
+      [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: `CONTEXT:\n${context}\n\nQUESTION: ${question}` },
+      ],
+      { maxTokens: spoken ? 220 : 700 },
+    );
     return json(req, env, 200, { answer: text.slice(0, 4000), model });
   } catch (err) {
     // the free daily allowance is used up, or the model is unavailable

@@ -2216,11 +2216,11 @@ function normalizeNoteHand(h, fallback = null) {
  */
 const _tieCache = new WeakMap();
 function tieIndex(piece) {
-  const empty = { stops: new Set(), extra: new Map(), staff: new Map(), pedal: [], dyn: [] };
+  const empty = { stops: new Set(), extra: new Map(), staff: new Map(), pedal: [], dyn: [], wedge: [], accents: [], orn: new Map(), graces: new Map() };
   if (!piece?.musicxml) return empty;
   if (_tieCache.has(piece)) return _tieCache.get(piece);
   // pedal: [{bar, q, down}] as marked; dyn: [{bar, q, v}] loudness marks (90 = forte)
-  const out = { stops: new Set(), extra: new Map(), staff: new Map(), pedal: [], dyn: [] };
+  const out = { stops: new Set(), extra: new Map(), staff: new Map(), pedal: [], dyn: [], wedge: [], accents: [], orn: new Map(), graces: new Map() };
   _tieCache.set(piece, out);
   const STEP = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
   const text = (el, tag) => {
@@ -2261,6 +2261,19 @@ function tieIndex(piece) {
             const snd = tag === "sound" ? el : el.getElementsByTagName("sound")[0];
             const v = Number(snd?.getAttribute("dynamics"));
             if (v > 0) out.dyn.push({ bar, q, v });
+            else {
+              // the printed marking itself (most editions have no playback value): pp, p, mf, f, ff, sfz…
+              const dynEl = el.getElementsByTagName("dynamics")[0];
+              const mark = dynEl?.firstElementChild?.nodeName?.toLowerCase();
+              const LEVEL = { pppp: 18, ppp: 26, pp: 36, p: 50, mp: 64, mf: 76, f: 90, ff: 104, fff: 116, ffff: 124, sf: 96, sfz: 100, sffz: 108, fz: 96, rf: 92, rfz: 96, fp: 84, sfp: 88 };
+              if (mark && LEVEL[mark]) {
+                // an accent mark (sf, sfz, fz) is one strong note, not a new level
+                if (/^(sf|sfz|sffz|fz|rf|rfz|sfp|fp)$/.test(mark)) out.accents.push({ bar, q });
+                else out.dyn.push({ bar, q, v: LEVEL[mark] });
+              }
+            }
+            // hairpins: crescendo and diminuendo between their start and stop
+            for (const w of el.getElementsByTagName("wedge")) out.wedge.push({ bar, q, type: w.getAttribute("type") });
           } else if (tag === "note") {
             const chord = [...el.children].some((c) => c.nodeName === "chord");
             const grace = [...el.children].some((c) => c.nodeName === "grace");
@@ -2271,11 +2284,27 @@ function tieIndex(piece) {
               if (!grace) pos += dur;
             }
             const pitch = [...el.children].find((c) => c.nodeName === "pitch");
-            if (!pitch || grace) continue;
+            if (!pitch) continue;
             const midi =
               (parseInt(text(pitch, "octave"), 10) + 1) * 12 +
               (STEP[text(pitch, "step").toUpperCase()] ?? 0) +
               Math.round(Number(text(pitch, "alter")) || 0);
+            const q1000 = Math.round((onset / div) * 1000);
+            if (grace) {
+              // grace notes belong to the next main note at this onset: keep them for collectNotes
+              const g = el.getElementsByTagName("grace")[0];
+              const gk = `${bar}:${q1000}`;
+              if (!out.graces.has(gk)) out.graces.set(gk, []);
+              out.graces.get(gk).push({ midi, slash: g?.getAttribute("slash") === "yes", staff: parseInt(text(el, "staff"), 10) || 1 });
+              continue;
+            }
+            // trills, turns and mordents, written over the note
+            const orn = el.getElementsByTagName("ornaments")[0];
+            if (orn) {
+              const kind = [...orn.children].map((c) => c.nodeName).find((n) => /^(trill-mark|turn|inverted-turn|delayed-turn|mordent|inverted-mordent|shake|wavy-line)$/.test(n));
+              if (kind && kind !== "wavy-line") out.orn.set(`${bar}:${midi}:${q1000}`, kind);
+              else if (kind === "wavy-line" && !out.orn.has(`${bar}:${midi}:${q1000}`)) out.orn.set(`${bar}:${midi}:${q1000}`, "trill-mark");
+            }
             const ties = [...el.children].filter((c) => c.nodeName === "tie").map((t) => t.getAttribute("type"));
             const key = `${bar}:${midi}:${Math.round((onset / div) * 1000)}`;
             if (!out.staff.has(key)) out.staff.set(key, partStaff || parseInt(text(el, "staff"), 10) || 1);
@@ -2297,13 +2326,130 @@ function tieIndex(piece) {
   return out;
 }
 
+/*
+ * Ornaments, played as a pianist plays them. Neighbour notes come from the
+ * piece's key, so a trill in D♭ major alternates with the right note.
+ * - trill: fast alternation with the note above (demisemiquavers, or quicker
+ *   for a short note), ending on the main note
+ * - turn (and inverted turn): the four-note figure, in the note's first part
+ * - mordent / inverted mordent: main, lower (or upper), main, quickly
+ * - grace notes: an acciaccatura (slashed) is crushed onto the beat; an
+ *   appoggiatura (no slash) takes half of the main note
+ */
+function realiseOrnaments(notes, idx) {
+  if (!idx?.orn?.size && !idx?.graces?.size) return notes;
+  const xml = String(state.piece?.musicxml || "");
+  const fifths = Number((xml.match(/<fifths>\s*(-?\d+)\s*<\/fifths>/) || [])[1] || 0);
+  const tonic = (((fifths * 7) % 12) + 12) % 12;
+  const scale = new Set([0, 2, 4, 5, 7, 9, 11].map((x) => (x + tonic) % 12));
+  const upper = (m) => {
+    for (let k = 1; k <= 2; k++) if (scale.has((m + k) % 12)) return m + k;
+    return m + 2;
+  };
+  const lower = (m) => {
+    for (let k = 1; k <= 2; k++) if (scale.has((((m - k) % 12) + 12) % 12)) return m - k;
+    return m - 2;
+  };
+  const out = [];
+  const usedGrace = new Set();
+  for (const n of notes) {
+    const off = Number(n.offset) || 0;
+    const q1000 = Math.round(off * 1000);
+    const dur = Math.max(0.0625, Number(n.duration) || 0);
+    const at = (dq, midi, len, extra = {}) => ({ ...n, ...extra, midi, offset: off + dq, absOffset: n.absOffset + dq, duration: len, ornament: true });
+    // grace notes before this note (the highest main note at the onset takes the right-hand ones)
+    const gk = `${n.bar}:${q1000}`;
+    let start = 0;
+    const gs = idx.graces?.get(gk);
+    if (gs && !usedGrace.has(gk)) {
+      const mine = gs.filter((g) => (g.staff >= 2 ? "lh" : "rh") === (n.hand || "rh"));
+      if (mine.length) {
+        usedGrace.add(gk);
+        const slash = mine.every((g) => g.slash);
+        const each = slash ? Math.min(0.09, dur / 4) : Math.min(dur / 2, 0.5) / mine.length;
+        mine.forEach((g, i) => out.push(at(i * each, g.midi, each * 1.1)));
+        start = each * mine.length;
+      }
+    }
+    const kind = idx.orn?.get(`${n.bar}:${n.midi}:${q1000}`);
+    const body = dur - start;
+    if (!kind || body < 0.12) {
+      out.push(start ? at(start, n.midi, body) : n);
+      continue;
+    }
+    const seq = [];
+    if (kind === "trill-mark" || kind === "shake") {
+      const step = body >= 1 ? 0.125 : body >= 0.5 ? 0.0833 : 0.0625;
+      const count = Math.max(4, Math.floor(body / step));
+      for (let i = 0; i < count - 1; i++) seq.push([i % 2 ? upper(n.midi) : n.midi, step]);
+      seq.push([n.midi, body - step * (count - 1)]);
+    } else if (kind === "turn" || kind === "delayed-turn" || kind === "inverted-turn") {
+      const fig = kind === "inverted-turn" ? [lower(n.midi), n.midi, upper(n.midi), n.midi] : [upper(n.midi), n.midi, lower(n.midi), n.midi];
+      const step = Math.min(0.125, body / 6);
+      if (kind === "delayed-turn") seq.push([n.midi, body - step * 4]);
+      fig.forEach((m, i) => seq.push([m, kind !== "delayed-turn" && i === 3 ? body - step * 3 : step]));
+    } else if (kind === "mordent" || kind === "inverted-mordent") {
+      const step = Math.min(0.0833, body / 4);
+      seq.push([n.midi, step], [kind === "mordent" ? lower(n.midi) : upper(n.midi), step], [n.midi, body - step * 2]);
+    }
+    let t = start;
+    for (const [m, len] of seq) {
+      out.push(at(t, m, Math.max(0.03, len)));
+      t += len;
+    }
+  }
+  out.sort((a, b) => a.absOffset - b.absOffset || a.midi - b.midi);
+  return out;
+}
+
+/**
+ * Bars in the order the file writes them. Counting upward from the first
+ * number breaks on files that skip a number (a silent bar appears) or that
+ * number a closing bar 0 (it would play first).
+ */
+let _barSeq = null;
+function barSequence(fromBar, toBar) {
+  const piece = state.piece;
+  const range = () => {
+    const out = [];
+    for (let b = fromBar; b <= toBar; b++) out.push(b);
+    return out;
+  };
+  if (!piece?.musicxml) return range();
+  if (!_barSeq || _barSeq.piece !== piece) {
+    let order = [];
+    try {
+      const doc = new DOMParser().parseFromString(piece.musicxml, "application/xml");
+      const part = doc.querySelector("part");
+      const seen = new Set();
+      for (const m of part ? part.children : []) {
+        if (m.tagName !== "measure") continue;
+        const n = parseInt(m.getAttribute("number"), 10);
+        if (!Number.isFinite(n) || seen.has(n)) continue;
+        seen.add(n);
+        order.push(n);
+      }
+    } catch {
+      order = [];
+    }
+    _barSeq = { piece, order };
+  }
+  const order = _barSeq.order;
+  const i = order.indexOf(fromBar);
+  const j = order.lastIndexOf(toBar);
+  if (!order.length || i < 0 || j < 0) return range();
+  if (i <= j) return order.slice(i, j + 1);
+  // the whole piece asked for by its lowest and highest numbers
+  return order.filter((b) => b >= fromBar && b <= toBar);
+}
+
 function collectNotes(fromBar, toBar) {
   const ties = tieIndex(state.piece);
   const barStart = new Map();
   const notes = [];
   const debriefs = state.piece?.debriefs || {};
   let barCursor = 0;
-  for (let b = fromBar; b <= toBar; b++) {
+  for (const b of barSequence(fromBar, toBar)) {
     const d = debriefFor(b) || debriefs[String(b)];
     const pack = d?.playback?.length
       ? d.playback.map((n) => ({ ...n, hand: normalizeNoteHand(n.hand) }))
@@ -2352,8 +2498,9 @@ function collectNotes(fromBar, toBar) {
     barStart.set(b, barCursor);
     barCursor += barLengthQuarters(b, pack);
   }
-  shapePerformance(notes, ties, barStart, barCursor);
-  return notes;
+  const played = realiseOrnaments(notes, ties);
+  shapePerformance(played, ties, barStart, barCursor);
+  return played;
 }
 
 /**
@@ -2375,8 +2522,43 @@ function shapePerformance(notes, index, barStart, endQ) {
     let v = marks[i].v;
     const next = marks[i + 1];
     if (next && next.q - q < 4) v += (next.v - v) * (1 - (next.q - q) / 4);
-    return Math.max(0.74, Math.min(1.4, Math.pow(v / 60, 0.6)));
+    // a wide range: a real pianissimo and a real fortissimo
+    return Math.max(0.5, Math.min(1.6, Math.pow(v / 70, 0.85)));
   };
+  // hairpins: a crescendo grows by about a dynamic step to its end, a diminuendo falls by one
+  const wedges = [];
+  {
+    const ws = (index.wedge || []).map((w) => ({ q: abs(w), type: w.type })).filter((w) => w.q != null).sort((a, b) => a.q - b.q);
+    let open = null;
+    for (const w of ws) {
+      if (w.type === "crescendo" || w.type === "diminuendo") open = w;
+      else if (w.type === "stop" && open && w.q > open.q) {
+        wedges.push({ from: open.q, to: w.q, dir: open.type === "crescendo" ? 1 : -1 });
+        open = null;
+      }
+    }
+  }
+  const wedgeAt = (q) => {
+    let f = 1;
+    for (const w of wedges) {
+      if (q <= w.from) continue;
+      const t = Math.min(1, (q - w.from) / Math.max(0.25, w.to - w.from));
+      // after the hairpin the new level holds until the next written marking
+      const nextMark = marks.find((m) => m.q > w.from);
+      if (nextMark && q >= nextMark.q && nextMark.q >= w.to) continue;
+      f *= 1 + w.dir * 0.28 * t;
+    }
+    return f;
+  };
+  const accentQs = new Set((index.accents || []).map((a) => abs(a)).filter((q) => q != null).map((q) => Math.round(q * 100)));
+  // where each bar begins, in order, for the four-bar phrase swell
+  const barOrder = [...barStart.keys()].sort((a, b) => a - b);
+  const barIndex = new Map(barOrder.map((b, i) => [b, i]));
+  const beatQ = Math.max(0.5, signatureBarQuarters() / Math.max(1, (() => {
+    const n = signatureBarQuarters();
+    return n % 1.5 === 0 && n > 3 ? n / 1.5 : Math.round(n);
+  })()));
+  let melodyAvg = null;
 
   // --- pedal changes (crotchets from the start of this stretch)
   let changes = index.pedal.map((p) => ({ q: abs(p), down: p.down })).filter((p) => p.q != null).sort((a, b) => a.q - b.q);
@@ -2417,12 +2599,28 @@ function shapePerformance(notes, index, barStart, endQ) {
     const pedalDown = cur && cur.q <= q + 0.02 && cur.down;
     const release = pedalDown ? (changes[ci + 1]?.q ?? endQ) : null;
     const top = Math.max(...group.map((n) => n.midi));
-    const lvl = level(q);
+    const lvl = level(q) * wedgeAt(q);
+    // the shape a pianist gives, on top of what is written:
+    // weight on the downbeat and strong beats, lighter offbeats
+    const off = Number(group[0].offset) || 0;
+    const metric = off < 0.01 ? 1.1 : Math.abs(off / beatQ - Math.round(off / beatQ)) < 0.02 ? 1.03 : 0.94;
+    // a swell and taper across each four-bar phrase
+    const bi = barIndex.get(group[0].bar) || 0;
+    const len = barLengthQuarters(group[0].bar) || 1;
+    const phase = ((bi % 4) + Math.min(1, off / len)) / 4;
+    const arch = 0.9 + 0.2 * Math.sin(Math.PI * phase);
+    const accent = accentQs.has(Math.round(q * 100)) ? 1.3 : 1;
     for (const n of group) {
       // held by the pedal until it changes (never more than two bars' worth)
       if (release != null) n.sustainTo = Math.min(release, q + 9);
       const melody = n.midi === top && n.hand !== "lh";
-      n.dyn = lvl * (melody ? 1.12 : n.hand === "lh" ? 0.88 : 0.92);
+      // the tune sings: higher notes of the melody a little louder than its average
+      let contour = 1;
+      if (melody) {
+        melodyAvg = melodyAvg == null ? n.midi : melodyAvg * 0.85 + n.midi * 0.15;
+        contour = Math.max(0.92, Math.min(1.1, 1 + (n.midi - melodyAvg) * 0.008));
+      }
+      n.dyn = lvl * metric * arch * accent * contour * (melody ? 1.16 : n.hand === "lh" ? 0.84 : 0.9);
     }
     k = j;
   }
@@ -2452,7 +2650,7 @@ function playbackHandlers() {
  */
 const TEMPO_WORDS = [
   [/prestissimo/i, 200], [/presto/i, 176], [/vivacissimo/i, 168], [/vivace|vivo/i, 156],
-  [/allegro (ma )?non troppo|allegro moderato/i, 118], [/allegro/i, 132], [/allegretto/i, 108],
+  [/allegro (ma )?non troppo|allegro moderato/i, 118], [/poco allegro|allegro (un )?poco/i, 108], [/allegro/i, 132], [/allegretto/i, 108],
   [/moderato/i, 104], [/andantino/i, 92], [/andante/i, 80],
   [/adagietto/i, 72], [/adagio/i, 66], [/larghetto/i, 60], [/lento/i, 56], [/largo/i, 50], [/grave/i, 42], [/con moto|poco moto|mosso/i, 128],
 ];
@@ -4038,6 +4236,7 @@ async function renderScoreNow() {
   state.scoreWasRoomy = scoreNeedsRoom();
   bindOsmdRenderOverlays(osmd);
   await osmd.load(xml);
+  alignOsmdBarNumbers(osmd, xml);
   // load() resets zoom, so set it afterwards: 1 (the size the label lane is
   // tuned for), larger in large-print mode, or the cached fit for this width.
   osmd.zoom = cachedFitZoom(phoneScoreZoom());
@@ -5196,5 +5395,29 @@ try {
   if (t) {
     t.hidden = false;
     t.textContent = "UI failed to start — hard-refresh the page.";
+  }
+}
+
+/**
+ * OSMD renumbers a short first bar to 0 even when the file calls it bar 1.
+ * Playback, bar notes and ratings use the file's numbers, so give the
+ * engraving the same ones; otherwise the highlight sits a bar away from the sound.
+ */
+function alignOsmdBarNumbers(osmd, xml) {
+  try {
+    const doc = new DOMParser().parseFromString(xml, "application/xml");
+    const part = doc.querySelector("part");
+    if (!part) return;
+    const nums = [...part.children].filter((m) => m.tagName === "measure").map((m) => parseInt(m.getAttribute("number"), 10));
+    const list = osmd.Sheet?.SourceMeasures || [];
+    if (!list.length || nums.length !== list.length) return;
+    list.forEach((sm, i) => {
+      const n = nums[i];
+      if (!Number.isFinite(n) || sm.MeasureNumber === n) return;
+      try { sm.MeasureNumber = n; } catch { /* getter only */ }
+      sm.measureNumber = n;
+    });
+  } catch {
+    /* keep OSMD's numbers */
   }
 }
