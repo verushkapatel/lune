@@ -10686,3 +10686,52 @@ body:not(.studio-compact) .piece-tab .piece-tab-label { opacity: 1; }
 /* the close × reads clearly in both themes */
 body:not(.studio-compact) .piece-tab .piece-tab-close { opacity: 1; color: #b8b8b8; }
 body:not(.studio-compact) .piece-tab .piece-tab-close:hover { color: #ffffff; }
+
+/* Landing hero: one focal point. Centred headline, a soft moon behind it,
+   two clear actions, and a calm entrance. Transform and opacity only. */
+#hero.home-hero-cinema { min-height: min(100svh, 980px); display: grid; place-items: center; position: relative; overflow: hidden; padding: 120px 24px 96px; box-sizing: border-box; }
+#hero .home-hero-inner { max-width: 980px; margin: 0 auto; text-align: center; display: flex; flex-direction: column; align-items: center; position: relative; z-index: 1; }
+#hero .home-lockup { display: none; }
+#hero .home-hero-motif { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+#hero .home-hero-motif::before {
+  content: ""; position: absolute; width: min(90vw, 980px); height: min(90vw, 980px); border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(120, 140, 255, 0.13), rgba(120, 140, 255, 0.04) 55%, transparent 72%);
+}
+#hero .home-motif-mark { width: min(56vw, 520px); height: auto; color: #ffffff; opacity: 0.06; position: relative; transform: translateY(-4%); }
+#hero h1 {
+  font-size: clamp(44px, 7.4vw, 104px); line-height: 0.98; letter-spacing: -0.035em; font-weight: 400;
+  margin: 28px 0 0; max-width: 14ch; text-wrap: balance;
+  background: linear-gradient(180deg, #ffffff 30%, rgba(255, 255, 255, 0.62)); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+#hero .lead { font-size: clamp(17px, 1.6vw, 21px); line-height: 1.5; color: #b9b9b9; max-width: 34ch; margin: 26px auto 0; text-wrap: balance; }
+#hero .lune-ai-badge { margin: 0; border-radius: 999px; border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.04); padding: 7px 14px; font-size: 13px; color: #dcdcdc; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+#hero .hero-cta { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 38px; }
+#hero .hero-cta button { height: 52px; padding: 0 26px; border-radius: 999px; font: inherit; font-size: 16px; cursor: pointer; transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.3s ease; }
+#hero .hero-cta-main { background: #f5f5f5; color: #0a0a0a; border: 1px solid #f5f5f5; box-shadow: 0 10px 40px rgba(140, 160, 255, 0.18); }
+#hero .hero-cta-main:hover { background: #ffffff; transform: translateY(-1px); box-shadow: 0 14px 50px rgba(140, 160, 255, 0.28); }
+#hero .hero-cta-alt { background: transparent; color: #f2f2f2; border: 1px solid rgba(255,255,255,0.2); }
+#hero .hero-cta-alt:hover { border-color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.04); }
+#hero .hero-cta button:active { transform: scale(0.98); }
+#hero .hero-cta button:focus-visible { outline: 2px solid #9db4ff; outline-offset: 3px; }
+#hero .home-fine-line { margin-top: 22px; color: #a3a3a3; font-size: 13px; letter-spacing: 0.04em; }
+#hero .home-scroll-cue { position: absolute; left: 50%; bottom: -64px; transform: translateX(-50%); }
+@keyframes lune-rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+#hero .home-hero-inner > * { animation: lune-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both; }
+#hero .home-hero-inner > :nth-child(2), #hero .home-hero-inner > :nth-child(3), #hero .home-hero-inner > :nth-child(4) { animation-delay: 0.08s; }
+#hero .home-hero-inner > .lead { animation-delay: 0.18s; }
+#hero .home-hero-inner > .hero-cta { animation-delay: 0.28s; }
+#hero .home-hero-inner > .home-fine-line { animation-delay: 0.36s; }
+#hero .home-motif-mark { animation: lune-moon 1.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes lune-moon { from { opacity: 0; transform: translateY(2%) scale(0.96); } to { opacity: 0.06; transform: translateY(-4%); } }
+@media (prefers-reduced-motion: reduce) { #hero .home-hero-inner > *, #hero .home-motif-mark { animation: none; } }
+@media (max-width: 600px) {
+  #hero.home-hero-cinema { padding: 96px 16px 72px; min-height: 88svh; }
+  #hero .hero-cta { width: 100%; flex-direction: column; }
+  #hero .hero-cta button { width: 100%; }
+}
+/* the landing's top bar: glass, with the mark on the left */
+body.is-home:not(.is-signed-in) header.bar { background: rgba(10, 10, 10, 0.62); -webkit-backdrop-filter: saturate(1.4) blur(18px); backdrop-filter: saturate(1.4) blur(18px); border-bottom-color: rgba(255,255,255,0.06); }
+#hero.home-hero-cinema { background: radial-gradient(120% 80% at 50% 0%, #10121c 0%, #0a0a0a 60%) !important; }
+body.is-home:not(.is-signed-in) header.bar #btn-home { display: inline-flex !important; opacity: 1; }
+#hero.home-hero-cinema::after { display: none; }
+body.is-home:not(.is-signed-in) header.bar #btn-home { order: -1; margin-right: auto; }

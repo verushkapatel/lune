@@ -2127,6 +2127,34 @@ html[data-theme="light"] body:not(.studio-compact) .piece-tab .piece-tab-close {
 html[data-theme="light"] body:not(.studio-compact) .piece-tab .piece-tab-close:hover {
   color: #000000;
 }
+html[data-theme="light"] #hero .home-motif-mark {
+  color: #000000;
+}
+html[data-theme="light"] #hero .lead {
+  color: #3c3c3c;
+}
+html[data-theme="light"] #hero .lune-ai-badge {
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  background: rgba(0, 0, 0, 0.04);
+  color: #232323;
+}
+html[data-theme="light"] #hero .hero-cta-alt {
+  color: #0d0d0d;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+}
+html[data-theme="light"] #hero .hero-cta-alt:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+html[data-theme="light"] #hero .home-fine-line {
+  color: #4c4c4c;
+}
+html[data-theme="light"] body.is-home:not(.is-signed-in) header.bar {
+  background: rgba(245, 245, 245, 0.62);
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+html[data-theme="light"] #hero.home-hero-cinema {
+  background: radial-gradient(120% 80% at 50% 0%, #e3e5ef 0%, #f5f5f5 60%) !important;
+}
 /* KEEP: hand fixes */
 /* --dim text reaches 4.5:1 on the page and on surfaces (was #8a8a8a, 3.4:1) */
 html[data-theme="light"] { --dim: #666666; }
