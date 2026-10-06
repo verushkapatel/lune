@@ -875,7 +875,7 @@ def section_voice(browser):
         pg.wait_for_timeout(300)
         guest_note = pg.evaluate("() => document.body.innerText")
         # the test microphone only beeps now and then; enough of it to count as a phrase
-        pg.wait_for_timeout(3200)
+        pg.wait_for_timeout(4800)
         # still listening: Done in the listening bar; already finished: nothing to press
         if pg.locator('#ask-listen [data-listen="done"]').is_visible():
             pg.click('#ask-listen [data-listen="done"]')
@@ -883,7 +883,7 @@ def section_voice(browser):
         # once you stop speaking it is sent: the words are the newest question in the panel
         said = pg.evaluate("() => (() => { const y = [...document.querySelectorAll('#ask-log .ask-from-you')].pop(); return y ? y.textContent : document.getElementById('ask-input').value; })()")
         if signed:
-            got = json.loads(_u.urlopen(ACCOUNT_SERVER + "/last").read())
+            got = json.loads(_u.urlopen(ACCOUNT_SERVER + "/last-audio").read())
             check("voice: signed in, the microphone works without the browser's speech recognition", said == "Bar 12, keep the thumb light.", said)
             check("voice: the recording reaches Whisper as WAV, in English", got.get("format") == "RIFF" and got.get("language") == "en" and got.get("bytes", 0) > 8000, got)
         else:
@@ -1229,11 +1229,13 @@ def section_plans(browser):
     pg.evaluate("() => LuneAsk.open({bar: 12})")
     pg.wait_for_timeout(300)
     pg.click("#ask-mic")
-    # the test microphone only beeps now and then; give it enough beeps to count as a phrase
-    pg.wait_for_timeout(5000)
+    pg.wait_for_timeout(700)
     check("voice: while listening, a waveform and timer replace the text box", pg.locator("#ask-listen .lc-wave").is_visible() and pg.locator("#ask-listen .lc-timer").is_visible())
-    pg.click('#ask-listen [data-listen="done"]')
-    pg.wait_for_timeout(2500)
+    # the test microphone only beeps now and then: it may stop by itself after a phrase, or be stopped with Done
+    pg.wait_for_timeout(4500)
+    if pg.locator('#ask-listen [data-listen="done"]').is_visible():
+        pg.click('#ask-listen [data-listen="done"]')
+    pg.wait_for_function("() => [...document.querySelectorAll('#ask-log .ask-from-you')].some(y => y.textContent === 'Bar 12, keep the thumb light.')", timeout=15000)
     sent = pg.evaluate("() => (() => { const y = [...document.querySelectorAll('#ask-log .ask-from-you')].pop(); return y ? y.textContent : document.getElementById('ask-input').value; })()")
     check("voice: once you stop speaking, the words are sent to Lune", sent == "Bar 12, keep the thumb light.", sent)
     # talk: Lune listens, then answers aloud (the round button is voice chat while the box is empty)

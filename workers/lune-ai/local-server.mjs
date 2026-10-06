@@ -6,6 +6,7 @@ import { handle } from "./src/index.js";
 
 const port = Number(process.argv[2] || 8140);
 let last = null;
+let lastAudio = null; // the last recording, kept apart from questions sent after it
 const env = {
   MODEL: "@cf/meta/llama-3.1-8b-instruct-fast",
   SUPABASE_URL: "https://supabase.test",
@@ -15,7 +16,7 @@ const env = {
     run: async (model, input) => {
       if (/whisper/.test(model)) {
         const bytes = Buffer.from(input.audio, "base64");
-        last = { model, format: bytes.subarray(0, 4).toString("latin1"), bytes: bytes.length, language: input.language };
+        last = lastAudio = { model, format: bytes.subarray(0, 4).toString("latin1"), bytes: bytes.length, language: input.language };
         return { text: "Bar 12, keep the thumb light." };
       }
       last = input;
@@ -32,6 +33,10 @@ const fakeSupabase = async (url, init) =>
 
 http
   .createServer(async (req, res) => {
+    if (req.url === "/last-audio") {
+      res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+      return res.end(JSON.stringify(lastAudio));
+    }
     if (req.url === "/last") {
       res.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
       return res.end(JSON.stringify(last));

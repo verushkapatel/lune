@@ -10417,3 +10417,71 @@ body.is-studio:not(.studio-compact).studio-search-open .top-search { flex: 0 1 3
 }
 .lune-talk .lt-actions { flex: 0 0 auto; margin-top: 0; padding: 14px 0 22px; }
 .lune-talk .lt-round { width: 56px; height: 56px; }
+
+/* ---------- motion: everything opens and closes smoothly ---------- */
+dialog[open] { animation: lune-dialog-in 0.26s cubic-bezier(0.16, 1, 0.3, 1); }
+dialog.is-closing { animation: lune-dialog-out 0.18s cubic-bezier(0.4, 0, 1, 1) forwards; }
+dialog.is-closing::backdrop { animation: lune-backdrop-out 0.18s ease forwards; }
+@keyframes lune-dialog-in { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes lune-dialog-out { to { opacity: 0; transform: translateY(8px) scale(0.985); } }
+@keyframes lune-backdrop-out { to { opacity: 0; } }
+/* sheets slide up from the bottom and back down */
+.studio-menu[open] { animation: sm-up 0.38s cubic-bezier(0.16, 1, 0.3, 1); }
+.studio-menu.is-closing { animation: sm-down 0.22s cubic-bezier(0.4, 0, 1, 1) forwards; }
+@keyframes sm-up { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes sm-down { to { transform: translateY(100%); } }
+@media (max-width: 640px) {
+  dialog.settings-dialog[open] { animation: sm-up 0.38s cubic-bezier(0.16, 1, 0.3, 1); }
+  dialog.settings-dialog.is-closing { animation: sm-down 0.22s cubic-bezier(0.4, 0, 1, 1) forwards; }
+}
+/* the menu's sections arrive one after another */
+.studio-menu[open] > * { animation: fx-rise 0.42s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.studio-menu[open] > *:nth-child(2) { animation-delay: 0.03s; }
+.studio-menu[open] > *:nth-child(3) { animation-delay: 0.06s; }
+.studio-menu[open] > *:nth-child(4) { animation-delay: 0.09s; }
+.studio-menu[open] > *:nth-child(n+5) { animation-delay: 0.12s; }
+.settings-dialog[open] .settings-sec { animation: fx-rise 0.45s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.settings-dialog[open] .settings-sec:nth-of-type(2) { animation-delay: 0.04s; }
+.settings-dialog[open] .settings-sec:nth-of-type(3) { animation-delay: 0.08s; }
+.settings-dialog[open] .settings-sec:nth-of-type(n+4) { animation-delay: 0.12s; }
+@keyframes fx-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* buttons answer the finger */
+.settings-row, .sm-seg button, .sm-actions button, .sm-toggles button, .sm-tab button, .sm-new, .st-btn, .lp-tools button, .lp-ai-row button, .lc-round, .lc-tool, .ch-item > button, .ch-new, .home-ask-chips button, .chat-starters button, .ask-chips button, .quiet, .primary {
+  transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.14s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.18s ease, opacity 0.18s ease;
+}
+.settings-row:active, .sm-seg button:active, .sm-actions button:active, .sm-toggles button:active, .sm-tab button:active, .sm-new:active, .st-btn:active, .lp-tools button:active, .lp-ai-row button:active, .ch-item > button:active, .ch-new:active, .home-ask-chips button:active, .chat-starters button:active, .ask-chips button:active, .quiet:active, .primary:active { transform: scale(0.97); }
+.settings-row { border-radius: 14px; }
+.settings-row:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+/* the Ask panel and the bar panel glide in */
+.ask-lune:not([hidden]) { animation: lc-in 0.34s cubic-bezier(0.16, 1, 0.3, 1); }
+.coach:not([hidden]) .coach-sheet { animation: fx-rise 0.34s cubic-bezier(0.16, 1, 0.3, 1); }
+@media (prefers-reduced-motion: reduce) {
+  dialog[open], dialog.is-closing, dialog.is-closing::backdrop, .studio-menu[open], .studio-menu[open] > *, .settings-dialog[open] .settings-sec, .ask-lune:not([hidden]), .coach:not([hidden]) .coach-sheet { animation: none !important; }
+  .settings-row:active, .quiet:active, .primary:active { transform: none; }
+}
+
+/* ---------- Settings, refined: real switches, quiet selects, sentence-case headings ---------- */
+.settings-dialog .settings-sec h3 { text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 600; color: var(--muted); font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif; }
+.settings-dialog #set-account-ai strong { display: block; }
+.settings-dialog select, .settings-goal select {
+  -webkit-appearance: none; appearance: none; min-height: 40px; padding: 0 36px 0 14px; border-radius: 12px;
+  border: 1px solid var(--line-strong); background-color: color-mix(in srgb, var(--text) 6%, var(--bg)); color: var(--text); font: inherit; font-size: 15px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath d='M6 9l6 6 6-6' fill='none' stroke='%23a8a8a8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center; cursor: pointer; transition: border-color 0.18s ease;
+}
+.settings-dialog select:hover { border-color: var(--text); }
+.lp-switch { display: flex; align-items: center; gap: 14px; cursor: pointer; }
+.lp-switch input[type="checkbox"] {
+  -webkit-appearance: none; appearance: none; flex: 0 0 auto; order: 2; margin: 0 0 0 auto; width: 46px; height: 28px; border-radius: 14px;
+  background: color-mix(in srgb, var(--text) 18%, transparent); position: relative; cursor: pointer; transition: background-color 0.22s ease; border: 0;
+}
+.lp-switch input[type="checkbox"]::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35); transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.lp-switch input[type="checkbox"]:checked { background: #34c759; }
+.lp-switch input[type="checkbox"]:checked::after { transform: translateX(18px); }
+.lp-switch input[type="checkbox"]:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.lp-switch > span { order: 1; }
+@media (prefers-reduced-motion: reduce) { .lp-switch input[type="checkbox"], .lp-switch input[type="checkbox"]::after { transition: none; } }
+.lp-switch input[type="checkbox"] { width: 46px !important; height: 28px !important; min-height: 28px !important; margin-top: 0; accent-color: auto; }

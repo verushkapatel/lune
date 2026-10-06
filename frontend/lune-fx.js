@@ -195,6 +195,66 @@ window.LuneFX = (function () {
       </div>`;
   }
 
+  /*
+   * Every dialog closes the way it opened: a short fade and drop, never a cut.
+   * close() is wrapped, and Escape and "Done" (method="dialog" forms) are routed
+   * through it, so code that closes a dialog needs no changes.
+   */
+  function smoothDialogs() {
+    const proto = window.HTMLDialogElement?.prototype;
+    if (!proto || proto.__luneSmooth) return;
+    const realClose = proto.close;
+    proto.__luneSmooth = true;
+    proto.close = function (value) {
+      if (!this.open || this.__closing) return;
+      if (reduced()) return realClose.call(this, value);
+      this.__closing = true;
+      this.classList.add("is-closing");
+      const done = () => {
+        clearTimeout(timer);
+        this.removeEventListener("animationend", onEnd);
+        this.classList.remove("is-closing");
+        this.__closing = false;
+        if (this.open) realClose.call(this, value);
+      };
+      const onEnd = (e) => e.target === this && done();
+      const timer = setTimeout(done, 240);
+      this.addEventListener("animationend", onEnd);
+    };
+    document.addEventListener(
+      "cancel",
+      (e) => {
+        const d = e.target;
+        if (!(d instanceof HTMLDialogElement) || reduced()) return;
+        // the native close is held back; if the dialog's own handler does not stop it, it closes animated
+        const hold = Event.prototype.preventDefault;
+        let kept = false;
+        e.preventDefault = () => {
+          kept = true;
+          hold.call(e);
+        };
+        hold.call(e);
+        setTimeout(() => {
+          if (!kept && d.open) d.close();
+        }, 0);
+      },
+      true
+    );
+    document.addEventListener(
+      "submit",
+      (e) => {
+        const form = e.target;
+        if (!(form instanceof HTMLFormElement) || (form.getAttribute("method") || "").toLowerCase() !== "dialog" || reduced()) return;
+        const d = form.closest("dialog");
+        if (!d) return;
+        e.preventDefault();
+        d.close(e.submitter?.value || "");
+      },
+      true
+    );
+  }
+  smoothDialogs();
+
   function init() {
     spotlight();
     document.querySelectorAll("[data-fx-blur]").forEach(blurText);
