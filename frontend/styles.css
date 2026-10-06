@@ -10763,3 +10763,25 @@ body.is-home:not(.is-signed-in) header.bar { border-bottom: 0 !important; box-sh
 @media (max-width: 600px) { #hero .home-lockup .home-mark { width: 52px; height: 52px; } #hero .home-lockup { margin-bottom: 24px; } }
 @media (prefers-reduced-motion: reduce) { #hero .home-lockup { animation: none; } }
 #hero.home-hero-cinema { box-shadow: none !important; }
+
+/* Final polish: the AI chapter glows out of the page instead of sitting on a band */
+body.is-home:not(.is-signed-in) #ai.ai-chapter {
+  background: radial-gradient(60% 55% at 50% 30%, rgba(60, 80, 170, 0.22), rgba(40, 50, 110, 0.08) 55%, transparent 80%) !important;
+  border: 0 !important; box-shadow: none !important;
+}
+body.is-home:not(.is-signed-in) #ai.ai-chapter::before,
+body.is-home:not(.is-signed-in) #ai.ai-chapter::after { -webkit-mask-image: linear-gradient(180deg, transparent, #000 18%, #000 82%, transparent); mask-image: linear-gradient(180deg, transparent, #000 18%, #000 82%, transparent); }
+/* demo windows: floating glass with a soft rim of light */
+body.is-home:not(.is-signed-in) .home-feat-device {
+  border-radius: 20px; border: 1px solid rgba(255,255,255,0.09) !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset, 0 40px 120px -30px rgba(90, 110, 220, 0.25), 0 30px 60px -20px rgba(0,0,0,0.7) !important;
+  overflow: hidden;
+}
+body.is-home:not(.is-signed-in) .home-feat-copy p { color: #b4b4b4; font-size: 17px; line-height: 1.6; }
+body.is-home:not(.is-signed-in) .home-feat-copy h2 { letter-spacing: -0.03em; }
+/* scrolling the landing feels like one surface */
+body.is-home:not(.is-signed-in) #home { scroll-behavior: smooth; }
+body.is-home:not(.is-signed-in) .ai-scenes {
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 6%, #000 94%, transparent 100%);
+          mask-image: linear-gradient(90deg, transparent 0, #000 6%, #000 94%, transparent 100%);
+}
