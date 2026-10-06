@@ -1823,14 +1823,14 @@ window.LunePractice = (function () {
     const row = (k, label, hint) => `<label class="lp-switch"><input type="checkbox" data-pref="${k}" ${p[k] ? "checked" : ""}>
       <span><strong>${label}</strong><small>${hint}</small></span></label>`;
     d.innerHTML = `${closeRow}<h2>Reading &amp; access</h2>
-      ${row("largePrint", "Large print", "Bigger notes, letters and buttons — fewer bars on each line.")}
-      ${row("readableFont", "Easy read letters", "Atkinson Hyperlegible — every letter shape distinct. Clearer under the staff for anyone who prefers it.")}
-      ${row("highContrast", "High contrast", "Pure black on white for the score panel and letter names.")}
-      ${row("autoRead", "Read bars aloud", "Every bar you select is described out loud: notes, chords, fingers and a tip.")}
+      ${row("largePrint", "Large print", "Bigger notes, letters and buttons")}
+      ${row("readableFont", "Easy read letters", "A typeface for dyslexia")}
+      ${row("highContrast", "High contrast", "Black on white for the score")}
+      ${row("autoRead", "Read bars aloud", "Each bar you select is described")}
       <h3>Keyboard shortcuts</h3>
-      <p class="dim">Select a bar, then ← → move bar to bar · R read it aloud · N write a note on it · Space play · Esc close.</p>
+      <p class="dim">← → bars · R read aloud · N note · Space play · Esc close</p>
       <h3>Braille</h3>
-      <p class="dim">When a library piece has a braille file, use the Braille chip on Overview or Score — .brf for an embosser or refreshable display.</p>`;
+      <p class="dim">Use the Braille chip on Overview or Score (.brf).</p>`;
     d.onchange = (e) => {
       const k = e.target.dataset.pref;
       if (!k) return;
@@ -2110,8 +2110,8 @@ window.LunePractice = (function () {
       ? `<p class="settings-note">Lune is installed on this device.</p>`
       : `<button type="button" class="settings-row" data-install id="set-install"><strong>Install Lune</strong><span>${
           window.LuneInstall?.available?.()
-            ? "Opens in its own window and works offline"
-            : "Shows the steps for this browser"
+            ? "Its own window, works offline"
+            : "Steps for this browser"
         }</span></button>`;
     d.innerHTML = `
       <header class="settings-top">
@@ -2120,11 +2120,11 @@ window.LunePractice = (function () {
       </header>
       <section class="settings-sec settings-account" aria-labelledby="set-h-account">
         <h3 id="set-h-account" class="visually-hidden">Account</h3>
-        ${signedIn ? row("account", esc(store.status().email || "Your account"), "Your data, sign out") : row("signin", "Sign in or create an account", "Free. Syncs your practice and turns on Lune AI.")}
+        ${signedIn ? row("account", esc(store.status().email || "Your account"), "Data and sign out") : row("signin", "Sign in", "Free · sync and Lune AI")}
       </section>
       <section class="settings-sec" aria-labelledby="set-h-ai">
-        ${accountAISettingsHtml().replace('<h4 class="settings-sub">Lune AI</h4>', '<h3 id="set-h-ai">Lune AI</h3>') || '<h3 id="set-h-ai">Lune AI</h3><p class="settings-note">Ask Lune answers from the score with built-in rules. Sign in to turn on Lune AI.</p>'}
-        ${row("chat", "Chat with Lune", "Your practice, your week, or any piano question")}
+        ${accountAISettingsHtml().replace('<h4 class="settings-sub">Lune AI</h4>', '<h3 id="set-h-ai">Lune AI</h3>') || '<h3 id="set-h-ai">Lune AI</h3><p class="settings-note">Sign in to turn it on.</p>'}
+        ${row("chat", "Chat with Lune", "Ask anything about piano")}
       </section>
       <section class="settings-sec" aria-labelledby="set-h-week">
         <h3 id="set-h-week">Practice</h3>
@@ -2134,10 +2134,10 @@ window.LunePractice = (function () {
           <label for="set-mins">Minutes a session</label>
           <select id="set-mins" aria-describedby="set-mins-note">${[10, 15, 20, 30, 45, 60, 90].map((n) => `<option ${n === mins ? "selected" : ""}>${n}</option>`).join("")}</select>
         </div>
-        <p class="settings-note" id="set-mins-note">Lune sizes plans to this. It does not time your practice.</p>
-        ${row("plan-week", "Plan my week", "Tell Lune your goal; it plans each day")}
-        ${signedIn ? row("week", "This week", "Done, left, and the bars that need you") : ""}
-        ${row("example-week", "How This week works", "A short example with made-up numbers")}
+        <p class="settings-note" id="set-mins-note">Plans fit this. Lune never times you.</p>
+        ${row("plan-week", "Plan my week", "Day by day, from your goal")}
+        ${signedIn ? row("week", "This week", "Your progress") : ""}
+        ${row("example-week", "How This week works", "A quick example")}
       </section>
       <section class="settings-sec" aria-labelledby="set-h-look">
         <h3 id="set-h-look">Look and access</h3>
@@ -2150,23 +2150,23 @@ window.LunePractice = (function () {
         ${sw("largePrint", "Large print", "Bigger notes, letters and buttons")}
         ${sw("highContrast", "High contrast", "Black on white for the score")}
         ${sw("autoRead", "Read bars aloud", "Each bar you select is described")}
-        <p class="settings-note">Lune works with your device’s screen reader. Braille music is on each piece’s Overview.</p>
+        <p class="settings-note">Braille music is on each piece’s Overview.</p>
       </section>
       <section class="settings-sec settings-more" aria-labelledby="set-h-app">
         <h3 id="set-h-app">More</h3>
         ${install}
-        ${row("feedback", "Send feedback", "Straight to the maker")}
-        ${row("privacy", "Privacy", "What Lune keeps and how to delete it")}
-        ${row("compare", "How Lune compares", "Next to flowkey, Simply Piano, Yousician and Skoove")}
-        ${row("credits", "Credits and licences", "Scores, sounds, models and software")}
-        <p class="settings-note">Lune is free, with no ads and no payments. Made by Verushka Patel.</p>
+        ${row("feedback", "Send feedback", "To the maker")}
+        ${row("privacy", "Privacy", "What Lune keeps")}
+        ${row("compare", "How Lune compares", "Next to other piano apps")}
+        ${row("credits", "Credits and licences", "Scores, sounds, models")}
+        <p class="settings-note">Free, no ads. Made by Verushka Patel.</p>
       </section>
       <details class="settings-advanced">
         <summary>Advanced</summary>
         <h4 class="settings-sub">Lune AI on this device</h4>
         <div class="settings-device-ai" id="set-device-ai"></div>
         <h4 class="settings-sub">Your own model with Ollama</h4>
-        <p class="settings-note">Run a free model on your own computer. Questions stay on your machine.</p>
+        <p class="settings-note">A free model on your own computer.</p>
         <p class="settings-note" id="set-ai-status" role="status"><strong>${window.LuneAsk?.aiSettings?.().endpoint ? `Using ${esc((() => { try { return localStorage.getItem("lune.ai.model") || "your model"; } catch { return "your model"; } })())}` : "Not connected"}</strong></p>
         <div class="settings-ai-picks" id="set-ai-picks"></div>
         <details class="settings-ai-how">
@@ -2357,7 +2357,7 @@ window.LunePractice = (function () {
     if (!server) return "";
     const st = store.status();
     const name = esc(window.LUNE_CONFIG?.aiModelName || "an open-weight model");
-    const where = ` ${name}, an open-weight model from Meta. Lune’s server stores none of it. It can be wrong.`;
+    const where = ` ${name.replace(/ Instruct$/, "")}. It can be wrong.`;
     if (st.mode === "cloud") {
       return `<h4 class="settings-sub">Lune AI</h4><p class="settings-note" id="set-account-ai" role="status"><strong>Lune AI is on</strong>${where}</p>`;
     }
