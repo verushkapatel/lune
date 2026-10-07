@@ -582,7 +582,6 @@ Rules:
         a = await model.answer(TASKS[task](), await buildContext(act.bar ? bar || selectedBarsSorted()[0] || null : null), {
           onToken: (t) => {
             streamed += t;
-            shown.textContent = streamed;
           },
         });
       } catch (err) {
@@ -691,43 +690,51 @@ Rules:
   function richText(el, text) {
     if (!el) return;
     const esc2 = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-    const inline = (t) => esc2(t).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/(^|\s)\*([^*\n]+)\*(?=\s|[.,;:!?]|$)/g, "$1<em>$2</em>");
-    const lines = String(text || "").replace(/\r/g, "").split("\n");
+    const inline = (t) => esc2(t).replace(/\*\*([^*]+)\*\*/g, "$1").replace(/(^|\s)\*([^*\n]+)\*(?=\s|[.,;:!?]|$)/g, "$1<em>$2</em>");
+    const lines = String(text || "").replace(/\r/g, "").split("\n").map((l) => l.trim().replace(/^#{1,6}\s+/, "")).filter(Boolean);
+    // a step names its bars: "@Bar 12 ...", "Bar 12: ...", "1. Bars 26 and 30, hands ..."
+    const tagOf = (t) => {
+      const m = t.match(/^@?(bars?\s+[\d][\d,\s–\-to and]*?)(?=[\s:.,—–-]+[a-z(]|$)[\s:.,—–-]*/i);
+      if (!m) return null;
+      const label = m[1].replace(/\s+/g, " ").replace(/\s*(?:to|-|–)\s*/g, "–").replace(/\s*and\s*/g, ", ").replace(/[,\s]+$/, "");
+      return { tag: "@" + label[0].toUpperCase() + label.slice(1), rest: t.slice(m[0].length) };
+    };
     let html = "";
-    let list = null;
-    let para = [];
-    const flushPara = () => {
-      if (para.length) html += `<p>${inline(para.join(" "))}</p>`;
-      para = [];
-    };
-    const flushList = () => {
-      if (list) html += `<${list.tag}>${list.items.map((i) => `<li>${inline(i)}</li>`).join("")}</${list.tag}>`;
-      list = null;
-    };
-    for (const raw of lines) {
-      const line = raw.trim().replace(/^#{1,6}\s+/, "");
+    let leadDone = false;
+    let step = 0;
+    for (const line of lines) {
+      const sum = line.match(/^(?:in\s+)?summary[:,]?\s*(.*)$/i);
       const num = line.match(/^(\d+)[.)]\s+(.*)$/);
       const dot = line.match(/^[-•*]\s+(.*)$/);
-      if (!line) {
-        flushPara();
-        flushList();
+      const body = num ? num[2] : dot ? dot[1] : line;
+      const tagged = tagOf(body);
+      if (sum) {
+        html += `<p class="la-line la-sum"><span class="la-tag">Summary</span> ${inline(sum[1])}</p>`;
+      } else if (tagged) {
+        html += `<p class="la-line"><span class="la-tag">${esc2(tagged.tag)}</span> ${inline(tagged.rest)}</p>`;
       } else if (num || dot) {
-        flushPara();
-        const tag = num ? "ol" : "ul";
-        if (!list || list.tag !== tag) {
-          flushList();
-          list = { tag, items: [] };
-        }
-        list.items.push(num ? num[2] : dot[1]);
+        step += 1;
+        html += `<p class="la-line"><span class="la-tag">@Step ${num ? num[1] : step}</span> ${inline(body)}</p>`;
+      } else if (!leadDone) {
+        html += `<p class="la-lead">${inline(line)}</p>`;
+        leadDone = true;
       } else {
-        flushList();
-        para.push(line);
+        html += `<p class="la-p">${inline(line)}</p>`;
       }
     }
-    flushPara();
-    flushList();
-    el.innerHTML = html;
-    el.classList.add("rich");
+    el.innerHTML = `<p class="la-read" aria-hidden="true"><span class="la-mark">◠</span> ${esc2(readingLine())}</p>${html}`;
+    el.classList.add("rich", "la");
+  }
+  /** "Reading Für Elise · 3/8 · A minor", and the bars in question. */
+  let readingBars = null;
+  function readingLine() {
+    const p = state.piece;
+    if (!p) return "Lune AI";
+    const title = p.overview?.title || p.title || "this piece";
+    const bits = [title, p.timeSignature || p.overview?.timeSignature, p.notatedKey || p.overview?.key].filter(Boolean);
+    const bars = readingBars || selectedBarsSorted?.() || [];
+    if (bars.length) bits.push(bars.length > 1 ? `bars ${bars[0]}–${bars[bars.length - 1]}` : `bar ${bars[0]}`);
+    return `Reading ${bits.join(" · ")}`;
   }
 
   /** Grow the text box with what is typed, send on Enter, and only enable Send when there is text. */
@@ -1146,22 +1153,30 @@ Rules:
     if (src) bar.appendChild(src);
     el.parentElement.appendChild(bar);
   }
-  /** Lune at work: a thin bar that fills as it goes, and the stage it is at. */
-  const STAGES = [[0, "Reading the score"], [1200, "Thinking"], [3800, "Writing the answer"], [10000, "A longer answer, still writing"]];
+  /** Lune at work: the reading log, one line at a time. */
+  const STAGES = [[0, "Reading the score"], [1100, "Looking at both hands"], [2600, "Choosing what to practise"], [4600, "Writing it out"], [9000, "A longer answer, nearly there"]];
   function workingHtml() {
-    return '<span class="lw"><span class="lw-row"><span class="lune-moon" aria-hidden="true"></span><span class="lw-stage">Reading the score</span></span><span class="lw-bar"><i></i></span></span><span class="visually-hidden">Lune is working on it</span>';
+    const esc2 = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+    return `<div class="la la-working"><p class="la-read"><span class="lune-moon" aria-hidden="true"></span> ${esc2(readingLine())}</p><div class="la-stages"></div></div><span class="visually-hidden">Lune is working on it</span>`;
   }
   function runStages(el) {
     const t0 = Date.now();
+    let shown = 0;
     const tick = () => {
-      if (!el.isConnected || !el.querySelector(".lw-stage")) return clearInterval(iv);
+      const host = el.querySelector(".la-stages");
+      if (!el.isConnected || !host) return clearInterval(iv);
       const ms = Date.now() - t0;
-      let label = STAGES[0][1];
-      for (const [at, l] of STAGES) if (ms >= at) label = l;
-      const st = el.querySelector(".lw-stage");
-      if (st.textContent !== label) st.textContent = label;
+      while (shown < STAGES.length && ms >= STAGES[shown][0]) {
+        host.querySelectorAll(".la-stage").forEach((x) => x.classList.add("done"));
+        const p = document.createElement("p");
+        p.className = "la-line la-stage";
+        p.innerHTML = `<span class="la-dot"></span>${STAGES[shown][1]}`;
+        host.appendChild(p);
+        shown += 1;
+      }
     };
-    const iv = setInterval(tick, 300);
+    tick();
+    const iv = setInterval(tick, 200);
     return el;
   }
   function thinkingRow() {
@@ -1320,12 +1335,78 @@ Rules:
     }
   }
 
+  /** Bars named in a question: "bars 1 to 4", "the first four bars", "the last 2 bars", "the first line". */
+  const WORDNUM = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, twelve: 12 };
+  function barsInQuestion(text) {
+    const t = String(text || "").toLowerCase();
+    const all = Object.keys(state.piece?.debriefs || {}).map(Number).filter((n) => n > 0).sort((a, b) => a - b);
+    if (!all.length) return [];
+    const span = (a, b) => all.filter((n) => n >= Math.min(a, b) && n <= Math.max(a, b)).slice(0, 12);
+    let m = t.match(/\bbars?\s+(\d+)\s*(?:-|–|to|through|until)\s*(?:bar\s*)?(\d+)/);
+    if (m) return span(+m[1], +m[2]);
+    m = t.match(/\b(first|opening|last|final)\s+(\d+|two|three|four|five|six|seven|eight|nine|ten|twelve)\s+bars?\b/);
+    if (m) {
+      const n = Math.min(12, Number(m[2]) || WORDNUM[m[2]] || 0);
+      return /first|opening/.test(m[1]) ? all.slice(0, n) : all.slice(-n);
+    }
+    m = t.match(/\b(first|second|third|top|opening|last)\s+(line|system|row)\b/);
+    if (m) {
+      try {
+        const rows = new Map();
+        state.osmd.GraphicSheet.MeasureList.forEach((col) => {
+          const gm = col.find(Boolean);
+          const num = gm?.parentSourceMeasure?.MeasureNumber;
+          const y = Math.round(gm?.ParentStaffLine?.PositionAndShape?.AbsolutePosition?.y ?? gm?.PositionAndShape?.AbsolutePosition?.y ?? 0);
+          if (num == null || num < 1) return;
+          if (!rows.has(y)) rows.set(y, []);
+          rows.get(y).push(num);
+        });
+        const lines = [...rows.entries()].sort((a, b) => a[0] - b[0]).map(([, l]) => l);
+        const pick = { first: 0, top: 0, opening: 0, second: 1, third: 2, last: lines.length - 1 }[m[1]];
+        return (lines[pick] || []).slice(0, 12);
+      } catch {
+        return all.slice(0, 4);
+      }
+    }
+    m = t.match(/\bbars\s+(\d+(?:\s*(?:,|and)\s*\d+)+)/);
+    if (m) return [...new Set(m[1].split(/\s*(?:,|and)\s*/).map(Number))].filter((n) => all.includes(n)).slice(0, 12);
+    return [];
+  }
+  /** Built from the score alone: one line a bar, then what to do first. */
+  function rangeReply(bars) {
+    const lines = [`One at a time, from bar ${bars[0]} to bar ${bars[bars.length - 1]}.`];
+    const scored = [];
+    for (const b of bars) {
+      const d = debriefFor(b) || {};
+      const why = (d.difficulty?.reasons || []).slice(0, 2).join(", ");
+      const tip = Array.isArray(d.advice) ? d.advice[0] : d.advice;
+      const what = why || d.headline || (d.rh?.length || d.lh?.length ? "steady, nothing unusual" : "rests");
+      lines.push(`@Bar ${b} ${what}${tip ? ` · ${String(tip).replace(/\.$/, "")}` : ""}`);
+      scored.push([b, Number(d.difficulty?.score) || 0]);
+    }
+    const hard = scored.filter(([, x]) => x > 0).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([b]) => b);
+    lines.push(`Summary: ${hard.length ? `Start with bar${hard.length > 1 ? "s" : ""} ${hard.join(" and ")}, hands separately and slowly, then` : "Play them"} as one phrase at 60, adding four on the metronome each time it is clean.`);
+    return lines.join("\n");
+  }
+  async function rangeContext(bars) {
+    const ctx = await buildContext(bars[0]);
+    const slim = (list) => (list || []).map((n) => ({ note: n.letter || n.pitch, beat: n.offset, finger: n.fingering ?? null }));
+    ctx.barsInQuestion = bars.map((b) => {
+      const d = debriefFor(b) || {};
+      return { number: b, rightHand: slim(d.rh).slice(0, 14), leftHand: slim(d.lh).slice(0, 14), difficulty: d.difficulty?.reasons || [], advice: [].concat(d.advice || []).slice(0, 2) };
+    });
+    delete ctx.neighbouringBars;
+    return ctx;
+  }
+
   async function ask(text) {
     ensurePanel();
     line("you", text);
     let out;
+    const span = barsInQuestion(text);
+    readingBars = span.length > 1 ? span : null;
     try {
-      out = await reply(text);
+      out = span.length > 1 ? { question: true, bar: span[0], a: rangeReply(span), range: span } : await reply(text);
     } catch (err) {
       out = { a: err?.message || "That didn't work. Try again." };
     }
@@ -1336,8 +1417,10 @@ Rules:
       let streamed = "";
       try {
         // a bar just rated hard: ask for what to do about it, not a summary of the bar
-        const asked = out.saved === "review" ? `${text}\n\nI find this bar hard. Give me concrete steps to practise it, tied to what is in it.` : text;
-        out.a = await model.answer(asked, await buildContext(out.bar || selectedBarsSorted()[0] || null), {
+        const asked = out.range
+          ? `${text}\n\nAnswer bar by bar for bars ${out.range.join(", ")} (CONTEXT.barsInQuestion). One line per bar, each starting "@Bar N", saying what is hard in that bar and one concrete way to practise it. Then one line starting "Summary:" with two sentences: what ties these bars together and the order to practise them in. No other text.`
+          : out.saved === "review" ? `${text}\n\nI find this bar hard. Give me concrete steps to practise it, tied to what is in it.` : text;
+        out.a = await model.answer(asked, out.range ? await rangeContext(out.range) : await buildContext(out.bar || selectedBarsSorted()[0] || null), {
           onToken: (t) => {
             streamed += t;
             shown.textContent = streamed;
@@ -1742,7 +1825,7 @@ Rules:
     let answer = "";
     let via = "model";
     try {
-      answer = await model.answer(text, await buildChatContext(log.slice(0, -1)), { onToken: (t) => (wait.textContent = (answer += t)) });
+      answer = await model.answer(text, await buildChatContext(log.slice(0, -1)), { onToken: (t) => { answer += t; } });
     } catch (err) {
       via = "note";
       answer = err?.userMessage || "Lune AI didn’t answer just now. Try again in a minute.";

@@ -2977,6 +2977,11 @@ function updateScrub({ progress, total, bar }) {
   if (barEl && barEl.textContent !== barText) barEl.textContent = barText;
   placePlayhead(bar, progress, total);
   syncPlayButton();
+  // a session at the piano counts toward the Repertoire summary
+  if (bar && bar !== state.lastPlayedBar && LunePiano.isPlaying()) {
+    state.lastPlayedBar = bar;
+    window.LunePlans?.noteActivity?.("play", { key: window.LunePractice?.keyFor?.(state.piece), title: state.piece?.overview?.title || state.piece?.title || "", bar });
+  }
 }
 
 function syncPlayButton() {
