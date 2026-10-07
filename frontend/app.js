@@ -2366,7 +2366,8 @@ function realiseOrnaments(notes, idx) {
       if (mine.length) {
         usedGrace.add(gk);
         const slash = mine.every((g) => g.slash);
-        const each = slash ? Math.min(0.09, dur / 4) : Math.min(dur / 2, 0.5) / mine.length;
+        // one plain small note leans on the beat (appoggiatura); a slashed one, or a group, is quick
+        const each = slash || mine.length > 1 ? Math.min(mine.length > 1 ? 0.11 : 0.09, dur / (mine.length + 2)) : Math.min(dur / 2, 0.5);
         mine.forEach((g, i) => out.push(at(i * each, g.midi, each * 1.1)));
         start = each * mine.length;
       }
@@ -2400,6 +2401,65 @@ function realiseOrnaments(notes, idx) {
   }
   out.sort((a, b) => a.absOffset - b.absOffset || a.midi - b.midi);
   return out;
+}
+
+/**
+ * Where a voice overruns its bar, the export usually padded it with rests it
+ * marks invisible (print-object="no"). Without them the voice keeps the
+ * printed rhythm. Maps `bar:midi:onset×1000` to the onset without those rests,
+ * only for voices that overrun.
+ */
+let _respace = null;
+function respaceIndex(piece) {
+  if (_respace && _respace.piece === piece) return _respace.map;
+  const map = new Map();
+  try {
+    const STEP = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+    const doc = new DOMParser().parseFromString(piece?.musicxml || "", "application/xml");
+    const lens = measureLengths(piece);
+    for (const part of doc.querySelectorAll("part")) {
+      let div = 1;
+      for (const m of part.children) {
+        if (m.tagName !== "measure") continue;
+        const b = parseInt(m.getAttribute("number"), 10);
+        const d0 = m.querySelector("attributes divisions");
+        if (d0) div = Number(d0.textContent) || div;
+        const barLen = lens?.get?.(b) || 0;
+        const voices = new Map();
+        let t = 0, tFix = 0, last = 0, lastFix = 0, cur = null;
+        for (const el of m.children) {
+          if (el.tagName === "backup") { t -= Number(el.querySelector("duration")?.textContent) || 0; tFix = null; continue; }
+          if (el.tagName === "forward") { const d = Number(el.querySelector("duration")?.textContent) || 0; t += d; if (tFix != null) tFix += d; continue; }
+          if (el.tagName !== "note" || el.querySelector("grace")) continue;
+          const v = `${el.querySelector("staff")?.textContent || 1}|${el.querySelector("voice")?.textContent || 1}`;
+          if (!voices.has(v)) voices.set(v, { notes: [], fix: 0, start: t });
+          cur = voices.get(v);
+          if (tFix == null) tFix = t - (cur.start - cur.start); // a voice starts where the backup left the cursor
+          const dur = Number(el.querySelector("duration")?.textContent) || 0;
+          const chord = !!el.querySelector("chord");
+          const on = chord ? last : t;
+          const onFix = chord ? lastFix : on - cur.fix;
+          if (!chord) {
+            last = on; lastFix = onFix; t += dur;
+            if (el.querySelector("rest") && el.getAttribute("print-object") === "no") cur.fix += dur;
+          }
+          cur.end = Math.max(cur.end || 0, t);
+          const p = el.querySelector("pitch");
+          if (!p || el.querySelector("rest")) continue;
+          const midi = (Number(p.querySelector("octave")?.textContent) + 1) * 12 + (STEP[p.querySelector("step")?.textContent] ?? 0) + Math.round(Number(p.querySelector("alter")?.textContent) || 0);
+          cur.notes.push({ midi, on: on / div, onFix: onFix / div });
+        }
+        for (const vo of voices.values()) {
+          if (!barLen || (vo.end || 0) / div <= barLen + 0.01 || !vo.fix) continue;
+          for (const n of vo.notes) map.set(`${b}:${n.midi}:${Math.round(n.on * 1000)}`, n.onFix);
+        }
+      }
+    }
+  } catch {
+    /* no respacing */
+  }
+  _respace = { piece, map };
+  return map;
 }
 
 /**
@@ -2517,7 +2577,15 @@ function collectNotes(fromBar, toBar) {
     // an export that writes triplets at full length makes a voice spill past the
     // barline; that voice is fitted back into the bar, keeping its proportions
     const lens = measureLengths(state.piece);
-    if (lens?.squeeze?.has(b)) fitVoicesInBar(pack, lens.get(b) || signatureBarQuarters());
+    if (lens?.squeeze?.has(b)) {
+      // invisible filler rests pushed this voice past the barline: take them out
+      const re = respaceIndex(state.piece);
+      for (const n of pack) {
+        const k = `${b}:${n.midi}:${Math.round((Number(n.offset) || 0) * 1000)}`;
+        if (re.has(k)) n.offset = re.get(k);
+      }
+      fitVoicesInBar(pack, lens.get(b) || signatureBarQuarters());
+    }
     for (const n of pack) {
       if (!n.midi) continue;
       // Same pitch at the same onset from mirrored voices → one attack.
@@ -2627,6 +2695,15 @@ function shapePerformance(notes, index, barStart, endQ) {
     }
   }
 
+  // what the score shows when Pedal is on: the marks, or the changes Lune plays
+  state.pedalPlan = {
+    marked: index.pedal.length > 0,
+    list: changes.map((c) => {
+      let bar = null;
+      for (const [b, q0] of barStart) if (q0 <= c.q + 0.001 && (bar == null || q0 >= barStart.get(bar))) bar = b;
+      return { bar, off: bar == null ? 0 : c.q - barStart.get(bar), down: c.down };
+    }).filter((c) => c.bar != null),
+  };
   let ci = 0;
   let k = 0;
   while (k < notes.length) {
@@ -3747,6 +3824,7 @@ function centreLaneLabels(host) {
 function applyScoreOverlays() {
   const host = $("osmd");
   if (!host || !state.osmd) return;
+  requestAnimationFrame(drawPedalMarks);
   if (LUNE_LYRIC_LANE) {
     // Labels are part of the engraving; just style them and drop any overlay.
     LuneAnnotate.clearLetterOverlays(host);
@@ -5462,3 +5540,119 @@ function alignOsmdBarNumbers(osmd, xml) {
     /* keep OSMD's numbers */
   }
 }
+
+
+/**
+ * Pedal marks under the score: the edition's own, or, where it has none, the
+ * changes Lune's playback makes (at each bar and when the bass moves on).
+ * "Ped." starts a line, each notch is a change, the line ends where the pedal lifts.
+ */
+function pedalWanted() {
+  try { return localStorage.getItem("lune.pedal") === "1"; } catch { return false; }
+}
+function drawPedalMarks() {
+  const scroll = $("score-scroll");
+  const host = $("osmd");
+  let layer = $("pedal-layer");
+  const on = pedalWanted() && state.panel === "score" && state.osmd && host && !host.hidden;
+  $("btn-pedal")?.setAttribute("aria-pressed", on ? "true" : "false");
+  $("btn-pedal")?.classList.toggle("on", !!on);
+  if (!on) { if (layer) layer.innerHTML = ""; return; }
+  // the whole piece's plan (a played snippet would leave only its own bars)
+  try { pieceNotes(); } catch { /* no notes yet */ }
+  const plan = state.pedalPlan;
+  if (!layer) {
+    layer = document.createElement("div");
+    layer.id = "pedal-layer";
+    layer.className = "pedal-layer";
+    layer.setAttribute("aria-hidden", "true");
+    scroll.appendChild(layer);
+  }
+  layer.innerHTML = "";
+  if (!plan || !plan.list.length) {
+    layer.innerHTML = `<p class="pedal-none">No pedal: music of this style is usually played without it.</p>`;
+    return;
+  }
+  const byBar = new Map();
+  for (const c of plan.list) {
+    if (!byBar.has(c.bar)) byBar.set(c.bar, []);
+    byBar.get(c.bar).push(c);
+  }
+  const bars = [...new Set(LunePiano.barMarkers?.().map((m) => m.bar) || [...byBar.keys()])];
+  // the lowest ink in each bar (notes below the staff, note names): the line goes under it
+  const sr = scroll.getBoundingClientRect();
+  const inks = [...host.querySelectorAll(".vf-notehead, .lane-letter, .vf-stem")].map((el) => {
+    const r = el.getBoundingClientRect();
+    return { x: r.left + r.width / 2 - sr.left + scroll.scrollLeft, top: r.top - sr.top + scroll.scrollTop, bottom: r.bottom - sr.top + scroll.scrollTop };
+  });
+  // one height per line of music, under its lowest ink, so the pedal line runs straight
+  const boxes = new Map();
+  const rowLow = new Map();
+  for (const bar of bars) {
+    const box = LuneAnnotate.measureBoundsInHost?.(state.osmd, host, bar);
+    if (!box) continue;
+    boxes.set(bar, box);
+    let low = box.top + box.height;
+    for (const k of inks) if (k.x >= box.left && k.x <= box.left + box.width && k.top >= box.top - 4 && k.top <= box.top + box.height + 60 && k.bottom <= box.top + box.height + 100) low = Math.max(low, k.bottom);
+    const row = Math.round(box.top);
+    rowLow.set(row, Math.max(rowLow.get(row) || 0, low));
+  }
+  let down = false;
+  let prevRow = null;
+  const frag = document.createDocumentFragment();
+  for (const bar of bars) {
+    const box = boxes.get(bar);
+    if (!box) continue;
+    const len = Math.max(0.25, barLengthQuarters(bar, null) || signatureBarQuarters() || 4);
+    const anchors = (LuneAnnotate.playheadAnchorsInHost?.(state.osmd, host, bar) || []).sort((a, c) => a.q - c.q);
+    const xAt = (off) => {
+      if (anchors.length) {
+        let a = anchors[0];
+        for (const n of anchors) if (n.q <= off + 0.001) a = n;
+        const nxt = anchors.find((n) => n.q > off + 0.001);
+        if (Math.abs(a.q - off) < 0.01 || !nxt) return a.x + (nxt ? 0 : Math.max(0, (off - a.q) / len) * box.width);
+        return a.x + ((off - a.q) / (nxt.q - a.q)) * (nxt.x - a.x);
+      }
+      return box.left + 8 + (off / len) * (box.width - 16);
+    };
+    const row = Math.round(box.top);
+    const y = (rowLow.get(row) || box.top + box.height) + 8;
+    if (prevRow !== null && row !== prevRow && down) {
+      // a new system: the line carries on, with a fresh "Ped." for the eye
+      frag.appendChild(pedalBit("ped", box.left + 2, y));
+    }
+    prevRow = row;
+    let x0 = box.left;
+    const marks = (byBar.get(bar) || []).sort((a, c) => a.off - c.off);
+    for (const m of marks) {
+      const x = xAt(m.off);
+      if (down && x > x0 + 2) frag.appendChild(pedalBit("line", x0, y, x - x0));
+      if (m.down) {
+        frag.appendChild(pedalBit(down ? "notch" : "ped", down ? x - 5 : x, y));
+        x0 = down ? x + 5 : Math.min(x + 30, box.left + box.width);
+        down = true;
+      } else if (down) {
+        frag.appendChild(pedalBit("end", x - 1, y));
+        down = false;
+        x0 = x;
+      }
+    }
+    if (down) frag.appendChild(pedalBit("line", x0, y, box.left + box.width - x0));
+  }
+  layer.appendChild(frag);
+  layer.dataset.marked = plan.marked ? "1" : "0";
+}
+function pedalBit(kind, x, y, w) {
+  const el = document.createElement("span");
+  el.className = `pedal-${kind}`;
+  el.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+  if (kind === "ped") el.textContent = "Ped.";
+  if (w != null) el.style.width = `${Math.max(0, Math.round(w))}px`;
+  return el;
+}
+document.addEventListener("click", (e) => {
+  if (!e.target.closest?.("#btn-pedal")) return;
+  const next = !pedalWanted();
+  try { localStorage.setItem("lune.pedal", next ? "1" : "0"); } catch { /* this device only */ }
+  drawPedalMarks();
+});

@@ -332,3 +332,22 @@ window.LuneFX = (function () {
   }, { rootMargin: "-40% 0px -55% 0px" });
   links.forEach((l) => { const t = document.getElementById(l.dataset.lpJump); if (t) io.observe(t); });
 })();
+
+/* The hero's Lune AI panel opens onto the Lune AI chapter */
+document.addEventListener("click", (e) => {
+  const b = e.target.closest?.("[data-lp-jump-ai]");
+  if (!b) return;
+  const el = document.getElementById("ai");
+  if (el) el.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+});
+
+/* the landing bar frosts once the page scrolls */
+(function () {
+  const sc = document.getElementById("home");
+  if (!sc) return;
+  let on = false;
+  sc.addEventListener("scroll", () => {
+    const next = sc.scrollTop > 24;
+    if (next !== on) { on = next; document.body.classList.toggle("lp-scrolled", on); }
+  }, { passive: true });
+})();

@@ -1278,14 +1278,14 @@ window.LuneTutorial = (function () {
 
     if (!events.length) {
       ctx.fillStyle = COLORS.idle;
-      ctx.font = "15px Fraunces, Georgia, serif";
+      ctx.font = "15px Manrope, system-ui, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText("Press Play — the notes fall onto the keys.", w / 2, rollH / 2);
     }
 
     // bar lines travel down with the music
-    ctx.font = "11px Fraunces, Georgia, serif";
+    ctx.font = "11px Manrope, system-ui, sans-serif";
     ctx.textAlign = "left";
     ctx.textBaseline = "bottom";
     for (const b of bars) {
@@ -1342,11 +1342,11 @@ window.LuneTutorial = (function () {
         const cx = x + bw / 2;
         const size = Math.max(9, Math.min(13, bw * 0.5));
         if (e.label && bh >= size + 6) {
-          ctx.font = `600 ${size}px Fraunces, Georgia, serif`;
+          ctx.font = `600 ${size}px Manrope, system-ui, sans-serif`;
           ctx.fillText(e.label, cx, bottom - 5);
         }
         if (e.finger && bh >= size * 2 + 12) {
-          ctx.font = `${size - 1}px Fraunces, Georgia, serif`;
+          ctx.font = `${size - 1}px Manrope, system-ui, sans-serif`;
           ctx.globalAlpha = 0.7;
           ctx.fillText(String(e.finger), cx, bottom - 8 - size);
           ctx.globalAlpha = 1;
@@ -1379,11 +1379,11 @@ window.LuneTutorial = (function () {
       ctx.textBaseline = "alphabetic";
       if (hit?.finger && k.w >= 12) {
         ctx.fillStyle = tone.ink;
-        ctx.font = `600 ${Math.min(14, k.w * 0.55)}px Fraunces, Georgia, serif`;
+        ctx.font = `600 ${Math.min(14, k.w * 0.55)}px Manrope, system-ui, sans-serif`;
         ctx.fillText(String(hit.finger), k.x + k.w / 2, ky + kbH - 10);
       } else if (m % 12 === 0 && k.w >= 14) {
         ctx.fillStyle = "#8d887c";
-        ctx.font = "9px Fraunces, Georgia, serif";
+        ctx.font = "9px Manrope, system-ui, sans-serif";
         ctx.fillText(`C${m / 12 - 1}`, k.x + k.w / 2, ky + kbH - 8);
       }
     }
@@ -1401,7 +1401,7 @@ window.LuneTutorial = (function () {
         ctx.fillRect(k.x + 1.5, ky + 3, k.w - 3, blackH - 8);
       } else if (hit.finger && k.w >= 11) {
         ctx.fillStyle = "#fafafa";
-        ctx.font = `600 ${Math.min(12, k.w * 0.7)}px Fraunces, Georgia, serif`;
+        ctx.font = `600 ${Math.min(12, k.w * 0.7)}px Manrope, system-ui, sans-serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "alphabetic";
         ctx.fillText(String(hit.finger), k.x + k.w / 2, ky + blackH - 6);

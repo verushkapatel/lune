@@ -1478,6 +1478,15 @@ SYNC_JS = """() => {
 }"""
 
 
+MARK_FIND = """() => { const osmd = state.osmd; let found = null;
+  osmd.GraphicSheet.MeasureList.forEach(col => col.forEach(gm => { if (!gm || found) return; for (const se of gm.staffEntries||[]) for (const g of se.graphicalVoiceEntries||[]) for (const gn of g.notes||[]) {
+    if (found) return; const ve = gn.sourceNote?.ParentVoiceEntry; const el = gn.getSVGGElement?.(); if (!el || !ve?.OrnamentContainer) continue;
+    const sn = el.closest('.vf-stavenote') || el; const mods = sn.querySelector('.vf-modifiers'); if (!mods) continue;
+    const heads = [...sn.querySelectorAll('.vf-notehead')].map(x => x.getBoundingClientRect());
+    const r = [...mods.querySelectorAll('path,text')].map(x => x.getBoundingClientRect()).filter(r => r.width > 1).find(r => !heads.some(h => !(r.right < h.left || r.left > h.right || r.bottom < h.top || r.top > h.bottom)));
+    if (r) found = { x: r.left + r.width / 2, y: r.top + r.height / 2 }; } })); return found; }"""
+
+
 def section_sync(browser):
     """The bar lit on the score is the bar the piano plays; ornaments sound; the top bar lines up."""
     pg = new_page(browser)
@@ -1501,6 +1510,48 @@ def section_sync(browser):
     check("ornaments: grace notes are read and stay inside their bar", o["graces"] > 5 and o["inBar"], o)
     r = pg.evaluate(SYNC_JS)
     check("sync: the nocturne matches bar for bar", r["off"] == 0, r)
+    # every written note sounds: pitch for pitch, bar for bar, against the file itself
+    PITCHES = """() => { const doc = new DOMParser().parseFromString(state.piece.musicxml, 'application/xml'); const STEP = {C:0,D:2,E:4,F:5,G:7,A:9,B:11}; const xml = {};
+      for (const part of doc.querySelectorAll('part')) for (const m of part.children) { if (m.tagName !== 'measure') continue; const b = +m.getAttribute('number');
+        for (const el of m.querySelectorAll('note')) { if (el.querySelector('rest,cue') || el.querySelector('tie[type=stop]')) continue; const p = el.querySelector('pitch'); if (!p) continue;
+          (xml[b] ||= []).push((+p.querySelector('octave').textContent + 1) * 12 + STEP[p.querySelector('step').textContent] + Math.round(+(p.querySelector('alter')?.textContent || 0))); } }
+      const play = {}; for (const e of LunePiano.getEvents()) (play[e.bar] ||= new Set()).add(e.midi);
+      const miss = []; for (const [b, list] of Object.entries(xml)) for (const m of list) if (!play[b]?.has(m)) miss.push(b + ':' + m); return miss.slice(0, 6); }"""
+    for pid in ("franz-liszt-liebestraum-no-3-in-a-major", "beethoven-fur-elise", "frederic-chopin-waltz-in-a-minorchopin"):
+        open_piece(pg, BASE + f"#/{pid}/score")
+        pg.wait_for_timeout(1000)
+        miss = pg.evaluate(PITCHES)
+        check(f"notes: every written note of {pid.split('-')[-1] if 'waltz' not in pid else 'the waltz'} is played", not miss, miss)
+        if "liebestraum" in pid:
+            b12 = pg.evaluate("() => LunePiano.getEvents().filter(e => e.bar === 12 && e.hand === 'rh' && !e.ornament).map(e => +e.barOff.toFixed(2)).sort((a, c) => a - c)")
+            check("timing: Liebestraum bar 12 plays as printed, arpeggios from the second eighth of each half", b12 == [0.5, 1, 1.5, 2, 2.5, 3.5, 4, 4.5, 5, 5.5], b12)
+        if "fur-elise" in pid:
+            g = pg.evaluate("() => LunePiano.getEvents().filter(e => e.bar === 25 && e.hand !== 'lh').map(e => e.name + '@' + e.barOff.toFixed(2))")
+            check("ornaments: Für Elise bar 25's grace notes run quickly into the C, not half a beat late", g[:3] == ["F4@0.00", "A4@0.11", "C5@0.22"], g)
+    open_piece(pg, BASE + "#/frederic-chopin-chopin-nocturne-op-9-no-2-e-flat-major/score")
+    pg.wait_for_timeout(1200)
+    # pedal marks: on demand, under every system, at the changes Lune plays
+    pg.evaluate("() => { try { localStorage.removeItem('lune.pedal'); } catch (e) {} }")
+    pg.click("#btn-pedal")
+    pg.wait_for_timeout(700)
+    ped = pg.evaluate("() => { const l = document.getElementById('pedal-layer'); return { ped: l?.querySelectorAll('.pedal-ped').length || 0, notch: l?.querySelectorAll('.pedal-notch').length || 0, pressed: document.getElementById('btn-pedal').getAttribute('aria-pressed') }; }")
+    check("pedal: one tap shows pedal marks across the nocturne", ped["pressed"] == "true" and ped["ped"] > 10 and ped["notch"] > 10, ped)
+    pg.click("#btn-pedal")
+    pg.wait_for_timeout(300)
+    check("pedal: and one tap hides them", pg.evaluate("() => !document.querySelector('#pedal-layer span')"))
+    # tap a sign: a trill, a turn or a mordent is explained, not just clefs and words
+    pg.evaluate("() => { window.__m = []; LuneAsk.explainMarking = (h) => window.__m.push(h.label); }")
+    pt = None
+    for _ in range(8):
+        pt = pg.evaluate(MARK_FIND)
+        if pt and 120 < pt["y"] < 450: break
+        pg.evaluate("(y) => document.getElementById('score-scroll').scrollBy(0, y)", (pt["y"] - 250) if pt else 300)
+        pg.wait_for_timeout(400)
+    if pt: pg.mouse.click(pt["x"], pt["y"])
+    pg.wait_for_timeout(300)
+    got = pg.evaluate("() => window.__m.slice(-1)[0] || ''")
+    check("signs: tapping an ornament in the nocturne explains it", any(k in got for k in ("trill", "turn", "mordent")), (pt, got))
+    check("signs: the cursor over signs is a hand, not a question mark", pg.evaluate("() => getComputedStyle(document.querySelector('#osmd svg .vf-clef')).cursor") == "pointer")
     # the search field's button sits inside the field and never on the next button
     pg.evaluate("() => { openStudioSearch(); }")
     pg.wait_for_timeout(400)
