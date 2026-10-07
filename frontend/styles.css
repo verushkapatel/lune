@@ -11138,3 +11138,74 @@ dialog.settings-dialog[open] > :is(header, section, details, p, div) { width: mi
 .settings-dialog select { width: 140px; height: 42px; border-radius: 12px !important; }
 .settings-dialog .settings-switch, .settings-dialog label:has(input[type="checkbox"]) { display: flex !important; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 4px !important; }
 html[data-theme="light"] .settings-dialog .settings-sec > h3, html[data-theme="light"] .settings-dialog .settings-sec > .settings-h { color: #2238c4 !important; }
+
+/* ===================== Inside the app, after adihuman ===================== */
+/* the royal-blue night at the top of every in-app page */
+html:not([data-theme="light"]) body.is-signed-in.is-home #home,
+html:not([data-theme="light"]) body.is-repertoire #home,
+html:not([data-theme="light"]) body[data-mode="repertoire"] #home {
+  background: radial-gradient(110% 55% at 50% -14%, rgba(40, 62, 235, 0.55) 0%, rgba(20, 32, 150, 0.32) 30%, rgba(6, 9, 50, 0.18) 52%, #000 78%) fixed, #000 !important;
+}
+/* section headings: a blue mono label over a light headline, left aligned */
+#home-member .member-recs h2, #rep-week-h, #rep-plan-h, #rep-list-h {
+  font-family: var(--ui) !important; font-weight: 400 !important; text-transform: none !important; letter-spacing: -0.02em !important;
+  font-size: clamp(26px, 3vw, 34px) !important; color: #f5f5f7 !important; text-align: left !important; margin: 0 0 6px !important;
+}
+#home-member .member-recs h2::before, #rep-week-h::before, #rep-plan-h::before, #rep-list-h::before {
+  display: block; margin-bottom: 8px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--lune-blue-hi);
+}
+#home-member .member-recs h2::before { content: "Tonight"; }
+#rep-week-h::before { content: "Plan"; }
+#rep-plan-h::before { content: "To do"; }
+#rep-list-h::before { content: "Library"; }
+#home-member .member-recs, #home-member .member-recs .member-section-lead { text-align: left !important; }
+#home-member .member-section-lead { color: rgba(255,255,255,0.6) !important; margin: 0 0 20px !important; max-width: 52ch; }
+/* For you: dark cards with a hairline, a blue label, the title large */
+#home-member .member-rec-grid { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important; gap: 12px !important; }
+#home-member .member-rec {
+  border-radius: 16px !important; padding: 20px 20px 18px !important; min-height: 132px; text-align: left; display: flex; flex-direction: column; justify-content: flex-end; gap: 4px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.015)) #0b0b0e !important; border: 1px solid rgba(255,255,255,0.08) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.3s ease, box-shadow 0.3s ease !important;
+}
+#home-member .member-rec:hover { transform: translateY(-3px); border-color: rgba(120, 145, 255, 0.45) !important; box-shadow: 0 24px 60px -24px rgba(61, 92, 255, 0.55), inset 0 1px 0 rgba(255,255,255,0.06); }
+#home-member .member-rec-role { font-family: var(--mono) !important; font-size: 10.5px !important; letter-spacing: 0.16em !important; text-transform: uppercase; color: var(--lune-blue-hi) !important; margin-bottom: auto !important; }
+#home-member .member-rec-title { font-family: var(--ui) !important; font-size: 22px !important; font-weight: 500 !important; line-height: 1.15; color: #f5f5f7 !important; }
+#home-member .member-rec-by { font-style: italic; color: rgba(255,255,255,0.6) !important; font-size: 15px !important; }
+/* the Next card reads like adihuman's product panel */
+#home-member .member-next { padding: 22px 24px !important; border-radius: 18px !important; background: rgba(12, 13, 20, 0.86) !important; border: 1px solid rgba(255,255,255,0.09) !important;
+  box-shadow: 0 40px 120px -40px rgba(40, 70, 255, 0.6), inset 0 1px 0 rgba(255,255,255,0.05) !important; }
+#home-member .member-next h2 { font-size: clamp(24px, 2.6vw, 30px) !important; }
+#home-member .member-next .primary, #home-member .member-next button.primary { background: #3048e0 !important; color: #fff !important; border: 0 !important; box-shadow: 0 8px 24px rgba(61, 92, 255, 0.45); }
+#home-member .member-greeting, #home-member .member-title { color: #f7f7f8 !important; }
+#home-member .member-week-more, #home-member details { border-radius: 14px !important; }
+/* footer without its own box */
+body.is-signed-in .home-footer, body.is-signed-in .member-footer { background: transparent !important; box-shadow: none !important; border: 0 !important; }
+/* Repertoire: empty states as quiet cards, not dashed boxes */
+html:not([data-theme="light"]) .rep-empty { border: 1px solid rgba(255,255,255,0.08) !important; border-style: solid !important; border-radius: 14px !important; background: #0b0b0e !important; color: rgba(255,255,255,0.62) !important; padding: 18px 20px !important; }
+.rep-card { background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.012)) #0b0b0e !important; }
+.rep-card .primary { background: #3048e0 !important; color: #fff !important; border: 0 !important; }
+/* every search field: the arrow inside the field, as in the studio */
+header.bar .top-search { position: relative; align-items: center; }
+header.bar .top-search input { padding-right: 46px !important; }
+header.bar .top-search .search-go {
+  position: absolute !important; right: 5px; top: 50%; transform: translateY(-50%); width: 34px !important; height: 34px !important; min-width: 34px; padding: 0 !important; border-radius: 50% !important;
+  font-size: 0 !important; color: transparent !important; overflow: hidden; display: grid !important; place-items: center; border: 0 !important; background: var(--lune-blue) !important;
+}
+header.bar .top-search .search-go::before {
+  content: ""; width: 14px; height: 14px; background: #fff;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12h13M13 6l6 6-6 6' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12h13M13 6l6 6-6 6' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+/* open-piece tabs: room for a readable name, then a fade, never a hard cut */
+body:not(.studio-compact) .piece-tabs { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent); }
+body:not(.studio-compact) .piece-tab-label { max-width: 150px !important; }
+html[data-theme="light"] #home-member .member-rec { background: #fff !important; border-color: rgba(0,0,0,0.1) !important; }
+#home-member .member-rec-grid button.member-rec, #home-member .member-rec-grid a.member-rec, #home-member .member-rec-grid .member-rec { border-radius: 16px !important; }
+html:not([data-theme="light"]) body.is-repertoire, html:not([data-theme="light"]) body.is-repertoire #repertoire {
+  background: radial-gradient(110% 50% at 50% -14%, rgba(40, 62, 235, 0.5) 0%, rgba(20, 32, 150, 0.28) 30%, rgba(6, 9, 50, 0.14) 52%, #000 78%) fixed, #000 !important;
+}
+html:not([data-theme="light"]) body.is-signed-in.is-home #home { background: radial-gradient(110% 55% at 50% -14%, rgba(40, 62, 235, 0.6) 0%, rgba(20, 32, 150, 0.34) 30%, rgba(6, 9, 50, 0.18) 52%, #000 78%) fixed, #000 !important; }
+html:not([data-theme="light"]) body.is-repertoire #app, html:not([data-theme="light"]) body.is-repertoire main, html:not([data-theme="light"]) body.is-repertoire #home { background: transparent !important; }
+
+html:not([data-theme="light"]) .rep-empty em { color: rgba(255,255,255,0.86); font-style: italic; }
+@media (max-width: 600px) { #home-member .member-title { font-size: 31px !important; margin-bottom: 12px !important; } }

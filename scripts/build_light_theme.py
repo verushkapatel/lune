@@ -46,6 +46,7 @@ NO_FLIP = re.compile(r"lune-key|lune-talk|\.lt-|lune-loader|lune-orb|fx-aurora|s
 # Hand fixes, found by going through every screen in light mode. They win.
 KEEP = """
 /* KEEP: hand fixes */
+html[data-theme="light"][data-theme="light"] #home-member .member-next .primary, html[data-theme="light"][data-theme="light"] .rep-card .primary { background: #2a44d8 !important; color: #ffffff !important; }
 html[data-theme="light"][data-theme="light"] .lp-nav-cta, html[data-theme="light"][data-theme="light"] .hd-send, html[data-theme="light"][data-theme="light"] .lc-send, html[data-theme="light"][data-theme="light"] .lc-round { background: #2a44d8 !important; color: #ffffff !important; }
 /* --dim text reaches 4.5:1 on the page and on surfaces (was #8a8a8a, 3.4:1) */
 html[data-theme="light"] { --dim: #666666; }
