@@ -70,7 +70,7 @@ window.LunePlans = (function () {
     let text = "";
     let via = "rules";
     const model = window.LuneAIProvider?.connected?.();
-    if (model) {
+    if (model && (asked.length || notes.length)) {
       try {
         const ctx = {
           piece: s.title,
@@ -78,9 +78,10 @@ window.LunePlans = (function () {
           remarks: notes.slice(-10).map((n) => ({ bar: n.bar, text: n.body })),
         };
         text = await window.LuneAsk.askModel(
-          "Summarise this practice session for the pianist in two or three short sentences: what they worked on (with bar numbers), what they noticed, and one next step. Use only CONTEXT.",
+          "Write two short sentences to the pianist, addressing them as you: what you worked on (with bar numbers) and one concrete next step. Use only the facts given. Never mention context, data or missing information. If there is nothing to summarise, reply with the single word NONE.",
           ctx
         );
+        if (!usableSummary(text)) text = "";
         if (text) via = "model";
       } catch {
         text = "";
@@ -101,8 +102,14 @@ window.LunePlans = (function () {
     store().syncPrefs?.();
     return all[s.key];
   }
+  // a model reply that talks about itself or its inputs is not a summary
+  function usableSummary(t) {
+    const x = String(t || "").trim();
+    return !!x && !/^none\b/i.test(x) && !/\bcontext\b|does not (have|contain)|no information|not specified|not provided|the pianist|as an ai/i.test(x);
+  }
   function summaryOf(key) {
-    return store()?.prefs?.()?.pieceSummaries?.[key] || null;
+    const s = store()?.prefs?.()?.pieceSummaries?.[key] || null;
+    return s && usableSummary(s.text) ? s : null;
   }
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") flushSummary();

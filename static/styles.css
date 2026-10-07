@@ -11083,3 +11083,58 @@ dialog .ask-empty-h, dialog .chat-lead { font-family: var(--garamond) !important
 /* light theme: the blue deep enough to read on white */
 html[data-theme="light"] .about-kicker, html[data-theme="light"] .member-kicker, html[data-theme="light"] .member-next-k, html[data-theme="light"] .ai-scene-k, html[data-theme="light"] .sm-h, html[data-theme="light"] .coach-kicker, html[data-theme="light"] .chat-sub, html[data-theme="light"] .ask-where, html[data-theme="light"] #chat-sub { color: #2238c4 !important; }
 .lp-nav-cta { background: #3651f0 !important; }
+
+/* Lune at work */
+.lw { display: inline-flex; flex-direction: column; gap: 8px; min-width: 200px; }
+.lw-stage { font-family: var(--mono) !important; font-size: 11.5px !important; letter-spacing: 0.12em; text-transform: uppercase; color: #aebcff;
+  background: linear-gradient(90deg, #8ea4ff 0%, #ffffff 50%, #8ea4ff 100%); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: lw-shine 1.6s linear infinite; }
+.lw-bar { position: relative; display: block; width: 100%; max-width: 260px; height: 2px; border-radius: 2px; background: rgba(255,255,255,0.08); overflow: hidden; }
+.lw-bar i { position: absolute; inset: 0 auto 0 0; width: 92%; background: linear-gradient(90deg, #3d5cff, #8a6bff, #4fd1ff); border-radius: inherit; box-shadow: 0 0 12px rgba(80, 120, 255, 0.8); transform-origin: left; animation: lw-fill 9s cubic-bezier(0.1, 0.8, 0.2, 1) forwards; }
+@keyframes lw-fill { from { transform: scaleX(0.02); } to { transform: scaleX(1); } }
+@keyframes lw-shine { to { background-position: -200% 0; } }
+.lt-bar { margin: 6px auto 0; max-width: 180px; opacity: 0; transition: opacity 0.3s ease; }
+.lune-talk.is-thinking .lt-bar { opacity: 1; }
+.lune-talk:not(.is-thinking) .lt-bar i { animation: none; transform: scaleX(0.02); }
+html[data-theme="light"] .lw-stage { background: linear-gradient(90deg, #2238c4, #5b6cff, #2238c4); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; }
+@media (prefers-reduced-motion: reduce) { .lw-stage { animation: none; color: #aebcff; background: none; } .lw-bar i { animation-duration: 0.01s; } }
+
+/* ===== Character: EB Garamond everywhere, sized to the same x-height ===== */
+:root { --ui: "EB Garamond", "Cormorant Garamond", Garamond, Georgia, serif; --serif: var(--ui); }
+body { font-size-adjust: 0.5; font-feature-settings: "kern", "liga", "onum" 0; }
+h1, h2, .member-title, #hero h1, .home-feat-copy h2, .ai-intro h2 { font-weight: 400 !important; letter-spacing: -0.022em !important; }
+#hero h1 { letter-spacing: -0.03em !important; }
+.home-footer-word, #lune-intro .li-word { font-family: var(--ui) !important; font-weight: 400 !important; letter-spacing: -0.035em !important; }
+button, .primary, .quiet { letter-spacing: 0.01em; }
+
+/* ===== Repertoire cards: one clear column ===== */
+.rep-card { display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 16px !important; padding: 24px 26px !important; border-radius: 22px !important;
+  background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.015)) !important; border: 1px solid rgba(255,255,255,0.09) !important; }
+.rep-card-main { flex: none !important; }
+.rep-card h3 { font-family: var(--ui) !important; font-weight: 500 !important; font-size: clamp(24px, 2.4vw, 30px) !important; line-height: 1.15; margin: 0 0 4px; letter-spacing: -0.01em; }
+.rep-card-by { color: rgba(255,255,255,0.62) !important; font-style: italic; margin: 0 0 14px; }
+.rep-card .rp-row { display: flex; align-items: center; gap: 14px; max-width: 420px; }
+.rep-sum { margin: 16px 0 0 !important; padding: 14px 16px 14px 18px; border-left: 2px solid rgba(110, 139, 255, 0.7); border-radius: 0 14px 14px 0; background: rgba(61, 92, 255, 0.07);
+  font-family: var(--ui) !important; font-size: 17px !important; line-height: 1.55 !important; color: rgba(255,255,255,0.86) !important; max-width: 68ch; }
+.rep-sum-k { display: block; margin-bottom: 4px; font-family: var(--mono) !important; font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; color: #9fb0ff; }
+.rep-card-actions { display: flex !important; flex-wrap: wrap; gap: 8px !important; align-items: center; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 16px; }
+.rep-card-actions button { height: 42px; padding: 0 18px !important; font-size: 15px !important; }
+.rep-card-actions select { height: 42px; padding: 0 36px 0 16px; border-radius: 999px !important; border: 1px solid rgba(255,255,255,0.14) !important; background-color: rgba(255,255,255,0.05) !important; color: inherit; font: inherit; font-size: 15px;
+  -webkit-appearance: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 10l5 5 5-5' fill='none' stroke='%23cfcfcf' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important; background-repeat: no-repeat !important; background-position: right 12px center !important; background-size: 16px !important; }
+.rep-card-actions .primary { margin-left: auto; order: 9; }
+@media (max-width: 600px) { .rep-card { padding: 20px 18px !important; } .rep-card-actions .primary { margin-left: 0; order: -1; flex: 1 1 100%; } }
+
+/* ===== Settings: one centred column, quiet section titles, aligned rows ===== */
+dialog.settings-dialog[open] > :is(header, section, details, p, div) { width: min(620px, calc(100% - 32px)) !important; margin-left: auto !important; margin-right: auto !important; box-sizing: border-box; }
+.settings-dialog .settings-top { padding: 22px 0 16px !important; border-bottom: 1px solid rgba(255,255,255,0.07) !important; }
+.settings-dialog .settings-top h2 { font-size: 34px !important; font-weight: 400 !important; letter-spacing: -0.02em !important; }
+.settings-dialog .settings-sec { margin-top: 26px !important; padding: 0 !important; }
+.settings-dialog .settings-sec > h3, .settings-dialog .settings-sec > .settings-h, .settings-dialog .settings-sec > p:first-child:not([class*="row"]) {
+  font-family: var(--mono) !important; font-size: 11px !important; font-weight: 500 !important; letter-spacing: 0.16em !important; text-transform: uppercase; color: #9fb0ff !important; margin: 0 0 10px 4px !important;
+}
+.settings-dialog .settings-row, .settings-dialog .settings-sec > button { border-radius: 16px !important; padding: 16px 18px !important; background: rgba(255,255,255,0.035) !important; border: 1px solid rgba(255,255,255,0.07) !important; }
+.settings-dialog .settings-row strong { font-size: 18px; font-weight: 500; }
+.settings-dialog .settings-row span { color: rgba(255,255,255,0.62); font-size: 15px; }
+.settings-dialog label:has(select), .settings-dialog .settings-field { display: grid !important; grid-template-columns: 1fr 140px; align-items: center; gap: 12px; padding: 10px 4px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.settings-dialog select { width: 140px; height: 42px; border-radius: 12px !important; }
+.settings-dialog .settings-switch, .settings-dialog label:has(input[type="checkbox"]) { display: flex !important; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 4px !important; }
+html[data-theme="light"] .settings-dialog .settings-sec > h3, html[data-theme="light"] .settings-dialog .settings-sec > .settings-h { color: #2238c4 !important; }

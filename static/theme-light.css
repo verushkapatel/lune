@@ -2386,6 +2386,54 @@ html[data-theme="light"] body.is-home:not(.is-signed-in).lp-scrolled header.bar 
 html[data-theme="light"] .lp-nav-cta {
   background: #0f2ac9 !important;
 }
+html[data-theme="light"] .lw-stage {
+  color: #000e51;
+}
+html[data-theme="light"] .lw-bar {
+  background: rgba(0, 0, 0, 0.08);
+}
+html[data-theme="light"] .lw-bar i {
+  background: linear-gradient(90deg, #001fc2, #8a6bff, #4fd1ff);
+}
+html[data-theme="light"][data-theme="light"] .lw-stage {
+  background: linear-gradient(90deg, #3b51dd, #5b6cff, #3b51dd);
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="light"] .lw-stage {
+    color: #000e51;
+  }
+}
+html[data-theme="light"] .rep-sum {
+  background: rgba(0, 31, 194, 0.07);
+  color: rgba(0, 0, 0, 0.86) !important;
+}
+html[data-theme="light"] .rep-sum-k {
+  color: #001160;
+}
+html[data-theme="light"] .rep-card-actions select {
+  border: 1px solid rgba(0, 0, 0, 0.14) !important;
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+html[data-theme="light"] .settings-dialog .settings-top {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07) !important;
+}
+html[data-theme="light"] .settings-dialog .settings-sec > h3,
+html[data-theme="light"] .settings-dialog .settings-sec > .settings-h,
+html[data-theme="light"] .settings-dialog .settings-sec > p:first-child:not([class*="row"]) {
+  color: #001160 !important;
+}
+html[data-theme="light"] .settings-dialog .settings-row,
+html[data-theme="light"] .settings-dialog .settings-sec > button {
+  background: rgba(0, 0, 0, 0.035) !important;
+  border: 1px solid rgba(0, 0, 0, 0.07) !important;
+}
+html[data-theme="light"] .settings-dialog .settings-row span {
+  color: rgba(0, 0, 0, 0.62);
+}
+html[data-theme="light"] .settings-dialog label:has(select),
+html[data-theme="light"] .settings-dialog .settings-field {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
 /* KEEP: hand fixes */
 html[data-theme="light"][data-theme="light"] .lp-nav-cta, html[data-theme="light"][data-theme="light"] .hd-send, html[data-theme="light"][data-theme="light"] .lc-send, html[data-theme="light"][data-theme="light"] .lc-round { background: #2a44d8 !important; color: #ffffff !important; }
 /* --dim text reaches 4.5:1 on the page and on surfaces (was #8a8a8a, 3.4:1) */
