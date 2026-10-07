@@ -2590,6 +2590,147 @@ html[data-theme="light"] body:not(.studio-compact) .tempo-control .bpm-unit,
 html[data-theme="light"] body:not(.studio-compact) .tempo-control .bpm-meter {
   color: #47474c !important;
 }
+html[data-theme="light"] .la .la-read {
+  color: rgba(0, 0, 0, 0.5) !important;
+}
+html[data-theme="light"] .la .la-mark {
+  color: #001671;
+}
+html[data-theme="light"] .la .la-lead {
+  color: #0b0b0d !important;
+}
+html[data-theme="light"] .la .la-p {
+  color: rgba(0, 0, 0, 0.8) !important;
+}
+html[data-theme="light"] .la .la-line {
+  color: rgba(0, 0, 0, 0.74) !important;
+}
+html[data-theme="light"] .la .la-tag {
+  color: #001671;
+}
+html[data-theme="light"] .la .la-sum {
+  border-top: 1px solid rgba(0, 0, 0, 0.07);
+  color: rgba(0, 0, 0, 0.86) !important;
+}
+html[data-theme="light"] .la .la-sum .la-tag {
+  color: #0b0b0d;
+}
+html[data-theme="light"] .la-stages .la-stage {
+  color: rgba(0, 0, 0, 0.72) !important;
+}
+html[data-theme="light"] .la-stages .la-stage.done {
+  color: rgba(0, 0, 0, 0.38) !important;
+}
+html[data-theme="light"] .ask-msg.ask-from-you,
+html[data-theme="light"] .chat-from-you .chat-bubble {
+  background: rgba(0, 0, 0, 0.06) !important;
+  color: rgba(0, 0, 0, 0.9) !important;
+}
+html[data-theme="light"][data-theme="light"] .ask-msg.ask-from-you,
+html[data-theme="light"][data-theme="light"] .chat-from-you .chat-bubble {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+html[data-theme="light"] header.bar .top-search input,
+html[data-theme="light"] body.is-studio header.bar .top-search input {
+  background: rgba(0, 0, 0, 0.05) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  color: #0b0b0d !important;
+}
+html[data-theme="light"] header.bar .top-search input:focus {
+  border-color: rgba(0, 0, 0, 0.28) !important;
+  background: rgba(0, 0, 0, 0.07) !important;
+}
+html[data-theme="light"] header.bar .top-search .search-go:hover {
+  background: rgba(0, 0, 0, 0.08) !important;
+}
+html[data-theme="light"][data-theme="light"] header.bar .top-search .search-go::before {
+  background: #bbbbbb !important;
+}
+html[data-theme="light"] .wk-n {
+  color: rgba(0, 0, 0, 0.7);
+}
+html[data-theme="light"] .wk-bar {
+  background: rgba(0, 0, 0, 0.08);
+}
+html[data-theme="light"] .wk-days b {
+  border: 1px solid rgba(0, 0, 0, 0.25);
+}
+html[data-theme="light"][data-theme="light"] .wk-bar {
+  background: rgba(255, 255, 255, 0.08);
+}
+html[data-theme="light"][data-theme="light"] .wk-bar i,
+html[data-theme="light"][data-theme="light"] .wk-days b.on {
+  background: #eeeeee;
+  border-color: #eeeeee;
+}
+html[data-theme="light"][data-theme="light"] .wk-days b {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+html[data-theme="light"] body:not(.studio-compact) .score-tools-head {
+  background: rgba(231, 231, 237, 0.72) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 18px 50px -20px rgba(0, 0, 0, 0.184), inset 0 1px 0 rgba(0, 0, 0, 0.05);
+}
+html[data-theme="light"] body:not(.studio-compact) .score-tools-head .lp-tools-bar {
+  border-left: 1px solid rgba(0, 0, 0, 0.1);
+}
+html[data-theme="light"] body:not(.studio-compact) .score-tools-head :is(.lp-tool,
+html[data-theme="light"] #btn-toggle-kbd,
+html[data-theme="light"] #btn-pedal,
+html[data-theme="light"] .access-chip):hover {
+  background: rgba(0, 0, 0, 0.07) !important;
+}
+html[data-theme="light"] body:not(.studio-compact) #listen-dock .transport {
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  background: rgba(233, 233, 239, 0.78) !important;
+  box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.196), inset 0 1px 0 rgba(0, 0, 0, 0.05);
+}
+html[data-theme="light"] .wk-change {
+  color: rgba(0, 0, 0, 0.7) !important;
+}
+html[data-theme="light"] .wk-choose {
+  background: rgba(235, 236, 243, 0.82);
+  border: 1px solid rgba(0, 0, 0, 0.09);
+}
+html[data-theme="light"] .wk-q {
+  color: rgba(0, 0, 0, 0.86);
+}
+html[data-theme="light"] .wk-opts .wk-go {
+  background: #1f37cf !important;
+  color: #000000 !important;
+}
+html[data-theme="light"] .po-piece {
+  background: rgba(235, 236, 243, 0.82) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+html[data-theme="light"] .po-title {
+  color: #0b0b0d;
+}
+html[data-theme="light"] .po-st {
+  color: rgba(0, 0, 0, 0.55);
+}
+html[data-theme="light"] .po-bar {
+  background: rgba(0, 0, 0, 0.08);
+}
+html[data-theme="light"] .po-sum {
+  color: rgba(0, 0, 0, 0.72);
+}
+html[data-theme="light"] .po-sum .la-tag {
+  color: #001671;
+}
+html[data-theme="light"] .po-dim {
+  color: rgba(0, 0, 0, 0.55);
+}
+html[data-theme="light"][data-theme="light"] :is(.wk-choose,
+html[data-theme="light"] .po-piece) {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+html[data-theme="light"][data-theme="light"] .po-bar i {
+  background: #eeeeee;
+}
+html[data-theme="light"] #member-streak .wk-change {
+  color: #001671 !important;
+}
 /* KEEP: hand fixes */
 html[data-theme="light"][data-theme="light"] #home-member .member-next .primary, html[data-theme="light"][data-theme="light"] .rep-card .primary { background: #2a44d8 !important; color: #ffffff !important; }
 html[data-theme="light"][data-theme="light"] .lp-nav-cta, html[data-theme="light"][data-theme="light"] .hd-send, html[data-theme="light"][data-theme="light"] .lc-send, html[data-theme="light"][data-theme="light"] .lc-round { background: #2a44d8 !important; color: #ffffff !important; }

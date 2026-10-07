@@ -73,6 +73,42 @@ window.LuneImpact = (function () {
     return "Show up once more this week. Small sessions still count.";
   }
 
+  /** No schedule: the pieces in progress, with where each stands and Lune AI's last summary. */
+  async function piecesOverviewHtml() {
+    const s = store();
+    const pieces = ((await s?.listPieces?.().catch?.(() => [])) || []).filter((p) => (p.status || "learning") !== "ready").slice(0, 4);
+    if (!pieces.length) return `<span class="wk-k">Your pieces</span><span class="wk-q">Open any score and press Save to keep it here.</span>`;
+    const label = { learning: "Learning", polishing: "Polishing", ready: "Ready", paused: "Paused" };
+    return `<span class="wk-k">Your pieces</span><span class="po">${pieces
+      .map((p) => {
+        const sum = window.LunePlans?.summaryOf?.(p.piece_key);
+        const prog = window.LunePlans?.progressOf?.(p.piece_key);
+        return `<button type="button" class="po-piece" data-open="${esc(p.piece_key)}">
+          <span class="po-top"><span class="po-title">${esc(p.title)}</span><span class="po-st">${esc(label[p.status] || "Learning")}</span></span>
+          <span class="po-bar"><i style="width:${prog?.pct ?? 0}%"></i></span>
+          ${sum ? `<span class="po-sum"><span class="la-tag">${sum.via === "model" ? "@Lune AI" : "@Last session"}</span> ${esc(sum.text)}</span>` : `<span class="po-sum po-dim">No session summary yet. It appears after you practise.</span>`}
+        </button>`;
+      })
+      .join("")}</span>`;
+  }
+  document.addEventListener("lune:plan-mode", () => paintHomeImpact().catch?.(() => {}));
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest?.(".po-piece[data-open]");
+    if (b) window.LunePractice?.openFromRepertoire?.(b.dataset.open);
+  });
+  /** This week as a bar: days practised (or ticked off in the plan) out of the goal. */
+  function weekBarHtml() {
+    const s = store();
+    const snap = s?.weekSnapshot?.() || { days: 0, goalDays: 4 };
+    const plan = window.LunePlans?.currentPlan?.();
+    const ticked = plan ? Object.values(plan.done || {}).filter(Boolean).length : 0;
+    const goal = Math.max(1, plan?.days?.length || snap.goalDays || 4);
+    const done = Math.min(goal, Math.max(snap.days || 0, ticked));
+    const pct = Math.round((done / goal) * 100);
+    return `<span class="wk-top"><span class="wk-k">This week</span><span class="wk-n">${done} of ${goal} day${goal === 1 ? "" : "s"}</span></span>
+      <span class="wk-bar" role="progressbar" aria-label="Practice days this week" aria-valuemin="0" aria-valuemax="${goal}" aria-valuenow="${done}"><i style="width:${pct}%"></i></span>
+      <span class="wk-days" aria-hidden="true">${Array.from({ length: goal }, (_, i) => `<b class="${i < done ? "on" : ""}"></b>`).join("")}</span>`;
+  }
   function streakLine() {
     const s = store();
     if (!s?.weekSnapshot) return "";
@@ -232,7 +268,20 @@ window.LuneImpact = (function () {
   async function paintHomeImpact() {
     if (!window.LuneOnboard?.signedIn?.()) return;
     const streak = $("member-streak");
-    if (streak) streak.textContent = streakLine();
+    if (streak) {
+      const mode = window.LunePlans?.planMode?.();
+      if (mode === "plan") {
+        streak.innerHTML = weekBarHtml() + `<button type="button" class="link-btn wk-change" data-wp-new>Change plan</button>`;
+        // a week without a plan gets one, made from the goal set at the start
+        window.LunePlans?.ensureWeekPlan?.().then((made) => { if (made) streak.innerHTML = weekBarHtml() + `<button type="button" class="link-btn wk-change" data-wp-new>Change plan</button>`; }).catch(() => {});
+      } else if (mode === "free") {
+        streak.innerHTML = await piecesOverviewHtml();
+      } else {
+        streak.innerHTML = `<span class="wk-choose"><span class="wk-k">Your week</span>
+          <span class="wk-q">Should Lune plan your week around your goal, or would you rather play whenever it suits you?</span>
+          <span class="wk-opts"><button type="button" class="quiet wk-go" data-wp-choose="plan">Plan my week</button><button type="button" class="quiet" data-wp-choose="free">No schedule</button></span></span>`;
+      }
+    }
 
     const tonight = $("member-tonight");
     const tonightBody = $("member-tonight-body");
@@ -894,6 +943,7 @@ window.LuneImpact = (function () {
   }
 
   return {
+    weekBarHtml,
     init,
     paintHomeImpact,
     openWeeklyReview,

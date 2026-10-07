@@ -118,7 +118,7 @@ def section_ai(browser):
         pg.evaluate(f"() => {{ LuneAsk.runTask('{task}', 7); }}")
         # data-via is set once the answer has finished arriving
         pg.wait_for_function(f"() => document.querySelectorAll('#ask-log .ask-msg[data-via=model]').length > {n}", timeout=15000)
-        last = pg.evaluate("() => [...document.querySelectorAll('#ask-log .ask-msg')].pop().textContent")
+        last = pg.evaluate("() => [...document.querySelectorAll('#ask-log .ask-msg')].pop().textContent.replace(/^◠ Reading.*?bar [0-9]+/, '')")
         sent = json.loads(urllib.request.urlopen(STANDIN.replace("/v1/chat/completions", "/")).read())
         user = sent["messages"][-1]["content"]
         ok = last == "STANDIN reply about bar 7." and '"number":7' in user and sent["messages"][0]["role"] == "system"
@@ -135,7 +135,7 @@ def section_ai(browser):
     check("ai: with no bar selected, Summarise my practice is offered", tasks == ["summarizePractice"], tasks)
     pg.click('#ask-chips [data-task="summarizePractice"]')
     pg.wait_for_timeout(1500)
-    last = pg.evaluate("() => [...document.querySelectorAll('#ask-log .ask-msg')].pop().textContent")
+    last = pg.evaluate("() => [...document.querySelectorAll('#ask-log .ask-msg')].pop().textContent.replace(/^◠ Reading.*?bar [0-9]+/, '')")
     check("ai: Summarise my practice answers from the model", last == "STANDIN reply about the piece.", last)
     check("ai: no page errors", not pg.errors, pg.errors[:3])
 
@@ -666,7 +666,7 @@ def section_account(browser):
     check("account: the model actions appear", tasks == ["explainBar", "whyHard", "suggestPractice", "explainFingering"], tasks)
     pg.evaluate("() => LuneAsk.ask('What notes are in this bar?')")
     pg.wait_for_function("() => document.querySelector('#ask-log .ask-msg[data-via=model]')", timeout=15000)
-    last = pg.evaluate("() => [...document.querySelectorAll('#ask-log .ask-msg')].pop().textContent")
+    last = pg.evaluate("() => [...document.querySelectorAll('#ask-log .ask-msg')].pop().textContent.replace(/^◠ Reading.*?bar [0-9]+/, '')")
     check("account: a question is answered by Lune AI through the server", last == "STANDIN account reply about bar 5.", last)
     import urllib.request as _u
 
@@ -674,7 +674,7 @@ def section_account(browser):
     check("account: the server, not the browser, supplies the system prompt", sent["messages"][0]["content"].startswith("You are Lune, a piano practice"))
     pg.evaluate("() => { LuneAsk.runTask('whyHard', 5); }")
     pg.wait_for_timeout(1500)
-    last = pg.evaluate("() => [...document.querySelectorAll('#ask-log .ask-msg')].pop().textContent")
+    last = pg.evaluate("() => [...document.querySelectorAll('#ask-log .ask-msg')].pop().textContent.replace(/^◠ Reading.*?bar [0-9]+/, '')")
     check("account: Why is this hard? goes to Lune AI too", last == "STANDIN account reply about bar 5.", last)
 
     # a token the server rejects: the built-in reply, with the server's reason
@@ -1029,7 +1029,7 @@ def section_practice_loop(browser):
     pg.evaluate("() => LuneAsk.close()")
     pg.evaluate("() => LuneAsk.ask('What is the fingering?')")
     pg.wait_for_timeout(400)
-    fing = pg.evaluate("() => [...document.querySelectorAll('#ask-log .ask-msg')].pop().textContent")
+    fing = pg.evaluate("() => [...document.querySelectorAll('#ask-log .ask-msg')].pop().textContent.replace(/^◠ Reading.*?bar [0-9]+/, '')")
     check("loop: fingering is called suggested fingering, and the edition may differ", fing.startswith("Suggested fingering") and "edition may print different fingers" in fing, fing[:200])
     pg.evaluate("() => LuneAsk.close()")
     select_bar(pg, 12)
@@ -1532,6 +1532,7 @@ def section_sync(browser):
     pg.wait_for_timeout(1200)
     # pedal marks: on demand, under every system, at the changes Lune plays
     pg.evaluate("() => { try { localStorage.removeItem('lune.pedal'); } catch (e) {} }")
+    pg.evaluate("() => { const h = document.querySelector('.score-tools-head'); if (h && !h.classList.contains('tools-open')) document.getElementById('btn-tools-more')?.click(); }")
     pg.click("#btn-pedal")
     pg.wait_for_timeout(700)
     ped = pg.evaluate("() => { const l = document.getElementById('pedal-layer'); return { ped: l?.querySelectorAll('.pedal-ped').length || 0, notch: l?.querySelectorAll('.pedal-notch').length || 0, pressed: document.getElementById('btn-pedal').getAttribute('aria-pressed') }; }")
@@ -1579,8 +1580,39 @@ def section_sync(browser):
     ph.evaluate("() => document.getElementById('btn-metro').getAttribute('aria-pressed') === 'true' && document.getElementById('btn-metro').click()")
     ph.context.close()
 
+def section_luneai(browser):
+    """Lune AI reads a span of bars one at a time, sums up practice, and plans the week."""
+    pg = new_page(browser)
+    open_piece(pg)
+    pg.evaluate("() => LuneAsk.open({bar: 5})")
+    pg.wait_for_timeout(300)
+    pg.fill("#ask-input", "The first four bars are difficult")
+    pg.keyboard.press("Enter")
+    pg.wait_for_timeout(2500)
+    ans = pg.evaluate("() => { const m = [...document.querySelectorAll('#ask-log .ask-msg.ask-from-lune')].pop(); return { tags: [...m.querySelectorAll('.la-tag')].map(t => t.textContent), read: m.querySelector('.la-read')?.textContent || '', mono: getComputedStyle(m.querySelector('.la-line')).fontFamily }; }")
+    check("lune ai: 'the first four bars' gets a line for each of bars 1 to 4, then a summary", ans["tags"][:4] == ["@Bar 1", "@Bar 2", "@Bar 3", "@Bar 4"] and "Summary" in ans["tags"], ans)
+    check("lune ai: answers open with what Lune is reading, in the reading-log type", "Reading" in ans["read"] and "bars 1–4" in ans["read"] and "Mono" in ans["mono"], ans)
+    # playing counts toward the Repertoire summary
+    s = pg.evaluate("""async () => { const key = LunePractice.keyFor(state.piece); for (const b of [1, 2, 3, 4, 5, 6]) LunePlans.noteActivity('play', { key, title: 'Für Elise', bar: b });
+      const r = await LunePlans.flushSummary(); return r ? r.text : ''; }""")
+    check("repertoire: a session of playing alone leaves a summary of the bars played", s.startswith("You played bars 1 to 6"), s)
+    # the week: planned from the goal, and drawn as a bar
+    w = pg.evaluate("""async () => { const S = window.LuneStore; const st = S.status.bind(S); S.status = () => Object.assign({}, st(), { signedIn: true });
+      S.setPref('weekPlan', null); S.setPref('practiceDays', 3); S.setPref('practiceMins', 20); S.setPref('weekPlanMode', 'plan');
+      const made = await LunePlans.ensureWeekPlan(); const p = LunePlans.currentPlan(); const host = document.createElement('div'); host.innerHTML = LuneImpact.weekBarHtml();
+      return { made, days: p ? p.days.length : 0, mins: p ? p.mins : 0, bar: !!host.querySelector('.wk-bar[role=progressbar]'), dots: host.querySelectorAll('.wk-days b').length }; }""")
+    check("plan: without a plan this week, Lune makes one from the goal (3 days, 20 minutes)", w["made"] and w["days"] == 3 and w["mins"] == 20, w)
+    check("plan: the week shows as a progress bar with a dot for each planned day", w["bar"] and w["dots"] == 3, w)
+    # no schedule: no plan is made; the home shows the pieces and their summaries
+    f = pg.evaluate("""async () => { LunePlans.setPlanMode('free'); const made = await LunePlans.ensureWeekPlan(); return { made, plan: !!LunePlans.currentPlan(), mode: LunePlans.planMode() }; }""")
+    check("plan: choosing No schedule clears the plan and Lune makes none", f["mode"] == "free" and not f["made"] and not f["plan"], f)
+    pg.evaluate("() => { LunePlans.setPlanMode(null); }")
+    check("plan: until chosen, nothing is planned for the pianist", not pg.evaluate("async () => await LunePlans.ensureWeekPlan()"))
+    check("lune ai: no page errors", not pg.errors, pg.errors)
+    pg.context.close()
 
-SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week, "catalogue": section_catalogue, "console": section_console, "account": section_account, "latest": section_latest, "voice": section_voice, "progress": section_progress, "home": section_home, "loop": section_practice_loop, "studio": section_studio, "plans": section_plans, "voice2": section_voice2, "aipage": section_aipage, "fixes": section_fixes, "timing": section_timing, "sync": section_sync}
+
+SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week, "catalogue": section_catalogue, "console": section_console, "account": section_account, "latest": section_latest, "voice": section_voice, "progress": section_progress, "home": section_home, "loop": section_practice_loop, "studio": section_studio, "plans": section_plans, "voice2": section_voice2, "aipage": section_aipage, "fixes": section_fixes, "timing": section_timing, "sync": section_sync, "luneai": section_luneai}
 
 if __name__ == "__main__":
     want = sys.argv[1:] or list(SECTIONS)

@@ -11283,3 +11283,117 @@ body:not(.studio-compact) #scrub { accent-color: #f5f5f7; }
 .ask-msg, .chat-bubble, .lune-chat .chat-log, .lt-caption, .rep-sum, .hd-you { font-size-adjust: none !important; }
 .ask-msg.ask-from-lune, .chat-from-lune .chat-bubble { font-size: 17px !important; }
 body:not(.studio-compact) .tempo-control .bpm-unit, body:not(.studio-compact) .tempo-control .bpm-meter { color: #a9a9ae !important; }
+
+/* ===================== Type at its natural size ===================== */
+body { font-size-adjust: none !important; }
+
+/* ===================== Lune's answers: a reading log, as in the hero ===================== */
+.ask-msg.la, .chat-bubble.la, .la { font-size: 15.5px !important; line-height: 1.6 !important; }
+.la .la-read { margin: 0 0 12px !important; font-family: var(--mono) !important; font-size: 12.5px !important; letter-spacing: 0.01em; color: rgba(255,255,255,0.5) !important; display: flex; align-items: center; gap: 8px; }
+.la .la-mark { color: #8ea4ff; }
+.la .la-lead { margin: 0 0 12px !important; font-family: var(--ui) !important; font-size: 17px !important; line-height: 1.5 !important; color: #f2f2f4 !important; }
+.la .la-p { margin: 0 0 10px !important; font-family: var(--ui) !important; font-size: 16px !important; color: rgba(255,255,255,0.8) !important; }
+.la .la-line { margin: 0 !important; padding: 5px 0 !important; font-family: var(--mono) !important; font-size: 12.8px !important; line-height: 1.65 !important; color: rgba(255,255,255,0.74) !important; }
+.la .la-tag { color: #8ea4ff; font-weight: 600; margin-right: 10px; white-space: nowrap; }
+.la .la-sum { margin-top: 8px !important; padding-top: 10px !important; border-top: 1px solid rgba(255,255,255,0.07); color: rgba(255,255,255,0.86) !important; }
+.la .la-sum .la-tag { color: #f2f2f4; }
+/* the same log while Lune works */
+.la-working .la-read { margin-bottom: 6px !important; }
+.la-stages .la-stage { display: flex; align-items: center; gap: 10px; color: rgba(255,255,255,0.72) !important; animation: hd-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.la-stages .la-stage.done { color: rgba(255,255,255,0.38) !important; }
+.la-dot { width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,0.75); flex: none; }
+.la-stage:not(.done) .la-dot { animation: la-pulse 1.1s ease-in-out infinite; }
+.la-stage.done .la-dot { background: rgba(142, 164, 255, 0.7); }
+@keyframes la-pulse { 50% { opacity: 0.25; transform: scale(0.7); } }
+.ask-thinking, .chat-wait { background: transparent !important; border: 0 !important; padding-left: 0 !important; }
+/* your question: a quiet bubble */
+.ask-msg.ask-from-you, .chat-from-you .chat-bubble { font-family: var(--ui) !important; font-size: 15.5px !important; background: rgba(255,255,255,0.06) !important; color: rgba(255,255,255,0.9) !important; border: 0 !important; border-radius: 14px !important; padding: 12px 16px !important; }
+html[data-theme="light"] .la .la-line, html[data-theme="light"] .la .la-read { color: #444 !important; }
+html[data-theme="light"] .la .la-lead { color: #111 !important; }
+html[data-theme="light"] .la .la-tag { color: #2238c4; }
+html[data-theme="light"] .ask-msg.ask-from-you, html[data-theme="light"] .chat-from-you .chat-bubble { background: rgba(0,0,0,0.05) !important; color: #111 !important; }
+@media (prefers-reduced-motion: reduce) { .la-stages .la-stage, .la-dot { animation: none !important; } }
+
+/* ===================== Search: slim, quiet, an arrow not a disc ===================== */
+header.bar .top-search input, body.is-studio header.bar .top-search input { height: 36px !important; font-size: 14.5px !important; padding: 0 40px 0 14px !important; border-radius: 10px !important;
+  background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(255,255,255,0.1) !important; color: #f2f2f4 !important; box-shadow: none !important; }
+header.bar .top-search input:focus { border-color: rgba(255,255,255,0.28) !important; background: rgba(255,255,255,0.07) !important; outline: none; }
+header.bar .top-search .search-go, body.is-studio header.bar .top-search .search-go { width: 28px !important; height: 28px !important; min-width: 28px; right: 4px !important; border-radius: 8px !important; background: transparent !important; box-shadow: none !important; }
+header.bar .top-search .search-go::before, body.is-studio header.bar .top-search .search-go::before { background: rgba(255,255,255,0.6) !important; width: 15px; height: 15px; }
+header.bar .top-search .search-go:hover { background: rgba(255,255,255,0.08) !important; }
+header.bar .top-search .search-go:hover::before { background: #fff !important; }
+body.is-studio:not(.studio-compact).studio-search-open .top-search { flex: 0 1 280px !important; }
+html[data-theme="light"] header.bar .top-search .search-go::before { background: #444 !important; }
+:is(#ask-lune, #lune-chat, #home-member, body) .la :is(.la-read, .la-line, .la-line *, .la-read *) { font-family: var(--mono) !important; }
+:is(#ask-lune, #lune-chat, #home-member, body) .la :is(.la-lead, .la-p, .la-lead *, .la-p *) { font-family: var(--ui) !important; }
+
+/* ===== This week, as a bar ===== */
+#member-streak, .wk { display: grid !important; gap: 8px; width: 100%; max-width: 520px; margin: 18px auto 0; text-align: left; }
+.wk { margin: 0 0 16px; max-width: none; }
+.wk-top { display: flex; justify-content: space-between; align-items: baseline; }
+.wk-k { font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--lune-blue-hi); }
+.wk-n { font-family: var(--mono); font-size: 12px; color: rgba(255,255,255,0.7); }
+.wk-bar { position: relative; height: 3px; border-radius: 3px; background: rgba(255,255,255,0.08); overflow: hidden; }
+.wk-bar i { position: absolute; inset: 0 auto 0 0; background: #f2f2f4; border-radius: inherit; transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1); }
+.wk-days { display: flex; gap: 6px; }
+.wk-days b { width: 8px; height: 8px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.25); }
+.wk-days b.on { background: #f2f2f4; border-color: #f2f2f4; }
+html[data-theme="light"] .wk-n { color: #444; }
+html[data-theme="light"] .wk-bar { background: rgba(0,0,0,0.08); }
+html[data-theme="light"] .wk-bar i, html[data-theme="light"] .wk-days b.on { background: #111; border-color: #111; }
+html[data-theme="light"] .wk-days b { border-color: rgba(0,0,0,0.3); }
+
+/* ===== Score studio: floating glass, as on adihuman ===== */
+body:not(.studio-compact) .score-tools-head {
+  width: max-content !important; max-width: calc(100% - 32px); margin: 12px auto 4px !important; padding: 5px !important; gap: 4px !important; border-radius: 999px !important;
+  background: rgba(18, 18, 24, 0.72) !important; border: 1px solid rgba(255,255,255,0.1) !important; -webkit-backdrop-filter: blur(18px) saturate(1.3); backdrop-filter: blur(18px) saturate(1.3);
+  box-shadow: 0 18px 50px -20px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.05); position: relative; z-index: 5;
+}
+body:not(.studio-compact) .score-tools-head .lp-tools-bar { margin-left: 4px !important; padding-left: 8px; border-left: 1px solid rgba(255,255,255,0.1); }
+body:not(.studio-compact) .score-tools-head .anno-seg { border: 0 !important; background: transparent !important; }
+body:not(.studio-compact) .score-tools-head :is(.lp-tool, #btn-toggle-kbd, #btn-pedal, .access-chip) { border-color: transparent !important; background: transparent !important; }
+body:not(.studio-compact) .score-tools-head :is(.lp-tool, #btn-toggle-kbd, #btn-pedal, .access-chip):hover { background: rgba(255,255,255,0.07) !important; }
+body:not(.studio-compact) .score-tools-head #btn-tell { background: #f5f5f7 !important; color: #0a0a0a !important; }
+/* the player floats over the bottom edge */
+body:not(.studio-compact) #listen-dock { background: transparent !important; border: 0 !important; padding: 0 16px 14px !important; }
+body:not(.studio-compact) #listen-dock .transport {
+  max-width: 980px; margin: 0 auto !important; border-radius: 20px !important; border: 1px solid rgba(255,255,255,0.1) !important;
+  background: rgba(16, 16, 22, 0.78) !important; box-shadow: 0 24px 60px -24px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+/* the keyboard's own label row is noise: Hide lives in More */
+body:not(.studio-compact) .piano-dock-head, body:not(.studio-compact) .piano-dock .dock-head, body:not(.studio-compact) .kbd-dock-head { display: none !important; }
+/* a calmer frame for the score */
+body:not(.studio-compact) .score-scroll .score, body:not(.studio-compact) #score-scroll > .score-page { border-color: rgba(255,255,255,0.07) !important; border-radius: 18px !important; }
+body.is-studio .guest-banner, body.is-studio .studio-guest { font-size: 14px; }
+body:not(.studio-compact) #listen-dock .transport { display: flex !important; flex-wrap: nowrap !important; align-items: center !important; gap: 12px !important; padding: 8px 10px 8px 8px !important; grid-template-columns: none !important; }
+body:not(.studio-compact) #listen-dock .transport-scrub { flex: 1 1 auto !important; min-width: 0; order: 0; margin: 0 !important; display: grid; gap: 2px; }
+body:not(.studio-compact) #listen-dock .tempo-control { flex: none !important; order: 1; margin: 0 !important; }
+body:not(.studio-compact) #listen-dock .scrub-meta { margin: 0 !important; }
+body:not(.studio-compact) #listen-dock .scrub-ticks { display: none !important; }
+body:not(.studio-compact) #listen-dock { padding-top: 8px !important; }
+body:not(.studio-compact) #btn-stop { width: 40px !important; min-width: 40px !important; max-width: 40px !important; }
+/* the week: a choice, a plan, or the pieces in progress */
+.wk-change { justify-self: start; font-size: 14px; color: rgba(255,255,255,0.7) !important; }
+.wk-choose { display: grid; gap: 10px; padding: 18px 20px; border-radius: 16px; background: rgba(12,13,20,0.82); border: 1px solid rgba(255,255,255,0.09); }
+.wk-q { font-size: 16px; line-height: 1.5; color: rgba(255,255,255,0.86); }
+.wk-opts { display: flex; gap: 8px; flex-wrap: wrap; }
+.wk-opts button { height: 40px; padding: 0 18px; }
+.wk-opts .wk-go { background: #3048e0 !important; color: #fff !important; border: 0 !important; }
+.po { display: grid; gap: 8px; }
+.po-piece { display: grid; gap: 8px; text-align: left; width: 100%; padding: 14px 16px; border-radius: 14px !important; background: rgba(12,13,20,0.82) !important; border: 1px solid rgba(255,255,255,0.08) !important; cursor: pointer; color: inherit; font: inherit; transition: border-color 0.2s ease, transform 0.2s ease; }
+.po-piece:hover { border-color: rgba(120,145,255,0.45) !important; transform: translateY(-1px); }
+.po-top { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.po-title { font-size: 18px; font-weight: 500; color: #f2f2f4; }
+.po-st { font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.55); }
+.po-bar { height: 2px; border-radius: 2px; background: rgba(255,255,255,0.08); position: relative; overflow: hidden; }
+.po-bar i { position: absolute; inset: 0 auto 0 0; background: #f2f2f4; }
+.po-sum { font-family: var(--mono); font-size: 12.5px; line-height: 1.6; color: rgba(255,255,255,0.72); }
+.po-sum .la-tag { color: #8ea4ff; font-weight: 600; margin-right: 8px; }
+.po-dim { color: rgba(255,255,255,0.55); }
+html[data-theme="light"] :is(.wk-choose, .po-piece) { background: #fff !important; border-color: rgba(0,0,0,0.1) !important; }
+html[data-theme="light"] :is(.wk-q, .po-title) { color: #111; }
+html[data-theme="light"] :is(.po-sum, .po-st, .po-dim, .wk-change) { color: #444 !important; }
+html[data-theme="light"] .po-bar i { background: #111; }
+html[data-theme="light"] .po-sum .la-tag { color: #2238c4; }
+#member-streak .wk-change { margin-top: 6px; padding: 0 !important; height: auto !important; background: none !important; border: 0 !important; font-family: var(--mono); font-size: 11px !important; letter-spacing: 0.12em; text-transform: uppercase; color: #8ea4ff !important; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
+html[data-theme="light"] #member-streak .wk-change { color: #2238c4 !important; }

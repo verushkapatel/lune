@@ -1758,9 +1758,16 @@ window.LunePractice = (function () {
     const wp = window.LunePlans?.currentPlan?.();
     const weekHost = $("rep-week-plan");
     if (weekHost) {
-      weekHost.innerHTML = wp
-        ? window.LunePlans.planHtml(wp)
-        : `<p class="rep-empty">Tell Lune what you want to get done, and it plans each day.</p>`;
+      const bar = window.LuneImpact?.weekBarHtml ? `<div class="wk">${window.LuneImpact.weekBarHtml()}</div>` : "";
+      const mode = window.LunePlans?.planMode?.();
+      weekHost.innerHTML = mode === "free"
+        ? `<p class="rep-empty">No schedule: practise whenever it suits you. <button type="button" class="link-btn" data-wp-choose="plan">Plan my week instead</button></p>`
+        : wp
+          ? bar + window.LunePlans.planHtml(wp)
+          : mode === "plan"
+            ? `<p class="rep-empty">Lune is making this week’s plan from your goal…</p>`
+            : `<p class="rep-empty">Lune can plan your week around your goal, or you can play whenever it suits you. <button type="button" class="link-btn" data-wp-choose="plan">Plan my week</button> · <button type="button" class="link-btn" data-wp-choose="free">No schedule</button></p>`;
+      if (!wp && mode === "plan") window.LunePlans?.ensureWeekPlan?.().then((made) => made && renderRepertoire()).catch(() => {});
     }
     let pieces = [];
     let counts = {};
@@ -2417,7 +2424,8 @@ window.LunePractice = (function () {
           <select id="set-mins" aria-describedby="set-mins-note">${[10, 15, 20, 30, 45, 60, 90].map((n) => `<option ${n === mins ? "selected" : ""}>${n}</option>`).join("")}</select>
         </div>
         <p class="settings-note" id="set-mins-note">Plans fit this. Lune never times you.</p>
-        ${row("plan-week", "Plan my week", "Day by day, from your goal")}
+        ${window.LunePlans?.planMode?.() === "free" ? row("plan-week", "Plan my week", "Turn on a weekly plan") : row("plan-week", "Change my week’s plan", "Days, minutes and goal")}
+        ${window.LunePlans?.planMode?.() === "free" ? "" : row("plan-free", "No schedule", "Play whenever it suits you")}
         ${signedIn ? row("week", "This week", "Your progress") : ""}
         ${row("example-week", "How This week works", "A quick example")}
       </section>
@@ -2612,6 +2620,7 @@ window.LunePractice = (function () {
       else if (act === "example-week") openExampleWeek();
       else if (act === "chat") window.LuneAsk?.goAiPage?.();
       else if (act === "plan-week") window.LunePlans?.openWizard?.();
+      else if (act === "plan-free") { window.LunePlans?.setPlanMode?.("free"); d.close?.(); }
       else if (act === "upload") $("file")?.click();
       else if (act === "feedback") window.LuneFeedback?.open?.();
       else if (act === "credits") document.querySelector("[data-open-credits]")?.click();
@@ -3494,3 +3503,4 @@ window.LunePractice = (function () {
     __test: { wordsToNumber, barsText },
   };
 })();
+document.addEventListener("lune:plan-mode", () => { if (document.body.classList.contains("is-repertoire")) window.LunePractice?.showRepertoire?.(); });

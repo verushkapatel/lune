@@ -48,17 +48,36 @@ window.LunePlans = (function () {
 
   /* ---------------- practice summaries ---------------- */
   let session = null; // { key, title, start, questions, notes }
-  function noteActivity(kind, { key, title } = {}) {
+  function noteActivity(kind, { key, title, bar } = {}) {
     if (!key) return;
     if (session && session.key !== key) flushSummary();
-    if (!session) session = { key, title, start: Date.now(), questions: 0, notes: 0 };
+    if (!session) session = { key, title, start: Date.now(), questions: 0, notes: 0, played: new Set(), playMs: 0, lastPlay: 0 };
     if (kind === "question") session.questions += 1;
     if (kind === "note") session.notes += 1;
+    if (kind === "play" && bar > 0) {
+      const now = Date.now();
+      // time at the piano: the gaps between bars while it plays, never a long pause
+      if (session.lastPlay && now - session.lastPlay < 12000) session.playMs += now - session.lastPlay;
+      session.lastPlay = now;
+      session.played.add(Number(bar));
+    }
   }
+  const spanText = (bars) => {
+    if (!bars.length) return "";
+    const runs = [];
+    for (const b of bars) {
+      const last = runs[runs.length - 1];
+      if (last && b === last[1] + 1) last[1] = b;
+      else runs.push([b, b]);
+    }
+    return runs.slice(0, 4).map(([a, z]) => (a === z ? `${a}` : `${a} to ${z}`)).join(", ");
+  };
   async function flushSummary() {
     const s = session;
     session = null;
-    if (!s || !(s.questions + s.notes)) return null;
+    const played = s ? [...(s.played || [])].sort((a, b) => a - b) : [];
+    const mins = s ? Math.round((s.playMs || 0) / 60000) : 0;
+    if (!s || !(s.questions + s.notes) && played.length < 2) return null;
     let asked = [];
     try {
       asked = JSON.parse(localStorage.getItem(`lune.ask.${s.key}`) || "[]").filter((h) => h.t >= s.start);
@@ -66,16 +85,17 @@ window.LunePlans = (function () {
       asked = [];
     }
     const notes = ((await store().listNotes(s.key).catch(() => [])) || []).filter((n) => Date.parse(n.created_at) >= s.start - 1000);
-    const bars = [...new Set([...asked.map((h) => h.bar), ...notes.map((n) => n.bar)].filter((b) => b > 0))].sort((a, b) => a - b);
+    const bars = [...new Set([...asked.map((h) => h.bar), ...notes.map((n) => n.bar), ...played].filter((b) => b > 0))].sort((a, b) => a - b);
     let text = "";
     let via = "rules";
     const model = window.LuneAIProvider?.connected?.();
-    if (model && (asked.length || notes.length)) {
+    if (model && (asked.length || notes.length || played.length >= 2)) {
       try {
         const ctx = {
           piece: s.title,
           questionsAndAnswers: asked.slice(-8).map((h) => ({ bar: h.bar || null, question: h.q, answer: String(h.a || "").slice(0, 400) })),
           remarks: notes.slice(-10).map((n) => ({ bar: n.bar, text: n.body })),
+          playedThrough: played.length ? { bars: spanText(played), minutes: mins || null } : null,
         };
         text = await window.LuneAsk.askModel(
           "Write two short sentences to the pianist, addressing them as you: what you worked on (with bar numbers) and one concrete next step. Use only the facts given. Never mention context, data or missing information. If there is nothing to summarise, reply with the single word NONE.",
@@ -87,14 +107,18 @@ window.LunePlans = (function () {
         text = "";
       }
     }
-    if (!text && !asked.length && !notes.length) return null;
+    if (!text && !asked.length && !notes.length && played.length < 2) return null;
     if (!text) {
+      const said = [];
+      if (played.length >= 2) said.push(`You played bars ${spanText(played)}${mins ? ` for ${mins} minute${mins === 1 ? "" : "s"}` : ""}.`);
+      const talked = [...new Set([...asked.map((h) => h.bar), ...notes.map((n) => n.bar)].filter((b) => b > 0))].sort((a, b) => a - b);
       const parts = [];
-      if (asked.length) parts.push(`${asked.length} question${asked.length === 1 ? "" : "s"}`);
-      if (notes.length) parts.push(`${notes.length} remark${notes.length === 1 ? "" : "s"}`);
+      if (asked.length) parts.push(`asked ${asked.length} question${asked.length === 1 ? "" : "s"}`);
+      if (notes.length) parts.push(`left ${notes.length} remark${notes.length === 1 ? "" : "s"}`);
+      if (parts.length) said.push(`You ${parts.join(" and ")}${talked.length ? ` on bar${talked.length === 1 ? "" : "s"} ${spanText(talked)}` : ""}.`);
       const last = notes[notes.length - 1];
-      text = `${parts.join(" and ")}${bars.length ? ` on bar${bars.length === 1 ? "" : "s"} ${bars.slice(0, 6).join(", ")}` : ""}.${last ? ` Last remark: “${String(last.body).slice(0, 120)}”` : ""}`;
-      text = text[0].toUpperCase() + text.slice(1);
+      if (last) said.push(`Last remark: “${String(last.body).slice(0, 120)}”`);
+      text = said.join(" ");
     }
     const all = { ...(store().prefs()?.pieceSummaries || {}) };
     all[s.key] = { text: String(text).slice(0, 600), at: new Date().toISOString(), via, bars };
@@ -111,6 +135,9 @@ window.LunePlans = (function () {
     const s = store()?.prefs?.()?.pieceSummaries?.[key] || null;
     return s && usableSummary(s.text) ? s : null;
   }
+  window.addEventListener("hashchange", () => {
+    if (session && !location.hash.includes(session.key)) flushSummary();
+  });
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") flushSummary();
   });
@@ -182,6 +209,33 @@ window.LunePlans = (function () {
     return plan;
   }
 
+  /** "plan": Lune plans each week. "free": no schedule, play whenever. Unset: not chosen yet. */
+  function planMode() {
+    return store()?.prefs?.()?.weekPlanMode || null;
+  }
+  function setPlanMode(mode) {
+    store().setPref("weekPlanMode", mode);
+    if (mode === "free") store().setPref("weekPlan", null);
+    store().syncPrefs?.();
+    document.dispatchEvent(new CustomEvent("lune:plan-mode", { detail: { mode } }));
+  }
+  /** The plan made at setup, and again each new week, from the goal the pianist gave. */
+  let ensuring = null;
+  function ensureWeekPlan() {
+    if (planMode() !== "plan" || currentPlan()) return Promise.resolve(false);
+    if (ensuring) return ensuring;
+    const prefs = store()?.prefs?.() || {};
+    if (!window.LuneOnboard?.signedIn?.()) return Promise.resolve(false);
+    const n = Math.max(1, Math.min(7, Number(prefs.practiceDays) || 4));
+    const spread = { 1: [0], 2: [0, 3], 3: [0, 2, 4], 4: [0, 1, 3, 4], 5: [0, 1, 2, 3, 4], 6: [0, 1, 2, 3, 4, 5], 7: [0, 1, 2, 3, 4, 5, 6] }[n];
+    const goal = prefs.dreamPiece?.title ? `Toward ${prefs.dreamPiece.title}, with steady work on your Repertoire` : "Steady work on the pieces in your Repertoire";
+    ensuring = makePlan({ goal, days: spread.map((i) => DAYS[i]), mins: Number(prefs.practiceMins) || 30 })
+      .then(() => true)
+      .catch(() => false)
+      .finally(() => { ensuring = null; });
+    return ensuring;
+  }
+
   function toggleDay(day) {
     const p = currentPlan();
     if (!p) return;
@@ -206,7 +260,7 @@ window.LunePlans = (function () {
           </li>`
         )
         .join("")}</ol>
-      <div class="wp-actions"><button type="button" class="quiet" data-wp-share>Share plan</button><button type="button" class="link-btn" data-wp-new>Make a new plan</button></div>
+      <div class="wp-actions"><button type="button" class="quiet" data-wp-new>Change plan</button><button type="button" class="quiet" data-wp-share>Share plan</button><button type="button" class="link-btn" data-wp-free>Practise without a schedule</button></div>
     </div>`;
   }
 
@@ -221,19 +275,20 @@ window.LunePlans = (function () {
       document.body.appendChild(d);
     }
     const prefs = store().prefs() || {};
+    const now = currentPlan();
     const n = Number(prefs.practiceDays) || 4;
-    const pick = new Set(DAYS.slice(0, n));
-    const mins = Number(prefs.practiceMins) || 30;
+    const pick = new Set(now?.days?.map((x) => x.day) || DAYS.slice(0, n));
+    const mins = Number(now?.mins) || Number(prefs.practiceMins) || 30;
     d.innerHTML = `<form method="dialog" class="wp-form" id="wp-form">
         <span class="lune-orb-sm" aria-hidden="true"></span>
-        <h2 id="wp-h">Plan my week</h2>
+        <h2 id="wp-h">${now ? "Change this week’s plan" : "Plan my week"}</h2>
         <label for="wp-goal">What do you want to get done this week?</label>
-        <textarea id="wp-goal" rows="3" required maxlength="300" placeholder="e.g. Für Elise up to bar 30, hands together"></textarea>
+        <textarea id="wp-goal" rows="3" required maxlength="300" placeholder="e.g. Für Elise up to bar 30, hands together">${esc(now?.goal || "")}</textarea>
         <p class="wp-q">Which days?</p>
         <div class="wp-daypick" role="group" aria-label="Practice days">${DAYS.map((x) => `<button type="button" data-day="${x}" aria-pressed="${pick.has(x)}">${x[0]}${x[1]}</button>`).join("")}</div>
         <label for="wp-mins">Minutes a day</label>
         <select id="wp-mins">${[10, 15, 20, 30, 45, 60, 90].map((m) => `<option ${m === mins ? "selected" : ""}>${m}</option>`).join("")}</select>
-        <div class="wp-go"><button type="button" class="quiet" value="cancel" data-wp-cancel>Cancel</button><button type="submit" class="primary">Make my plan</button></div>
+        <div class="wp-go"><button type="button" class="quiet" value="cancel" data-wp-cancel>Cancel</button><button type="submit" class="primary">${now ? "Save the plan" : "Make my plan"}</button></div>
       </form>`;
     d.querySelector(".wp-daypick").addEventListener("click", (e) => {
       const b = e.target.closest("[data-day]");
@@ -250,9 +305,11 @@ window.LunePlans = (function () {
       go.disabled = true;
       go.textContent = "Planning…";
       try {
+        if (planMode() !== "plan") setPlanMode("plan");
         await makePlan({ goal, days, mins: Number(d.querySelector("#wp-mins").value) || 30 });
         d.close();
-        toast("Your week is planned");
+        toast(now ? "Plan changed" : "Your week is planned");
+        document.dispatchEvent(new CustomEvent("lune:plan-mode", { detail: { mode: "plan" } }));
         window.LunePractice?.showRepertoire?.();
       } finally {
         go.disabled = false;
@@ -360,9 +417,14 @@ window.LunePlans = (function () {
   }
 
   document.addEventListener("click", (e) => {
-    if (e.target.closest?.("[data-wp-open], [data-wp-new]")) {
+    if (e.target.closest?.("[data-wp-open], [data-wp-new], [data-wp-choose='plan']")) {
       e.preventDefault();
       openWizard();
+    }
+    if (e.target.closest?.("[data-wp-free], [data-wp-choose='free']")) {
+      e.preventDefault();
+      setPlanMode("free");
+      toast("No schedule. Practise whenever it suits you");
     }
     const day = e.target.closest?.("[data-wp-day]");
     if (day && !day.disabled) {
@@ -373,5 +435,5 @@ window.LunePlans = (function () {
     if (e.target.closest?.("[data-wp-share]")) sharePlan();
   });
 
-  return { editProgress, progressOf, setProgress, progressLabel, noteActivity, flushSummary, summaryOf, currentPlan, makePlan, planHtml, openWizard, sharePlan, shareProgress, renderShare, builtInPlan, parseModelPlan };
+  return { planMode, setPlanMode, ensureWeekPlan, editProgress, progressOf, setProgress, progressLabel, noteActivity, flushSummary, summaryOf, currentPlan, makePlan, planHtml, openWizard, sharePlan, shareProgress, renderShare, builtInPlan, parseModelPlan };
 })();
