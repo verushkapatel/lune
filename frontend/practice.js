@@ -388,6 +388,18 @@ window.LunePractice = (function () {
         }, startWithin);
         rec.onaudiostart = () => clearTimeout(watchdog);
       }
+      // Safari on iPhone can keep listening without ever marking a result final:
+      // after a pause in speech, finish with what was heard
+      let heard = "";
+      let quiet = 0;
+      const finishSoon = () => {
+        clearTimeout(quiet);
+        quiet = setTimeout(() => {
+          try { rec.stop(); } catch { /* already ending */ }
+          setTimeout(() => { if (activeRec === rec) { try { rec.abort(); } catch { /* gone */ } activeRec = null; resolve(tidySpoken(finalText || heard)); } }, 700);
+        }, 1300);
+      };
+      const longest = setTimeout(() => { try { rec.stop(); } catch { /* gone */ } }, 15000);
       rec.onresult = (e) => {
         let interim = "";
         for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -395,14 +407,18 @@ window.LunePractice = (function () {
           if (e.results[i].isFinal) finalText += t;
           else interim += t;
         }
-        onPartial?.((finalText + " " + interim).trim());
+        heard = (finalText + " " + interim).trim();
+        onPartial?.(heard);
+        if (heard) finishSoon();
       };
       rec.onerror = (e) => {
         clearTimeout(watchdog);
         activeRec = null;
         // stopping it yourself is not a failure: keep whatever was heard
-        if (e.error === "aborted") {
-          resolve(finalText.trim());
+        clearTimeout(quiet);
+        clearTimeout(longest);
+        if (e.error === "aborted" || (e.error === "no-speech" && heard)) {
+          resolve(tidySpoken(finalText || heard));
           return;
         }
         const why =
@@ -419,8 +435,10 @@ window.LunePractice = (function () {
       };
       rec.onend = () => {
         clearTimeout(watchdog);
+        clearTimeout(quiet);
+        clearTimeout(longest);
         activeRec = null;
-        resolve(tidySpoken(finalText));
+        resolve(tidySpoken(finalText || heard));
       };
       try {
         rec.start();
@@ -430,12 +448,63 @@ window.LunePractice = (function () {
       }
     });
   }
+  /*
+   * Speech recognisers mishear piece and composer names. Common mishearings are
+   * mapped back, and words close to the open piece's title are corrected to it.
+   */
+  const HEARD = [
+    [/\b(lieb(e|a|i)?s?(t|d)?\s?(r|w)aum|leave(s)?\s?a?\s?straw(m|n)?|lee\s?best\s?(room|raum|rom)|lead\s?bus\s?(dream|tram)|lieber\s?straum|liebes\s?(dream|trom|traum))\b/gi, "Liebestraum"],
+    [/\b(clear|clare|clara|claire|clair)\s+(de|the|duh|da)\s+(loon|lune|lewn|loan|moon)\b/gi, "Clair de lune"],
+    [/\b(for|fur|fir|four)\s+(elise|a lease|elisa|eliza|at least|ali's|elease)\b/gi, "Für Elise"],
+    [/\b(gym\s?no\s?pe+d(i|ee|ie|y)|jim\s?no\s?pe+d(i|ee|y)|gymnopedie)\b/gi, "Gymnopédie"],
+    [/\b(show\s?pan|shopin|chopping|chopan|shopan)\b/gi, "Chopin"],
+    [/\b(de\s?bussy|the\s?bussy|debu\s?see|deb\s?you\s?see)\b/gi, "Debussy"],
+    [/\bfranz\s+(list|lists|lest)\b/gi, "Franz Liszt"],
+    [/\b(rock\s?man\s?in\s?off|rachmaninov|rock\s?mana\s?nov)\b/gi, "Rachmaninoff"],
+    [/\b(nock\s?turn|knock\s?turn|noc\s?turn)\b/gi, "nocturne"],
+    [/\b(sat\s?tea|saw\s?tee|sa\s?tea)\b/gi, "Satie"],
+    [/\b(pathetic)\s+(sonata)\b/gi, "Pathétique Sonata"],
+    [/\b(maz\s?urka|mazerka|mazurca)\b/gi, "mazurka"],
+  ];
+  function fixHeardNames(t) {
+    let out = String(t || "");
+    for (const [re, to] of HEARD) out = out.replace(re, to);
+    // a word close to the open piece's title becomes that title word
+    const title = String(window.state?.piece?.title || (typeof state !== "undefined" ? state.piece?.title : "") || "");
+    const words = [...new Set(title.split(/[\s,.()–-]+/).filter((w) => w.length >= 6))];
+    if (!words.length) return out;
+    const near = (a, b) => {
+      a = a.toLowerCase(); b = b.toLowerCase();
+      const m = a.length, n = b.length;
+      if (Math.abs(m - n) > 2) return false;
+      const d = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)]);
+      for (let j = 1; j <= n; j++) d[0][j] = j;
+      for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      return d[m][n] <= Math.max(1, Math.floor(n / 4));
+    };
+    return out.replace(/[A-Za-zÀ-ÿ]{5,}/g, (w) => words.find((tw) => tw.toLowerCase() !== w.toLowerCase() && near(w, tw)) || w);
+  }
+  /* Spoken aloud, names are respelled so the voice says them as musicians do. */
+  const SAY = [
+    [/\bLiebestr[äa]um(e)?\b/gi, "Leebe-strowm"], [/\bClair de lune\b/gi, "Clair duh loon"], [/\bF[üu]r Elise\b/gi, "Fur Eh-leeza"],
+    [/\bGymnop[ée]die(s)?\b/gi, "Jim-no-pay-dee"], [/\bDebussy\b/g, "Deh-byoo-see"], [/\bChopin\b/g, "Show-pan"], [/\bLiszt\b/g, "List"],
+    [/\bSatie\b/g, "Sah-tee"], [/\bRachmaninoff?\b/g, "Rock-mah-nin-off"], [/\bSchumann\b/g, "Shoo-mahn"], [/\bSchubert\b/g, "Shoo-bert"],
+    [/\bBach\b/g, "Bahk"], [/\bRavel\b/g, "Rah-vel"], [/\bnocturnes?\b/gi, (m) => (m.endsWith("s") ? "nock-turns" : "nock-turn")], [/\b[ée]tudes?\b/gi, (m) => (/s$/.test(m) ? "ay-toods" : "ay-tood")],
+    [/\bPath[ée]tique\b/gi, "Pah-tay-teek"], [/\bOp\.\s?/g, "Opus "], [/\bNo\.\s?(?=\d)/g, "Number "], [/\bBWV\s?/g, "B W V "],
+    [/♭/g, " flat"], [/♯/g, " sharp"], [/♮/g, " natural"], [/\bLune\b/g, "Loon"],
+  ];
+  function forSpeech(text) {
+    let out = String(text || "");
+    for (const [re, to] of SAY) out = out.replace(re, to);
+    return out;
+  }
   /** Browsers return bare lower-case words: add the punctuation a person would. */
   function tidySpoken(text) {
     let t = String(text || "").replace(/\s+/g, " ").trim();
     if (!t) return "";
     // the app's own name: speech recognisers hear "Lune" as "Loon", "Loun" or "Lun"
     t = t.replace(/\b(loons?|louns?|lunn|lune|lewn)\b/gi, "Lune");
+    t = fixHeardNames(t);
     t = t
       .replace(/\s*\b(comma)\b\s*/gi, ", ")
       .replace(/\s*\b(full stop|period)\b\s*/gi, ". ")
@@ -562,6 +631,61 @@ window.LunePractice = (function () {
    */
   let currentAudio = null;
   const voiceCache = new Map();
+  // iPhones only play sound started by a tap: one element and one audio context,
+  // unlocked on the first tap, carry every reply after that
+  const SILENT_WAV = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=";
+  let voiceEl = null;
+  let voiceAC = null;
+  let voiceAn = null;
+  let voiceUnlocked = false;
+  function voiceElement() {
+    if (!voiceEl) {
+      voiceEl = new Audio();
+      voiceEl.preload = "auto";
+      voiceEl.setAttribute("playsinline", "");
+    }
+    return voiceEl;
+  }
+  function unlockVoice() {
+    const el = voiceElement();
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC && !voiceAC) {
+        voiceAC = new AC();
+        const src = voiceAC.createMediaElementSource(el);
+        voiceAn = voiceAC.createAnalyser();
+        voiceAn.fftSize = 512;
+        src.connect(voiceAn);
+        voiceAn.connect(voiceAC.destination);
+      }
+      if (voiceAC && voiceAC.state !== "running") voiceAC.resume().catch(() => {});
+    } catch {
+      voiceAC = null;
+    }
+    if (voiceUnlocked || !el.paused) return;
+    try {
+      el.src = SILENT_WAV;
+      el.play().then(() => { voiceUnlocked = true; }).catch(() => {});
+    } catch { /* not yet */ }
+    try {
+      if ("speechSynthesis" in window) {
+        const u = new SpeechSynthesisUtterance(" ");
+        u.volume = 0;
+        speechSynthesis.speak(u);
+      }
+    } catch { /* no device voice */ }
+  }
+  // only touch devices hold sound back until a tap; a computer allows it after any click
+  const onTouch = (e) => {
+    if (e.type === "pointerdown" && e.pointerType !== "touch") return;
+    unlockVoice();
+    if (voiceUnlocked && voiceAC?.state === "running") {
+      document.removeEventListener("pointerdown", onTouch, true);
+      document.removeEventListener("touchend", onTouch, true);
+    }
+  };
+  document.addEventListener("pointerdown", onTouch, { passive: true, capture: true });
+  document.addEventListener("touchend", onTouch, { passive: true, capture: true });
   function stopAudio() {
     if (currentAudio) {
       currentAudio.pause();
@@ -569,6 +693,7 @@ window.LunePractice = (function () {
     }
   }
   async function speak(text) {
+    text = forSpeech(text);
     lastSpoken = text;
     stopAudio();
     try {
@@ -608,7 +733,7 @@ window.LunePractice = (function () {
   /** Say something and resolve when it has been said; onLevel gets 0-1 while it plays. */
   async function speakAndWait(text, { onLevel, onProgress } = {}) {
     // spoken without the marks that only make sense on screen
-    text = String(text || "").replace(/\*\*/g, "").replace(/^#+\s*/gm, "");
+    text = forSpeech(String(text || "").replace(/\*\*/g, "").replace(/^#+\s*/gm, ""));
     lastSpoken = text;
     stopAudio();
     try {
@@ -680,48 +805,63 @@ window.LunePractice = (function () {
         pulse *= 0.82;
         onLevel?.(0.25 + pulse * 0.6);
       }, 60);
-      u.onend = u.onerror = () => {
+      let over = false;
+      const stop = () => {
+        if (over) return;
+        over = true;
         clearInterval(iv);
+        clearTimeout(cap);
         onLevel?.(0);
         resolve();
       };
+      // some phones never report the end of an utterance
+      const cap = setTimeout(stop, Math.max(4000, text.length * 95 / (u.rate || 1)) + 3000);
+      u.onend = u.onerror = stop;
       speechSynthesis.speak(u);
     });
   }
   /** Play one stretch of Lune's voice; onLevel follows its loudness, onFrac its progress. */
   function playVoice(blob, { onLevel, onFrac } = {}) {
-    const audio = new Audio(URL.createObjectURL(blob));
+    const audio = voiceElement();
+    const url = URL.createObjectURL(blob);
+    audio.src = url;
     audio.playbackRate = Number(store.prefs().speechRate) || 1;
     currentAudio = audio;
-    let meter = null;
-    try {
-      const ac = new (window.AudioContext || window.webkitAudioContext)();
-      const srcNode = ac.createMediaElementSource(audio);
-      const an = ac.createAnalyser();
-      an.fftSize = 512;
-      srcNode.connect(an);
-      an.connect(ac.destination);
-      const buf = new Float32Array(an.fftSize);
-      meter = { ac, tick: () => { an.getFloatTimeDomainData(buf); onLevel?.(Math.min(1, Math.sqrt(buf.reduce((a, v) => a + v * v, 0) / buf.length) * 6)); } };
-    } catch {
-      meter = null;
-    }
+    const an = voiceAC && voiceAC.state === "running" ? voiceAn : null;
+    const buf = an ? new Float32Array(an.fftSize) : null;
     return new Promise((resolve, reject) => {
       let raf = 0;
+      let done = false;
+      let guard = setTimeout(() => finish(new Error("the voice stalled")), 30000);
+      function finish(err) {
+        if (done) return;
+        done = true;
+        cancelAnimationFrame(raf);
+        clearTimeout(guard);
+        onLevel?.(0);
+        audio.onended = audio.onpause = audio.onerror = audio.onloadedmetadata = null;
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        if (currentAudio === audio) currentAudio = null;
+        if (err) reject(err);
+        else resolve();
+      }
       const loop = () => {
-        meter?.tick();
+        if (an) {
+          an.getFloatTimeDomainData(buf);
+          onLevel?.(Math.min(1, Math.sqrt(buf.reduce((a, v) => a + v * v, 0) / buf.length) * 6));
+        } else onLevel?.(0.32 + 0.22 * Math.abs(Math.sin(performance.now() / 140)));
         if (audio.duration > 0) onFrac?.(Math.min(1, audio.currentTime / audio.duration));
         raf = requestAnimationFrame(loop);
       };
-      audio.onended = audio.onpause = () => {
-        cancelAnimationFrame(raf);
-        onLevel?.(0);
-        meter?.ac.close().catch(() => {});
-        if (currentAudio === audio) currentAudio = null;
-        resolve();
+      audio.onended = audio.onpause = () => finish();
+      audio.onerror = () => finish(new Error("the voice could not play"));
+      audio.onloadedmetadata = () => {
+        if (audio.duration > 0 && Number.isFinite(audio.duration)) {
+          clearTimeout(guard);
+          guard = setTimeout(() => finish(), (audio.duration / (audio.playbackRate || 1)) * 1000 + 2500);
+        }
       };
-      audio.onerror = reject;
-      audio.play().then(() => (raf = requestAnimationFrame(loop)), reject);
+      audio.play().then(() => (raf = requestAnimationFrame(loop)), (e) => finish(e));
     });
   }
   let speakGen = 0;

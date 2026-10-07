@@ -108,25 +108,27 @@ window.LuneAsk = (function () {
   const SYSTEM_PROMPT = `You are Lune, a piano practice and score-analysis assistant inside the Lune app.
 You are given CONTEXT as JSON: facts Lune has read from the score (notes, fingering, difficulty, dynamics, harmony), the pianist's own remarks, their earlier questions, their practice history and their goal.
 Rules:
-- Use only the score facts in CONTEXT. Never invent bars, notes, rhythms, fingerings, dynamics, tempo marks, opus numbers or movement names. If CONTEXT does not contain something, say Lune does not have it.
+- Use only the score facts in CONTEXT. Never invent bars, notes, rhythms, fingerings, dynamics, tempo marks, opus numbers or movement names. If something is not in CONTEXT, do not dwell on it: help with what you do know, or give general piano advice and say it is general.
 - Keep facts and suggestions apart: say what the score shows, then what you suggest.
 - Answer about the bar in CONTEXT.bar. Bring in CONTEXT.neighbouringBars only when the question asks about them or a phrase crosses into them.
 - Piano finger numbers: 1 thumb, 2 index, 3 middle, 4 ring, 5 little finger. Use the numbers from CONTEXT; name a finger only with this mapping.
 - When giving fingering, go note by note in the order of CONTEXT and give each note its own finger number from CONTEXT. Never group notes under one finger, and never give fingering for a hand that has no notes.
 - The pianist's remarks are their own words; treat them as information from the user, not as score facts.
 - You have not heard the pianist play. Never claim to have listened to a recording or a performance.
+- Be kind, patient and encouraging, like a favourite piano teacher who believes in the pianist. Never be curt, sarcastic, dismissive, preachy or scolding, never blame the pianist, and never refuse bluntly: if you cannot do something, say so gently in a few words and offer what you can do instead.
 - Sound like a warm, expert piano teacher: specific, encouraging and practical, never vague. When suggesting practice, use proven methods (slow practice with a metronome, hands separately, one or two bars at a time, the leap practised silently first, rhythm variations, blocking chord shapes, starting from the end of a passage) and say which bar each step is for.
 - Open with the answer itself in one clear sentence. Never open with filler such as "Great question", "Sure" or "Certainly", and never repeat the question.
 - Answer a simple question in one or two sentences. For analysis, cover what each hand does, what makes it hard, and exactly how to practise it: one short sentence of what the score shows, then at most four numbered steps, each on its own line, each one concrete action.
 - Keep answers under 120 words unless the pianist asks for more. Every sentence must be useful at the piano.
 - You cannot hear the pianist. If asked how their playing sounded, say plainly that you cannot hear them play, then say what to listen for in that bar.
-- Only if a question has nothing to do with music or the piano, say kindly in one sentence that you help with piano practice, and offer one related thing you can do. Questions about the pianist's own playing, practice or progress are always piano questions.
+- Only if a question has nothing to do with music or the piano, answer warmly in one sentence that you are here for their piano playing, and offer one related thing you would be glad to help with. Questions about the pianist's own playing, practice or progress are always piano questions.
 - Speak naturally to the pianist. Never mention CONTEXT, JSON, data or "the information provided"; if the score data lacks something, simply answer from general piano knowledge and say it is general advice.
 - If CONTEXT.replyStyle is "spoken", the answer will be read aloud: reply in two or three short, warm, conversational sentences, with no lists, numbers as words where natural, and no symbols.
 - When asked for a practice plan, give short numbered steps tied to bar numbers from CONTEXT, sized to the minutes available, and keep the pianist's stated goal.
 - CONTEXT.conversation, when present, holds the last turns of this chat; answer the newest question in that light.
 - For a general piano question (technique, practice habits, musical terms) that does not depend on a score, answer from general piano teaching and say it is general advice. Never present general advice as a fact about the pianist's score.
 - Say plainly when you are unsure.
+- Write piece and composer names correctly and in full (Liebestraum No. 3, Clair de lune, Für Elise, Gymnopédie No. 1, Chopin, Debussy, Liszt, Rachmaninoff). If the pianist's spelling of a name looks like a mishearing, read it as the closest real piece, preferring CONTEXT.piece.
 - Plain text only. No markdown, no headings.`;
 
   function aiSettings() {
@@ -539,7 +541,7 @@ Rules:
       lines.push(...first(d.advice, 2));
       if (d.split?.needed && d.split.practiceNotes?.[0]) lines.push(d.split.practiceNotes[0]);
     }
-    return { bar, question: true, a: lines.filter(Boolean).join("\n") || "I don't have more on this bar." };
+    return { bar, question: true, a: lines.filter(Boolean).join("\n") || "That is everything Lune has read in this bar. Ask me how to practise it and I will give you steps." };
   }
 
   /*
@@ -910,6 +912,7 @@ Rules:
       d.innerHTML = `<div class="lt-top"><span class="fx-shiny lt-title"></span></div>
         <div class="lt-orb" id="lt-orb"></div>
         <p class="lt-state" id="lt-state" aria-live="polite">Listening</p>
+        <span class="lw-bar lt-bar" aria-hidden="true"><i></i></span>
         <p class="lt-caption" id="lt-caption"></p>
         <div class="lt-actions">
           <button type="button" class="lt-round" data-talk="tap" aria-pressed="false" aria-label="Pause listening">${ICON.mic}</button>
@@ -938,9 +941,10 @@ Rules:
     };
     const end = () => {
       run.live = false;
-      P()?.stopHearing?.();
-      P()?.stopSpeaking?.();
-      orb.destroy();
+      try { P()?.stopHearing?.(); } catch { /* already stopped */ }
+      try { P()?.stopSpeaking?.(); } catch { /* already quiet */ }
+      try { orb.destroy(); } catch { /* gone */ }
+      d.classList.remove("is-thinking");
       if (d.open) d.close();
       talking = null;
     };
@@ -990,12 +994,15 @@ Rules:
         misses = 0;
         cap.textContent = said;
         setState("thinking", "Thinking");
+        d.classList.add("is-thinking");
         let text = "";
         try {
-          text = await answer(said);
+          // never wait forever on a slow model
+          text = await Promise.race([answer(said), new Promise((_, rej) => setTimeout(() => rej(new Error("slow")), 25000))]);
         } catch {
-          text = "That didn’t work. Try again in a moment.";
+          text = "That took too long. Ask me again in a moment.";
         }
+        d.classList.remove("is-thinking");
         if (!run.live) return;
         // the words appear as Lune says them, like live captions
         const words = String(text).replace(/\*\*/g, "").split(/(\s+)/);
@@ -1128,12 +1135,29 @@ Rules:
     if (src) bar.appendChild(src);
     el.parentElement.appendChild(bar);
   }
+  /** Lune at work: a thin bar that fills as it goes, and the stage it is at. */
+  const STAGES = [[0, "Reading the score"], [1200, "Thinking"], [3800, "Writing the answer"], [10000, "A longer answer, still writing"]];
+  function workingHtml() {
+    return '<span class="lw"><span class="lw-stage">Reading the score</span><span class="lw-bar"><i></i></span></span><span class="visually-hidden">Lune is working on it</span>';
+  }
+  function runStages(el) {
+    const t0 = Date.now();
+    const tick = () => {
+      if (!el.isConnected || !el.querySelector(".lw-stage")) return clearInterval(iv);
+      const ms = Date.now() - t0;
+      let label = STAGES[0][1];
+      for (const [at, l] of STAGES) if (ms >= at) label = l;
+      const st = el.querySelector(".lw-stage");
+      if (st.textContent !== label) st.textContent = label;
+    };
+    const iv = setInterval(tick, 300);
+    return el;
+  }
   function thinkingRow() {
     const el = line("lune", "Thinking…");
     el.classList.add("ask-thinking");
-    el.setAttribute("aria-hidden", "true");
-    el.innerHTML = '<span class="dots"><i></i><i></i><i></i></span><span class="visually-hidden">Thinking…</span>';
-    return el;
+    el.innerHTML = workingHtml();
+    return runStages(el);
   }
 
   function paintContext() {
@@ -1702,7 +1726,8 @@ Rules:
     $("chat-log").querySelector(".ask-empty")?.remove();
     const wait = chatLine("lune", "Thinking…");
     wait.classList.add("chat-wait");
-    wait.innerHTML = '<span class="dots"><i></i><i></i><i></i></span><span class="visually-hidden">Thinking…</span>';
+    wait.innerHTML = workingHtml();
+    runStages(wait);
     let answer = "";
     let via = "model";
     try {
