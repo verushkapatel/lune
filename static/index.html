@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- lune32 -->
-  <!-- deploy-lune32 -->
-  <!-- deploy-lune32 -->
+  <!-- lune33 -->
+  <!-- deploy-lune33 -->
+  <!-- deploy-lune33 -->
 
 <meta charset="UTF-8">
   <script>
@@ -34,13 +34,13 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Lune">
-  <link rel="icon" href="static/assets/favicon.svg?v=lune32" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=lune32">
+  <link rel="icon" href="static/assets/favicon.svg?v=lune33" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=lune33">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2?v=lune32" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="static/styles.css?v=lune32">
-  <link rel="stylesheet" href="static/theme-light.css?v=lune32">
-  <link rel="preload" href="static/search-index.json?v=lune32" as="fetch" crossorigin>
+  <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2?v=lune33" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="static/styles.css?v=lune33">
+  <link rel="stylesheet" href="static/theme-light.css?v=lune33">
+  <link rel="preload" href="static/search-index.json?v=lune33" as="fetch" crossorigin>
 </head>
 <body>
   <script>if (/^#\/[a-z0-9]/i.test(location.hash) && !/^#\/(ai|repertoire|study|assign)\b/.test(location.hash)) document.documentElement.classList.add("boot-piece");</script>
@@ -282,6 +282,19 @@
             <button type="button" class="hero-cta-alt" data-lp-personalise>Make Lune yours</button>
           </div>
           <p class="home-fine-line">Free · no ads · nothing to buy · for every pianist</p>
+          <div class="hero-demo" aria-label="Lune AI, an example">
+            <p class="hd-you">I have 20 minutes tonight. What should I practise?</p>
+            <div class="hd-log" aria-hidden="true">
+              <p class="hd-line hd-dim"><span class="hd-mark">◠</span> Reading Für Elise · 3/8 · A minor</p>
+              <p class="hd-line"><span class="hd-tag">@Bar&nbsp;12</span> right hand alone, the E4 to D5 leap silently, then with sound · 5 min</p>
+              <p class="hd-line"><span class="hd-tag">@Bars&nbsp;26,&nbsp;30</span> hands separately · 7 min</p>
+              <p class="hd-line"><span class="hd-tag">@Bars&nbsp;1–30</span> together at 60 bpm, then 66 · 8 min</p>
+            </div>
+            <button type="button" class="hd-input" data-lp-jump-ai>
+              <span>Ask Lune anything…</span>
+              <span class="hd-send" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 19V5M5.5 11.5L12 5l6.5 6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            </button>
+          </div>
           <button type="button" class="home-scroll-cue" data-lp-sim aria-label="Scroll to see how Lune works">
             <span>Scroll</span>
             <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
@@ -592,6 +605,7 @@
           <path fill="currentColor" d="M17.61 4.58A12 12 0 1 0 27.70 24.77A11.4 11.4 0 1 1 17.61 4.58Z"/>
         </svg>
         <p class="home-footer-line">Lune · named for Clair de lune</p>
+        <p class="home-footer-word" aria-hidden="true"><svg viewBox="0 0 40 40" focusable="false"><g stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><line x1="5" y1="26" x2="10.07" y2="26"/><line x1="27.93" y1="26" x2="35" y2="26"/><line x1="5" y1="30" x2="35" y2="30"/><line x1="5" y1="34" x2="35" y2="34"/></g><path fill="currentColor" d="M17.61 4.58A12 12 0 1 0 27.70 24.77A11.4 11.4 0 1 1 17.61 4.58Z"/></svg>lune</p>
         <p class="home-footer-keys">Space play · <span aria-hidden="true">&#8592; &#8594;</span> seek a bar · Esc close</p>
         <p class="fine-print home-footer-legal">
           <button type="button" class="link-btn" data-open-credits>Credits &amp; licenses</button> ·
@@ -665,6 +679,7 @@
             </span>
           </div>
           <button type="button" class="quiet score-kbd-toggle" id="btn-toggle-kbd" aria-pressed="false" title="Show or hide the piano under the score"><span class="kbd-tog-label">Show piano</span></button>
+          <button type="button" class="quiet score-pedal-toggle" id="btn-pedal" aria-pressed="false" title="Show pedal marks on the score"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M4 16h4l3-4 3 4h6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 9.5V16M20 9.5V16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span class="pedal-tog-label">Pedal</span></button>
           <span id="stage-label" class="visually-hidden">Score</span>
           <span id="anno-fingers-note" class="visually-hidden">Suggested fingering, worked out by Lune from the notes. Your edition may print different fingers.</span>
         </div>
@@ -866,7 +881,7 @@
     </ul>
     <h3>Software &amp; type</h3>
     <ul>
-      <li><a href="https://opensheetmusicdisplay.org/" target="_blank" rel="noopener">OpenSheetMusicDisplay</a> (BSD-3-Clause) with <a href="https://www.vexflow.com/" target="_blank" rel="noopener">VexFlow</a> (MIT) · <a href="https://tonejs.github.io/" target="_blank" rel="noopener">Tone.js</a> (MIT) · <a href="https://mozilla.github.io/pdf.js/" target="_blank" rel="noopener">pdf.js</a> (Apache-2.0) · <a href="https://github.com/undercasetype/Fraunces" target="_blank" rel="noopener">Fraunces</a> typeface (SIL Open Font License 1.1).</li>
+      <li><a href="https://opensheetmusicdisplay.org/" target="_blank" rel="noopener">OpenSheetMusicDisplay</a> (BSD-3-Clause) with <a href="https://www.vexflow.com/" target="_blank" rel="noopener">VexFlow</a> (MIT) · <a href="https://tonejs.github.io/" target="_blank" rel="noopener">Tone.js</a> (MIT) · <a href="https://mozilla.github.io/pdf.js/" target="_blank" rel="noopener">pdf.js</a> (Apache-2.0) · <a href="https://github.com/undercasetype/Fraunces" target="_blank" rel="noopener">Fraunces</a>, <a href="https://github.com/sharanda/manrope" target="_blank" rel="noopener">Manrope</a>, <a href="https://github.com/octaviopardo/EBGaramond12" target="_blank" rel="noopener">EB Garamond</a> and <a href="https://github.com/JetBrains/JetBrainsMono" target="_blank" rel="noopener">JetBrains Mono</a> typefaces (SIL Open Font License 1.1).</li>
     </ul>
     <h3 id="credits-privacy">Privacy</h3>
     <ul>
@@ -890,27 +905,27 @@
   <script src="static/vendor/opensheetmusicdisplay.min.js"></script>
   <script src="static/vendor/pdf.min.js"></script>
   <script src="static/vendor/Tone.js"></script>
-  <script src="static/piano.js?v=lune32"></script>
-  <script src="static/annotate.js?v=lune32"></script>
-  <script src="static/lite-analyze.js?v=lune32"></script>
-  <script src="static/fetch-score.js?v=lune32"></script>
-  <script src="static/lyric-lane.js?v=lune32"></script>
-  <script src="static/menu.js?v=lune32"></script>
-  <script src="static/lune-fx.js?v=lune32"></script>
-  <script src="static/lune-config.js?v=lune32"></script>
-  <script src="static/store.js?v=lune32"></script>
-  <script src="static/onboard.js?v=lune32"></script>
-  <script src="static/impact.js?v=lune32"></script>
-  <script src="static/feedback.js?v=lune32"></script>
-  <script src="static/ai-device.js?v=lune32"></script>
-  <script src="static/ask.js?v=lune32"></script>
-  <script src="static/markings.js?v=lune32"></script>
-  <script src="static/plans.js?v=lune32"></script>
-  <script src="static/app.js?v=lune32"></script>
-  <script src="static/studio-ui.js?v=lune32"></script>
-  <script src="static/landing-score.js?v=lune32"></script>
-  <script src="static/practice.js?v=lune32"></script>
-  <script src="static/study.js?v=lune32"></script>
-  <script src="static/install.js?v=lune32"></script>
+  <script src="static/piano.js?v=lune33"></script>
+  <script src="static/annotate.js?v=lune33"></script>
+  <script src="static/lite-analyze.js?v=lune33"></script>
+  <script src="static/fetch-score.js?v=lune33"></script>
+  <script src="static/lyric-lane.js?v=lune33"></script>
+  <script src="static/menu.js?v=lune33"></script>
+  <script src="static/lune-fx.js?v=lune33"></script>
+  <script src="static/lune-config.js?v=lune33"></script>
+  <script src="static/store.js?v=lune33"></script>
+  <script src="static/onboard.js?v=lune33"></script>
+  <script src="static/impact.js?v=lune33"></script>
+  <script src="static/feedback.js?v=lune33"></script>
+  <script src="static/ai-device.js?v=lune33"></script>
+  <script src="static/ask.js?v=lune33"></script>
+  <script src="static/markings.js?v=lune33"></script>
+  <script src="static/plans.js?v=lune33"></script>
+  <script src="static/app.js?v=lune33"></script>
+  <script src="static/studio-ui.js?v=lune33"></script>
+  <script src="static/landing-score.js?v=lune33"></script>
+  <script src="static/practice.js?v=lune33"></script>
+  <script src="static/study.js?v=lune33"></script>
+  <script src="static/install.js?v=lune33"></script>
 </body>
 </html>

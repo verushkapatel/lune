@@ -312,11 +312,18 @@ window.LuneFX = (function () {
     if (!el || !sc) return;
     const smooth = !matchMedia("(prefers-reduced-motion: reduce)").matches;
     el.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
-    // demos above may finish loading and change height mid-glide: settle once more
-    setTimeout(() => {
+    // demos above may finish loading and change height mid-glide: settle again a few
+    // times, unless the reader has started scrolling on their own
+    let manual = false;
+    const mark = () => { manual = true; };
+    sc.addEventListener("wheel", mark, { passive: true, once: true });
+    sc.addEventListener("touchmove", mark, { passive: true, once: true });
+    [900, 1800, 2700].forEach((ms, i) => setTimeout(() => {
+      if (manual) return;
       const off = el.getBoundingClientRect().top - sc.getBoundingClientRect().top - 12;
       if (Math.abs(off) > 24) el.scrollIntoView({ behavior: "auto", block: "start" });
-    }, smooth ? 900 : 50);
+      if (i === 2) { sc.removeEventListener("wheel", mark); sc.removeEventListener("touchmove", mark); }
+    }, smooth ? ms : 50 * (i + 1)));
   });
   const links = [...nav.querySelectorAll("[data-lp-jump]")];
   if (!("IntersectionObserver" in window)) return;
@@ -331,4 +338,23 @@ window.LuneFX = (function () {
     }
   }, { rootMargin: "-40% 0px -55% 0px" });
   links.forEach((l) => { const t = document.getElementById(l.dataset.lpJump); if (t) io.observe(t); });
+})();
+
+/* The hero's Lune AI panel opens onto the Lune AI chapter */
+document.addEventListener("click", (e) => {
+  const b = e.target.closest?.("[data-lp-jump-ai]");
+  if (!b) return;
+  const el = document.getElementById("ai");
+  if (el) el.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+});
+
+/* the landing bar frosts once the page scrolls */
+(function () {
+  const sc = document.getElementById("home");
+  if (!sc) return;
+  let on = false;
+  sc.addEventListener("scroll", () => {
+    const next = sc.scrollTop > 24;
+    if (next !== on) { on = next; document.body.classList.toggle("lp-scrolled", on); }
+  }, { passive: true });
 })();

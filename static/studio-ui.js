@@ -90,7 +90,7 @@ window.LuneStudioUI = (function () {
       const b = e.target.closest("[data-m]");
       if (!b) return;
       const act = b.dataset.m;
-      const keepOpen = ["anno", "access", "kbd"].includes(act);
+      const keepOpen = ["anno", "access", "kbd", "pedal"].includes(act);
       if (act === "panel") press(`tab-${b.dataset.v}`);
       if (act === "anno") {
         const r = $(`anno-${b.dataset.v}`);
@@ -101,6 +101,7 @@ window.LuneStudioUI = (function () {
       }
       if (act === "access") press("btn-dyslexia-score");
       if (act === "kbd") press("btn-toggle-kbd");
+      if (act === "pedal") press("btn-pedal");
       if (act === "tab") window.activateSession?.(b.dataset.v);
       if (act === "close-tab") {
         e.stopPropagation();
@@ -156,6 +157,7 @@ window.LuneStudioUI = (function () {
       <div class="sm-toggles">
         <button type="button" data-m="kbd" aria-pressed="${kbd}">Piano keys</button>
         <button type="button" data-m="access" aria-pressed="${easy}">Easy-read letters</button>
+        <button type="button" data-m="pedal" aria-pressed="${document.getElementById("btn-pedal")?.getAttribute("aria-pressed") === "true"}">Pedal marks</button>
         ${braille && !braille.hidden ? `<a class="sm-link" href="${esc(braille.getAttribute("href"))}" download>Braille music</a>` : ""}
       </div>
       <div class="sm-actions">

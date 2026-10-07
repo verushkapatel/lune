@@ -147,6 +147,10 @@ window.LuneMarkings = (function () {
     f: "forte: loud",
     ff: "fortissimo: very loud",
     fff: "extremely loud",
+    "ped.": "press the sustain (right) pedal here and hold it until the release sign",
+    ped: "press the sustain (right) pedal here and hold it until the release sign",
+    "*": "release the sustain pedal",
+    "✱": "release the sustain pedal",
     sf: "sforzando: a sudden strong accent on one note",
     sfz: "sforzando: a sudden strong accent on one note",
     fz: "forzando: a strong accent",
@@ -211,8 +215,86 @@ window.LuneMarkings = (function () {
         : "Treble clef (G clef): its curl circles the G line, the G above middle C. It is used for higher notes, usually the right hand.";
   }
 
+  // ornaments and articulations live inside each note's drawing: find the note behind it
+  const ORN = {
+    0: ["the trill", "Trill (tr): alternate quickly between the written note and the note above it in the key, for the note's whole length, and end on the written note."],
+    1: ["the turn", "Turn: the note above, the written note, the note below, then the written note, as one quick figure."],
+    2: ["the inverted turn", "Inverted turn: the note below, the written note, the note above, then the written note."],
+    3: ["the delayed turn", "Delayed turn: hold the written note first, then play the turn (above, note, below, note) just before the next note."],
+    4: ["the delayed inverted turn", "Delayed inverted turn: hold the written note, then below, note, above, note just before the next one."],
+    5: ["the mordent", "Mordent: the written note, the note below it, and back, very quickly on the beat."],
+    6: ["the inverted mordent", "Inverted mordent (upper mordent): the written note, the note above it, and back, very quickly on the beat."],
+  };
+  const ART = {
+    0: ["the accent", "Accent (>): play this note louder than the notes around it."],
+    1: ["the marcato", "Marcato (^): a strong, emphatic accent."],
+    2: ["the soft accent", "Soft accent: a gentle lean on the note, not a hit."],
+    3: ["the marcato", "Marcato (^): a strong, emphatic accent."],
+    4: ["the marcato", "Marcato: a strong, emphatic accent."],
+    6: ["the staccato", "Staccato (a dot): play the note short and detached from the next."],
+    7: ["the staccatissimo", "Staccatissimo (a wedge): very short, sharper than staccato."],
+    9: ["the tenuto", "Tenuto (a short line): hold the note for its full value, with a slight weight."],
+    10: ["the fermata", "Fermata (a pause): hold the note or rest longer than written, as long as feels right."],
+    11: ["the fermata", "Fermata (a pause): hold longer than written."],
+    12: ["the breath mark", "Breath mark: a tiny lift or pause before going on."],
+    13: ["the caesura", "Caesura (//): a short silence, then continue."],
+    25: ["the portato", "Portato (dots under a slur): gently separated notes, between legato and staccato."],
+  };
+  let _gmap = null;
+  function noteFor(stavenote) {
+    const osmd = window.state?.osmd || (typeof state !== "undefined" ? state.osmd : null);
+    if (!osmd) return null;
+    if (!_gmap || _gmap.osmd !== osmd || !_gmap.map.has(stavenote) && _gmap.svg !== document.querySelector("#osmd svg")) {
+      const map = new Map();
+      try {
+        osmd.GraphicSheet.MeasureList.forEach((col) => col.forEach((gm) => {
+          if (!gm) return;
+          for (const se of gm.staffEntries || []) for (const g of se.graphicalVoiceEntries || []) for (const gn of g.notes || []) {
+            const el = gn.getSVGGElement?.();
+            if (el) map.set(el.closest?.(".vf-stavenote") || el, gn);
+          }
+        }));
+      } catch { /* older OSMD */ }
+      _gmap = { osmd, map, svg: document.querySelector("#osmd svg") };
+    }
+    return _gmap.map.get(stavenote) || null;
+  }
+  function readNoteSign(el, onHead) {
+    const sn = el.closest?.(".vf-stavenote");
+    if (!sn) return null;
+    const gn = noteFor(sn);
+    const note = gn?.sourceNote;
+    const ve = note?.ParentVoiceEntry;
+    if (!note || !ve) return null;
+    if (ve.IsGrace || note.IsGraceNote) {
+      const slash = ve.GraceSlash || ve.graceSlash;
+      return slash
+        ? { label: "the grace note", gloss: "Acciaccatura (a small note with a slash): crush it in as quickly as possible, just before or on the beat, then land on the main note.", question: "How do I play this acciaccatura cleanly here?" }
+        : { label: "the grace note", gloss: "Appoggiatura (a small note without a slash): it leans on the beat and takes time from the main note, often about half of it.", question: "How long should this appoggiatura take here?" };
+    }
+    if (onHead) return null; // a tap on a notehead still selects the bar
+    const orn = ve.OrnamentContainer?.GetOrnament;
+    if (orn != null && ORN[orn]) return { label: ORN[orn][0], gloss: ORN[orn][1], question: `How should I play ${ORN[orn][0]} here, and how fast?` };
+    for (const a of ve.Articulations || []) {
+      const k = a?.articulationEnum ?? a;
+      if (ART[k]) return { label: ART[k][0], gloss: ART[k][1], question: `How should I play ${ART[k][0]} on this note?` };
+    }
+    const alt = Math.round(Number(note.Pitch?.AccidentalHalfTones) || 0);
+    if (note.Pitch && el.closest(".vf-modifiers")) {
+      const name = { "-2": "double flat", "-1": "flat (♭)", 0: "natural (♮)", 1: "sharp (♯)", 2: "double sharp" }[alt] || "accidental";
+      return { label: `the ${name.split(" ")[0]}`, gloss: `Accidental, ${name}: it changes this note, and the same note later in this bar, until the barline.`, question: "Why is this accidental here, and what does it change?" };
+    }
+    return null;
+  }
+
   /** What was tapped, as { label, gloss, question }. */
   function read(target) {
+    if (target.closest?.(".vf-stavetie")) return { label: "the tie", gloss: "Tie: a curve joining two notes of the same pitch. Play the first and hold it through the second; do not strike again.", question: "How do I count this tie?" };
+    if (target.closest?.(".vf-curve")) return { label: "the slur", gloss: "Slur: a curve over different notes. Play them smoothly connected (legato), shaping them as one phrase, often lifting at its end.", question: "How should I shape the phrase under this slur?" };
+    if (target.closest?.(".vf-modifiers") || target.closest?.(".vf-stavenote")) {
+      const hit = readNoteSign(target, !!target.closest(".vf-notehead") || !target.closest(".vf-modifiers"));
+      if (hit) return hit;
+    }
     const el = target.closest?.(".vf-clef, .vf-keysignature, .vf-timesignature, text");
     if (!el || el.closest(".lyrics, .lane-letter, .lane-spare")) return null;
     if (el.matches(".vf-clef")) return { label: "the clef", gloss: explainClef(el), question: "What does this clef mean for how I read the notes on this staff?" };
@@ -242,7 +324,7 @@ window.LuneMarkings = (function () {
         const r = el.getBoundingClientRect();
         return e.clientX >= r.left - pad && e.clientX <= r.right + pad && e.clientY >= r.top - pad && e.clientY <= r.bottom + pad;
       };
-      const signs = document.querySelectorAll("#osmd svg .vf-timesignature, #osmd svg .vf-keysignature, #osmd svg .vf-clef");
+      const signs = document.querySelectorAll("#osmd svg .vf-timesignature, #osmd svg .vf-keysignature, #osmd svg .vf-clef, #osmd svg .vf-modifiers path, #osmd svg .vf-modifiers text");
       for (const el of signs) if (inside(el)) {
         hit = read(el);
         if (hit) break;

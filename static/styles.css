@@ -1499,7 +1499,7 @@ body.is-panel-piano .studio > .piano-dock.is-focus {
   min-width: 72px;
   min-height: 32px;
   padding: 0 12px;
-  font-family: Fraunces, Georgia, serif;
+  font-family: var(--ui);
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.04em;
@@ -10218,7 +10218,7 @@ body.studio-compact.is-studio .tempo-control .bpm-wrap { position: relative !imp
   .lune-chat { width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; border: 0; border-radius: 0; }
 }
 /* the AI surfaces read in the device's own sans, as ChatGPT and Claude do */
-.ask-lune, .lune-chat, .lune-talk .lt-caption { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+.ask-lune, .lune-chat, .lune-talk .lt-caption { font-family: var(--ui); }
 .ask-lune textarea, .lune-chat textarea, .ask-lune button, .lune-chat button { font-family: inherit; }
 /* voice chat controls: two round buttons, as in ChatGPT */
 .lt-state { letter-spacing: 0; text-transform: none; font-size: 14px; color: #9aa6c6; }
@@ -10280,12 +10280,12 @@ body.is-studio:not(.studio-compact).studio-search-open .top-search { flex: 0 1 3
 }
 .home-ask:focus-within { border-color: var(--line-strong); box-shadow: 0 10px 40px rgba(60, 90, 200, 0.18); }
 .home-ask-orb { flex: 0 0 auto; width: 36px; height: 36px; }
-.home-ask input { flex: 1; min-width: 0; height: 44px; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; font-size: 16px; padding: 0 6px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+.home-ask input { flex: 1; min-width: 0; height: 44px; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; font-size: 16px; padding: 0 6px; font-family: var(--ui); }
 .home-ask input::placeholder { color: var(--dim); }
 .home-ask .lc-tool { width: 40px; min-width: 40px; padding: 0; }
 .home-ask-chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 0 22px; }
 .home-ask-chips::-webkit-scrollbar { display: none; }
-.home-ask-chips button { flex: 0 0 auto; padding: 9px 14px; border-radius: 16px; border: 1px solid var(--line); background: transparent; color: var(--text); font: inherit; font-size: 14px; cursor: pointer; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+.home-ask-chips button { flex: 0 0 auto; padding: 9px 14px; border-radius: 16px; border: 1px solid var(--line); background: transparent; color: var(--text); font: inherit; font-size: 14px; cursor: pointer; font-family: var(--ui); }
 .home-ask-chips button:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
 
 /* ---------- ChatGPT's own palette for Lune AI ---------- */
@@ -10319,7 +10319,7 @@ body.is-studio:not(.studio-compact).studio-search-open .top-search { flex: 0 1 3
 /* ---------- the bar panel, rebuilt: one Ask bar, quiet chips and tools, a clean rating ----------
  * The panel is drawn in light colours and flipped for the dark theme (see --flip), so the
  * colours here are the light ones; the flip turns them into the dark look. */
-.coach .coach-sheet { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+.coach .coach-sheet { font-family: var(--ui); }
 .coach .coach-title { font-family: var(--serif); }
 .coach .coach-kicker { text-transform: none; letter-spacing: 0; font-size: 12px; color: #6b6b6b; }
 .lp-coach { display: flex; flex-direction: column; gap: 14px; }
@@ -10373,7 +10373,7 @@ body.is-studio:not(.studio-compact).studio-search-open .top-search { flex: 0 1 3
 .lc-voice-toggle[aria-pressed="true"] { color: var(--text); background: color-mix(in srgb, var(--text) 10%, transparent); }
 /* the studio speaks in sentence case: quieter, like ChatGPT */
 #tab-score, #tab-explain, #tab-piano, #btn-toggle-kbd, .kbd-tog-label, #piano-dock-label, #btn-play-range, #btn-stop, .stop-label {
-  text-transform: none; letter-spacing: 0; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  text-transform: none; letter-spacing: 0; font-family: var(--ui);
 }
 #tab-score, #tab-explain, #tab-piano { font-size: 14px; }
 #btn-toggle-kbd { display: inline-flex; align-items: center; gap: 6px; }
@@ -10406,9 +10406,9 @@ body.is-studio:not(.studio-compact).studio-search-open .top-search { flex: 0 1 3
 .lune-talk::backdrop { background: rgba(0, 0, 0, 0.55); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
 .lune-talk[open] { display: flex; flex-direction: column; align-items: center; animation: lune-pop 0.3s var(--ease-out, ease) both; }
 .lune-talk .lt-top { padding: 14px 18px 0; justify-content: center; }
-.lune-talk .lt-title { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif; font-size: 15px; }
+.lune-talk .lt-title { font-family: var(--ui); font-size: 15px; }
 .lune-talk .lt-orb { flex: 0 0 auto; width: min(52vw, 200px); height: min(52vw, 200px); margin-top: 22px; }
-.lune-talk .lt-state { margin: 18px 0 8px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; }
+.lune-talk .lt-state { margin: 18px 0 8px; font-family: var(--ui); font-size: 13px; }
 .lune-talk .lt-caption {
   flex: 1 1 auto; min-height: 0; width: 100%; max-height: none; overflow-y: auto; padding: 0 28px 8px; box-sizing: border-box;
   font-size: 17px; line-height: 1.5; text-align: center; color: #e9edf7;
@@ -10461,7 +10461,7 @@ dialog.is-closing::backdrop { animation: lune-backdrop-out 0.18s ease forwards; 
 }
 
 /* ---------- Settings, refined: real switches, quiet selects, sentence-case headings ---------- */
-.settings-dialog .settings-sec h3 { text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 600; color: var(--muted); font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif; }
+.settings-dialog .settings-sec h3 { text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 600; color: var(--muted); font-family: var(--ui); }
 .settings-dialog #set-account-ai strong { display: block; }
 .settings-dialog select, .settings-goal select {
   -webkit-appearance: none; appearance: none; min-height: 40px; padding: 0 36px 0 14px; border-radius: 12px;
@@ -10500,7 +10500,7 @@ dialog.is-closing::backdrop { animation: lune-backdrop-out 0.18s ease forwards; 
 }
 .lp-tile:hover { border-color: var(--line-strong); transform: translateY(-2px); }
 .lp-tile-ic { display: inline-flex; width: 44px; height: 44px; align-items: center; justify-content: center; border-radius: 13px; background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text); margin-bottom: 18px; }
-.lp-tile h3 { margin: 0 0 6px; font-size: 18px; font-weight: 600; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif; letter-spacing: -0.01em; }
+.lp-tile h3 { margin: 0 0 6px; font-size: 18px; font-weight: 600; font-family: var(--ui); letter-spacing: -0.01em; }
 .lp-tile p { margin: 0; color: var(--muted); font-size: 14.5px; line-height: 1.5; }
 @media (max-width: 860px) { .lp-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 520px) {
@@ -10522,7 +10522,7 @@ dialog.is-closing::backdrop { animation: lune-backdrop-out 0.18s ease forwards; 
 .ai-dots button { width: 8px; height: 8px; padding: 0; border-radius: 4px; border: 0; background: var(--line-strong); cursor: pointer; transition: width 0.3s ease, background-color 0.3s ease; }
 .ai-dots button[aria-current="true"] { width: 22px; background: var(--text); }
 /* the comparison: a clean grid of marks */
-.lp-cmp { width: 100%; max-width: 980px; margin: 0 auto; border-collapse: separate; border-spacing: 0; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif; }
+.lp-cmp { width: 100%; max-width: 980px; margin: 0 auto; border-collapse: separate; border-spacing: 0; font-family: var(--ui); }
 .lp-cmp thead th { font-size: 13px; font-weight: 600; color: var(--muted); padding: 0 6px 14px; text-align: center; vertical-align: bottom; }
 .lp-cmp thead .lp-col-lune { color: var(--text); font-size: 15px; }
 .lp-cmp tbody th { text-align: left; font-size: 15px; font-weight: 600; padding: 16px 12px 16px 0; border-top: 1px solid var(--line); }
@@ -10569,13 +10569,13 @@ dialog.is-closing::backdrop { animation: lune-backdrop-out 0.18s ease forwards; 
 .member-week-more summary::-webkit-details-marker { display: none; }
 .member-week-more summary::after { content: "+"; font-size: 20px; color: var(--dim); transition: transform 0.25s ease; }
 .member-week-more[open] summary::after { transform: rotate(45deg); }
-.member-week-more summary h2 { margin: 0; font-size: 16px; font-weight: 600; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+.member-week-more summary h2 { margin: 0; font-size: 16px; font-weight: 600; font-family: var(--ui); }
 .member-week-more[open] .member-week-how { animation: fx-rise 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
 .cmp-p { display: inline-block; width: 13px; height: 13px; border-radius: 50%; border: 1.6px solid #e0a43a; background: linear-gradient(90deg, #e0a43a 50%, transparent 50%); font-size: 0; vertical-align: middle; }
 .ai-chapter .ai-scenes:focus-visible { outline: 2px solid var(--text); outline-offset: 4px; border-radius: 24px; }
 /* the rest of the studio, named in one quiet line */
 .lp-more { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 760px; margin: 8px auto 0; padding: 0 20px 24px; }
-.lp-more span { padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font-size: 13.5px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+.lp-more span { padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font-size: 13.5px; font-family: var(--ui); }
 .home-feat-intro h2 { font-size: clamp(30px, 5.4vw, 52px); line-height: 1.08; font-weight: 400; }
 dialog.is-closing { animation-duration: 0.16s; }
 dialog.is-closing::backdrop { animation-duration: 0.16s; }
@@ -10583,7 +10583,7 @@ dialog.is-closing::backdrop { animation-duration: 0.16s; }
 .lp-askbar .lc-tool.lp-ask-mic.on { color: #e5484d; }
 .coach .lp-askbar .lc-round[hidden] { display: none; }
 /* markings on the score can be tapped for their meaning */
-#osmd svg .vf-clef, #osmd svg .vf-keysignature, #osmd svg .vf-timesignature, #osmd svg text:not(.lyrics *):not(.lyrics) { cursor: help; }
+#osmd svg .vf-clef, #osmd svg .vf-keysignature, #osmd svg .vf-timesignature, #osmd svg .vf-modifiers, #osmd svg .vf-curve, #osmd svg .vf-stavetie, #osmd svg text:not(.lyrics *):not(.lyrics) { cursor: pointer; }
 #osmd svg .vf-clef:hover, #osmd svg .vf-keysignature:hover, #osmd svg .vf-timesignature:hover { opacity: 0.7; }
 
 /* Studio top bar: one height, one rhythm. The search submit becomes a quiet
@@ -10920,3 +10920,166 @@ body.is-signed-in.is-home #home-member, body.is-signed-in.is-home #home-member >
   #home-member .home-ask-chips::-webkit-scrollbar { display: none; }
   #home-member .member-next { margin-top: 16px; }
 }
+
+/* Pedal marks */
+.pedal-layer { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; z-index: 3; }
+.pedal-layer > span { position: absolute; left: 0; top: 0; }
+.pedal-ped { font-family: "EB Garamond", Georgia, serif; font-style: italic; font-weight: 600; font-size: 15px; line-height: 1; color: #f1f1f1; margin-top: -2px; }
+.pedal-line { height: 0; border-bottom: 1.5px solid rgba(240, 240, 240, 0.75); margin-top: 7px; }
+.pedal-notch { width: 10px; height: 9px; margin-top: -1px; background: linear-gradient(to bottom right, transparent 44%, rgba(240,240,240,0.9) 45% 57%, transparent 58%) left/50% 100% no-repeat, linear-gradient(to bottom left, transparent 44%, rgba(240,240,240,0.9) 45% 57%, transparent 58%) right/50% 100% no-repeat; }
+.pedal-end { width: 0; height: 9px; margin-top: -1px; border-right: 1.5px solid rgba(240,240,240,0.75); }
+.pedal-none { position: absolute; left: 16px; top: 8px; margin: 0; font-size: 13px; color: #b9b9b9; background: rgba(20,20,24,0.8); padding: 6px 12px; border-radius: 999px; white-space: nowrap; }
+#btn-pedal.on, #btn-pedal[aria-pressed="true"] { background: rgba(74, 99, 240, 0.22) !important; border-color: rgba(138, 162, 255, 0.6) !important; color: #fff; }
+
+/* ======================================================================
+   Lune design system, after adihuman: Manrope light for words, mono
+   labels in blue, pure black, a royal-blue night, glass controls.
+   Lune AI speaks in EB Garamond. Fonts are served with the site.
+   ====================================================================== */
+@font-face { font-family: "Manrope"; font-style: normal; font-display: swap; font-weight: 200 800; src: url("assets/fonts/manrope-var.woff2") format("woff2"); }
+@font-face { font-family: "EB Garamond"; font-style: normal; font-display: swap; font-weight: 400 800; src: url("assets/fonts/ebgaramond-var.woff2") format("woff2"); }
+@font-face { font-family: "EB Garamond"; font-style: italic; font-display: swap; font-weight: 400 800; src: url("assets/fonts/ebgaramond-italic-var.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-style: normal; font-display: swap; font-weight: 100 800; src: url("assets/fonts/jetbrainsmono-var.woff2") format("woff2"); }
+:root {
+  --serif: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --ui: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --garamond: "EB Garamond", "Cormorant Garamond", Garamond, Georgia, serif;
+  --lune-blue: #3d5cff;
+  --lune-blue-hi: #6f8bff;
+}
+html:not([data-theme="light"]) body { background: #000; }
+body, button, input, select, textarea { font-family: var(--ui); }
+h1, h2, .member-title, .home-feat-copy h2, .ai-intro h2, #hero h1 { font-family: var(--ui); font-weight: 300 !important; letter-spacing: -0.03em; }
+h3 { font-family: var(--ui); font-weight: 500; letter-spacing: -0.01em; }
+/* labels: small, mono, blue */
+.about-kicker, .member-kicker, .member-next-k, .ai-scene-k, .sm-h, .coach-kicker, .home-feat-copy .about-kicker, .chat-sub, .ask-where {
+  font-family: var(--mono) !important; font-size: 11.5px !important; font-weight: 500; letter-spacing: 0.14em !important; text-transform: uppercase; color: var(--lune-blue-hi) !important;
+}
+
+/* ---- Landing ---- */
+html:not([data-theme="light"]) body.is-home:not(.is-signed-in) #home-guest { background: #000; }
+html:not([data-theme="light"]) #hero.home-hero-cinema {
+  background:
+    radial-gradient(70% 45% at 50% 108%, rgba(80, 110, 255, 0.28), transparent 70%),
+    radial-gradient(120% 85% at 50% -12%, #2a3df0 0%, #1726b8 22%, #0b1366 44%, #050833 62%, #000 84%) !important;
+}
+#hero.home-hero-cinema::before { opacity: 0.5; mix-blend-mode: overlay; }
+#hero .home-hero-inner { max-width: 1100px; }
+#hero h1 { font-size: clamp(42px, 6.6vw, 92px) !important; line-height: 1.02 !important; letter-spacing: -0.04em !important; max-width: 16ch; text-shadow: none !important; }
+#hero .lead { color: rgba(255,255,255,0.68) !important; font-size: clamp(16px, 1.4vw, 19px) !important; font-weight: 400; max-width: 42ch; }
+#hero .home-lockup .home-brand { font-family: var(--ui); font-weight: 400; letter-spacing: 0.3em; }
+#hero .hero-cta button { font-family: var(--ui); font-weight: 500; font-size: 15.5px; height: 50px; padding: 0 28px; }
+#hero .hero-cta-alt { background: rgba(255,255,255,0.06) !important; border: 1px solid rgba(255,255,255,0.22) !important; -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: inset 0 0 22px rgba(90, 120, 255, 0.35); }
+#hero .home-fine-line { font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.08em; color: rgba(255,255,255,0.62); }
+#hero .home-scroll-cue { display: none; }
+/* the live panel under the buttons */
+.hero-demo {
+  position: relative; width: min(640px, 100%); margin: 40px auto 0; text-align: left; padding: 18px 18px 14px; border-radius: 18px;
+  background: rgba(14, 14, 18, 0.82); border: 1px solid rgba(255,255,255,0.09); -webkit-backdrop-filter: blur(22px) saturate(1.3); backdrop-filter: blur(22px) saturate(1.3);
+  box-shadow: 0 40px 120px -40px rgba(40, 70, 255, 0.55), inset 0 1px 0 rgba(255,255,255,0.06);
+  animation: lune-rise 0.9s 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.hd-you { margin: 0 0 14px auto; max-width: 86%; padding: 12px 15px; border-radius: 14px; background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.86); font-size: 15px; line-height: 1.55; }
+.hd-log { padding: 2px 4px 12px; }
+.hd-line { margin: 0; padding: 4px 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; color: rgba(255,255,255,0.72); opacity: 0; animation: hd-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+.hd-line:nth-child(1) { animation-delay: 1.1s; } .hd-line:nth-child(2) { animation-delay: 1.6s; } .hd-line:nth-child(3) { animation-delay: 2.1s; } .hd-line:nth-child(4) { animation-delay: 2.6s; }
+.hd-dim { color: rgba(255,255,255,0.58); }
+.hd-mark { color: var(--lune-blue-hi); margin-right: 6px; }
+.hd-tag { color: #8ea4ff; font-weight: 600; margin-right: 8px; }
+@keyframes hd-in { from { opacity: 0; transform: translateY(6px); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+.hd-input { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 48px; padding: 0 6px 0 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.03); color: rgba(255,255,255,0.6); font: inherit; font-size: 14.5px; cursor: pointer; transition: border-color 0.2s ease, background 0.2s ease; }
+.hd-input:hover { border-color: rgba(138, 162, 255, 0.5); background: rgba(255,255,255,0.05); }
+.hd-input:focus-visible { outline: 2px solid #9db4ff; outline-offset: 2px; }
+.hd-send { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--lune-blue); color: #fff; box-shadow: 0 6px 18px rgba(61, 92, 255, 0.5); }
+@media (prefers-reduced-motion: reduce) { .hd-line, .hero-demo { animation: none; opacity: 1; } }
+@media (max-width: 600px) { .hero-demo { margin-top: 30px; padding: 14px 12px 12px; } .hd-line { font-size: 11.5px; } }
+/* nav: adihuman's pill */
+body.is-home:not(.is-signed-in) header.bar { background: linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0)) !important; -webkit-backdrop-filter: none; backdrop-filter: none; }
+body.is-home:not(.is-signed-in) header.bar .lp-nav { background: rgba(20, 24, 60, 0.42); border-color: rgba(255,255,255,0.12); }
+.lp-nav a, .lp-nav-cta { font-family: var(--ui); font-weight: 400; font-size: 14.5px; }
+.lp-nav a.on::before { background: var(--lune-blue-hi); box-shadow: 0 0 10px var(--lune-blue-hi); }
+.lp-nav-cta { background: var(--lune-blue) !important; font-weight: 500; }
+/* sections: left-aligned light headings, quiet copy */
+body.is-home:not(.is-signed-in) .home-feat-copy h2 { font-size: clamp(32px, 4vw, 52px); line-height: 1.06; }
+body.is-home:not(.is-signed-in) .home-feat-copy p { font-family: var(--ui); color: rgba(255,255,255,0.62) !important; font-size: 16px; font-weight: 400; }
+body.is-home:not(.is-signed-in) .home-feat-intro h2, body.is-home:not(.is-signed-in) .ai-intro h2, body.is-home:not(.is-signed-in) .lp-free h2, body.is-home:not(.is-signed-in) .home-close h2 { font-size: clamp(34px, 5vw, 64px); line-height: 1.04; }
+body.is-home:not(.is-signed-in) .home-feat-device { border-radius: 16px; border-color: rgba(255,255,255,0.08) !important; background: #08080a; box-shadow: 0 50px 140px -50px rgba(40, 70, 255, 0.45) !important; }
+.ai-chapter .ai-scene { background: #0b0b0e !important; border-color: rgba(255,255,255,0.08) !important; border-radius: 16px; }
+.lp-more button, .lp-more a { font-family: var(--ui); }
+/* the white footer, with the wordmark large */
+html:not([data-theme="light"]) body.is-home:not(.is-signed-in) #home-guest > .home-footer { background: #f6f6f4; color: #121212; padding: 48px 24px 28px; margin-top: 60px; text-align: left; align-items: flex-start; }
+body.is-home:not(.is-signed-in) #home-guest > .home-footer .home-footer-mark { display: none; }
+body.is-home:not(.is-signed-in) #home-guest > .home-footer p, body.is-home:not(.is-signed-in) #home-guest > .home-footer a, body.is-home:not(.is-signed-in) #home-guest > .home-footer .link-btn { color: #3d3d3d !important; }
+.home-footer-word { display: none; }
+html:not([data-theme="light"]) body.is-home:not(.is-signed-in) #home-guest > .home-footer .home-footer-word {
+  display: flex; align-items: center; justify-content: center; gap: 0.18em; width: 100%; margin: 28px 0 10px; color: #111 !important;
+  font-family: var(--ui); font-weight: 300; font-size: clamp(72px, 16vw, 220px); letter-spacing: -0.05em; line-height: 1;
+}
+.home-footer-word svg { width: 0.7em; height: 0.7em; }
+body.is-home:not(.is-signed-in) #home-guest > .home-footer .home-footer-line { font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.12em; text-transform: uppercase; color: #3d5cff !important; }
+
+/* ---- Inside the app ---- */
+header.bar { font-family: var(--ui); }
+header.bar button, header.bar .studio-tab, .studio-tools button, .score-tools button, .listen-dock button, .tempo-control, #home-member button { font-family: var(--ui) !important; }
+/* the view switch reads like the nav: glass, the current one marked with a blue dot */
+body:not(.studio-compact) .studio-seg { background: rgba(255,255,255,0.04) !important; border: 1px solid rgba(255,255,255,0.1) !important; border-radius: 14px !important; padding: 3px !important; }
+body:not(.studio-compact) .studio-seg .studio-tab { border-radius: 11px !important; color: #c4c4c4; background: transparent !important; font-weight: 400; display: inline-flex; align-items: center; gap: 8px; }
+body:not(.studio-compact) .studio-seg .studio-tab.on, body:not(.studio-compact) .studio-seg .studio-tab[aria-selected="true"] { background: rgba(255,255,255,0.1) !important; color: #fff !important; }
+body:not(.studio-compact) .studio-seg .studio-tab[aria-selected="true"]::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--lune-blue-hi); box-shadow: 0 0 10px var(--lune-blue-hi); }
+#btn-play-range { font-family: var(--ui) !important; font-weight: 600; }
+html:not([data-theme="light"]) body.is-studio { background: #000; }
+
+/* ---- Lune AI: EB Garamond, glass, a living edge ---- */
+@property --lune-angle { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+.lune-chat .chat-bubble, .ask-msg, .chat-from-lune .chat-bubble, .lt-caption, .lc-answer, .ask-from-lune, .lp-ai-answer, .coach .lp-answer, .chat-log .md, .chat-log p {
+  font-family: var(--garamond) !important; font-size: 18.5px !important; line-height: 1.55 !important; letter-spacing: 0.005em;
+}
+.chat-from-you .chat-bubble, .ask-from-you { font-family: var(--ui) !important; font-size: 15px !important; }
+.lune-chat[open], .lune-talk[open], dialog#ask-panel[open], .ask-panel[open] {
+  background: radial-gradient(120% 70% at 50% -10%, rgba(45, 70, 220, 0.22), transparent 60%), rgba(6, 7, 12, 0.94) !important;
+  border: 1px solid rgba(120, 140, 255, 0.22) !important;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.03), 0 40px 140px -30px rgba(40, 70, 255, 0.55) !important;
+}
+.lune-chat .chat-head h2, .lune-chat .chat-id, .ask-title { font-family: var(--mono) !important; font-size: 12px !important; font-weight: 500 !important; letter-spacing: 0.16em !important; text-transform: uppercase; color: #aebcff !important; }
+.lc-composer, .chat-form, .ask-form, #home-member .home-ask, .lp-askbar {
+  position: relative; isolation: isolate; border-radius: 20px !important; background: rgba(10, 11, 18, 0.86) !important; border: 1px solid transparent !important;
+}
+.lc-composer::before, .chat-form::before, .ask-form::before, #home-member .home-ask::before, .lp-askbar::before {
+  content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1px; z-index: -1; pointer-events: none;
+  background: conic-gradient(from var(--lune-angle), rgba(61, 92, 255, 0.9), rgba(140, 90, 255, 0.6), rgba(80, 200, 255, 0.7), rgba(61, 92, 255, 0.15), rgba(61, 92, 255, 0.9));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  animation: lune-edge 6s linear infinite;
+}
+.lc-composer:focus-within::before, .chat-form:focus-within::before, .ask-form:focus-within::before, #home-member .home-ask:focus-within::before { animation-duration: 2.4s; filter: drop-shadow(0 0 8px rgba(80, 110, 255, 0.8)); }
+@keyframes lune-edge { to { --lune-angle: 360deg; } }
+.lc-send, .lc-round { background: var(--lune-blue) !important; color: #fff !important; box-shadow: 0 6px 20px rgba(61, 92, 255, 0.5); }
+.chat-from-lune .chat-bubble { background: transparent !important; border: 0 !important; padding-left: 0 !important; color: #ececf3 !important; }
+.chat-starters button, .ask-chips button { font-family: var(--ui) !important; border-radius: 999px !important; background: rgba(255,255,255,0.04) !important; border: 1px solid rgba(255,255,255,0.12) !important; }
+.chat-starters button:hover, .ask-chips button:hover { border-color: rgba(138, 162, 255, 0.6) !important; background: rgba(61, 92, 255, 0.12) !important; }
+@media (prefers-reduced-motion: reduce) { .lc-composer::before, .chat-form::before, .ask-form::before, #home-member .home-ask::before, .lp-askbar::before { animation: none; } }
+/* the sky runs up behind the bar, as on adihuman */
+body.is-home:not(.is-signed-in) header.bar { position: fixed !important; top: 0; left: 0; right: 0; z-index: 60; background: transparent !important; border: 0 !important; }
+body.is-home:not(.is-signed-in) #hero.home-hero-cinema { padding-top: 120px; }
+#hero .lead, #hero h1, .hd-you { letter-spacing: normal; word-spacing: normal; }
+#hero h1 { letter-spacing: -0.04em !important; }
+@media (max-width: 600px) {
+  #hero .home-fine-line { font-size: 10.5px; letter-spacing: 0.04em; }
+  #hero .lead { letter-spacing: 0 !important; }
+}
+.lune-chat, .lune-chat button, .lune-chat input, .lune-chat textarea, .lune-talk, .lune-talk button, .member-week summary, .member-week-more, .ask-panel, #home-member summary, .chat-hist, .ch-top, .ch-list { font-family: var(--ui) !important; }
+.lune-chat .chat-log p, .lune-chat .chat-from-lune .chat-bubble, .lune-chat .chat-from-lune .chat-bubble * { font-family: var(--garamond) !important; }
+/* once the page moves, the bar gets a frosted backing so nothing reads through it */
+body.is-home:not(.is-signed-in).lp-scrolled header.bar { background: rgba(0, 0, 0, 0.32) !important; -webkit-backdrop-filter: saturate(1.4) blur(18px); backdrop-filter: saturate(1.4) blur(18px); transition: background 0.3s ease; }
+body :is(button, label, input, select, textarea, summary, .tog, .pill, .bpm-readout, .bpm-unit, .bpm-meter, #scrub-bar, #scrub-time) { font-family: var(--ui) !important; }
+.ask-empty-h, .lune-chat .ask-empty-h, .chat-lead { font-family: var(--garamond) !important; font-weight: 500 !important; font-size: 26px !important; letter-spacing: 0 !important; }
+.ask-msg.ask-from-lune, .ask-from-lune .ask-msg, .ask-row .ask-msg:not(.ask-from-you) { font-family: var(--garamond) !important; font-size: 18.5px !important; }
+dialog :is(p, li, span, strong, small, div, a, h3, h4) { font-family: var(--ui) !important; }
+dialog .ask-empty-h, dialog .chat-lead { font-family: var(--garamond) !important; }
+/* the Ask panel is an aside, not a dialog: the same type there */
+#ask-lune :is(p, li, span, strong, small, a, h3, h4) { font-family: var(--ui) !important; }
+#ask-lune .ask-empty-h { font-family: var(--garamond) !important; }
+/* light theme: the blue deep enough to read on white */
+html[data-theme="light"] .about-kicker, html[data-theme="light"] .member-kicker, html[data-theme="light"] .member-next-k, html[data-theme="light"] .ai-scene-k, html[data-theme="light"] .sm-h, html[data-theme="light"] .coach-kicker, html[data-theme="light"] .chat-sub, html[data-theme="light"] .ask-where, html[data-theme="light"] #chat-sub { color: #2238c4 !important; }
+.lp-nav-cta { background: #3651f0 !important; }
