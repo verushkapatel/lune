@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- lune33 -->
-  <!-- deploy-lune33 -->
-  <!-- deploy-lune33 -->
+  <!-- lune34 -->
+  <!-- deploy-lune34 -->
+  <!-- deploy-lune34 -->
 
 <meta charset="UTF-8">
   <script>
@@ -34,15 +34,50 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Lune">
-  <link rel="icon" href="static/assets/favicon.svg?v=lune33" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=lune33">
+  <link rel="icon" href="static/assets/favicon.svg?v=lune34" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=lune34">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2?v=lune33" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="static/styles.css?v=lune33">
-  <link rel="stylesheet" href="static/theme-light.css?v=lune33">
-  <link rel="preload" href="static/search-index.json?v=lune33" as="fetch" crossorigin>
+  <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2?v=lune34" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="static/assets/fonts/manrope-var.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="static/styles.css?v=lune34">
+  <link rel="stylesheet" href="static/theme-light.css?v=lune34">
+  <link rel="preload" href="static/search-index.json?v=lune34" as="fetch" crossorigin>
 </head>
 <body>
+  <div id="lune-intro" aria-hidden="true">
+    <style>
+      #lune-intro { position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; background: #000; pointer-events: none; transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 0.7s; }
+      #lune-intro.gone { opacity: 0; visibility: hidden; }
+      #lune-intro .li-lock { display: flex; flex-direction: column; align-items: center; gap: 22px; color: #f5f5f7; animation: li-in 1.1s cubic-bezier(0.22, 1, 0.36, 1) both; }
+      #lune-intro.gone .li-lock { transform: scale(1.06); filter: blur(6px); transition: transform 0.7s ease, filter 0.7s ease; }
+      #lune-intro svg { width: min(34vw, 150px); height: auto; filter: drop-shadow(0 0 40px rgba(90, 120, 255, 0.55)); }
+      #lune-intro .li-moon { animation: li-moon 1.3s cubic-bezier(0.22, 1, 0.36, 1) both; transform-origin: 50% 45%; }
+      #lune-intro .li-staff line { stroke-dasharray: 32; stroke-dashoffset: 32; animation: li-draw 0.9s 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+      #lune-intro .li-word { margin: 0; font-family: "Manrope", system-ui, sans-serif; font-weight: 300; font-size: clamp(54px, 13vw, 112px); letter-spacing: -0.045em; line-height: 1; animation: li-word 1.2s 0.15s cubic-bezier(0.22, 1, 0.36, 1) both; }
+      #lune-intro::after { content: ""; position: absolute; width: 70vmax; height: 70vmax; border-radius: 50%; background: radial-gradient(closest-side, rgba(45, 70, 240, 0.28), transparent 70%); animation: li-glow 1.6s ease-out both; z-index: -1; }
+      @keyframes li-in { from { opacity: 0; } to { opacity: 1; } }
+      @keyframes li-moon { from { opacity: 0; transform: rotate(-24deg) scale(0.82); } to { opacity: 1; transform: none; } }
+      @keyframes li-draw { to { stroke-dashoffset: 0; } }
+      @keyframes li-word { from { opacity: 0; letter-spacing: 0.08em; filter: blur(10px); } to { opacity: 1; letter-spacing: -0.045em; filter: none; } }
+      @keyframes li-glow { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: none; } }
+    </style>
+    <div class="li-lock">
+      <svg viewBox="0 0 40 40" focusable="false"><g class="li-staff" stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.6"><line x1="5" y1="26" x2="10.07" y2="26"/><line x1="27.93" y1="26" x2="35" y2="26"/><line x1="5" y1="30" x2="35" y2="30"/><line x1="5" y1="34" x2="35" y2="34"/></g><path class="li-moon" fill="currentColor" d="M17.61 4.58A12 12 0 1 0 27.70 24.77A11.4 11.4 0 1 1 17.61 4.58Z"/></svg>
+      <p class="li-word">lune</p>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var el = document.getElementById("lune-intro");
+      var seen = false;
+      try { seen = sessionStorage.getItem("lune.intro") === "1"; sessionStorage.setItem("lune.intro", "1"); } catch (e) {}
+      var still = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+      // only on the front door: a link to a piece, or a second visit this session, goes straight in
+      if (seen || still || (location.hash && location.hash !== "#" && location.hash !== "#/")) { el.parentNode.removeChild(el); return; }
+      setTimeout(function () { el.classList.add("gone"); }, 1500);
+      setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 2300);
+    })();
+  </script>
   <script>if (/^#\/[a-z0-9]/i.test(location.hash) && !/^#\/(ai|repertoire|study|assign)\b/.test(location.hash)) document.documentElement.classList.add("boot-piece");</script>
   <div id="app">
     <header class="bar">
@@ -905,27 +940,27 @@
   <script src="static/vendor/opensheetmusicdisplay.min.js"></script>
   <script src="static/vendor/pdf.min.js"></script>
   <script src="static/vendor/Tone.js"></script>
-  <script src="static/piano.js?v=lune33"></script>
-  <script src="static/annotate.js?v=lune33"></script>
-  <script src="static/lite-analyze.js?v=lune33"></script>
-  <script src="static/fetch-score.js?v=lune33"></script>
-  <script src="static/lyric-lane.js?v=lune33"></script>
-  <script src="static/menu.js?v=lune33"></script>
-  <script src="static/lune-fx.js?v=lune33"></script>
-  <script src="static/lune-config.js?v=lune33"></script>
-  <script src="static/store.js?v=lune33"></script>
-  <script src="static/onboard.js?v=lune33"></script>
-  <script src="static/impact.js?v=lune33"></script>
-  <script src="static/feedback.js?v=lune33"></script>
-  <script src="static/ai-device.js?v=lune33"></script>
-  <script src="static/ask.js?v=lune33"></script>
-  <script src="static/markings.js?v=lune33"></script>
-  <script src="static/plans.js?v=lune33"></script>
-  <script src="static/app.js?v=lune33"></script>
-  <script src="static/studio-ui.js?v=lune33"></script>
-  <script src="static/landing-score.js?v=lune33"></script>
-  <script src="static/practice.js?v=lune33"></script>
-  <script src="static/study.js?v=lune33"></script>
-  <script src="static/install.js?v=lune33"></script>
+  <script src="static/piano.js?v=lune34"></script>
+  <script src="static/annotate.js?v=lune34"></script>
+  <script src="static/lite-analyze.js?v=lune34"></script>
+  <script src="static/fetch-score.js?v=lune34"></script>
+  <script src="static/lyric-lane.js?v=lune34"></script>
+  <script src="static/menu.js?v=lune34"></script>
+  <script src="static/lune-fx.js?v=lune34"></script>
+  <script src="static/lune-config.js?v=lune34"></script>
+  <script src="static/store.js?v=lune34"></script>
+  <script src="static/onboard.js?v=lune34"></script>
+  <script src="static/impact.js?v=lune34"></script>
+  <script src="static/feedback.js?v=lune34"></script>
+  <script src="static/ai-device.js?v=lune34"></script>
+  <script src="static/ask.js?v=lune34"></script>
+  <script src="static/markings.js?v=lune34"></script>
+  <script src="static/plans.js?v=lune34"></script>
+  <script src="static/app.js?v=lune34"></script>
+  <script src="static/studio-ui.js?v=lune34"></script>
+  <script src="static/landing-score.js?v=lune34"></script>
+  <script src="static/practice.js?v=lune34"></script>
+  <script src="static/study.js?v=lune34"></script>
+  <script src="static/install.js?v=lune34"></script>
 </body>
 </html>
