@@ -2499,6 +2499,97 @@ html[data-theme="light"]:not([data-theme="light"]) body.is-signed-in.is-home #ho
 html[data-theme="light"]:not([data-theme="light"]) .rep-empty em {
   color: rgba(0, 0, 0, 0.86);
 }
+html[data-theme="light"] .lw-stage {
+  color: rgba(0, 0, 0, 0.55) !important;
+}
+html[data-theme="light"] .lw-bar {
+  background: rgba(0, 0, 0, 0.08) !important;
+}
+html[data-theme="light"][data-theme="light"] .lune-moon {
+  background: #e0e0e5;
+}
+html[data-theme="light"][data-theme="light"] .lw-bar i {
+  background: #dddddd !important;
+}
+html[data-theme="light"] button.primary.is-busy::after,
+html[data-theme="light"][data-theme="light"] button.is-busy::after {
+  background: #e9e9ed;
+}
+html[data-theme="light"] .lune-chat .chat-from-lune .chat-bubble,
+html[data-theme="light"] .ask-msg.ask-from-lune,
+html[data-theme="light"] .ask-from-lune .ask-msg,
+html[data-theme="light"] .ask-row .ask-msg:not(.ask-from-you),
+html[data-theme="light"] .chat-log .md,
+html[data-theme="light"] .lune-chat .chat-log p {
+  color: rgba(0, 0, 0, 0.86) !important;
+}
+html[data-theme="light"] :is(.ask-msg,
+html[data-theme="light"] .chat-bubble) p:first-child {
+  color: #000000;
+}
+html[data-theme="light"] :is(.ask-msg,
+html[data-theme="light"] .chat-bubble) ol > li {
+  background: rgba(0, 0, 0, 0.035);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+html[data-theme="light"] :is(.ask-msg,
+html[data-theme="light"] .chat-bubble) ol > li::before {
+  color: #000000;
+  background: rgba(0, 0, 0, 0.1);
+}
+html[data-theme="light"][data-theme="light"] :is(.ask-msg,
+html[data-theme="light"] .chat-bubble) ol > li {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+html[data-theme="light"][data-theme="light"] :is(.ask-msg,
+html[data-theme="light"] .chat-bubble) ol > li::before {
+  background: rgba(255, 255, 255, 0.08);
+}
+html[data-theme="light"] body:not(.studio-compact) .score-tools-head {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+html[data-theme="light"] body:not(.studio-compact) .score-tools-head .lp-tool,
+html[data-theme="light"] body:not(.studio-compact) .score-tools-head #btn-toggle-kbd,
+html[data-theme="light"] body:not(.studio-compact) .score-tools-head #btn-pedal,
+html[data-theme="light"] body:not(.studio-compact) .score-tools-head .access-chip {
+  background: rgba(0, 0, 0, 0.04) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  color: #151517 !important;
+}
+html[data-theme="light"] body:not(.studio-compact) .score-tools-head .lp-tool:hover {
+  background: rgba(0, 0, 0, 0.08) !important;
+  border-color: rgba(0, 0, 0, 0.2) !important;
+}
+html[data-theme="light"] body:not(.studio-compact) .score-tools-head .anno-seg {
+  background: rgba(0, 0, 0, 0.04) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+html[data-theme="light"] #btn-tools-more[aria-expanded="true"] {
+  background: rgba(0, 0, 0, 0.1) !important;
+}
+html[data-theme="light"] body:not(.studio-compact) #listen-dock .transport {
+  background: rgba(241, 241, 245, 0.82) !important;
+  border-top: 1px solid rgba(0, 0, 0, 0.07) !important;
+}
+html[data-theme="light"] body:not(.studio-compact) #btn-stop {
+  background: rgba(0, 0, 0, 0.05) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+html[data-theme="light"] body:not(.studio-compact) .tempo-control {
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+html[data-theme="light"] body:not(.studio-compact) .scrub-meta {
+  color: rgba(0, 0, 0, 0.55);
+}
+html[data-theme="light"] body:not(.studio-compact) #scrub {
+  accent-color: #08080a;
+}
+html[data-theme="light"] body:not(.studio-compact) .tempo-control .bpm-unit,
+html[data-theme="light"] body:not(.studio-compact) .tempo-control .bpm-meter {
+  color: #47474c !important;
+}
 /* KEEP: hand fixes */
 html[data-theme="light"][data-theme="light"] #home-member .member-next .primary, html[data-theme="light"][data-theme="light"] .rep-card .primary { background: #2a44d8 !important; color: #ffffff !important; }
 html[data-theme="light"][data-theme="light"] .lp-nav-cta, html[data-theme="light"][data-theme="light"] .hd-send, html[data-theme="light"][data-theme="light"] .lc-send, html[data-theme="light"][data-theme="light"] .lc-round { background: #2a44d8 !important; color: #ffffff !important; }

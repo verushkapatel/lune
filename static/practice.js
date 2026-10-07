@@ -486,13 +486,33 @@ window.LunePractice = (function () {
   }
   /* Spoken aloud, names are respelled so the voice says them as musicians do. */
   const SAY = [
-    [/\bLiebestr[äa]um(e)?\b/gi, "Leebe-strowm"], [/\bClair de lune\b/gi, "Clair duh loon"], [/\bF[üu]r Elise\b/gi, "Fur Eh-leeza"],
-    [/\bGymnop[ée]die(s)?\b/gi, "Jim-no-pay-dee"], [/\bDebussy\b/g, "Deh-byoo-see"], [/\bChopin\b/g, "Show-pan"], [/\bLiszt\b/g, "List"],
-    [/\bSatie\b/g, "Sah-tee"], [/\bRachmaninoff?\b/g, "Rock-mah-nin-off"], [/\bSchumann\b/g, "Shoo-mahn"], [/\bSchubert\b/g, "Shoo-bert"],
-    [/\bBach\b/g, "Bahk"], [/\bRavel\b/g, "Rah-vel"], [/\bnocturnes?\b/gi, (m) => (m.endsWith("s") ? "nock-turns" : "nock-turn")], [/\b[ée]tudes?\b/gi, (m) => (/s$/.test(m) ? "ay-toods" : "ay-tood")],
-    [/\bPath[ée]tique\b/gi, "Pah-tay-teek"], [/\bOp\.\s?/g, "Opus "], [/\bNo\.\s?(?=\d)/g, "Number "], [/\bBWV\s?/g, "B W V "],
+    [/\bLiebestr[äa]um(e)?\b/gi, "Leebe-strowm"], [/\bF[üu]r Elise\b/gi, "Fur Eh-leeza"],
+    [/\bLiszt\b/g, "List"],
+    [/\bRachmaninoff?\b/g, "Rock-mah-nin-off"], [/\bSchumann\b/g, "Shoo-mahn"], [/\bSchubert\b/g, "Shoo-bert"],
+    [/\bBach\b/g, "Bahk"], [/\bnocturnes?\b/gi, (m) => (m.endsWith("s") ? "nock-turns" : "nock-turn")], 
+    [/\bOp\.\s?/g, "Opus "], [/\bNo\.\s?(?=\d)/g, "Number "], [/\bBWV\s?/g, "B W V "],
     [/♭/g, " flat"], [/♯/g, " sharp"], [/♮/g, " natural"], [/\bLune\b/g, "Loon"],
   ];
+  /* French names and terms are given to a French voice, so they sound as they should. */
+  const FRENCH = /\b(Suite bergamasque|Clair de lune|Pavane pour une infante d[ée]funte|Jeux d['’]eau|R[êe]verie|Arabesques?|Gymnop[ée]dies?|Gnossiennes?|Claude Debussy|Debussy|Erik Satie|Satie|Maurice Ravel|Ravel|Gabriel Faur[ée]|Faur[ée]|Fr[ée]d[ée]ric Chopin|Chopin|Path[ée]tique|[ÉE]tudes?(?= (?:in|no|op|en)\b)|[ée]tudes?|Pr[ée]ludes?(?= (?:de|pour)\b)|Berceuse|Barcarolle|Valse|C[ée]dez|Retenu|Au mouvement|En dehors|Tr[èe]s doux|Doux|Un peu|Mouvement)\b/gi;
+  function splitLanguages(text) {
+    const out = [];
+    let at = 0;
+    for (const m of String(text).matchAll(FRENCH)) {
+      if (m.index > at) out.push({ t: text.slice(at, m.index), lang: "en" });
+      out.push({ t: m[0], lang: "fr" });
+      at = m.index + m[0].length;
+    }
+    if (at < text.length) out.push({ t: text.slice(at), lang: "en" });
+    // tiny joins ("by ", ", ") ride with their neighbour so the voice does not stutter
+    return out.filter((x) => x.t.trim()).reduce((acc, x) => {
+      const last = acc[acc.length - 1];
+      if (last && last.lang === x.lang) last.t += x.t;
+      else if (last && x.lang === "en" && !/[a-z]{3}/i.test(x.t)) last.t += x.t;
+      else acc.push({ ...x });
+      return acc;
+    }, []);
+  }
   function forSpeech(text) {
     let out = String(text || "");
     for (const [re, to] of SAY) out = out.replace(re, to);
@@ -755,27 +775,30 @@ window.LunePractice = (function () {
         if (last && last.length < 40) parts[parts.length - 1] = last + sentence;
         else parts.push(sentence);
       }
-      const voiceOf = (t) => {
-        const hit = voiceCache.get(t);
+      const voiceOf = (t, lang = "en") => {
+        const key = `${lang}|${t}`;
+        const hit = voiceCache.get(key);
         if (hit) return Promise.resolve(hit);
-        return V.speak(t).then((b) => {
-          voiceCache.set(t, b);
+        return V.speak(t, lang).then((b) => {
+          voiceCache.set(key, b);
           return b;
         });
       };
-      const total = parts.reduce((n, t) => n + t.length, 0) || 1;
+      // each sentence, split where French names begin and end
+      const segs = parts.flatMap((p) => splitLanguages(p).map((x) => ({ ...x, n: x.t.length })));
+      const total = segs.reduce((n, x) => n + x.n, 0) || 1;
       let done = 0;
       try {
-        let next = voiceOf(parts[0].trim());
-        for (let i = 0; i < parts.length; i++) {
+        let next = voiceOf(segs[0].t.trim(), segs[0].lang);
+        for (let i = 0; i < segs.length; i++) {
           const blob = await next;
           if (gen !== speakGen) return; // stopped, or something newer is being said
-          if (i + 1 < parts.length) next = voiceOf(parts[i + 1].trim());
+          if (i + 1 < segs.length) next = voiceOf(segs[i + 1].t.trim(), segs[i + 1].lang);
           await playVoice(blob, {
             onLevel,
-            onFrac: (f) => onProgress?.(Math.min(1, (done + f * parts[i].length) / total)),
+            onFrac: (f) => onProgress?.(Math.min(1, (done + f * segs[i].n) / total)),
           });
-          done += parts[i].length;
+          done += segs[i].n;
           if (gen !== speakGen) return;
         }
         onProgress?.(1);
@@ -787,20 +810,14 @@ window.LunePractice = (function () {
     }
     if (!("speechSynthesis" in window)) return;
     await new Promise((resolve) => {
-      const u = new SpeechSynthesisUtterance(text);
-      const voice = bestVoice();
-      if (voice) {
-        u.voice = voice;
-        u.lang = voice.lang;
-      } else u.lang = "en-GB";
-      u.rate = Number(store.prefs().speechRate) || 1;
-      u.pitch = 1.04; // a touch warmer than flat
-      // the device voice gives no level, so the orb breathes with the words instead
+      // one utterance per language: French names in a French voice when the device has one
+      const fr = (speechSynthesis.getVoices?.() || []).filter((v) => /^fr(-|_|$)/i.test(v.lang));
+      const frVoice = fr.find((v) => /natural|premium|enhanced|amélie|thomas|google/i.test(v.name)) || fr[0] || null;
+      const en = bestVoice();
+      const segs = splitLanguages(text);
+      const rate = Number(store.prefs().speechRate) || 1;
       let pulse = 0;
-      u.onboundary = (ev) => {
-        pulse = 0.8;
-        if (ev?.charIndex != null) onProgress?.(Math.min(1, (ev.charIndex + (ev.charLength || 1)) / Math.max(1, text.length)));
-      };
+      let spoken = 0;
       const iv = setInterval(() => {
         pulse *= 0.82;
         onLevel?.(0.25 + pulse * 0.6);
@@ -815,9 +832,27 @@ window.LunePractice = (function () {
         resolve();
       };
       // some phones never report the end of an utterance
-      const cap = setTimeout(stop, Math.max(4000, text.length * 95 / (u.rate || 1)) + 3000);
-      u.onend = u.onerror = stop;
-      speechSynthesis.speak(u);
+      const cap = setTimeout(stop, Math.max(4000, text.length * 95 / rate) + 3000);
+      segs.forEach((seg, i) => {
+        const u = new SpeechSynthesisUtterance(seg.t);
+        const voice = seg.lang === "fr" ? frVoice : en;
+        if (voice) {
+          u.voice = voice;
+          u.lang = voice.lang;
+        } else u.lang = seg.lang === "fr" ? "fr-FR" : "en-GB";
+        u.rate = rate;
+        u.pitch = 1.04; // a touch warmer than flat
+        const base = spoken;
+        u.onboundary = (ev) => {
+          pulse = 0.8;
+          if (ev?.charIndex != null) onProgress?.(Math.min(1, (base + ev.charIndex + (ev.charLength || 1)) / Math.max(1, text.length)));
+        };
+        spoken += seg.t.length;
+        if (i === segs.length - 1) u.onend = u.onerror = stop;
+        else u.onerror = stop;
+        speechSynthesis.speak(u);
+      });
+      if (!segs.length) stop();
     });
   }
   /** Play one stretch of Lune's voice; onLevel follows its loudness, onFrac its progress. */
@@ -2208,15 +2243,22 @@ window.LunePractice = (function () {
     const bar = document.createElement("div");
     bar.className = "lp-tools-bar";
     bar.innerHTML = `
-      <button type="button" class="quiet lp-tool" id="btn-listen" title="Hear the selected bar described: its notes, fingers and a tip (R)">
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 10v4h3l4 3.5v-11L8 10H5zM15.5 9a4 4 0 0 1 0 6M17.8 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <span class="lp-tool-label">Listen</span></button>
+      <button type="button" class="quiet lp-tool lp-more-tools" id="btn-tools-more" aria-expanded="false" aria-controls="score-toggles" title="More score tools: letters, braille, piano, pedal">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="6" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="18" cy="12" r="1.6" fill="currentColor"/></svg>
+        <span class="lp-tool-label">More</span></button>
       <button type="button" class="quiet lp-tool" id="btn-tell" title="Ask about a bar, leave a remark, or add to your plan — type or speak">
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
         <span class="lp-tool-label">Ask Lune</span></button>`;
     head.appendChild(bar);
     bar.querySelector("#btn-tell")?.addEventListener("click", () => window.LuneAsk?.open?.());
-    bar.querySelector("#btn-listen")?.addEventListener("click", () => readSelectedAloud());
+    // the extra tools stay folded away until asked for
+    const more = bar.querySelector("#btn-tools-more");
+    more?.addEventListener("click", () => {
+      const open = !head.classList.contains("tools-open");
+      head.classList.toggle("tools-open", open);
+      more.setAttribute("aria-expanded", open ? "true" : "false");
+      more.querySelector(".lp-tool-label").textContent = open ? "Less" : "More";
+    });
   }
 
   function ensureHeaderButton() {
@@ -2238,14 +2280,9 @@ window.LunePractice = (function () {
     });
     $("btn-share")?.addEventListener("click", () => openShare());
     // The bar panel's third button says what it does instead of hiding it behind dots.
+    // the bar panel's spoken description was unclear: it is left out
     const listen = $("btn-coach-more");
-    if (listen) {
-      listen.className = "quiet ink coach-listen";
-      listen.textContent = "Listen";
-      listen.title = "Hear this bar described: notes, fingers and a tip";
-      listen.setAttribute("aria-label", "Hear this bar described");
-      listen.addEventListener("click", () => readSelectedAloud());
-    }
+    if (listen) listen.hidden = true;
   }
 
   /* ---------------- repertoire: what to work on ---------------- */

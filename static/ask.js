@@ -336,13 +336,13 @@ Rules:
       if (!res.ok) throw new Error(data.error || "Lune AI could not hear that.");
       return String(data.text || "");
     },
-    async speak(text) {
+    async speak(text, lang = "en") {
       if (!providers.account.available()) throw new Error("no account");
       const token = await store().accessToken();
       const res = await fetch(`${aiServer()}/speak`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ text: String(text).slice(0, 900) }),
+        body: JSON.stringify({ text: String(text).slice(0, 900), lang }),
       });
       if (!res.ok) throw new Error("voice unavailable");
       return res.blob();
@@ -541,7 +541,16 @@ Rules:
       lines.push(...first(d.advice, 2));
       if (d.split?.needed && d.split.practiceNotes?.[0]) lines.push(d.split.practiceNotes[0]);
     }
-    return { bar, question: true, a: lines.filter(Boolean).join("\n") || "That is everything Lune has read in this bar. Ask me how to practise it and I will give you steps." };
+    if (!lines.filter(Boolean).length) {
+      // nothing stored for this bar: steps built from its own notes
+      const rh = handLine(d.rh, "Right hand").replace(/(\S)\s{2,}(?=\S)/g, "$1, ");
+      const lh = handLine(d.lh, "Left hand").replace(/(\S)\s{2,}(?=\S)/g, "$1, ");
+      lines.push(`Bar ${bar}, step by step:`);
+      if (rh) lines.push(`1. Right hand alone, slowly (about 60 on the metronome), saying the notes as you play. ${rh}`);
+      if (lh) lines.push(`${rh ? 2 : 1}. Left hand alone the same way. ${lh}`);
+      lines.push(`${(rh ? 1 : 0) + (lh ? 1 : 0) + 1}. Hands together at that slow tempo. When it is clean three times in a row, raise the metronome by four.`);
+    }
+    return { bar, question: true, a: lines.filter(Boolean).join("\n") };
   }
 
   /*
@@ -1106,9 +1115,11 @@ Rules:
     if (chipsEl) chipsEl.hidden = true;
     const row = document.createElement("div");
     row.className = `ask-row ask-row-${who}`;
-    const el = document.createElement("p");
+    // Lune's answers are formatted (paragraphs, numbered steps), so they need a block, not a paragraph
+    const el = document.createElement(who === "lune" ? "div" : "p");
     el.className = `ask-msg ask-from-${who}`;
-    el.textContent = text;
+    if (who === "lune" && text && !/^Thinking/.test(text)) richText(el, text);
+    else el.textContent = text;
     if (who === "lune") {
       const body = document.createElement("div");
       body.className = "ask-body";
@@ -1138,7 +1149,7 @@ Rules:
   /** Lune at work: a thin bar that fills as it goes, and the stage it is at. */
   const STAGES = [[0, "Reading the score"], [1200, "Thinking"], [3800, "Writing the answer"], [10000, "A longer answer, still writing"]];
   function workingHtml() {
-    return '<span class="lw"><span class="lw-stage">Reading the score</span><span class="lw-bar"><i></i></span></span><span class="visually-hidden">Lune is working on it</span>';
+    return '<span class="lw"><span class="lw-row"><span class="lune-moon" aria-hidden="true"></span><span class="lw-stage">Reading the score</span></span><span class="lw-bar"><i></i></span></span><span class="visually-hidden">Lune is working on it</span>';
   }
   function runStages(el) {
     const t0 = Date.now();
