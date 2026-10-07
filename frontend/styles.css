@@ -11082,5 +11082,4 @@ dialog .ask-empty-h, dialog .chat-lead { font-family: var(--garamond) !important
 #ask-lune .ask-empty-h { font-family: var(--garamond) !important; }
 /* light theme: the blue deep enough to read on white */
 html[data-theme="light"] .about-kicker, html[data-theme="light"] .member-kicker, html[data-theme="light"] .member-next-k, html[data-theme="light"] .ai-scene-k, html[data-theme="light"] .sm-h, html[data-theme="light"] .coach-kicker, html[data-theme="light"] .chat-sub, html[data-theme="light"] .ask-where, html[data-theme="light"] #chat-sub { color: #2238c4 !important; }
-html[data-theme="light"] .lp-nav-cta, html[data-theme="light"] .hd-send, html[data-theme="light"] .lc-send, html[data-theme="light"] .lc-round { background: #2a44d8 !important; color: #fff !important; }
 .lp-nav-cta { background: #3651f0 !important; }

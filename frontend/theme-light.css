@@ -2383,7 +2383,11 @@ html[data-theme="light"] .chat-from-lune .chat-bubble {
 html[data-theme="light"] body.is-home:not(.is-signed-in).lp-scrolled header.bar {
   background: rgba(255, 255, 255, 0.32) !important;
 }
+html[data-theme="light"] .lp-nav-cta {
+  background: #0f2ac9 !important;
+}
 /* KEEP: hand fixes */
+html[data-theme="light"][data-theme="light"] .lp-nav-cta, html[data-theme="light"][data-theme="light"] .hd-send, html[data-theme="light"][data-theme="light"] .lc-send, html[data-theme="light"][data-theme="light"] .lc-round { background: #2a44d8 !important; color: #ffffff !important; }
 /* --dim text reaches 4.5:1 on the page and on surfaces (was #8a8a8a, 3.4:1) */
 html[data-theme="light"] { --dim: #666666; }
 /* the bar panel is white paper in both themes; these greys reach 4.5:1 on it */

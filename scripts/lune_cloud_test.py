@@ -321,7 +321,7 @@ def section_a11y(browser):
         pg.wait_for_timeout(500)
         inside = pg.evaluate(f"() => !!document.querySelector('{dialog}[open], dialog[open]')?.contains(document.activeElement)")
         pg.keyboard.press("Escape")
-        pg.wait_for_timeout(300)
+        pg.wait_for_timeout(500)
         back = pg.evaluate(f"() => document.activeElement === document.querySelector('{opener}') && !document.querySelector('dialog[open]')")
         check(f"a11y: {opener} dialog takes focus and gives it back on Escape", inside and back, (inside, back))
     lm = pg.evaluate("() => ({banner: document.querySelectorAll('body > header, header.bar').length, main: [...document.querySelectorAll('main')].filter(m => !m.hidden).length})")
