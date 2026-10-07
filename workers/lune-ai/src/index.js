@@ -68,9 +68,9 @@ export function cleanTranscript(out) {
 }
 
 /** Text to speech: returns mp3 bytes, whatever shape the model answers in. */
-export async function synthesize(env, text) {
+export async function synthesize(env, text, lang = "en") {
   const model = env.TTS_MODEL || "@cf/myshell-ai/melotts";
-  const input = /deepgram\/aura/.test(model) ? { text, speaker: env.TTS_VOICE || "luna", encoding: "mp3" } : { prompt: text, lang: "en" };
+  const input = /deepgram\/aura/.test(model) ? { text, speaker: env.TTS_VOICE || "luna", encoding: "mp3" } : { prompt: text, lang: lang === "fr" ? "fr" : "en" };
   const out = await env.AI.run(model, input);
   if (out instanceof ReadableStream) return new Uint8Array(await new Response(out).arrayBuffer());
   if (out instanceof ArrayBuffer) return new Uint8Array(out);
@@ -187,7 +187,8 @@ export async function handle(req, env, fetchImpl = fetch) {
     const text = String(body?.text || "").trim().slice(0, MAX_SPEAK);
     if (!text) return json(req, env, 400, { error: "Nothing to say." });
     try {
-      const audio = await synthesize(env, text);
+      // French names and terms in a French voice
+      const audio = await synthesize(env, text, body?.lang === "fr" ? "fr" : "en");
       // MeloTTS answers in WAV; label the audio by what it really is
       const wav = audio[0] === 0x52 && audio[1] === 0x49 && audio[2] === 0x46 && audio[3] === 0x46;
       return new Response(audio, { status: 200, headers: { "Content-Type": wav ? "audio/wav" : "audio/mpeg", "Cache-Control": "private, max-age=86400", ...cors(req, env) } });

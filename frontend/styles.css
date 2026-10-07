@@ -11209,3 +11209,77 @@ html:not([data-theme="light"]) body.is-repertoire #app, html:not([data-theme="li
 
 html:not([data-theme="light"]) .rep-empty em { color: rgba(255,255,255,0.86); font-style: italic; }
 @media (max-width: 600px) { #home-member .member-title { font-size: 31px !important; margin-bottom: 12px !important; } }
+
+/* ===== The Lune moon: a loader that waxes from new to full ===== */
+@property --moon-x { syntax: "<percentage>"; initial-value: 150%; inherits: false; }
+.lune-moon { display: inline-block; flex: none; width: 16px; height: 16px; border-radius: 50%; background: #f1f2f7; box-shadow: 0 0 10px rgba(220, 225, 255, 0.35);
+  -webkit-mask: radial-gradient(circle at var(--moon-x) 42%, transparent 0 58%, #000 60%); mask: radial-gradient(circle at var(--moon-x) 42%, transparent 0 58%, #000 60%);
+  animation: lune-wax 1.8s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
+@keyframes lune-wax { 0% { --moon-x: 50%; } 55% { --moon-x: 105%; } 100% { --moon-x: 175%; } }
+/* the answer is on its way: moon, a quiet stage, a hairline */
+.lw { display: inline-flex !important; flex-direction: column; gap: 10px; min-width: 210px; }
+.lw-row { display: inline-flex; align-items: center; gap: 10px; }
+.lw-stage { background: none !important; -webkit-background-clip: border-box !important; background-clip: border-box !important; color: rgba(255,255,255,0.55) !important; animation: none !important;
+  font-family: var(--mono) !important; font-size: 11px !important; letter-spacing: 0.14em; text-transform: uppercase; }
+.lw-bar { height: 1px !important; max-width: 220px; background: rgba(255,255,255,0.08) !important; }
+.lw-bar i { background: rgba(255,255,255,0.75) !important; box-shadow: none !important; }
+html[data-theme="light"] .lune-moon { background: #1a1a1f; box-shadow: none; }
+html[data-theme="light"] .lw-stage { color: #555 !important; }
+html[data-theme="light"] .lw-bar i { background: #222 !important; }
+/* a button at work shows the moon in place of its label */
+button.is-busy { position: relative; color: transparent !important; pointer-events: none; }
+button.is-busy > * { visibility: hidden; }
+button.is-busy::after { content: ""; position: absolute; left: 50%; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: #f1f2f7;
+  -webkit-mask: radial-gradient(circle at var(--moon-x) 42%, transparent 0 58%, #000 60%); mask: radial-gradient(circle at var(--moon-x) 42%, transparent 0 58%, #000 60%);
+  animation: lune-wax 1.8s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
+button.primary.is-busy::after, html[data-theme="light"] button.is-busy::after { background: #121216; }
+#home-member .member-next button.primary.is-busy::after, .rep-card .primary.is-busy::after, .lp-nav-cta.is-busy::after { background: #fff; }
+@media (prefers-reduced-motion: reduce) { .lune-moon, button.is-busy::after { animation: none; --moon-x: 105%; } }
+
+/* ===== Lune's answers: smaller, calmer, organised ===== */
+.lune-chat .chat-from-lune .chat-bubble, .ask-msg.ask-from-lune, .ask-from-lune .ask-msg, .ask-row .ask-msg:not(.ask-from-you), .chat-log .md, .lune-chat .chat-log p {
+  font-size: 16.5px !important; line-height: 1.62 !important; color: rgba(255,255,255,0.86) !important; letter-spacing: 0.003em;
+}
+:is(.ask-msg, .chat-bubble) p { margin: 0 0 10px !important; }
+:is(.ask-msg, .chat-bubble) p:first-child { color: #fff; }
+:is(.ask-msg, .chat-bubble) ol { list-style: none; counter-reset: lstep; margin: 10px 0 4px !important; padding: 0 !important; display: grid; gap: 8px; }
+:is(.ask-msg, .chat-bubble) ol > li { counter-increment: lstep; position: relative; padding: 10px 12px 10px 42px !important; border-radius: 12px; background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.06); }
+:is(.ask-msg, .chat-bubble) ol > li::before { content: counter(lstep); position: absolute; left: 12px; top: 10px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+  font-family: var(--mono); font-size: 11px; color: #fff; background: rgba(255,255,255,0.1); }
+:is(.ask-msg, .chat-bubble) ul { margin: 8px 0 !important; padding-left: 18px !important; }
+:is(.ask-msg, .chat-bubble) li { margin: 0 !important; }
+html[data-theme="light"] :is(.ask-msg, .chat-bubble) ol > li { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.08); }
+html[data-theme="light"] :is(.ask-msg, .chat-bubble) ol > li::before { color: #111; background: rgba(0,0,0,0.08); }
+
+/* ===== Score tools: the essentials first, the rest one tap away ===== */
+body:not(.studio-compact) .score-tools-head { gap: 8px !important; align-items: center; padding: 10px 16px !important; border-bottom: 1px solid rgba(255,255,255,0.06) !important; background: transparent !important; }
+body:not(.studio-compact) .score-tools-head:not(.tools-open) :is(#score-access, #btn-toggle-kbd, #btn-pedal) { display: none !important; }
+body:not(.studio-compact) .score-tools-head.tools-open :is(#score-access, #btn-toggle-kbd, #btn-pedal) { animation: lune-rise 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
+body:not(.studio-compact) .score-tools-head .lp-tools-bar { margin-left: auto; display: flex; gap: 6px; }
+body:not(.studio-compact) .score-tools-head :is(button, .anno-seg, .access-chip) { height: 36px !important; min-height: 36px !important; font-size: 14px !important; }
+body:not(.studio-compact) .score-tools-head .lp-tool, body:not(.studio-compact) .score-tools-head #btn-toggle-kbd, body:not(.studio-compact) .score-tools-head #btn-pedal, body:not(.studio-compact) .score-tools-head .access-chip {
+  padding: 0 14px !important; border-radius: 999px !important; background: rgba(255,255,255,0.04) !important; border: 1px solid rgba(255,255,255,0.1) !important; color: #e8e8ea !important; gap: 8px; display: inline-flex; align-items: center;
+}
+body:not(.studio-compact) .score-tools-head .lp-tool:hover { background: rgba(255,255,255,0.08) !important; border-color: rgba(255,255,255,0.2) !important; }
+body:not(.studio-compact) .score-tools-head #btn-tell { background: rgba(255,255,255,0.92) !important; color: #0a0a0a !important; border-color: transparent !important; }
+body:not(.studio-compact) .score-tools-head .anno-seg { border-radius: 999px !important; padding: 3px !important; background: rgba(255,255,255,0.04) !important; border: 1px solid rgba(255,255,255,0.1) !important; }
+body:not(.studio-compact) .score-tools-head .anno-opt span { border-radius: 999px !important; padding: 0 14px !important; height: 28px; display: inline-flex; align-items: center; font-size: 13.5px; }
+body:not(.studio-compact) .score-tools-head .anno-control-label { display: none !important; }
+#btn-tools-more[aria-expanded="true"] { background: rgba(255,255,255,0.1) !important; }
+/* the player: one slim glass strip; tempo opens from its readout */
+body:not(.studio-compact) #listen-dock .transport { gap: 12px !important; padding: 10px 16px !important; background: rgba(10, 10, 14, 0.82) !important; border-top: 1px solid rgba(255,255,255,0.07) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.3); backdrop-filter: blur(18px) saturate(1.3); }
+body:not(.studio-compact) #btn-play-range { height: 40px !important; min-width: 92px; border-radius: 999px !important; background: #f5f5f7 !important; color: #0a0a0a !important; border: 0 !important; font-weight: 600; }
+body:not(.studio-compact) #btn-stop { height: 40px !important; width: 40px; padding: 0 !important; border-radius: 50% !important; display: grid; place-items: center; background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(255,255,255,0.1) !important; }
+body:not(.studio-compact) #btn-stop .stop-label { display: none; }
+body:not(.studio-compact) #btn-stop .transport-stop-icon { display: block !important; }
+body:not(.studio-compact) .tempo-control:not(.open) .bpm-wrap { display: none !important; }
+body:not(.studio-compact) .tempo-control { gap: 6px !important; border-radius: 999px; padding: 2px 4px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); }
+body:not(.studio-compact) .tempo-control.open .bpm-wrap { animation: lune-rise 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
+body:not(.studio-compact) #bpm-readout-btn { border: 0 !important; background: transparent !important; cursor: pointer; }
+body:not(.studio-compact) .scrub-meta { font-family: var(--mono) !important; font-size: 11px !important; letter-spacing: 0.08em; color: rgba(255,255,255,0.55); }
+body:not(.studio-compact) #scrub { accent-color: #f5f5f7; }
+/* answers at their true size: Garamond without the global enlargement */
+.ask-msg, .chat-bubble, .lune-chat .chat-log, .lt-caption, .rep-sum, .hd-you { font-size-adjust: none !important; }
+.ask-msg.ask-from-lune, .chat-from-lune .chat-bubble { font-size: 17px !important; }
+body:not(.studio-compact) .tempo-control .bpm-unit, body:not(.studio-compact) .tempo-control .bpm-meter { color: #a9a9ae !important; }

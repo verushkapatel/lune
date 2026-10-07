@@ -358,3 +358,47 @@ document.addEventListener("click", (e) => {
     if (next !== on) { on = next; document.body.classList.toggle("lp-scrolled", on); }
   }, { passive: true });
 })();
+
+/*
+ * A button that starts work shows the Lune moon until that work is done:
+ * requests begun within a moment of the tap belong to the button.
+ */
+(function () {
+  if (!window.fetch || window.fetch.__lune) return;
+  const raw = window.fetch;
+  let arming = null;
+  const done = (g) => {
+    if (g.over) return;
+    g.over = true;
+    clearTimeout(g.cap);
+    g.btn.classList.remove("is-busy");
+    g.btn.removeAttribute("aria-busy");
+  };
+  const wrapped = function (...args) {
+    const p = raw.apply(this, args);
+    const g = arming;
+    if (g && !g.over) {
+      g.set.add(p);
+      if (!g.btn.classList.contains("is-busy")) {
+        g.btn.classList.add("is-busy");
+        g.btn.setAttribute("aria-busy", "true");
+      }
+      const end = () => {
+        g.set.delete(p);
+        if (!g.set.size) done(g);
+      };
+      p.then(end, end);
+    }
+    return p;
+  };
+  wrapped.__lune = true;
+  window.fetch = wrapped;
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest?.("button");
+    if (!btn || btn.closest(".lune-kbd, #osmd, .lp-nav, .studio-seg")) return;
+    const g = { btn, set: new Set(), over: false };
+    arming = g;
+    setTimeout(() => { if (arming === g) arming = null; }, 600);
+    g.cap = setTimeout(() => done(g), 20000);
+  }, true);
+})();
