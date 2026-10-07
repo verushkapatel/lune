@@ -594,7 +594,7 @@ def section_account(browser):
     # a guest: the landing page tells the story first, with Lune AI's examples, then Install
     pg.goto(BASE, wait_until="networkidle")
     pg.wait_for_timeout(300)
-    hero = pg.evaluate("() => [...document.querySelectorAll('#hero button')].filter(b => b.offsetParent).map(b => b.textContent.trim()).filter(t => t && !/scroll/i.test(t))")
+    hero = pg.evaluate("() => [...document.querySelectorAll('#hero button')].filter(b => b.offsetParent && !b.closest('.hero-demo')).map(b => b.textContent.trim()).filter(t => t && !/scroll/i.test(t))")
     check("landing: the opening screen offers the piece and Make Lune yours, nothing else", hero == ["Open Clair de lune", "Make Lune yours"], hero)
     nav = pg.evaluate("() => [...document.querySelectorAll('#lp-nav a, #lp-nav button')].filter(b => b.offsetParent).map(b => b.textContent.trim())")
     check("landing: the top bar has the section links and Make Lune yours", nav == ["Tour", "Lune AI", "Free", "Get Lune", "Make Lune yours"], nav)

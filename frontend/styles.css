@@ -11077,3 +11077,10 @@ body :is(button, label, input, select, textarea, summary, .tog, .pill, .bpm-read
 .ask-msg.ask-from-lune, .ask-from-lune .ask-msg, .ask-row .ask-msg:not(.ask-from-you) { font-family: var(--garamond) !important; font-size: 18.5px !important; }
 dialog :is(p, li, span, strong, small, div, a, h3, h4) { font-family: var(--ui) !important; }
 dialog .ask-empty-h, dialog .chat-lead { font-family: var(--garamond) !important; }
+/* the Ask panel is an aside, not a dialog: the same type there */
+#ask-lune :is(p, li, span, strong, small, a, h3, h4) { font-family: var(--ui) !important; }
+#ask-lune .ask-empty-h { font-family: var(--garamond) !important; }
+/* light theme: the blue deep enough to read on white */
+html[data-theme="light"] .about-kicker, html[data-theme="light"] .member-kicker, html[data-theme="light"] .member-next-k, html[data-theme="light"] .ai-scene-k, html[data-theme="light"] .sm-h, html[data-theme="light"] .coach-kicker, html[data-theme="light"] .chat-sub, html[data-theme="light"] .ask-where, html[data-theme="light"] #chat-sub { color: #2238c4 !important; }
+html[data-theme="light"] .lp-nav-cta, html[data-theme="light"] .hd-send, html[data-theme="light"] .lc-send, html[data-theme="light"] .lc-round { background: #2a44d8 !important; color: #fff !important; }
+.lp-nav-cta { background: #3651f0 !important; }

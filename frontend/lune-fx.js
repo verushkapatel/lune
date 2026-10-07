@@ -312,11 +312,18 @@ window.LuneFX = (function () {
     if (!el || !sc) return;
     const smooth = !matchMedia("(prefers-reduced-motion: reduce)").matches;
     el.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
-    // demos above may finish loading and change height mid-glide: settle once more
-    setTimeout(() => {
+    // demos above may finish loading and change height mid-glide: settle again a few
+    // times, unless the reader has started scrolling on their own
+    let manual = false;
+    const mark = () => { manual = true; };
+    sc.addEventListener("wheel", mark, { passive: true, once: true });
+    sc.addEventListener("touchmove", mark, { passive: true, once: true });
+    [900, 1800, 2700].forEach((ms, i) => setTimeout(() => {
+      if (manual) return;
       const off = el.getBoundingClientRect().top - sc.getBoundingClientRect().top - 12;
       if (Math.abs(off) > 24) el.scrollIntoView({ behavior: "auto", block: "start" });
-    }, smooth ? 900 : 50);
+      if (i === 2) { sc.removeEventListener("wheel", mark); sc.removeEventListener("touchmove", mark); }
+    }, smooth ? ms : 50 * (i + 1)));
   });
   const links = [...nav.querySelectorAll("[data-lp-jump]")];
   if (!("IntersectionObserver" in window)) return;
