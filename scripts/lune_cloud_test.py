@@ -118,7 +118,7 @@ def section_ai(browser):
         pg.evaluate(f"() => {{ LuneAsk.runTask('{task}', 7); }}")
         # data-via is set once the answer has finished arriving
         pg.wait_for_function(f"() => document.querySelectorAll('#ask-log .ask-msg[data-via=model]').length > {n}", timeout=15000)
-        last = pg.evaluate("() => [...document.querySelectorAll('#ask-log .ask-msg')].pop().textContent.replace(/^◠ Reading.*?bar [0-9]+/, '')")
+        last = pg.evaluate("() => (m => { const c = m.cloneNode(true); c.querySelector('.la-read')?.remove(); return c.textContent; })([...document.querySelectorAll('#ask-log .ask-msg')].pop())")
         sent = json.loads(urllib.request.urlopen(STANDIN.replace("/v1/chat/completions", "/")).read())
         user = sent["messages"][-1]["content"]
         ok = last == "STANDIN reply about bar 7." and '"number":7' in user and sent["messages"][0]["role"] == "system"
@@ -135,7 +135,7 @@ def section_ai(browser):
     check("ai: with no bar selected, Summarise my practice is offered", tasks == ["summarizePractice"], tasks)
     pg.click('#ask-chips [data-task="summarizePractice"]')
     pg.wait_for_timeout(1500)
-    last = pg.evaluate("() => [...document.querySelectorAll('#ask-log .ask-msg')].pop().textContent.replace(/^◠ Reading.*?bar [0-9]+/, '')")
+    last = pg.evaluate("() => (m => { const c = m.cloneNode(true); c.querySelector('.la-read')?.remove(); return c.textContent; })([...document.querySelectorAll('#ask-log .ask-msg')].pop())")
     check("ai: Summarise my practice answers from the model", last == "STANDIN reply about the piece.", last)
     check("ai: no page errors", not pg.errors, pg.errors[:3])
 
@@ -666,7 +666,7 @@ def section_account(browser):
     check("account: the model actions appear", tasks == ["explainBar", "whyHard", "suggestPractice", "explainFingering"], tasks)
     pg.evaluate("() => LuneAsk.ask('What notes are in this bar?')")
     pg.wait_for_function("() => document.querySelector('#ask-log .ask-msg[data-via=model]')", timeout=15000)
-    last = pg.evaluate("() => [...document.querySelectorAll('#ask-log .ask-msg')].pop().textContent.replace(/^◠ Reading.*?bar [0-9]+/, '')")
+    last = pg.evaluate("() => (m => { const c = m.cloneNode(true); c.querySelector('.la-read')?.remove(); return c.textContent; })([...document.querySelectorAll('#ask-log .ask-msg')].pop())")
     check("account: a question is answered by Lune AI through the server", last == "STANDIN account reply about bar 5.", last)
     import urllib.request as _u
 
@@ -674,7 +674,7 @@ def section_account(browser):
     check("account: the server, not the browser, supplies the system prompt", sent["messages"][0]["content"].startswith("You are Lune, a piano practice"))
     pg.evaluate("() => { LuneAsk.runTask('whyHard', 5); }")
     pg.wait_for_timeout(1500)
-    last = pg.evaluate("() => [...document.querySelectorAll('#ask-log .ask-msg')].pop().textContent.replace(/^◠ Reading.*?bar [0-9]+/, '')")
+    last = pg.evaluate("() => (m => { const c = m.cloneNode(true); c.querySelector('.la-read')?.remove(); return c.textContent; })([...document.querySelectorAll('#ask-log .ask-msg')].pop())")
     check("account: Why is this hard? goes to Lune AI too", last == "STANDIN account reply about bar 5.", last)
 
     # a token the server rejects: the built-in reply, with the server's reason
@@ -1029,7 +1029,7 @@ def section_practice_loop(browser):
     pg.evaluate("() => LuneAsk.close()")
     pg.evaluate("() => LuneAsk.ask('What is the fingering?')")
     pg.wait_for_timeout(400)
-    fing = pg.evaluate("() => [...document.querySelectorAll('#ask-log .ask-msg')].pop().textContent.replace(/^◠ Reading.*?bar [0-9]+/, '')")
+    fing = pg.evaluate("() => (m => { const c = m.cloneNode(true); c.querySelector('.la-read')?.remove(); return c.textContent; })([...document.querySelectorAll('#ask-log .ask-msg')].pop())")
     check("loop: fingering is called suggested fingering, and the edition may differ", fing.startswith("Suggested fingering") and "edition may print different fingers" in fing, fing[:200])
     pg.evaluate("() => LuneAsk.close()")
     select_bar(pg, 12)
@@ -1612,7 +1612,41 @@ def section_luneai(browser):
     pg.context.close()
 
 
-SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week, "catalogue": section_catalogue, "console": section_console, "account": section_account, "latest": section_latest, "voice": section_voice, "progress": section_progress, "home": section_home, "loop": section_practice_loop, "studio": section_studio, "plans": section_plans, "voice2": section_voice2, "aipage": section_aipage, "fixes": section_fixes, "timing": section_timing, "sync": section_sync, "luneai": section_luneai}
+def section_moon(browser):
+    """The landing's moonrise and the app's night: real notes fall, keys play, the moon follows the week."""
+    for w, h in [(390, 844), (1280, 860)]:
+        ctx = browser.new_context(viewport={"width": w, "height": h}, is_mobile=w < 500, has_touch=w < 500)
+        ctx.add_init_script("try{sessionStorage.setItem('lune.intro','1')}catch(e){}")
+        pg = ctx.new_page(); pg.errors = []
+        pg.on("pageerror", lambda e: pg.errors.append(str(e)[:200]))
+        pg.goto(BASE, wait_until="networkidle"); pg.wait_for_timeout(3500)
+        keys = pg.evaluate("() => document.querySelectorAll('#hero .mr-wk').length")
+        check(f"moon ({w}px): a playable keyboard on the horizon, two octaves on a phone and four on a laptop", keys == (14 if w < 820 else 28), keys)
+        notes = pg.evaluate("() => document.querySelectorAll('#hero .mr-n').length")
+        check(f"moon ({w}px): the opening of Clair de lune falls onto the keys", notes > 0, notes)
+        lit = pg.evaluate("""async () => { await new Promise(r => setTimeout(r, 3500)); return document.querySelectorAll('#hero .mr-k.is-lit').length + document.querySelectorAll('#hero .mr-n').length; }""")
+        check(f"moon ({w}px): falling notes light the keys they land on", lit > 0, lit)
+        box = pg.locator("#hero .mr-wk").nth(5).bounding_box()
+        pg.mouse.click(box["x"] + box["width"] / 2, box["y"] + box["height"] * 0.8)
+        pg.wait_for_timeout(300)
+        check(f"moon ({w}px): a touched key plays and the hint goes", pg.evaluate("() => document.getElementById('hero').classList.contains('has-played')"))
+        pg.evaluate("() => { const h = document.getElementById('home'); h.scrollTo({top: innerHeight * 1.2, behavior: 'instant'}); h.dispatchEvent(new Event('scroll')); }"); pg.wait_for_timeout(200)
+        p_ = pg.evaluate("() => +getComputedStyle(document.getElementById('hero')).getPropertyValue('--mr-p')")
+        check(f"moon ({w}px): scrolling waxes the moon towards full", p_ > 0.9, p_)
+        pg.evaluate("() => document.getElementById('idea').scrollIntoView({block: 'center', behavior: 'instant'})"); pg.evaluate("() => document.getElementById('home').dispatchEvent(new Event('scroll'))"); pg.wait_for_timeout(300)
+        on = pg.evaluate("() => { const w = document.querySelectorAll('[data-mr-read] > span[aria-hidden]'); return [w.length, [...w].filter(x => x.classList.contains('on')).length, document.querySelector('[data-mr-read] .visually-hidden')?.textContent.startsWith('You sit down')]; }")
+        check(f"moon ({w}px): the idea lights up word by word, and screen readers get the whole sentence", on[0] > 20 and 0 < on[1] <= on[0] and on[2], on)
+        check(f"moon ({w}px): no page errors", not pg.errors, pg.errors)
+        ctx.close()
+    ctx = browser.new_context(viewport={"width": 390, "height": 844})
+    pg = ctx.new_page()
+    pg.goto(BASE, wait_until="networkidle")
+    r = pg.evaluate("""() => { LuneStore.weekSnapshot = () => ({ days: 2, goalDays: 4 }); LuneMoon.paintMember();
+      return [getComputedStyle(document.getElementById('home-member')).getPropertyValue('--wk-p').trim(), document.getElementById('mh-phase').textContent, !!document.querySelector('#home-member > .lune-stars')]; }""")
+    check("moon: the home's moon is half full at 2 of 4 days, and says why", r[0] == "0.500" and r[1].startswith("2 of 4 days") and r[2], r)
+    ctx.close()
+
+SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week, "catalogue": section_catalogue, "console": section_console, "account": section_account, "latest": section_latest, "voice": section_voice, "progress": section_progress, "home": section_home, "loop": section_practice_loop, "studio": section_studio, "plans": section_plans, "voice2": section_voice2, "aipage": section_aipage, "fixes": section_fixes, "timing": section_timing, "sync": section_sync, "luneai": section_luneai, "moon": section_moon}
 
 if __name__ == "__main__":
     want = sys.argv[1:] or list(SECTIONS)

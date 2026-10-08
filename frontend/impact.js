@@ -267,6 +267,7 @@ window.LuneImpact = (function () {
 
   async function paintHomeImpact() {
     if (!window.LuneOnboard?.signedIn?.()) return;
+    window.LuneMoon?.paintMember?.();
     const streak = $("member-streak");
     if (streak) {
       const mode = window.LunePlans?.planMode?.();

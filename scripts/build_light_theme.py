@@ -41,11 +41,21 @@ TEXT_PROPS = {"color", "fill", "stroke", "caret-color", "text-decoration-color",
 SURFACE_PROPS = re.compile(r"^(background(-color)?|border(-[a-z]+)*|outline(-color)?|box-shadow)$")
 
 # selectors that stay as they are in the light (white paper and things drawn on it)
-NO_FLIP = re.compile(r"lune-key|lune-talk|\.lt-|lune-loader|lune-orb|fx-aurora|score-page|fx-paper|study-staff|#osmd|\.coach\b|lune-letter|lune-finger|lane-|\.lp-note|\.lp-grade|\.chip\b")
+NO_FLIP = re.compile(r"\.mr-|mr-hero|lune-key|lune-talk|\.lt-|lune-loader|lune-orb|fx-aurora|score-page|fx-paper|study-staff|#osmd|\.coach\b|lune-letter|lune-finger|lane-|\.lp-note|\.lp-grade|\.chip\b")
 
 # Hand fixes, found by going through every screen in light mode. They win.
 KEEP = """
 /* KEEP: hand fixes */
+/* the moonrise stays night in both themes */
+html[data-theme="light"][data-theme="light"] #home #hero .mr-h, html[data-theme="light"][data-theme="light"] #home #hero .mr-h :is(.mr-l1, .mr-l2) { color: #fff !important; }
+html[data-theme="light"][data-theme="light"] #home #hero .mr-h .mr-l3 { color: rgba(255,255,255,0.62) !important; }
+html[data-theme="light"][data-theme="light"] .lc-composer textarea { color: #111 !important; -webkit-text-fill-color: #111; }
+html[data-theme="light"][data-theme="light"] #home #hero.mr-hero, html[data-theme="light"][data-theme="light"] #home .mr-idea, html[data-theme="light"][data-theme="light"] .mr-marquee, html[data-theme="light"][data-theme="light"] #home .mr-tonight { background: #000 !important; color: #fff; }
+html[data-theme="light"][data-theme="light"] #home #hero .mr-lead { color: rgba(255,255,255,0.72) !important; }
+html[data-theme="light"][data-theme="light"] #home #hero .hero-cta-alt { color: #fff !important; background: rgba(255,255,255,0.04) !important; border-color: rgba(255,255,255,0.28) !important; }
+html[data-theme="light"][data-theme="light"] #home #hero .hero-cta-main { background: #fff !important; color: #000 !important; }
+html[data-theme="light"][data-theme="light"] #home :is(.mr-idea, .mr-tonight) .about-kicker { color: rgba(255,255,255,0.6) !important; }
+html[data-theme="light"][data-theme="light"] #home .mr-tonight .hero-demo :is(.hd-you, .hd-line, .hd-input span) { color: #e6e6e6 !important; }
 html[data-theme="light"][data-theme="light"] #home-member .member-next .primary, html[data-theme="light"][data-theme="light"] .rep-card .primary { background: #2a44d8 !important; color: #ffffff !important; }
 html[data-theme="light"][data-theme="light"] .lp-nav-cta, html[data-theme="light"][data-theme="light"] .hd-send, html[data-theme="light"][data-theme="light"] .lc-send, html[data-theme="light"][data-theme="light"] .lc-round { background: #2a44d8 !important; color: #ffffff !important; }
 /* --dim text reaches 4.5:1 on the page and on surfaces (was #8a8a8a, 3.4:1) */

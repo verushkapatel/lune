@@ -11204,7 +11204,7 @@ html[data-theme="light"] #home-member .member-rec { background: #fff !important;
 html:not([data-theme="light"]) body.is-repertoire, html:not([data-theme="light"]) body.is-repertoire #repertoire {
   background: radial-gradient(110% 50% at 50% -14%, rgba(40, 62, 235, 0.5) 0%, rgba(20, 32, 150, 0.28) 30%, rgba(6, 9, 50, 0.14) 52%, #000 78%) fixed, #000 !important;
 }
-html:not([data-theme="light"]) body.is-signed-in.is-home #home { background: radial-gradient(110% 55% at 50% -14%, rgba(40, 62, 235, 0.6) 0%, rgba(20, 32, 150, 0.34) 30%, rgba(6, 9, 50, 0.18) 52%, #000 78%) fixed, #000 !important; }
+html:not([data-theme="light"]) body.is-signed-in.is-home #home { background: radial-gradient(110% 55% at 50% -14%, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.035) 30%, rgba(255, 255, 255, 0.01) 52%, #000 78%) fixed, #000 !important; }
 html:not([data-theme="light"]) body.is-repertoire #app, html:not([data-theme="light"]) body.is-repertoire main, html:not([data-theme="light"]) body.is-repertoire #home { background: transparent !important; }
 
 html:not([data-theme="light"]) .rep-empty em { color: rgba(255,255,255,0.86); font-style: italic; }
@@ -11397,3 +11397,239 @@ html[data-theme="light"] .po-bar i { background: #111; }
 html[data-theme="light"] .po-sum .la-tag { color: #2238c4; }
 #member-streak .wk-change { margin-top: 6px; padding: 0 !important; height: auto !important; background: none !important; border: 0 !important; font-family: var(--mono); font-size: 11px !important; letter-spacing: 0.12em; text-transform: uppercase; color: #8ea4ff !important; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
 html[data-theme="light"] #member-streak .wk-change { color: #2238c4 !important; }
+
+/* ===================== Moonrise: the landing, in black and white ===================== */
+#home #hero.mr-hero {
+  --mr-p: 0; --mx: 50%; --my: 30%;
+  position: relative; isolation: isolate; overflow: hidden;
+  min-height: 100svh; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  padding: clamp(88px, 13vh, 132px) 16px 0; margin: 0;
+  background: #000 !important; box-shadow: none !important;
+}
+#home #hero.mr-hero::before { opacity: 0.18; z-index: 0; }
+#home #hero.mr-hero::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background: radial-gradient(520px circle at var(--mx) var(--my), rgba(255,255,255,0.06), transparent 70%);
+}
+.mr-sky { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+
+/* the moon: a crescent at rest that waxes towards full as the page scrolls */
+.mr-moon {
+  --size: clamp(92px, 15vw, 168px);
+  position: relative; z-index: 2; width: var(--size); height: var(--size); border-radius: 50%; flex: none;
+  margin-bottom: clamp(18px, 3.4vh, 34px);
+  transform: translateY(calc(var(--mr-p) * -22px)) rotate(calc(-18deg + var(--mr-p) * 18deg));
+  filter: drop-shadow(0 0 calc(26px + var(--mr-p) * 50px) rgba(255,255,255, calc(0.22 + var(--mr-p) * 0.3)));
+  animation: mr-rise 1.8s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both;
+}
+.mr-moon-lit { position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle at 38% 36%, #ffffff 0%, #ececec 46%, #bdbdbd 100%); }
+.mr-moon-lit::after { content: ""; position: absolute; inset: 0; border-radius: 50%; opacity: 0.22;
+  background: radial-gradient(circle at 62% 58%, #8a8a8a 0 7%, transparent 8%), radial-gradient(circle at 44% 70%, #9a9a9a 0 5%, transparent 6%), radial-gradient(circle at 70% 34%, #9a9a9a 0 4%, transparent 5%); }
+.mr-moon-shade { position: absolute; inset: -2%; border-radius: 50%; background: #000; transform: translateX(calc(24% + var(--mr-p) * 92%)); box-shadow: -2px 0 8px rgba(0,0,0,0.9); }
+@keyframes mr-rise { from { opacity: 0; transform: translateY(60px) rotate(-40deg) scale(0.9); } to { opacity: 1; } }
+
+.mr-inner { position: relative; z-index: 3; display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 980px; }
+#home .mr-kicker { margin: 0 0 18px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.32em; text-transform: uppercase; color: rgba(255,255,255,0.62); animation: mr-up 1s 0.5s both; }
+#home #hero .mr-h {
+  margin: 0; font-family: var(--ui); font-weight: 400; color: #fff; letter-spacing: -0.035em; line-height: 0.98;
+  font-size: clamp(54px, 10.4vw, 148px); text-wrap: balance;
+}
+.mr-h .mr-l1, .mr-h .mr-l2 { display: inline-block; animation: mr-word 1.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.mr-h .mr-l1 { animation-delay: 0.65s; }
+.mr-h .mr-l2 { animation-delay: 0.95s; font-style: italic; }
+.mr-h .mr-l3 { display: block; margin-top: 0.22em; font-size: 0.36em; letter-spacing: -0.02em; line-height: 1.1; color: rgba(255,255,255,0.5); animation: mr-up 1.2s 1.3s both; }
+#home #hero .mr-lead { margin: clamp(16px, 2.6vh, 26px) auto 0; max-width: 34em; font-size: clamp(16px, 1.5vw, 19px); line-height: 1.55; color: rgba(255,255,255,0.72); animation: mr-up 1.2s 1.5s both; }
+#home #hero .mr-inner .hero-cta { margin-top: clamp(20px, 3.4vh, 32px); animation: mr-up 1.2s 1.7s both; }
+#home #hero .hero-cta-main { background: #fff !important; color: #000 !important; border: 1px solid #fff !important; box-shadow: 0 0 0 0 rgba(255,255,255,0.4), 0 12px 40px rgba(255,255,255,0.14) !important; }
+#home #hero .hero-cta-main:hover { box-shadow: 0 0 0 6px rgba(255,255,255,0.08), 0 16px 50px rgba(255,255,255,0.22) !important; }
+#home #hero .hero-cta-alt { background: rgba(255,255,255,0.04) !important; color: #fff !important; border: 1px solid rgba(255,255,255,0.28) !important; box-shadow: none !important; }
+#home #hero .hero-cta-alt:hover { border-color: rgba(255,255,255,0.7) !important; }
+@keyframes mr-word { from { opacity: 0; transform: translateY(0.35em); filter: blur(12px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes mr-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+/* the piano on the horizon, with notes of light falling onto it */
+.mr-stage { position: relative; z-index: 2; width: 100%; max-width: 1280px; margin-top: auto; padding-top: 28px; animation: mr-up 1.4s 1.9s both; }
+.mr-fall { position: relative; height: clamp(110px, 20vh, 220px); overflow: hidden; pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 45%); mask-image: linear-gradient(to bottom, transparent, #000 45%); }
+.mr-n { position: absolute; top: 0; border-radius: 4px; background: linear-gradient(to bottom, rgba(255,255,255,0.15), #fff); box-shadow: 0 0 14px rgba(255,255,255,0.55); will-change: transform; }
+.mr-n.mr-nb { background: linear-gradient(to bottom, rgba(200,200,200,0.12), #cfcfcf); }
+.mr-hint { position: absolute; right: 16px; top: 4px; margin: 0; font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.28em; text-transform: uppercase; color: rgba(255,255,255,0.5); transition: opacity 0.6s; }
+.mr-hero.has-played .mr-hint { opacity: 0; }
+.mr-keys { position: relative; height: clamp(96px, 15vh, 150px); touch-action: none; user-select: none; -webkit-user-select: none;
+  border-top: 1px solid rgba(255,255,255,0.5); box-shadow: 0 -18px 60px rgba(255,255,255,0.08); cursor: pointer; }
+.mr-k { position: absolute; top: 0; box-sizing: border-box; transition: background 0.5s ease, box-shadow 0.5s ease; }
+.mr-wk { height: 100%; background: linear-gradient(to bottom, #d9d9d9, #f4f4f4 70%, #fff); border-right: 1px solid #222; border-radius: 0 0 5px 5px; z-index: 1; }
+.mr-bk { height: 62%; background: linear-gradient(to bottom, #111, #000); border: 1px solid #2a2a2a; border-top: 0; border-radius: 0 0 4px 4px; z-index: 2; }
+.mr-wk.is-lit { background: linear-gradient(to bottom, #fff, #fff); box-shadow: inset 0 -12px 22px rgba(0,0,0,0.12), 0 0 26px rgba(255,255,255,0.75); transition-duration: 0.05s; }
+.mr-bk.is-lit { background: linear-gradient(to bottom, #6a6a6a, #3a3a3a); box-shadow: 0 0 18px rgba(255,255,255,0.5); transition-duration: 0.05s; }
+.mr-k.is-hit { animation: mr-hit 0.9s ease-out; }
+@keyframes mr-hit { 0% { filter: brightness(1.6); box-shadow: 0 0 36px rgba(255,255,255,0.9); } 100% { filter: none; } }
+.mr-ripple { position: absolute; bottom: clamp(96px, 15vh, 150px); width: 8px; height: 8px; margin-left: -4px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.8); pointer-events: none; animation: mr-ripple 1.3s ease-out forwards; }
+@keyframes mr-ripple { to { transform: translateY(-120px) scale(14); opacity: 0; } }
+#home #hero .home-scroll-cue { position: absolute; left: 50%; bottom: calc(clamp(96px, 15vh, 150px) + 12px); transform: translateX(-50%); margin: 0; z-index: 3; color: rgba(255,255,255,0.45); display: none; }
+
+/* a thin line at the top: how far down the page */
+.mr-progress { position: fixed; left: 0; top: 0; z-index: 60; width: 100%; height: 1px; background: #fff; transform-origin: 0 50%; transform: scaleX(0); pointer-events: none; display: none; }
+body.is-home:not(.is-signed-in) .mr-progress { display: block; }
+
+/* the idea, lit word by word */
+#home .mr-idea { max-width: 1120px; margin: 0 auto; padding: clamp(110px, 18vh, 200px) clamp(16px, 6vw, 96px) clamp(60px, 10vh, 120px); background: #000; }
+#home .mr-read { margin: 0; font-family: var(--ui); font-weight: 400; font-size: clamp(30px, 4.6vw, 64px); line-height: 1.14; letter-spacing: -0.02em; color: #fff; }
+.mr-read span { opacity: 0.16; transition: opacity 0.35s ease; }
+.mr-read span.on { opacity: 1; }
+
+/* things Lune already does, drifting past */
+.mr-marquee { overflow: hidden; border-block: 1px solid rgba(255,255,255,0.1); padding: 18px 0; background: #000;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 10%, #000 90%, transparent); mask-image: linear-gradient(to right, transparent, #000 10%, #000 90%, transparent); }
+.mr-track { display: flex; gap: 12px; width: max-content; animation: mr-marq 46s linear infinite; }
+.mr-track span { flex: none; padding: 10px 20px; border: 1px solid rgba(255,255,255,0.16); border-radius: 999px; font-family: var(--ui); font-size: 18px; color: rgba(255,255,255,0.86); white-space: nowrap; }
+@keyframes mr-marq { to { transform: translateX(-50%); } }
+
+/* tonight: Lune AI writes the plan */
+#home .mr-tonight { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: clamp(28px, 5vw, 80px); align-items: center; max-width: 1180px; margin: 0 auto; padding: clamp(90px, 14vh, 160px) clamp(16px, 5vw, 64px); background: #000; }
+.mr-tonight-copy h2 { margin: 10px 0 16px; font-family: var(--ui); font-weight: 400; font-size: clamp(40px, 5.4vw, 76px); line-height: 1; letter-spacing: -0.03em; color: #fff; }
+.mr-tonight-copy p:last-child { margin: 0; max-width: 28em; font-size: 18px; line-height: 1.6; color: rgba(255,255,255,0.7); }
+.mr-dim { color: rgba(255,255,255,0.42); }
+#home .mr-tonight .hero-demo { margin: 0; width: 100%; max-width: none; background: #0a0a0a !important; border: 1px solid rgba(255,255,255,0.12) !important; box-shadow: 0 40px 120px rgba(255,255,255,0.05) !important; }
+.mr-tonight .hero-demo .hd-line, .mr-tonight .hero-demo .hd-you { opacity: 0; transform: translateY(6px); }
+.mr-tonight .hero-demo.is-typing .hd-you { animation: mr-up 0.7s 0.1s both; }
+.mr-tonight .hero-demo.is-typing .hd-line { animation: mr-up 0.7s both; }
+.mr-tonight .hero-demo.is-typing .hd-line:nth-child(1) { animation-delay: 0.7s; }
+.mr-tonight .hero-demo.is-typing .hd-line:nth-child(2) { animation-delay: 1.4s; }
+.mr-tonight .hero-demo.is-typing .hd-line:nth-child(3) { animation-delay: 2s; }
+.mr-tonight .hero-demo.is-typing .hd-line:nth-child(4) { animation-delay: 2.6s; }
+#home .mr-tonight .hd-tag { color: #fff !important; background: rgba(255,255,255,0.08); padding: 1px 6px; border-radius: 4px; }
+#home .mr-tonight .hd-send { background: #fff !important; color: #000 !important; }
+
+@media (max-width: 760px) {
+  #home #hero .mr-h { font-size: clamp(50px, 15vw, 72px); }
+  #home .mr-tonight { grid-template-columns: 1fr; }
+  .mr-track span { font-size: 16px; padding: 8px 16px; }
+  .mr-hint { right: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mr-moon, .mr-h .mr-l1, .mr-h .mr-l2, .mr-h .mr-l3, #home .mr-kicker, #home #hero .mr-lead, #home #hero .mr-inner .hero-cta, .mr-stage { animation: none !important; }
+  .mr-track { animation: none; flex-wrap: wrap; width: auto; justify-content: center; }
+  .mr-tonight .hero-demo .hd-line, .mr-tonight .hero-demo .hd-you { opacity: 1; transform: none; }
+}
+
+/* the rest of the landing, in black and white */
+body.is-home:not(.is-signed-in) #home, body.is-home:not(.is-signed-in) #home-guest { background: #000; }
+#home-guest .about-kicker { color: rgba(255,255,255,0.6) !important; letter-spacing: 0.28em; }
+#home-guest [data-fx-aurora]::before, #home-guest [data-fx-aurora]::after, #home-guest .fx-aurora { filter: grayscale(1) brightness(0.7); }
+#home-guest .ai-chapter, #home-guest .lp-free, #home-guest .home-close, #home-guest .home-feat-stack, #home-guest .home-feat, #home-guest .home-feat-intro { background: #000 !important; }
+#home-guest .home-feat-device { box-shadow: 0 40px 120px rgba(255,255,255,0.05) !important; }
+#home-guest .ai-scene { background: #0a0a0a !important; border-color: rgba(255,255,255,0.12) !important; }
+#home-guest .ai-scene-k { color: rgba(255,255,255,0.6) !important; }
+#home-guest .ai-dots button, #home-guest .ai-dots span { background: rgba(255,255,255,0.3) !important; }
+#home-guest .ai-dots .on, #home-guest .ai-dots [aria-current="true"] { background: #fff !important; }
+#home-guest .ai-lune { background: #141414 !important; color: #eee !important; border-color: rgba(255,255,255,0.12) !important; }
+#home-guest .ai-you { background: #fff !important; color: #000 !important; }
+#home-guest .lp-free-grid > div { border-top-color: rgba(255,255,255,0.5) !important; }
+#home-guest .home-close .primary, #home-guest .home-feedback .primary { background: #fff !important; color: #000 !important; border-color: #fff !important; }
+#home-guest .fx-spot::before { background: radial-gradient(400px circle at var(--x, 50%) var(--y, 50%), rgba(255,255,255,0.07), transparent 60%) !important; }
+#home-guest .fx-play, #home-guest .fx-seg .on { background: #fff !important; color: #000 !important; }
+#home-guest .sim-fall b { filter: grayscale(1) brightness(1.3); }
+#home-guest .link-btn { color: #fff !important; text-decoration-color: rgba(255,255,255,0.4); }
+body.is-home:not(.is-signed-in) .lp-nav { background: rgba(0,0,0,0.55) !important; border-color: rgba(255,255,255,0.12) !important; }
+body.is-home:not(.is-signed-in) .lp-nav a.on { background: #fff !important; color: #000 !important; }
+body.is-home:not(.is-signed-in) .lp-nav a.on::before { display: none; }
+body.is-home:not(.is-signed-in) .lp-nav-cta { background: #fff !important; color: #000 !important; border: 0 !important; box-shadow: none !important; }
+.mr-moon-shade { display: none; }
+.mr-moon-lit {
+  --off: calc(74% + var(--mr-p) * 92%);
+  -webkit-mask-image: radial-gradient(circle at var(--off) 50%, transparent 0 51%, #000 calc(51% + 1px));
+  mask-image: radial-gradient(circle at var(--off) 50%, transparent 0 51%, #000 calc(51% + 1px));
+}
+#home #hero .mr-h .mr-l3 { color: rgba(255,255,255,0.5); }
+#home-guest .fx-score text[class^="lane-"], #home-guest .fx-score text[class*=" lane-"] { fill: #1a1a1a !important; }
+
+/* the composer: one quiet pill, legible in every browser (the masked glow ring could fill the box in some) */
+.lc-composer::before, .chat-form::before, .ask-form::before, #home-member .home-ask::before, .lp-askbar::before { display: none !important; }
+html:not([data-theme="light"]) .lc-composer, html:not([data-theme="light"]) #home-member .home-ask { background: #0b0b0c !important; border: 1px solid rgba(255,255,255,0.16) !important; box-shadow: none !important; transition: border-color 0.25s ease, box-shadow 0.25s ease; }
+html:not([data-theme="light"]) .lc-composer:focus-within, html:not([data-theme="light"]) #home-member .home-ask:focus-within { border-color: rgba(255,255,255,0.55) !important; box-shadow: 0 0 0 4px rgba(255,255,255,0.06) !important; }
+html:not([data-theme="light"]) .lc-composer textarea, html:not([data-theme="light"]) #home-member .home-ask input { color: #f5f5f5 !important; background: transparent !important; -webkit-text-fill-color: #f5f5f5; }
+html:not([data-theme="light"]) .lc-composer textarea::placeholder { color: rgba(255,255,255,0.45) !important; -webkit-text-fill-color: rgba(255,255,255,0.45); }
+html:not([data-theme="light"]) .lc-send, html:not([data-theme="light"]) .lc-round { background: #f5f5f5 !important; color: #000 !important; box-shadow: none !important; }
+
+/* ===================== The app at night: black and white, one light source ===================== */
+html:not([data-theme="light"]) body:not(.is-home), html:not([data-theme="light"]) body.is-signed-in { --lune-blue: #f2f2f2; --lune-blue-hi: #ffffff; }
+html:not([data-theme="light"]) :is(#home-member, #repertoire, #onboard, #studio, dialog, .ask-lune, .lune-chat) :is(button.primary, .btn-primary, .wk-go):not(:disabled) {
+  background: #f5f5f5 !important; color: #000 !important; border-color: #f5f5f5 !important; box-shadow: 0 10px 34px rgba(255,255,255,0.1) !important;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease;
+}
+html:not([data-theme="light"]) :is(#home-member, #repertoire, #onboard, #studio, dialog, .ask-lune, .lune-chat) :is(button.primary, .wk-go):not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 14px 44px rgba(255,255,255,0.18) !important; }
+html:not([data-theme="light"]) :is(#home-member, #repertoire, #onboard, dialog, .ask-lune, .lune-chat) :is(.member-kicker, .eyebrow, .about-kicker, .rep-kicker, .wk-k, .ask-sub, .lc-sub, [class*="-kicker"]):not(.coach-kicker, #coach *) { color: rgba(255,255,255,0.58) !important; text-shadow: none !important; }
+html:not([data-theme="light"]) :is(.po-sum, .la-line, .la-read) .la-tag, html:not([data-theme="light"]) .hd-tag { color: #fff !important; }
+html:not([data-theme="light"]) #home-member .member-next { background: #0a0a0a !important; border: 1px solid rgba(255,255,255,0.12) !important; box-shadow: 0 40px 120px rgba(255,255,255,0.04) !important; }
+html:not([data-theme="light"]) #home-member, html:not([data-theme="light"]) #home-member::before, html:not([data-theme="light"]) #home-member::after { background-image: none !important; }
+html:not([data-theme="light"]) body.is-signed-in #home { background: #000 !important; }
+html:not([data-theme="light"]) .lp-nav a.on::before, html:not([data-theme="light"]) .studio-tabs .on::before { background: #fff !important; box-shadow: 0 0 8px rgba(255,255,255,0.8) !important; }
+html:not([data-theme="light"]) .wk-bar i, html:not([data-theme="light"]) .po-bar i, html:not([data-theme="light"]) .rep-progress i { background: #fff !important; box-shadow: 0 0 10px rgba(255,255,255,0.45); }
+html:not([data-theme="light"]) .wk-days b.on { background: #fff !important; box-shadow: 0 0 8px rgba(255,255,255,0.6) !important; }
+html:not([data-theme="light"]) #member-streak .wk-change { color: #fff !important; }
+
+/* stars behind the signed-in home and the setup */
+#home-member, #onboard { position: relative; isolation: isolate; }
+.lune-stars { position: absolute; left: 0; top: 0; width: 100%; z-index: -1; pointer-events: none; opacity: 0.85;
+  -webkit-mask-image: linear-gradient(to bottom, #000 40%, transparent); mask-image: linear-gradient(to bottom, #000 40%, transparent); animation: lune-breathe 9s ease-in-out infinite; }
+@keyframes lune-breathe { 50% { opacity: 0.55; } }
+html[data-theme="light"] .lune-stars { display: none; }
+
+/* the week's moon on the home */
+#home-member { --wk-p: 0; }
+.mh-moon { --size: clamp(64px, 9vw, 92px); position: relative; width: var(--size); height: var(--size); margin: 0 auto 12px; border-radius: 50%;
+  filter: drop-shadow(0 0 calc(18px + var(--wk-p) * 34px) rgba(255,255,255, calc(0.2 + var(--wk-p) * 0.35))); animation: mr-rise 1.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.mh-moon::before { content: ""; position: absolute; inset: 0; border-radius: 50%; border: 1px solid rgba(255,255,255,0.14); }
+.mh-moon .mr-moon-lit { --off: calc(70% + var(--wk-p) * 96%); transition: --off 1.2s ease; }
+.mh-phase { margin: 0 auto 22px; text-align: center; font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,255,255,0.6); }
+html[data-theme="light"] .mh-phase { color: #555; }
+html[data-theme="light"] .mh-moon .mr-moon-lit { background: radial-gradient(circle at 38% 36%, #333, #000); }
+html[data-theme="light"] .mh-moon::before { border-color: rgba(0,0,0,0.15); }
+html[data-theme="light"] .mh-moon { filter: none; }
+
+/* setup: the steps are moon phases, waxing as you go */
+html body .onboard-progress { display: flex; gap: 10px; align-items: center; list-style: none; padding: 0; margin: 0 0 30px; }
+html body .onboard-progress li { display: flex; align-items: center; gap: 8px; }
+html body .onboard-progress li span { width: 14px; height: 14px; min-width: 0; padding: 0; border-radius: 50%; font-size: 0 !important; color: transparent !important; background: transparent !important; border: 1px solid rgba(255,255,255,0.35) !important; box-shadow: none; transition: all 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
+html body .onboard-progress li.done span { background: #fff !important; border-color: #fff !important; box-shadow: 0 0 10px rgba(255,255,255,0.5); }
+html body .onboard-progress li.on span { border-color: #fff !important; box-shadow: inset -5px 0 0 0 #fff, 0 0 12px rgba(255,255,255,0.4); }
+html body .onboard-progress li em { display: none; }
+html body .onboard-progress li.on em { display: inline; font-style: normal; font-family: var(--mono); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: #fff; }
+html[data-theme="light"] body .onboard-progress li span { border-color: rgba(0,0,0,0.35) !important; }
+html[data-theme="light"] body .onboard-progress li.done span { background: #111 !important; border-color: #111 !important; box-shadow: none; }
+html[data-theme="light"] body .onboard-progress li.on span { border-color: #111 !important; box-shadow: inset -5px 0 0 0 #111; }
+html[data-theme="light"] body .onboard-progress li.on em { color: #111; }
+#onboard .onboard-stage h1 { font-family: var(--ui); font-weight: 400; letter-spacing: -0.03em; font-size: clamp(38px, 5vw, 64px); line-height: 1.02; }
+#onboard :is(.onboard-composer, .onboard-card, .onboard-choice, [data-composer]) { transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.3s ease, filter 0.3s ease; }
+#onboard [data-composer]:hover { transform: translateY(-3px); }
+#onboard :is(input, textarea) { background: #0b0b0c; border-color: rgba(255,255,255,0.16); }
+html[data-theme="light"] #onboard :is(input, textarea) { background: #fff; border-color: rgba(0,0,0,0.2); }
+
+/* every screen arrives softly: up, out of a light blur */
+@keyframes lune-view-in { from { opacity: 0; transform: translateY(10px); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+:is(#home-member, #repertoire, #discover, #onboard, #home-guest):not([hidden]) { animation: lune-view-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+#home-member .member-hero > * { animation: mr-up 0.9s cubic-bezier(0.22, 1, 0.36, 1) both; }
+#home-member .member-hero > :nth-child(2) { animation-delay: 0.08s; } #home-member .member-hero > :nth-child(3) { animation-delay: 0.14s; }
+#home-member .member-hero > :nth-child(4) { animation-delay: 0.2s; } #home-member .member-hero > :nth-child(5) { animation-delay: 0.26s; }
+#home-member .member-hero > :nth-child(6) { animation-delay: 0.32s; } #home-member .member-hero > :nth-child(n+7) { animation-delay: 0.38s; }
+@media (prefers-reduced-motion: reduce) {
+  :is(#home-member, #repertoire, #discover, #onboard, #home-guest):not([hidden]), #home-member .member-hero > *, .mh-moon, .lune-stars { animation: none !important; }
+}
+/* the whole moonrise fits one screen, keys included, on any laptop or phone */
+#home #hero.mr-hero { height: 100svh; min-height: 560px; padding-top: clamp(72px, 10vh, 120px); }
+.mr-moon { --size: min(15vw, 15vh, 168px); margin-bottom: clamp(12px, 2.4vh, 30px); }
+#home #hero .mr-h { font-size: min(10.4vw, 12vh, 148px); }
+#home .mr-kicker { margin-bottom: clamp(10px, 1.8vh, 18px); }
+#home #hero .mr-lead { margin-top: clamp(10px, 2vh, 24px); }
+#home #hero .mr-inner .hero-cta { margin-top: clamp(14px, 2.6vh, 30px); }
+.mr-stage { padding-top: 12px; }
+.mr-fall { height: clamp(60px, 15vh, 200px); }
+.mr-keys { height: clamp(80px, 13vh, 140px); }
+.mr-ripple { bottom: clamp(80px, 13vh, 140px); }
+@media (max-width: 760px) { #home #hero .mr-h { font-size: min(15vw, 8.6vh, 72px); } }
+.mh-row { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 0 auto 14px; }
+.mh-row .mh-moon { --size: 34px; margin: 0; }
+.mh-row .mh-phase { margin: 0; text-align: left; max-width: 26em; }
+@media (max-width: 640px) { .mh-row { margin-bottom: 4px; } .mh-row .mh-moon { --size: 28px; } #home-member .member-hero { padding-top: max(0px, calc(var(--mh-pad, 0px))); } #home-member .member-kicker { margin-top: 0; } }
+html:not([data-theme="light"]) :is(#coach, .coach) .coach-kicker { color: #555 !important; }

@@ -909,6 +909,7 @@ window.LuneOnboard = (function () {
     if (o) {
       o.hidden = false;
       o.scrollTop = 0;
+      window.LuneMoon?.stars?.(o);
     }
     document.body.classList.add("is-onboard");
     document.body.classList.remove("is-welcome", "is-hello", "is-home", "is-studio", "is-discover", "is-repertoire");
@@ -920,7 +921,7 @@ window.LuneOnboard = (function () {
     return `<ol class="onboard-progress" aria-label="Onboarding progress">
       ${STEP_LABELS.map(
         (label, i) =>
-          `<li class="${i === active ? "on" : i < active ? "done" : ""}"><span>${i + 1}</span><em>${label}</em></li>`
+          `<li class="${i === active ? "on" : i < active ? "done" : ""}"${i === active ? ' aria-current="step"' : ""}><span aria-hidden="true"></span><em>${label}</em><b class="visually-hidden">Step ${i + 1} of ${STEP_LABELS.length}${i === active ? "" : `: ${label}`}</b></li>`
       ).join("")}
     </ol>`;
   }
@@ -968,6 +969,12 @@ window.LuneOnboard = (function () {
     if (!stage) return;
     stage.className = "onboard-stage";
     if (step === 0) stage.classList.add("onboard-stage-wide");
+    // a new step arrives the way the landing's words do: up, out of a soft blur
+    if (stage.dataset.step !== String(step)) {
+      stage.dataset.step = String(step);
+      if (!window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches)
+        stage.animate?.([{ opacity: 0, transform: "translateY(18px)", filter: "blur(8px)" }, { opacity: 1, transform: "none", filter: "none" }], { duration: 650, easing: "cubic-bezier(0.22, 1, 0.36, 1)" });
+    }
 
     if (step === 0) {
       const visible = filteredComposers(composerQuery);
@@ -1632,6 +1639,7 @@ window.LuneOnboard = (function () {
     const authed = signedIn();
     const guest = $("home-guest");
     const member = $("home-member");
+    window.LuneMoon?.paintMember?.();
     // "See examples" from the signed-in home shows the story page in place until Home is pressed
     const story = document.body.classList.contains("is-story");
     if (guest) guest.hidden = !!authed && !story;

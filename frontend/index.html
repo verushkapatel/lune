@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- lune38 -->
-  <!-- deploy-lune38 -->
-  <!-- deploy-lune38 -->
+  <!-- lune39 -->
+  <!-- deploy-lune39 -->
+  <!-- deploy-lune39 -->
 
 <meta charset="UTF-8">
   <script>
@@ -34,14 +34,14 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Lune">
-  <link rel="icon" href="static/assets/favicon.svg?v=lune38" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=lune38">
+  <link rel="icon" href="static/assets/favicon.svg?v=lune39" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=lune39">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2?v=lune38" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2?v=lune39" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="static/assets/fonts/manrope-var.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="static/styles.css?v=lune38">
-  <link rel="stylesheet" href="static/theme-light.css?v=lune38">
-  <link rel="preload" href="static/search-index.json?v=lune38" as="fetch" crossorigin>
+  <link rel="stylesheet" href="static/styles.css?v=lune39">
+  <link rel="stylesheet" href="static/theme-light.css?v=lune39">
+  <link rel="preload" href="static/search-index.json?v=lune39" as="fetch" crossorigin>
 </head>
 <body>
   <div id="lune-intro" aria-hidden="true">
@@ -50,11 +50,11 @@
       #lune-intro.gone { opacity: 0; visibility: hidden; }
       #lune-intro .li-lock { display: flex; flex-direction: column; align-items: center; gap: 22px; color: #f5f5f7; animation: li-in 1.1s cubic-bezier(0.22, 1, 0.36, 1) both; }
       #lune-intro.gone .li-lock { transform: scale(1.06); filter: blur(6px); transition: transform 0.7s ease, filter 0.7s ease; }
-      #lune-intro svg { width: min(34vw, 150px); height: auto; filter: drop-shadow(0 0 40px rgba(90, 120, 255, 0.55)); }
+      #lune-intro svg { width: min(34vw, 150px); height: auto; filter: drop-shadow(0 0 40px rgba(255, 255, 255, 0.45)); }
       #lune-intro .li-moon { animation: li-moon 1.3s cubic-bezier(0.22, 1, 0.36, 1) both; transform-origin: 50% 45%; }
       #lune-intro .li-staff line { stroke-dasharray: 32; stroke-dashoffset: 32; animation: li-draw 0.9s 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
       #lune-intro .li-word { margin: 0; font-family: "Manrope", system-ui, sans-serif; font-weight: 300; font-size: clamp(54px, 13vw, 112px); letter-spacing: -0.045em; line-height: 1; animation: li-word 1.2s 0.15s cubic-bezier(0.22, 1, 0.36, 1) both; }
-      #lune-intro::after { content: ""; position: absolute; width: 70vmax; height: 70vmax; border-radius: 50%; background: radial-gradient(closest-side, rgba(45, 70, 240, 0.28), transparent 70%); animation: li-glow 1.6s ease-out both; z-index: -1; }
+      #lune-intro::after { content: ""; position: absolute; width: 70vmax; height: 70vmax; border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 255, 255, 0.10), transparent 70%); animation: li-glow 1.6s ease-out both; z-index: -1; }
       @keyframes li-in { from { opacity: 0; } to { opacity: 1; } }
       @keyframes li-moon { from { opacity: 0; transform: rotate(-24deg) scale(0.82); } to { opacity: 1; transform: none; } }
       @keyframes li-draw { to { stroke-dashoffset: 0; } }
@@ -166,6 +166,7 @@
       <!-- Signed-in studio home (shown when body.is-signed-in) -->
       <div class="home-member" id="home-member" hidden>
         <section class="member-hero" aria-label="Your studio">
+          <div class="mh-row"><div class="mh-moon" aria-hidden="true"><i class="mr-moon-lit"></i></div><p class="mh-phase" id="mh-phase"></p></div>
           <p class="member-kicker" id="member-today">Today</p>
           <h1 class="member-title" id="member-greeting">Welcome back.</h1>
           <!-- Lune AI first: one bar, as on ChatGPT's home -->
@@ -281,43 +282,47 @@
         <div class="lune-ai-home" data-ai-home></div>
         <p class="home-app-tour"><button type="button" class="link-btn" data-show-story>See everything Lune can do</button></p>
       </section>
-      <section class="home-hero home-hero-cinema" id="hero">
-        <div class="home-hero-motif" aria-hidden="true">
-          <svg class="home-motif-mark" viewBox="0 0 40 40" focusable="false">
-            <g stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.35">
-                <line x1="5.00" y1="26" x2="10.07" y2="26"/>
-                <line x1="27.93" y1="26" x2="35.00" y2="26"/>
-                <line x1="5.00" y1="30" x2="35.00" y2="30"/>
-                <line x1="5.00" y1="34" x2="35.00" y2="34"/>
-              </g>
-            <path fill="currentColor" d="M17.61 4.58A12 12 0 1 0 27.70 24.77A11.4 11.4 0 1 1 17.61 4.58Z"/>
-          </svg>
-        </div>
-        <div class="home-hero-inner">
-          <button type="button" class="lune-ai-badge" data-show-ai>New · Lune AI, built into Lune</button>
-          <div class="home-lockup" aria-label="Lune">
-            <svg class="lune-mark home-mark" viewBox="0 0 40 40" width="72" height="72" aria-hidden="true" focusable="false">
-              <g stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.45">
-                <line x1="5.00" y1="26" x2="10.07" y2="26"/>
-                <line x1="27.93" y1="26" x2="35.00" y2="26"/>
-                <line x1="5.00" y1="30" x2="35.00" y2="30"/>
-                <line x1="5.00" y1="34" x2="35.00" y2="34"/>
-              </g>
-              <path fill="currentColor" d="M17.61 4.58A12 12 0 1 0 27.70 24.77A11.4 11.4 0 1 1 17.61 4.58Z"/>
-            </svg>
-            <p class="home-brand">Lune</p>
-          </div>
+      <section class="home-hero mr-hero" id="hero" aria-labelledby="hero-h">
+        <canvas class="mr-sky" aria-hidden="true"></canvas>
+        <div class="mr-moon" aria-hidden="true"><i class="mr-moon-lit"></i><i class="mr-moon-shade"></i></div>
+        <div class="home-hero-inner mr-inner">
           <div class="home-continue" id="home-continue" hidden></div>
-          <h1 data-fx-blur>When practice feels lost.<br>Find the light again.</h1>
-          <p class="lead">
-            Named for Clair de lune. A night studio that helps practice feel right again.
-          </p>
+          <p class="mr-kicker">Lune · a piano studio</p>
+          <h1 id="hero-h" class="mr-h"><span class="mr-l1">Sit down.</span> <span class="mr-l2">Play.</span><span class="mr-l3">Lune takes care of the rest.</span></h1>
+          <p class="lead mr-lead">Every note named, every hard bar explained, tonight’s practice planned. Free, for every pianist.</p>
           <div class="hero-cta">
             <button type="button" class="hero-cta-main" data-open-piece="debussy-clair-de-lune" data-open-panel="score">Open Clair de lune</button>
             <button type="button" class="hero-cta-alt" data-lp-personalise>Make Lune yours</button>
           </div>
-          <p class="home-fine-line">Free · no ads · nothing to buy · for every pianist</p>
-          <div class="hero-demo" aria-label="Lune AI, an example">
+        </div>
+        <div class="mr-stage">
+          <p class="mr-hint" aria-hidden="true">Touch the keys</p>
+          <div class="mr-keys" role="group" aria-label="A piano you can play. The opening of Clair de lune falls onto it."></div>
+        </div>
+        <button type="button" class="home-scroll-cue" data-lp-sim aria-label="Scroll to see how Lune works">
+          <span>Scroll</span>
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+            <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </section>
+
+      <section class="mr-idea" id="idea" aria-label="The idea">
+        <p class="about-kicker">The idea</p>
+        <p class="mr-read" data-mr-read>You sit down at the piano. The score is already open. Every note has its name, the bar that stalls you is explained, and tonight’s twenty minutes are planned. All that is left is the music.</p>
+      </section>
+
+      <div class="mr-marquee" aria-hidden="true">
+        <div class="mr-track"><span>Notes named</span><span>Fingering shown</span><span>Bar 12, explained</span><span>Pedal marked</span><span>The original tempo</span><span>Hard bars come back</span><span>Answers read aloud</span><span>Braille music</span><span>Any MusicXML score</span><span>A plan for tonight</span><span>Notes named</span><span>Fingering shown</span><span>Bar 12, explained</span><span>Pedal marked</span><span>The original tempo</span><span>Hard bars come back</span><span>Answers read aloud</span><span>Braille music</span><span>Any MusicXML score</span><span>A plan for tonight</span></div>
+      </div>
+
+      <section class="mr-tonight" id="tonight" aria-labelledby="tonight-h">
+        <div class="mr-tonight-copy" data-reveal>
+          <p class="about-kicker">Lune AI</p>
+          <h2 id="tonight-h">Twenty minutes.<br><span class="mr-dim">Already planned.</span></h2>
+          <p>Say how long you have. Lune AI reads the score in front of you and writes the steps, bar by bar.</p>
+        </div>
+        <div class="hero-demo fx-spot" data-mr-type aria-label="Lune AI, an example">
             <p class="hd-you">I have 20 minutes tonight. What should I practise?</p>
             <div class="hd-log" aria-hidden="true">
               <p class="hd-line hd-dim"><span class="hd-mark">◠</span> Reading Für Elise · 3/8 · A minor</p>
@@ -330,13 +335,6 @@
               <span class="hd-send" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 19V5M5.5 11.5L12 5l6.5 6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
             </button>
           </div>
-          <button type="button" class="home-scroll-cue" data-lp-sim aria-label="Scroll to see how Lune works">
-            <span>Scroll</span>
-            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
-              <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
-        </div>
       </section>
 
       <section class="home-feat-intro" id="tour" data-reveal>
@@ -940,27 +938,28 @@
   <script src="static/vendor/opensheetmusicdisplay.min.js"></script>
   <script src="static/vendor/pdf.min.js"></script>
   <script src="static/vendor/Tone.js"></script>
-  <script src="static/piano.js?v=lune38"></script>
-  <script src="static/annotate.js?v=lune38"></script>
-  <script src="static/lite-analyze.js?v=lune38"></script>
-  <script src="static/fetch-score.js?v=lune38"></script>
-  <script src="static/lyric-lane.js?v=lune38"></script>
-  <script src="static/menu.js?v=lune38"></script>
-  <script src="static/lune-fx.js?v=lune38"></script>
-  <script src="static/lune-config.js?v=lune38"></script>
-  <script src="static/store.js?v=lune38"></script>
-  <script src="static/onboard.js?v=lune38"></script>
-  <script src="static/impact.js?v=lune38"></script>
-  <script src="static/feedback.js?v=lune38"></script>
-  <script src="static/ai-device.js?v=lune38"></script>
-  <script src="static/ask.js?v=lune38"></script>
-  <script src="static/markings.js?v=lune38"></script>
-  <script src="static/plans.js?v=lune38"></script>
-  <script src="static/app.js?v=lune38"></script>
-  <script src="static/studio-ui.js?v=lune38"></script>
-  <script src="static/landing-score.js?v=lune38"></script>
-  <script src="static/practice.js?v=lune38"></script>
-  <script src="static/study.js?v=lune38"></script>
-  <script src="static/install.js?v=lune38"></script>
+  <script src="static/piano.js?v=lune39"></script>
+  <script src="static/annotate.js?v=lune39"></script>
+  <script src="static/lite-analyze.js?v=lune39"></script>
+  <script src="static/fetch-score.js?v=lune39"></script>
+  <script src="static/lyric-lane.js?v=lune39"></script>
+  <script src="static/menu.js?v=lune39"></script>
+  <script src="static/lune-fx.js?v=lune39"></script>
+  <script src="static/lune-config.js?v=lune39"></script>
+  <script src="static/store.js?v=lune39"></script>
+  <script src="static/onboard.js?v=lune39"></script>
+  <script src="static/impact.js?v=lune39"></script>
+  <script src="static/feedback.js?v=lune39"></script>
+  <script src="static/ai-device.js?v=lune39"></script>
+  <script src="static/ask.js?v=lune39"></script>
+  <script src="static/markings.js?v=lune39"></script>
+  <script src="static/plans.js?v=lune39"></script>
+  <script src="static/app.js?v=lune39"></script>
+  <script src="static/studio-ui.js?v=lune39"></script>
+  <script src="static/landing-score.js?v=lune39"></script>
+  <script src="static/moonrise.js?v=lune39"></script>
+  <script src="static/practice.js?v=lune39"></script>
+  <script src="static/study.js?v=lune39"></script>
+  <script src="static/install.js?v=lune39"></script>
 </body>
 </html>
