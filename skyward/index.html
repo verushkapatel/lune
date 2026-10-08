@@ -1,0 +1,537 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Skyward Project</title>
+<meta name="description" content="We find the money lessons each student is missing, teach them in two hours, and make them stick with Saath. Free for students in Grades 9 to 12 across Pune and Mumbai.">
+<meta name="theme-color" content="#000000">
+<meta property="og:title" content="The Skyward Project">
+<meta property="og:description" content="Adulthood starts the day school ends. We find the gap, fill it, and make it stick with Saath.">
+<meta property="og:image" content="https://theskywardproject.com/assets/og.jpg">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Oswald:wght@300&family=Playfair+Display:wght@900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=1">
+<script>document.documentElement.classList.add("js");</script>
+</head>
+<body>
+
+<!-- The logo, defined once and reused small in the nav and footer. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="sky-logo" viewBox="133 133 1706 1706">
+    <circle cx="986" cy="986" r="853" fill="#0a1a3f"/>
+    <circle cx="986" cy="986" r="764" fill="none" stroke="#fff" stroke-width="44"/>
+    <g fill="#fff">
+      <path d="M709 743H865V972L800 896Q782 878 764 896L709 950Z"/>
+      <path d="M916 880H1073V987L967 1090L916 1030Z"/>
+      <path d="M1123 551H1280V782L1123 937Z"/>
+      <path d="M986 768 1001 815 1050 815 1010 844 1025 891 986 862 946 891 961 844 921 815 971 815Z"/>
+    </g>
+    <g fill="none" stroke="#fff" stroke-linejoin="round">
+      <path d="M646 1068 781 935 967 1143 1440 672" stroke-width="34"/>
+      <path d="M1354 683 1456 663 1424 765" stroke-width="28" stroke-linecap="round"/>
+    </g>
+    <g fill="#fff">
+      <text x="711" y="1144" font-family="Oswald, 'Arial Narrow', sans-serif" font-weight="300" font-size="80" letter-spacing="4">THE</text>
+      <text x="988" y="1320" text-anchor="middle" font-family="'Playfair Display', Georgia, serif" font-weight="900" font-size="170" letter-spacing="-1">Skyward</text>
+      <text x="988" y="1477" text-anchor="middle" font-family="'Playfair Display', Georgia, serif" font-weight="900" font-size="170" letter-spacing="-1">Project</text>
+    </g>
+  </symbol>
+</svg>
+
+<!-- Loader: the logo assembles itself, then opens onto the page. -->
+<div class="loader" id="loader" aria-hidden="true">
+  <div class="loader__glow"></div>
+  <svg class="loader__mark" viewBox="133 133 1706 1706">
+    <circle class="l-disc" cx="986" cy="986" r="853" fill="#0a1a3f"/>
+    <circle class="l-ring" cx="986" cy="986" r="764" fill="none" stroke="#fff" stroke-width="44" pathLength="100"/>
+    <g fill="#fff">
+      <path class="l-bar l-bar1" d="M709 743H865V972L800 896Q782 878 764 896L709 950Z"/>
+      <path class="l-bar l-bar2" d="M916 880H1073V987L967 1090L916 1030Z"/>
+      <path class="l-bar l-bar3" d="M1123 551H1280V782L1123 937Z"/>
+      <path class="l-star" d="M986 768 1001 815 1050 815 1010 844 1025 891 986 862 946 891 961 844 921 815 971 815Z"/>
+    </g>
+    <g fill="none" stroke="#fff" stroke-linejoin="round">
+      <path class="l-line" d="M646 1068 781 935 967 1143 1440 672" stroke-width="34" pathLength="100"/>
+      <path class="l-arrow" d="M1354 683 1456 663 1424 765" stroke-width="28" stroke-linecap="round" pathLength="100"/>
+    </g>
+    <g fill="#fff">
+      <text class="l-the" x="711" y="1144" font-family="Oswald, 'Arial Narrow', sans-serif" font-weight="300" font-size="80" letter-spacing="4">THE</text>
+      <text class="l-word l-word1" x="988" y="1320" text-anchor="middle" font-family="'Playfair Display', Georgia, serif" font-weight="900" font-size="170" letter-spacing="-1">Skyward</text>
+      <text class="l-word l-word2" x="988" y="1477" text-anchor="middle" font-family="'Playfair Display', Georgia, serif" font-weight="900" font-size="170" letter-spacing="-1">Project</text>
+    </g>
+  </svg>
+  <p class="loader__line"><span>Finding the gap</span><span>Filling it</span></p>
+</div>
+
+<a class="skip" href="#main">Skip to content</a>
+<div class="progress" aria-hidden="true"><span id="progress"></span></div>
+
+<header class="nav" id="nav">
+  <a class="nav__brand" href="#top" aria-label="The Skyward Project, home">
+    <svg class="nav__logo" aria-hidden="true"><use href="#sky-logo"/></svg>
+    <span>The Skyward Project</span>
+  </a>
+  <nav class="nav__pill" aria-label="Primary">
+    <a href="#mission">Mission</a>
+    <a href="#how">How it works</a>
+    <a href="#saath">Saath</a>
+    <a href="#field-notes">Field notes</a>
+    <a href="#movement">Movement</a>
+    <a href="#team">Team</a>
+  </nav>
+  <a class="btn btn--light btn--sm nav__cta" href="#partner">Partner with us</a>
+  <button class="nav__toggle" id="navToggle" aria-expanded="false" aria-controls="sheet" aria-label="Open menu"><span></span><span></span></button>
+</header>
+<div class="sheet" id="sheet" hidden>
+  <a href="#mission">Mission</a>
+  <a href="#how">How it works</a>
+  <a href="#saath">Saath</a>
+  <a href="#field-notes">Field notes</a>
+  <a href="#movement">Movement</a>
+  <a href="#team">Team</a>
+  <a href="#partner" class="btn btn--light">Partner with us</a>
+</div>
+
+<main id="main">
+
+<!-- HERO -->
+<section class="hero" id="top">
+  <canvas class="hero__stars" id="stars" aria-hidden="true"></canvas>
+  <div class="hero__grid" aria-hidden="true"></div>
+  <svg class="hero__rise" viewBox="0 0 1440 600" preserveAspectRatio="none" aria-hidden="true">
+    <defs><linearGradient id="riseG" x1="0" x2="1"><stop offset="0" stop-color="#3d63ff" stop-opacity="0"/><stop offset=".5" stop-color="#6f8cff" stop-opacity=".55"/><stop offset="1" stop-color="#cfd9ff" stop-opacity=".9"/></linearGradient></defs>
+    <path d="M-20 470 L380 300 L700 540 L1460 40" fill="none" stroke="url(#riseG)" stroke-width="2" pathLength="100"/>
+  </svg>
+
+  <div class="hero__inner wrap">
+    <a class="chip hero-in" href="#saath" style="--d:0">
+      <span class="chip__dot"></span>Now live · Saath, our flagship app <span aria-hidden="true">→</span>
+    </a>
+    <h1 class="hero__title">
+      <span class="hero-in" style="--d:1">Adulthood starts</span>
+      <span class="hero-in muted" style="--d:2">the day school ends.</span>
+    </h1>
+    <p class="hero__sub hero-in" style="--d:3">We find the money lessons each student is missing, teach them in two hours, and make them stick with Saath, before a mistake can cost them.</p>
+    <div class="hero__ctas hero-in" style="--d:4">
+      <a class="btn btn--light" href="#how">See how it works</a>
+      <a class="btn btn--ghost" href="https://saath.cc" target="_blank" rel="noopener">Open Saath <span aria-hidden="true">↗</span></a>
+    </div>
+    <p class="meta hero-in" style="--d:5">Grades 9–12 · Pune &amp; Mumbai · Free for every school</p>
+
+    <div class="console hero-in" style="--d:6" aria-label="Demonstration: finding a class's learning gap">
+      <div class="console__bar"><span></span><span></span><span></span><em>skyward · gap finder</em></div>
+      <div class="console__body" id="console">
+        <div class="msg msg--user">Class 11 · 32 answer sheets. What do they need most?</div>
+        <div class="console__out" id="consoleOut" aria-live="polite"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- The first year after school -->
+<section class="marquee" aria-label="Decisions a student faces in the first year after school">
+  <div class="marquee__track">
+    <span>Reading a first pay slip</span><span>Renting a room</span><span>A loan app that wants your contacts</span><span>“I'm calling from your bank”</span><span>Signing as guarantor</span><span>A no-cost EMI</span><span>₹3,000 needed in ten days</span><span>Your first resume</span><span>Choosing a card</span><span>A UPI request you didn't send</span>
+    <span aria-hidden="true">Reading a first pay slip</span><span aria-hidden="true">Renting a room</span><span aria-hidden="true">A loan app that wants your contacts</span><span aria-hidden="true">“I'm calling from your bank”</span><span aria-hidden="true">Signing as guarantor</span><span aria-hidden="true">A no-cost EMI</span><span aria-hidden="true">₹3,000 needed in ten days</span><span aria-hidden="true">Your first resume</span><span aria-hidden="true">Choosing a card</span><span aria-hidden="true">A UPI request you didn't send</span>
+  </div>
+</section>
+
+<!-- MISSION -->
+<section class="section mission" id="mission">
+  <div class="wrap">
+    <p class="eyebrow rv">The mission</p>
+    <p class="scrub" id="scrub">Most adults learn money by getting it wrong. For a student from a low-income family, adulthood begins right after Grade 12, with no university years to learn in and no one at home who has done it before. One mistake can cost months of savings. So we teach the lessons two years early, in a classroom, where a wrong answer costs nothing.</p>
+
+    <div class="stats">
+      <div class="stat rv">
+        <strong><span data-count="27">0</span>%</strong>
+        <span>of Indian adults are financially literate, against 52% in advanced economies</span>
+      </div>
+      <div class="stat rv">
+        <strong><span data-count="51">0</span>%</strong>
+        <span>of Indians struggle to keep up with their debts. The global average is 32%</span>
+      </div>
+      <div class="stat stat--gap rv">
+        <strong><span data-count="49">0</span>%</strong>
+        <span>is what well-resourced students in our pilot scored on how money works outside a classroom</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="section how" id="how">
+  <div class="wrap">
+    <header class="head rv">
+      <p class="eyebrow">How it works</p>
+      <h2>Find the gap.<br><span class="muted">Then fill it.</span></h2>
+      <p class="lede">Four steps, from a fifteen-question test to a habit that lasts.</p>
+    </header>
+
+    <ol class="steps">
+      <!-- 01 -->
+      <li class="step rv">
+        <div class="step__text">
+          <span class="step__no">01 · Test</span>
+          <h3>Fifteen real situations.</h3>
+          <p>The Money Readiness Test, adapted from the S&amp;P Global Financial Literacy Survey and rewritten for a sixteen-year-old. Every wrong option is a real money mistake.</p>
+          <p class="hint">Try one →</p>
+        </div>
+        <div class="card quiz" id="quiz">
+          <p class="card__tag">Question 1 · Warm up</p>
+          <p class="quiz__q">Meera has <b>₹800</b> this month. She can't afford everything. What should she pay for first?</p>
+          <div class="quiz__opts" role="group" aria-label="Answer options">
+            <button type="button" data-k="A">The phone case she has been wanting <i>₹300</i></button>
+            <button type="button" data-k="B" data-right>The college application fee due Friday <i>₹250</i></button>
+            <button type="button" data-k="C">A birthday gift for her best friend <i>₹200</i></button>
+            <button type="button" data-k="D">Split the ₹800 evenly across everything</button>
+          </div>
+          <p class="quiz__why" id="quizWhy" aria-live="polite"></p>
+        </div>
+      </li>
+
+      <!-- 02 -->
+      <li class="step rv">
+        <div class="step__text">
+          <span class="step__no">02 · AI</span>
+          <h3>A model reads every answer.</h3>
+          <p>Results go through our AI model, topic by topic, student by student. It finds where the class is weakest, so no minute of teaching goes where it isn't needed.</p>
+        </div>
+        <div class="card heat" id="heat">
+          <p class="card__tag">Illustrative class · 32 students × 6 topics</p>
+          <div class="heat__grid" id="heatGrid"></div>
+          <div class="heat__foot" id="heatFoot" aria-live="polite"></div>
+        </div>
+      </li>
+
+      <!-- 03 -->
+      <li class="step rv">
+        <div class="step__text">
+          <span class="step__no">03 · Teach</span>
+          <h3>Two hours, aimed at the gap.</h3>
+          <p>Each student sees their own score privately. Then an 80-minute course on earning, borrowing and staying safe, with most of the time on what the class found hardest.</p>
+        </div>
+        <div class="card plan" id="plan">
+          <p class="card__tag">Day 2 · 120 minutes</p>
+          <div class="plan__bar" id="planBar"></div>
+          <ul class="plan__key" id="planKey"></ul>
+        </div>
+      </li>
+
+      <!-- 04 -->
+      <li class="step rv">
+        <div class="step__text">
+          <span class="step__no">04 · Saath</span>
+          <h3>Then they live it.</h3>
+          <p>Two sessions are easy to forget. Saath turns the lesson into practice: every student leaves with a pocket handbook and an app where every choice changes the money.</p>
+          <a class="link" href="#saath">Meet Saath ↓</a>
+        </div>
+        <div class="phone" id="mini">
+          <div class="phone__screen">
+            <p class="phone__tag">Verena, 19 · Pune</p>
+            <p class="phone__scene">It is the 18th. She opens her banking app: <b>₹350 left, twelve days to go.</b></p>
+            <div class="phone__opts">
+              <button type="button" data-r="She makes it, but starts next month ₹2,000 behind.">Borrow ₹2,000 from a friend</button>
+              <button type="button" data-good data-r="Good call. She reaches the 1st with ₹12 to spare, and knows where it all went.">Write down every rupee, plan ₹29 a day</button>
+              <button type="button" data-r="They send it. The leak that caused it is still there next month.">Ask her parents to send money early</button>
+            </div>
+            <p class="phone__res" id="miniRes" aria-live="polite"></p>
+          </div>
+        </div>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- SAATH -->
+<section class="saath" id="saath">
+  <div class="saath__glow" aria-hidden="true"></div>
+  <div class="wrap">
+    <header class="head head--center rv">
+      <p class="chip chip--static"><span class="chip__dot"></span>Flagship · Live at saath.cc</p>
+      <h2 class="saath__title">Saath</h2>
+      <p class="saath__line">Adults learn money from failure.<br><span class="muted">Our students can't afford to fail. So Verena does it for them.</span></p>
+    </header>
+
+    <div class="life rv" id="life">
+      <div class="life__stage">
+        <div class="avatar" id="avatar" aria-hidden="true">
+          <svg viewBox="0 0 200 240">
+            <ellipse class="av-shadow" cx="100" cy="228" rx="54" ry="7"/>
+            <path class="av-body" d="M48 236 C50 168 70 148 100 146 C130 148 150 168 152 236Z"/>
+            <path class="av-collar" d="M86 148 L100 170 L114 148" fill="none" stroke-width="5" stroke-linejoin="round"/>
+            <rect class="av-neck" x="91" y="124" width="18" height="26" rx="6"/>
+            <path class="av-hair-back" d="M58 86 C58 40 142 40 142 86 L144 126 C130 136 70 136 56 126Z"/>
+            <circle class="av-face" cx="100" cy="92" r="38"/>
+            <path class="av-hair" d="M62 88 C60 52 92 44 106 50 C124 50 140 64 138 90 C126 74 104 70 84 66 C76 74 68 82 62 88Z"/>
+            <circle class="av-bun" cx="100" cy="46" r="14"/>
+            <g class="av-eyes"><circle cx="86" cy="96" r="3.4"/><circle cx="114" cy="96" r="3.4"/></g>
+            <g class="av-glasses" fill="none" stroke-width="3"><circle cx="86" cy="96" r="10"/><circle cx="114" cy="96" r="10"/><path d="M96 96h8"/></g>
+            <path class="av-smile" d="M90 110 Q100 118 110 110" fill="none" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+          <span class="xp" id="xp">+30 XP</span>
+        </div>
+        <div class="life__card" aria-live="polite">
+          <p class="life__age"><span id="lifeAge">18</span><small>years old</small></p>
+          <h3 id="lifeTitle">Her first resume</h3>
+          <p class="life__scene" id="lifeScene"></p>
+          <p class="life__lesson"><span>The lesson</span><b id="lifeLesson"></b></p>
+        </div>
+      </div>
+      <div class="life__controls">
+        <button type="button" class="life__play" id="lifePlay" aria-label="Play Verena's life">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-play" d="M8 5v14l11-7z"/><path class="i-pause" d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>
+        </button>
+        <div class="life__track">
+          <input type="range" id="lifeRange" min="0" max="15" value="0" step="1" aria-label="Verena's age">
+          <div class="life__ticks" id="lifeTicks" aria-hidden="true"></div>
+        </div>
+      </div>
+      <p class="life__hint">Drag through Verena's life. From a first resume to retirement, every step in between.</p>
+    </div>
+
+    <div class="pillars">
+      <article class="pillar rv">
+        <span class="pillar__no">01</span>
+        <h3>A story to live</h3>
+        <p>46 chapters of Verena's life. You choose, you see what follows, you learn why.</p>
+        <div class="pillar__ui"><span class="pill pill--good">+30 XP · Verena grew up</span></div>
+      </article>
+      <article class="pillar rv">
+        <span class="pillar__no">02</span>
+        <h3>Saath AI</h3>
+        <p>Ask anything by typing, speaking or snapping a document. Answers cite the guide they came from.</p>
+        <div class="pillar__ui"><span class="pill">My insurer rejected my claim. What now?</span></div>
+      </article>
+      <article class="pillar rv">
+        <span class="pillar__no">03</span>
+        <h3>Forms, explained</h3>
+        <p>Bank, tax and insurance forms read line by line, before anyone signs.</p>
+        <div class="pillar__ui"><span class="pill">Nominee · <em>Always fill this in</em></span></div>
+      </article>
+      <article class="pillar rv">
+        <span class="pillar__no">04</span>
+        <h3>Money Lab</h3>
+        <p>A budget that puts savings first. Bills, goals, and what is safe to spend today. It stays on their phone.</p>
+        <div class="pillar__ui"><span class="pill">Safe to spend today · <b>₹1,240</b></span></div>
+      </article>
+    </div>
+
+    <div class="numbers rv">
+      <div><strong data-count="46">0</strong><span>chapters</span></div>
+      <div><strong data-count="47">0</strong><span>guides</span></div>
+      <div><strong data-count="3">0</strong><span>languages</span></div>
+      <div><strong>₹0</strong><span>forever free</span></div>
+    </div>
+
+    <div class="center rv">
+      <a class="btn btn--light btn--lg" href="https://saath.cc" target="_blank" rel="noopener">Open Saath <span aria-hidden="true">↗</span></a>
+      <p class="meta">English · हिंदी · मराठी · Works offline · No ads</p>
+    </div>
+  </div>
+</section>
+
+<!-- FIELD NOTES: the first pilot, told in scenes -->
+<section class="notes" id="field-notes">
+  <div class="wrap">
+    <header class="head rv">
+      <p class="eyebrow">Field notes · The first pilot</p>
+      <h2>What 102 students<br><span class="muted">taught us.</span></h2>
+    </header>
+  </div>
+  <div class="story">
+    <div class="story__stage" aria-hidden="true">
+      <div class="dots" id="dots"></div>
+      <div class="bars-labels" id="barLabels"></div>
+      <p class="story__legend" id="legend"></p>
+    </div>
+    <div class="story__steps">
+      <div class="scene" data-s="0"><div class="scene__card"><p class="scene__k">August 2026 · Pune &amp; Mumbai</p><p class="scene__t"><b>102 students</b> in Grades 9 to 12 sat our pilot paper.</p></div></div>
+      <div class="scene" data-s="1"><div class="scene__card"><p class="scene__t"><b>88</b> of them travel to school by bus or private car.</p></div></div>
+      <div class="scene" data-s="2"><div class="scene__card"><p class="scene__t"><b>91</b> own a laptop or tablet.</p><p class="scene__s">These were well-resourced students.</p></div></div>
+      <div class="scene" data-s="3"><div class="scene__card"><p class="scene__t">They scored <b>81%</b> on careful reading and everyday sums.</p><p class="scene__s">And <b class="gold">49%</b> on how money behaves outside a classroom.</p></div></div>
+      <div class="scene" data-s="4"><div class="scene__card"><p class="scene__t"><b>73</b> scored 80% or better across Parts A to C.</p></div></div>
+      <div class="scene" data-s="5"><div class="scene__card"><p class="scene__t"><b class="gold">30</b> of those same students scored half or less on Part D.</p><p class="scene__s">Reading a question closely is a school skill. These students have it.</p></div></div>
+      <div class="scene scene--end" data-s="6"><div class="scene__card"><p class="scene__t">If they sit at 49%, the gap for students with fewer advantages is wider.</p><p class="scene__big">That is the gap we exist to close.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- MOVEMENT -->
+<section class="section movement" id="movement">
+  <div class="wrap">
+    <header class="head rv">
+      <p class="eyebrow">The movement</p>
+      <h2>From planning<br><span class="muted">to execution.</span></h2>
+    </header>
+
+    <div class="club rv">
+      <div class="club__count"><strong><span data-count="60">0</span>+</strong><span>members</span></div>
+      <div class="club__text">
+        <h3>Interact Club of Pune Skyward</h3>
+        <p>We started our own Interact club to take the work into more classrooms. Its members run sessions alongside the core team, so students learn from people close to their own age.</p>
+      </div>
+    </div>
+
+    <div class="allies rv">
+      <p class="eyebrow">Affiliated with</p>
+      <div class="allies__row">
+        <span>Rotary Clubs of Pune</span>
+        <span>Round Table India · Pune initiatives</span>
+      </div>
+    </div>
+
+    <ol class="timeline">
+      <li class="rv"><span class="t-when">Aug 2026</span><h4>First pilot</h4><p>102 students, two cities, one paper.</p></li>
+      <li class="rv"><span class="t-when">2026</span><h4>Interact Club of Pune Skyward</h4><p>More than sixty members, one initiative.</p></li>
+      <li class="rv t-now"><span class="t-when">Now</span><h4>Saath launches</h4><p>Our biggest project yet, live and free.</p></li>
+      <li class="rv"><span class="t-when">Next</span><h4>More classrooms</h4><p>Pune and Mumbai, with Hindi and Marathi editions of the test.</p></li>
+    </ol>
+  </div>
+</section>
+
+<!-- TEAM -->
+<section class="section team" id="team">
+  <div class="wrap">
+    <header class="head rv">
+      <p class="eyebrow">The core team</p>
+      <h2>Students, building<br><span class="muted">for students.</span></h2>
+    </header>
+    <div class="people">
+      <button type="button" class="person rv" data-bio="verushka">
+        <img src="assets/verushka.jpg" alt="" width="800" height="800" loading="lazy">
+        <span class="person__meta"><b>Verushka Patel</b><i>Founder</i></span>
+        <span class="person__more" aria-hidden="true">+</span>
+      </button>
+      <button type="button" class="person rv" data-bio="prathmesh">
+        <img src="assets/prathmesh.jpg" alt="" width="256" height="256" loading="lazy">
+        <span class="person__meta"><b>Prathmesh Khurana</b><i>Co-founder</i></span>
+        <span class="person__more" aria-hidden="true">+</span>
+      </button>
+      <button type="button" class="person rv" data-bio="amaira">
+        <img src="assets/amaira.jpg" alt="" width="900" height="835" loading="lazy">
+        <span class="person__meta"><b>Amaira Shah</b><i>Outreach Manager</i></span>
+        <span class="person__more" aria-hidden="true">+</span>
+      </button>
+    </div>
+  </div>
+</section>
+
+<dialog class="bio" id="bio" aria-labelledby="bioName">
+  <button type="button" class="bio__close" id="bioClose" aria-label="Close">×</button>
+  <img id="bioImg" src="" alt="" width="120" height="120">
+  <h3 id="bioName"></h3>
+  <p class="bio__role" id="bioRole"></p>
+  <p class="bio__text" id="bioText"></p>
+</dialog>
+
+<!-- PARTNER -->
+<section class="section partner" id="partner">
+  <div class="wrap">
+    <header class="head rv">
+      <p class="eyebrow">For schools &amp; NGOs</p>
+      <h2>Bring it to your students.<br><span class="muted">Free.</span></h2>
+      <p class="lede">The full two-day programme for one group of students, with no obligation to continue.</p>
+    </header>
+
+    <div class="days">
+      <article class="day rv">
+        <p class="day__k">Day 1 · Find out</p>
+        <ul>
+          <li><i>30</i>Who we are, and why money gets harder the day school ends</li>
+          <li><i>30</i>The Money Readiness Test</li>
+          <li><i>45</i>Group activity: your first month on your own</li>
+          <li><i>15</i>Questions and close</li>
+        </ul>
+      </article>
+      <article class="day rv">
+        <p class="day__k">Day 2 · Learn</p>
+        <ul>
+          <li><i>20</i>Results: each student privately, the class together</li>
+          <li><i>80</i>The course, weighted to the widest gaps</li>
+          <li><i>20</i>Setting up the handbook and Saath</li>
+        </ul>
+      </article>
+    </div>
+
+    <div class="offer">
+      <div class="offer__col rv">
+        <h4>You receive</h4>
+        <ul><li>Both days, run by our team</li><li>A handbook for every student, and Saath</li><li>A private report within two weeks</li><li>A twenty-minute call to walk through it</li><li>Use of the report for planning, funding and CSR</li></ul>
+      </div>
+      <div class="offer__col rv">
+        <h4>We handle</h4>
+        <ul><li>Planning and both sessions</li><li>The test and the marking</li><li>The report</li><li>Privacy safeguards</li></ul>
+        <p class="offer__note">Nothing to prepare on your side.</p>
+      </div>
+      <div class="offer__col rv">
+        <h4>You provide</h4>
+        <ul><li>One group in Grades 9 to 12</li><li>A room for two hours, on two days within a week</li><li>Written permission</li></ul>
+      </div>
+    </div>
+
+    <div class="promises rv">
+      <p><b>Privacy.</b> No student is named anywhere. Each student sees only their own result. Your organisation is never identified without written approval.</p>
+      <p><b>Language.</b> English today, with Marathi and Hindi in preparation. If your students learn in either, we would rather wait than test them in English.</p>
+    </div>
+
+    <form class="form rv" id="form" action="https://api.web3forms.com/submit" method="POST">
+      <input type="hidden" name="access_key" value="d38558e6-c576-4688-b65d-367953ec1fc9">
+      <input type="hidden" name="subject" value="New message from Skyward Project website">
+      <input type="hidden" name="from_name" value="The Skyward Project website">
+      <input type="checkbox" name="botcheck" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <h3 class="form__title">Start with a short call.</h3>
+      <div class="form__row">
+        <label><span>Name</span><input name="name" autocomplete="name" required></label>
+        <label><span>Email</span><input type="email" name="email" autocomplete="email" required></label>
+      </div>
+      <div class="form__row">
+        <label><span>Organisation <em>optional</em></span><input name="organisation" autocomplete="organization"></label>
+        <label><span>About</span>
+          <select name="enquiry_type" required>
+            <option>Partnership or pilot site</option>
+            <option>Joining the Interact club</option>
+            <option>Media</option>
+            <option>General enquiry</option>
+          </select>
+        </label>
+      </div>
+      <label><span>Message</span><textarea name="message" rows="4" required></textarea></label>
+      <div class="form__foot">
+        <button class="btn btn--light" type="submit">Send</button>
+        <p class="form__status" id="formStatus" role="status"></p>
+      </div>
+    </form>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot__top">
+      <div class="foot__brand">
+        <svg class="foot__logo" aria-hidden="true"><use href="#sky-logo"/></svg>
+        <p>The Skyward Project<br><span class="muted">Interact Club of Pune Skyward · Pune &amp; Mumbai</span></p>
+      </div>
+      <div class="foot__links">
+        <a href="mailto:verushka@theskywardproject.com">verushka@theskywardproject.com</a>
+        <a href="mailto:prathmesh@theskywardproject.com">prathmesh@theskywardproject.com</a>
+        <a href="mailto:amaira@theskywardproject.com">amaira@theskywardproject.com</a>
+        <a href="https://saath.cc" target="_blank" rel="noopener">saath.cc ↗</a>
+      </div>
+    </div>
+    <p class="foot__word" aria-hidden="true">Skyward</p>
+    <p class="foot__base">© 2026 The Skyward Project</p>
+  </div>
+</footer>
+
+<script src="app.js?v=1" defer></script>
+</body>
+</html>
