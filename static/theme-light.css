@@ -2494,7 +2494,7 @@ html[data-theme="light"]:not([data-theme="light"]) body.is-repertoire #repertoir
   background: radial-gradient(110% 50% at 50% -14%, rgba(20, 42, 215, 0.5) 0%, rgba(105, 117, 235, 0.28) 30%, rgba(205, 208, 249, 0.14) 52%, #ffffff 78%) fixed, #ffffff !important;
 }
 html[data-theme="light"]:not([data-theme="light"]) body.is-signed-in.is-home #home {
-  background: radial-gradient(110% 55% at 50% -14%, rgba(20, 42, 215, 0.6) 0%, rgba(105, 117, 235, 0.34) 30%, rgba(205, 208, 249, 0.18) 52%, #ffffff 78%) fixed, #ffffff !important;
+  background: radial-gradient(110% 55% at 50% -14%, rgba(0, 0, 0, 0.09) 0%, rgba(0, 0, 0, 0.035) 30%, rgba(0, 0, 0, 0.01) 52%, #ffffff 78%) fixed, #ffffff !important;
 }
 html[data-theme="light"]:not([data-theme="light"]) .rep-empty em {
   color: rgba(0, 0, 0, 0.86);
@@ -2731,7 +2731,152 @@ html[data-theme="light"][data-theme="light"] .po-bar i {
 html[data-theme="light"] #member-streak .wk-change {
   color: #001671 !important;
 }
+html[data-theme="light"] #home #hero .hero-cta-main {
+  box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.4), 0 12px 40px rgba(0, 0, 0, 0.14) !important;
+}
+html[data-theme="light"] #home #hero .hero-cta-main:hover {
+  box-shadow: 0 0 0 6px rgba(0, 0, 0, 0.08), 0 16px 50px rgba(0, 0, 0, 0.22) !important;
+}
+html[data-theme="light"] #home #hero .hero-cta-alt {
+  background: rgba(0, 0, 0, 0.04) !important;
+  color: #000000 !important;
+  border: 1px solid rgba(0, 0, 0, 0.28) !important;
+}
+html[data-theme="light"] #home #hero .home-scroll-cue {
+  color: rgba(0, 0, 0, 0.45);
+}
+html[data-theme="light"] body.is-home:not(.is-signed-in) #home,
+html[data-theme="light"] body.is-home:not(.is-signed-in) #home-guest {
+  background: #ffffff;
+}
+html[data-theme="light"] #home-guest .about-kicker {
+  color: rgba(0, 0, 0, 0.6) !important;
+}
+html[data-theme="light"] #home-guest .ai-chapter,
+html[data-theme="light"] #home-guest .lp-free,
+html[data-theme="light"] #home-guest .home-close,
+html[data-theme="light"] #home-guest .home-feat-stack,
+html[data-theme="light"] #home-guest .home-feat,
+html[data-theme="light"] #home-guest .home-feat-intro {
+  background: #ffffff !important;
+}
+html[data-theme="light"] #home-guest .home-feat-device {
+  box-shadow: 0 40px 120px rgba(0, 0, 0, 0.05) !important;
+}
+html[data-theme="light"] #home-guest .ai-scene {
+  background: #f5f5f5 !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+}
+html[data-theme="light"] #home-guest .ai-scene-k {
+  color: rgba(0, 0, 0, 0.6) !important;
+}
+html[data-theme="light"] #home-guest .ai-dots button,
+html[data-theme="light"] #home-guest .ai-dots span {
+  background: rgba(0, 0, 0, 0.3) !important;
+}
+html[data-theme="light"] #home-guest .ai-lune {
+  background: #ebebeb !important;
+  color: #111111 !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+}
+html[data-theme="light"] #home-guest .fx-spot::before {
+  background: radial-gradient(400px circle at var(--x, 50%) var(--y, 50%), rgba(0, 0, 0, 0.07), transparent 60%) !important;
+}
+html[data-theme="light"] #home-guest .link-btn {
+  color: #000000 !important;
+  text-decoration-color: rgba(0, 0, 0, 0.4);
+}
+html[data-theme="light"] body.is-home:not(.is-signed-in) .lp-nav {
+  background: rgba(255, 255, 255, 0.55) !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+}
+html[data-theme="light"]:not([data-theme="light"]) .lc-composer,
+html[data-theme="light"]:not([data-theme="light"]) #home-member .home-ask {
+  background: #f3f3f4 !important;
+  border: 1px solid rgba(0, 0, 0, 0.16) !important;
+}
+html[data-theme="light"]:not([data-theme="light"]) .lc-composer:focus-within,
+html[data-theme="light"]:not([data-theme="light"]) #home-member .home-ask:focus-within {
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.06) !important;
+}
+html[data-theme="light"]:not([data-theme="light"]) .lc-composer textarea,
+html[data-theme="light"]:not([data-theme="light"]) #home-member .home-ask input {
+  color: #0a0a0a !important;
+}
+html[data-theme="light"]:not([data-theme="light"]) .lc-composer textarea::placeholder {
+  color: rgba(0, 0, 0, 0.45) !important;
+}
+html[data-theme="light"]:not([data-theme="light"]) :is(.po-sum,
+html[data-theme="light"] .la-line,
+html[data-theme="light"] .la-read) .la-tag,
+html[data-theme="light"]:not([data-theme="light"]) .hd-tag {
+  color: #000000 !important;
+}
+html[data-theme="light"]:not([data-theme="light"]) #home-member .member-next {
+  background: #f5f5f5 !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  box-shadow: 0 40px 120px rgba(0, 0, 0, 0.04) !important;
+}
+html[data-theme="light"]:not([data-theme="light"]) body.is-signed-in #home {
+  background: #ffffff !important;
+}
+html[data-theme="light"]:not([data-theme="light"]) .wk-bar i,
+html[data-theme="light"]:not([data-theme="light"]) .po-bar i,
+html[data-theme="light"]:not([data-theme="light"]) .rep-progress i {
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.45);
+}
+html[data-theme="light"]:not([data-theme="light"]) #member-streak .wk-change {
+  color: #000000 !important;
+}
+html[data-theme="light"] .mh-moon::before {
+  border: 1px solid rgba(0, 0, 0, 0.14);
+}
+html[data-theme="light"] .mh-phase {
+  color: rgba(0, 0, 0, 0.6);
+}
+html[data-theme="light"][data-theme="light"] .mh-moon::before {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+html[data-theme="light"] body .onboard-progress li span {
+  border: 1px solid rgba(0, 0, 0, 0.35) !important;
+}
+html[data-theme="light"] body .onboard-progress li.on span {
+  box-shadow: inset -5px 0 0 0 #fff, 0 0 12px rgba(0, 0, 0, 0.4);
+}
+html[data-theme="light"] body .onboard-progress li.on em {
+  color: #000000;
+}
+html[data-theme="light"][data-theme="light"] body .onboard-progress li span {
+  border-color: rgba(255, 255, 255, 0.35) !important;
+}
+html[data-theme="light"][data-theme="light"] body .onboard-progress li.done span {
+  background: #eeeeee !important;
+  border-color: #eeeeee !important;
+}
+html[data-theme="light"][data-theme="light"] body .onboard-progress li.on span {
+  border-color: #eeeeee !important;
+  box-shadow: inset -5px 0 0 0 rgba(17, 17, 17, 0.053);
+}
+html[data-theme="light"] #onboard :is(input,
+html[data-theme="light"] textarea) {
+  background: #f3f3f4;
+  border-color: rgba(0, 0, 0, 0.16);
+}
+html[data-theme="light"][data-theme="light"] #onboard :is(input,
+html[data-theme="light"] textarea) {
+  border-color: rgba(255, 255, 255, 0.2);
+}
 /* KEEP: hand fixes */
+/* the moonrise stays night in both themes */
+html[data-theme="light"][data-theme="light"] #home #hero .mr-h, html[data-theme="light"][data-theme="light"] #home #hero .mr-h :is(.mr-l1, .mr-l2) { color: #fff !important; }
+html[data-theme="light"][data-theme="light"] #home #hero .mr-h .mr-l3 { color: rgba(255,255,255,0.62) !important; }
+html[data-theme="light"][data-theme="light"] .lc-composer textarea { color: #111 !important; -webkit-text-fill-color: #111; }
+html[data-theme="light"][data-theme="light"] #home #hero.mr-hero, html[data-theme="light"][data-theme="light"] #home .mr-idea, html[data-theme="light"][data-theme="light"] .mr-marquee, html[data-theme="light"][data-theme="light"] #home .mr-tonight { background: #000 !important; color: #fff; }
+html[data-theme="light"][data-theme="light"] #home #hero .mr-lead { color: rgba(255,255,255,0.72) !important; }
+html[data-theme="light"][data-theme="light"] #home #hero .hero-cta-alt { color: #fff !important; background: rgba(255,255,255,0.04) !important; border-color: rgba(255,255,255,0.28) !important; }
+html[data-theme="light"][data-theme="light"] #home #hero .hero-cta-main { background: #fff !important; color: #000 !important; }
+html[data-theme="light"][data-theme="light"] #home :is(.mr-idea, .mr-tonight) .about-kicker { color: rgba(255,255,255,0.6) !important; }
+html[data-theme="light"][data-theme="light"] #home .mr-tonight .hero-demo :is(.hd-you, .hd-line, .hd-input span) { color: #e6e6e6 !important; }
 html[data-theme="light"][data-theme="light"] #home-member .member-next .primary, html[data-theme="light"][data-theme="light"] .rep-card .primary { background: #2a44d8 !important; color: #ffffff !important; }
 html[data-theme="light"][data-theme="light"] .lp-nav-cta, html[data-theme="light"][data-theme="light"] .hd-send, html[data-theme="light"][data-theme="light"] .lc-send, html[data-theme="light"][data-theme="light"] .lc-round { background: #2a44d8 !important; color: #ffffff !important; }
 /* --dim text reaches 4.5:1 on the page and on surfaces (was #8a8a8a, 3.4:1) */
