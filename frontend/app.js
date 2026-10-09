@@ -2216,11 +2216,20 @@ function normalizeNoteHand(h, fallback = null) {
  */
 const _tieCache = new WeakMap();
 function tieIndex(piece) {
-  const empty = { stops: new Set(), extra: new Map(), staff: new Map(), pedal: [], dyn: [], wedge: [], accents: [], orn: new Map(), graces: new Map() };
+  const empty = { stops: new Set(), extra: new Map(), staff: new Map(), pedal: [], dyn: [], wedge: [], accents: [], orn: new Map(), ornNb: new Map(), graces: new Map() };
   if (!piece?.musicxml) return empty;
   if (_tieCache.has(piece)) return _tieCache.get(piece);
   // pedal: [{bar, q, down}] as marked; dyn: [{bar, q, v}] loudness marks (90 = forte)
-  const out = { stops: new Set(), extra: new Map(), staff: new Map(), pedal: [], dyn: [], wedge: [], accents: [], orn: new Map(), graces: new Map() };
+  const out = { stops: new Set(), extra: new Map(), staff: new Map(), pedal: [], dyn: [], wedge: [], accents: [], orn: new Map(), ornNb: new Map(), graces: new Map() };
+  // the neighbour notes of an ornament: the next letter up or down, altered as the
+  // key signature says, unless the bar already altered that note, or the sign
+  // itself carries a small accidental
+  const LETTERS = "CDEFGAB";
+  const SHARPS = "FCGDAEB";
+  const keyAlter = (letter, fifths) =>
+    fifths > 0 ? (SHARPS.indexOf(letter) < fifths ? 1 : 0) : fifths < 0 ? ("BEADGCF".indexOf(letter) < -fifths ? -1 : 0) : 0;
+  const ACC = { sharp: 1, flat: -1, natural: 0, "double-sharp": 2, "sharp-sharp": 2, "flat-flat": -2, "double-flat": -2 };
+  const GRACE_Q = { whole: 4, half: 2, quarter: 1, eighth: 0.5, "16th": 0.25, "32nd": 0.125, "64th": 0.0625 };
   _tieCache.set(piece, out);
   const STEP = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
   const text = (el, tag) => {
@@ -2235,11 +2244,13 @@ function tieIndex(piece) {
       // lower staff (or the second part) is the left hand
       const partStaff = parts.length > 1 ? (parts.indexOf(part) === 0 ? 1 : 2) : 0;
       let div = 1;
+      let fifths = 0;
       const open = new Map(); // midi → key of the note that started the tie
       let index = 0;
       for (const m of part.children) {
         if (m.nodeName !== "measure") continue;
         index += 1;
+        const barAlt = new Map(); // "E5" → alteration written earlier in this bar
         const num = parseInt(m.getAttribute("number"), 10);
         const bar = Number.isFinite(num) ? num : index;
         let pos = 0;
@@ -2249,6 +2260,8 @@ function tieIndex(piece) {
           if (tag === "attributes") {
             const d = parseInt(el.getElementsByTagName("divisions")[0]?.textContent, 10);
             if (d > 0) div = d;
+            const f = parseInt(el.getElementsByTagName("fifths")[0]?.textContent, 10);
+            if (Number.isFinite(f)) fifths = f;
           } else if (tag === "backup") pos -= parseInt(text(el, "duration"), 10) || 0;
           else if (tag === "forward") pos += parseInt(text(el, "duration"), 10) || 0;
           else if (tag === "direction" || tag === "sound") {
@@ -2290,12 +2303,15 @@ function tieIndex(piece) {
               (STEP[text(pitch, "step").toUpperCase()] ?? 0) +
               Math.round(Number(text(pitch, "alter")) || 0);
             const q1000 = Math.round((onset / div) * 1000);
+            const stepL = text(pitch, "step").toUpperCase();
+            const oct = parseInt(text(pitch, "octave"), 10);
+            barAlt.set(stepL + oct, Math.round(Number(text(pitch, "alter")) || 0));
             if (grace) {
               // grace notes belong to the next main note at this onset: keep them for collectNotes
               const g = el.getElementsByTagName("grace")[0];
               const gk = `${bar}:${q1000}`;
               if (!out.graces.has(gk)) out.graces.set(gk, []);
-              out.graces.get(gk).push({ midi, slash: g?.getAttribute("slash") === "yes", staff: parseInt(text(el, "staff"), 10) || 1 });
+              out.graces.get(gk).push({ midi, slash: g?.getAttribute("slash") === "yes", staff: parseInt(text(el, "staff"), 10) || 1, written: GRACE_Q[text(el, "type")] || 0 });
               continue;
             }
             // trills, turns and mordents, written over the note
@@ -2304,6 +2320,23 @@ function tieIndex(piece) {
               const kind = [...orn.children].map((c) => c.nodeName).find((n) => /^(trill-mark|turn|inverted-turn|delayed-turn|mordent|inverted-mordent|shake|wavy-line)$/.test(n));
               if (kind && kind !== "wavy-line") out.orn.set(`${bar}:${midi}:${q1000}`, kind);
               else if (kind === "wavy-line" && !out.orn.has(`${bar}:${midi}:${q1000}`)) out.orn.set(`${bar}:${midi}:${q1000}`, "trill-mark");
+              if (kind) {
+                const marks = {};
+                for (const a of orn.getElementsByTagName("accidental-mark")) {
+                  const v = ACC[a.textContent.trim()];
+                  if (v != null) marks[a.getAttribute("placement") === "below" ? "below" : "above"] = v;
+                }
+                const nb = (dir) => {
+                  let li = LETTERS.indexOf(stepL) + dir;
+                  let o = oct;
+                  if (li > 6) (li = 0), (o += 1);
+                  if (li < 0) (li = 6), (o -= 1);
+                  const L = LETTERS[li];
+                  const alt = marks[dir > 0 ? "above" : "below"] ?? barAlt.get(L + o) ?? keyAlter(L, fifths);
+                  return (o + 1) * 12 + STEP[L] + alt;
+                };
+                out.ornNb.set(`${bar}:${midi}:${q1000}`, { up: nb(1), down: nb(-1) });
+              }
             }
             const ties = [...el.children].filter((c) => c.nodeName === "tie").map((t) => t.getAttribute("type"));
             const key = `${bar}:${midi}:${Math.round((onset / div) * 1000)}`;
@@ -2327,26 +2360,50 @@ function tieIndex(piece) {
 }
 
 /*
- * Ornaments, played as a pianist plays them. Neighbour notes come from the
- * piece's key, so a trill in D♭ major alternates with the right note.
- * - trill: fast alternation with the note above (demisemiquavers, or quicker
- *   for a short note), ending on the main note
- * - turn (and inverted turn): the four-note figure, in the note's first part
- * - mordent / inverted mordent: main, lower (or upper), main, quickly
- * - grace notes: an acciaccatura (slashed) is crushed onto the beat; an
- *   appoggiatura (no slash) takes half of the main note
+ * Ornaments, played as pianists play them in recordings. Timed in seconds,
+ * not beats, so a trill keeps a pianist's speed (about twelve notes a second)
+ * in a slow nocturne and a quick sonata alike. Neighbour notes come from the
+ * score: the key, any accidental earlier in the bar, and the small accidental
+ * printed on the sign.
+ * - trill: Bach, Mozart, Haydn and early Beethoven start on the note above;
+ *   Romantic and later start on the note. A long trill ends with a turn
+ *   (note below, then the note) unless the score writes its own ending.
+ * - turn: upper, note, lower, note, sung rather than rushed; a turn written
+ *   after the note comes at its end.
+ * - mordent: note, lower, note. Inverted mordent: note, upper, note (from
+ *   above in Baroque music, as a short trill).
+ * - acciaccatura: crushed, a few hundredths of a second, just before the beat
+ *   in Romantic music, on it in earlier music.
+ * - appoggiatura: in Baroque and Classical music it leans on the beat for its
+ *   written value (half the note, two thirds of a dotted one); later, short.
+ * Ornament notes sit a little under the melody; an appoggiatura leans in.
  */
+function ornamentStyle() {
+  const era = String(state.piece?.epoch || state.piece?.era || composerEraFallback(state.piece?.composer || "") || "").toLowerCase();
+  const early = /baroque|classical|renaissance/.test(era) && !/romantic|impression|modern|20th|contemporary/.test(era);
+  return { early, baroque: /baroque/.test(era) };
+}
+
+function secondsPerQuarterAt(bar) {
+  const marked = state.markedBpm || markedTempoBpm() || 80;
+  const ratio = (practiceTempoBpm() || marked) / marked;
+  let bpm = marked;
+  for (const row of pieceTempoMap()) if ((Number(row.bar) || 0) <= bar && Number(row.bpm) > 0) bpm = Number(row.bpm);
+  return 60 / Math.max(20, bpm * ratio * (Number(state.playRate) || 1));
+}
+
 function realiseOrnaments(notes, idx) {
   if (!idx?.orn?.size && !idx?.graces?.size) return notes;
+  const style = ornamentStyle();
   const xml = String(state.piece?.musicxml || "");
   const fifths = Number((xml.match(/<fifths>\s*(-?\d+)\s*<\/fifths>/) || [])[1] || 0);
   const tonic = (((fifths * 7) % 12) + 12) % 12;
   const scale = new Set([0, 2, 4, 5, 7, 9, 11].map((x) => (x + tonic) % 12));
-  const upper = (m) => {
+  const keyUp = (m) => {
     for (let k = 1; k <= 2; k++) if (scale.has((m + k) % 12)) return m + k;
     return m + 2;
   };
-  const lower = (m) => {
+  const keyDown = (m) => {
     for (let k = 1; k <= 2; k++) if (scale.has((((m - k) % 12) + 12) % 12)) return m - k;
     return m - 2;
   };
@@ -2356,46 +2413,91 @@ function realiseOrnaments(notes, idx) {
     const off = Number(n.offset) || 0;
     const q1000 = Math.round(off * 1000);
     const dur = Math.max(0.0625, Number(n.duration) || 0);
-    const at = (dq, midi, len, extra = {}) => ({ ...n, ...extra, midi, offset: off + dq, absOffset: n.absOffset + dq, duration: len, ornament: true });
+    const spq = secondsPerQuarterAt(n.bar || 1);
+    const sec = (s) => s / spq; // seconds → quarters here
+    const at = (dq, midi, len, dynScale = 1) => ({ ...n, midi, offset: off + dq, absOffset: n.absOffset + dq, duration: len, ornament: true, ornDyn: dynScale });
+    const nkey = `${n.bar}:${n.midi}:${q1000}`;
+    const nb = idx.ornNb?.get(nkey);
+    const upper = nb?.up ?? keyUp(n.midi);
+    const lower = nb?.down ?? keyDown(n.midi);
+
     // grace notes before this note (the highest main note at the onset takes the right-hand ones)
     const gk = `${n.bar}:${q1000}`;
     let start = 0;
+    let mainDyn = 1;
     const gs = idx.graces?.get(gk);
     if (gs && !usedGrace.has(gk)) {
       const mine = gs.filter((g) => (g.staff >= 2 ? "lh" : "rh") === (n.hand || "rh"));
       if (mine.length) {
         usedGrace.add(gk);
         const slash = mine.every((g) => g.slash);
-        // one plain small note leans on the beat (appoggiatura); a slashed one, or a group, is quick
-        const each = slash || mine.length > 1 ? Math.min(mine.length > 1 ? 0.11 : 0.09, dur / (mine.length + 2)) : Math.min(dur / 2, 0.5);
-        mine.forEach((g, i) => out.push(at(i * each, g.midi, each * 1.1)));
-        start = each * mine.length;
+        if (mine.length === 1 && !slash && style.early) {
+          // a Classical appoggiatura: on the beat, for its written value
+          const dotted = [0.375, 0.75, 1.5, 3, 6].some((d) => Math.abs(dur - d) < 1e-6);
+          const len = Math.min(mine[0].written || dur / 2, dotted ? (dur * 2) / 3 : dur / 2);
+          out.push(at(0, mine[0].midi, len, 1.12));
+          start = len;
+          mainDyn = 0.86;
+        } else {
+          const each = Math.min(sec(mine.length > 1 ? 0.075 : 0.055), dur / (mine.length + 2));
+          const total = each * mine.length;
+          // Romantic and later: just before the beat, so the main note keeps its place
+          const before = !style.early && off - total >= 0;
+          mine.forEach((g, i) => out.push(at(before ? i * each - total : i * each, g.midi, each * 1.15, 0.8)));
+          if (!before) start = total;
+        }
       }
     }
-    const kind = idx.orn?.get(`${n.bar}:${n.midi}:${q1000}`);
+
+    const kind = idx.orn?.get(nkey);
     const body = dur - start;
-    if (!kind || body < 0.12) {
-      out.push(start ? at(start, n.midi, body) : n);
+    if (!kind || body < sec(0.12)) {
+      out.push(start || mainDyn !== 1 ? at(start, n.midi, body, mainDyn) : n);
       continue;
     }
-    const seq = [];
+    const seq = []; // [midi, quarters, dynScale]
     if (kind === "trill-mark" || kind === "shake") {
-      const step = body >= 1 ? 0.125 : body >= 0.5 ? 0.0833 : 0.0625;
-      const count = Math.max(4, Math.floor(body / step));
-      for (let i = 0; i < count - 1; i++) seq.push([i % 2 ? upper(n.midi) : n.midi, step]);
-      seq.push([n.midi, body - step * (count - 1)]);
+      const step = Math.min(sec(style.early ? 0.085 : 0.075), body / 4);
+      const total = Math.max(4, Math.floor(body / step));
+      const fromAbove = style.early;
+      // a long trill ends with a turn unless the score writes its own ending
+      const nextOn = `${n.bar}:${Math.round((off + dur) * 1000)}`;
+      const ending = total >= 10 && !idx.graces?.has(nextOn);
+      const alternations = total - (ending ? 2 : 0) - 1;
+      for (let i = 0; i < alternations; i++) {
+        const isUpper = fromAbove ? i % 2 === 0 : i % 2 === 1;
+        // the first two notes a touch slower, as fingers settle into it
+        const len = i < 2 ? step * 1.18 : step;
+        seq.push([isUpper ? upper : n.midi, len, i === 0 ? 1.04 : isUpper ? 0.84 : 0.94]);
+      }
+      if (ending) {
+        if (seq.length && seq[seq.length - 1][0] === n.midi) seq.push([upper, step, 0.84]);
+        seq.push([lower, step, 0.86]);
+      }
+      const used = seq.reduce((t, x) => t + x[1], 0);
+      seq.push([n.midi, Math.max(step, body - used), 0.96]);
     } else if (kind === "turn" || kind === "delayed-turn" || kind === "inverted-turn") {
-      const fig = kind === "inverted-turn" ? [lower(n.midi), n.midi, upper(n.midi), n.midi] : [upper(n.midi), n.midi, lower(n.midi), n.midi];
-      const step = Math.min(0.125, body / 6);
-      if (kind === "delayed-turn") seq.push([n.midi, body - step * 4]);
-      fig.forEach((m, i) => seq.push([m, kind !== "delayed-turn" && i === 3 ? body - step * 3 : step]));
+      const fig = kind === "inverted-turn" ? [lower, n.midi, upper] : [upper, n.midi, lower];
+      const step = Math.min(sec(style.early ? 0.09 : 0.11), body / 5);
+      if (kind === "delayed-turn") {
+        seq.push([n.midi, body - step * 4, 1]);
+        fig.forEach((m) => seq.push([m, step, 0.86]));
+        seq.push([n.midi, step, 0.92]);
+      } else {
+        fig.forEach((m, i) => seq.push([m, step, i === 0 ? 1 : 0.86]));
+        seq.push([n.midi, body - step * 3, 0.95]);
+      }
     } else if (kind === "mordent" || kind === "inverted-mordent") {
-      const step = Math.min(0.0833, body / 4);
-      seq.push([n.midi, step], [kind === "mordent" ? lower(n.midi) : upper(n.midi), step], [n.midi, body - step * 2]);
+      const step = Math.min(sec(0.065), body / 4);
+      if (kind === "inverted-mordent" && style.baroque) {
+        seq.push([upper, step, 1], [n.midi, step, 0.88], [upper, step, 0.86], [n.midi, body - step * 3, 0.95]);
+      } else {
+        seq.push([n.midi, step, 1], [kind === "mordent" ? lower : upper, step, 0.84], [n.midi, body - step * 2, 0.95]);
+      }
     }
     let t = start;
-    for (const [m, len] of seq) {
-      out.push(at(t, m, Math.max(0.03, len)));
+    for (const [m, len, d] of seq) {
+      out.push(at(t, m, Math.max(0.03, len), d));
       t += len;
     }
   }
@@ -2609,6 +2711,8 @@ function collectNotes(fromBar, toBar) {
   }
   const played = realiseOrnaments(notes, ties);
   shapePerformance(played, ties, barStart, barCursor);
+  // ornament notes sit under the melody; an appoggiatura leans in
+  for (const n of played) if (n.ornDyn && n.ornDyn !== 1 && Number.isFinite(n.dyn)) n.dyn *= n.ornDyn;
   return played;
 }
 

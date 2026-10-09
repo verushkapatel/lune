@@ -1508,6 +1508,15 @@ def section_sync(browser):
       return { kinds: [...kinds], graces: t.graces.size, orn: ev.filter(e => e.ornament).length, inBar, maxBar: Math.max(...lens) }; }""")
     check("ornaments: the nocturne's trills, turns and mordents are played", {"turn", "trill-mark", "inverted-mordent"} <= set(o["kinds"]) and o["orn"] > 40, o)
     check("ornaments: grace notes are read and stay inside their bar", o["graces"] > 5 and o["inBar"], o)
+    tr = pg.evaluate("""() => { const ev = LunePiano.getEvents(); const t = tieIndex(state.piece);
+      const b7 = ev.filter(e => e.bar === 7 && e.ornament && e.hand !== 'lh').slice(0, 10); const gaps = b7.slice(1).map((e, i) => e.t - b7[i].t);
+      const b2 = ev.filter(e => e.bar === 2 && e.ornament).slice(0, 4).map(e => e.midi);
+      return { notes: b7.map(e => e.midi), maxGap: Math.max(...gaps.slice(2)), minGap: Math.min(...gaps), turn: b2, nb: t.ornNb.get('7:77:0') }; }""")
+    check("ornaments: the nocturne's trill alternates F and G (the key's upper note) at a pianist's speed, starting on the note", tr["notes"][:4] == [77, 79, 77, 79] and 0.05 < tr["minGap"] and tr["maxGap"] < 0.11 and tr["nb"]["up"] == 79, tr)
+    check("ornaments: the nocturne's turn is D, C, B flat, C", tr["turn"] == [74, 72, 70, 72], tr)
+    bq = pg.evaluate("""() => { const was = state.piece.epoch; state.piece.epoch = 'Baroque';
+      const n = pieceNotes().filter(e => e.bar === 7 && e.ornament && e.hand !== 'lh').slice(0, 4).map(e => e.midi); state.piece.epoch = was; return n; }""")
+    check("ornaments: in Baroque or Classical music the same trill starts on the note above", bq[:4] == [79, 77, 79, 77], bq)
     r = pg.evaluate(SYNC_JS)
     check("sync: the nocturne matches bar for bar", r["off"] == 0, r)
     # every written note sounds: pitch for pitch, bar for bar, against the file itself
@@ -1527,7 +1536,9 @@ def section_sync(browser):
             check("timing: Liebestraum bar 12 plays as printed, arpeggios from the second eighth of each half", b12 == [0.5, 1, 1.5, 2, 2.5, 3.5, 4, 4.5, 5, 5.5], b12)
         if "fur-elise" in pid:
             g = pg.evaluate("() => LunePiano.getEvents().filter(e => e.bar === 25 && e.hand !== 'lh').map(e => e.name + '@' + e.barOff.toFixed(2))")
-            check("ornaments: Für Elise bar 25's grace notes run quickly into the C, not half a beat late", g[:3] == ["F4@0.00", "A4@0.11", "C5@0.22"], g)
+            gs = pg.evaluate("() => LunePiano.getEvents().filter(e => e.bar === 25 && e.hand !== 'lh').slice(0, 4).map(e => [e.name, e.t])")
+            gaps = [round(gs[i + 1][1] - gs[i][1], 3) for i in range(3)]
+            check("ornaments: Für Elise bar 25's grace notes F, A, C run quickly (under 0.12 s apart) into the beat", [x[0] for x in gs[:3]] == ["F4", "A4", "C5"] and all(0.03 < x < 0.12 for x in gaps[:2]), (gs, gaps))
     open_piece(pg, BASE + "#/frederic-chopin-chopin-nocturne-op-9-no-2-e-flat-major/score")
     pg.wait_for_timeout(1200)
     # pedal marks: on demand, under every system, at the changes Lune plays
