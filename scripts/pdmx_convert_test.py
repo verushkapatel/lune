@@ -93,18 +93,35 @@ def main():
         m3 = [p.nameWithOctave for n in rh.measure(3).notes if not n.duration.isGrace for p in n.pitches]
         check("spelling is the file's: B-flat, not A-sharp", m3 == ["B-4", "A4"], m3)
         check("each bar is three beats", all(m.duration.quarterLength == 3 for m in rh.getElementsByClass("Measure")[1:]))
-        # a file whose lower-staff times drift from their bars is refused, not guessed at
+        # PDMX's lower-staff drift (a constant shift here, as after a pickup) is put back
+        clean = [(p.nameWithOctave, float(n.offset), n.measureNumber) for n in lh.recurse().notes for p in n.pitches]
         bad = piece()
         for n in bad["tracks"][0]["notes"]:
             if n["pitch"] < 60:
                 n["time"] -= 2 * R
         json.dump(bad, open(src, "w"))
+        P.convert(src, os.path.join(d, "fixed.mxl"))
+        fixed = converter.parse(os.path.join(d, "fixed.mxl")).parts[1]
+        again = [(p.nameWithOctave, float(n.offset), n.measureNumber) for n in fixed.recurse().notes for p in n.pitches]
+        check("a drifted lower staff is put back exactly where the clean file has it", again == clean, (again[:6], clean[:6]))
+        # the real danger: a rest inside a left-hand bar dropped by the file, so the
+        # notes after it come early and later bars drift further. Refused.
+        worse = piece()
+        for n in worse["tracks"][0]["notes"]:
+            if n["pitch"] < 60:
+                n["time"] -= 2 * R
+        lh2 = sorted({n["time"] for n in worse["tracks"][0]["notes"] if n["pitch"] < 60 and n["measure"] == 2 and n["time"] < R + B})
+        gap_at = lh2[1]  # the second chord of the first bar 2: it and everything after come one beat early
+        for n in worse["tracks"][0]["notes"]:
+            if n["pitch"] < 60 and n["time"] >= gap_at:
+                n["time"] -= R
+        json.dump(worse, open(src, "w"))
         try:
             P.convert(src, os.path.join(d, "bad.mxl"))
             refused = False
-        except ValueError:
+        except Exception:
             refused = True
-        check("a file whose lower staff drifts from its bars is refused", refused)
+        check("a rest dropped inside a left-hand bar (the drift grows after it) is refused", refused)
     print(f"\n{'all passed' if not failures else str(failures) + ' failed'}")
     sys.exit(1 if failures else 0)
 

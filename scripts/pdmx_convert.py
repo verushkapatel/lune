@@ -140,6 +140,101 @@ def split_hands(groups):
     return hand
 
 
+def undrift(notes, order, first, seq=None):
+    """Put back lower-staff notes whose times drift early in some PDMX files.
+
+    In those files a whole-bar rest in the lower staff is counted short, so
+    every later lower-staff note runs early by a growing amount. Within a bar
+    the spacing is right, and every note still names its bar. So, bar by bar:
+    the amount is how far the earliest early note sits before the bar (its
+    first left-hand note is on the downbeat); it stays the same from bar to
+    bar and only grows after a bar where the lower staff rests. Notes that
+    could be either hand are settled by register, only when that is
+    clear-cut. Any bar that does not fit makes the whole file refused.
+    Returns the notes with corrected times (unchanged when nothing drifts)."""
+    by = {}
+    for n in notes:
+        by.setdefault(int(n.get("measure") or 0), []).append(n)
+    if not any(n["time"] < first[m][0] for m, ns in by.items() if m in first for n in ns):
+        return notes
+    fixed = {}
+    prev, prev_lh = None, False
+    pos = {}
+    for i, (mm, st, en) in enumerate(seq or []):
+        if first.get(mm) == (st, en):
+            pos[mm] = i
+    last_i = None
+    last_bar = None
+    for m in order:
+        s, e = first[m]
+        # a repeat played in between (other bars in time order) can grow the drift too
+        if last_i is not None and pos.get(m, last_i + 1) != last_i + 1:
+            prev_lh = False
+        last_i = pos.get(m, last_i)
+        ns = [n for n in by.get(m, []) if n["time"] < e]
+        early = [n for n in ns if n["time"] < s]
+        inside = [n for n in ns if n["time"] >= s]
+        if not early:
+            # no early notes: either the lower staff rests, or (if a drift is
+            # running) its notes might start late in the bar; refuse if any
+            # note here could belong to the lower staff by register
+            if prev and any(n["pitch"] < 55 and n["time"] + prev + n["duration"] <= e + 1 for n in inside):
+                raise ValueError("drift: a lower-staff bar cannot be placed")
+            prev_lh = False
+            continue
+        est = s - min(n["time"] for n in early)
+
+        def fits(dl):
+            return all(s <= n["time"] + dl and n["time"] + dl + n["duration"] <= e + 1 for n in early)
+
+        def ends_on_bar(dl):
+            return abs(max(n["time"] + dl + n["duration"] for n in early) - e) <= 1
+
+        if prev is None or est == prev:
+            delta = est
+        elif est < prev and prev_lh and fits(prev):
+            delta = prev  # the bar's first left-hand note comes after the downbeat
+        elif est > prev and not prev_lh:
+            delta = est  # a rest bar before made the drift grow
+        elif fits(est) and ends_on_bar(est):
+            # the drift changed inside a run: accepted only when the bar proves it,
+            # its left hand starting on the downbeat and ending on the barline
+            delta = est
+        else:
+            raise ValueError("drift: inconsistent")
+        for n in early:
+            t = n["time"] + delta
+            if not (s <= t and t + n["duration"] <= e + 1):
+                raise ValueError("drift: early note does not fit its bar")
+            fixed[id(n)] = t
+        lh_hi = max(n["pitch"] for n in early)
+        sure_rh = [n for n in inside if n["time"] + delta + n["duration"] > e + 1]
+        rh_lo = min([n["pitch"] for n in sure_rh] or [999])
+        for n in inside:
+            if n in sure_rh:
+                continue
+            if n["pitch"] <= lh_hi + 2 and n["pitch"] < rh_lo - 2:
+                fixed[id(n)] = n["time"] + delta
+            elif n["pitch"] > lh_hi + 2:
+                pass  # right hand, where it is
+            else:
+                raise ValueError("drift: a note could be either hand")
+        # time lost inside this bar (the drift grows straight after it, with no
+        # resting bar between) means a rest inside it was dropped: unless the
+        # left hand still ends on the barline, where it went cannot be known
+        if prev is not None and prev_lh and delta > prev and last_bar is not None and not last_bar[2]:
+            raise ValueError("drift: time lost inside a bar")
+        last_bar = (m, delta, ends_on_bar(delta))
+        prev, prev_lh = delta, True
+    out = []
+    for n in notes:
+        if id(n) in fixed:
+            n = dict(n, time=fixed[id(n)])
+        out.append(n)
+    return out
+
+
+
 def convert(src: str, dst: str) -> dict:
     d = json.load(open(src))
     R = int(d.get("resolution") or 480)
@@ -172,6 +267,8 @@ def convert(src: str, dst: str) -> dict:
         if m not in first:
             first[m] = (s, e)
             order.append(m)
+
+    notes = undrift(notes, order, first, seq)
 
     # repeats: where the bar order jumps back
     start_rep, end_rep, ending1, ending2 = set(), set(), [], []
@@ -209,8 +306,12 @@ def convert(src: str, dst: str) -> dict:
     spans = {}
     for m, st, en in seq:
         spans.setdefault(m, []).append((st, en))
+    # (notes of a written-out repeat pass are not kept, so only the first pass is checked)
     for n in notes:
-        if not any(st <= n["time"] < en for st, en in spans.get(int(n.get("measure") or 0), [])):
+        m_ = int(n.get("measure") or 0)
+        if m_ in first and n["time"] < first[m_][1] and not (first[m_][0] <= n["time"]):
+            raise ValueError("note times drift from their bars")
+        if not any(st <= n["time"] < en for st, en in spans.get(m_, [])) and n["time"] < first.get(m_, (0, 0))[1]:
             raise ValueError("note times drift from their bars")
 
     def place(t, m):
