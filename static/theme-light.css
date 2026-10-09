@@ -2494,7 +2494,7 @@ html[data-theme="light"]:not([data-theme="light"]) body.is-repertoire #repertoir
   background: radial-gradient(110% 50% at 50% -14%, rgba(20, 42, 215, 0.5) 0%, rgba(105, 117, 235, 0.28) 30%, rgba(205, 208, 249, 0.14) 52%, #ffffff 78%) fixed, #ffffff !important;
 }
 html[data-theme="light"]:not([data-theme="light"]) body.is-signed-in.is-home #home {
-  background: radial-gradient(110% 55% at 50% -14%, rgba(0, 0, 0, 0.09) 0%, rgba(0, 0, 0, 0.035) 30%, rgba(0, 0, 0, 0.01) 52%, #ffffff 78%) fixed, #ffffff !important;
+  background: radial-gradient(110% 55% at 50% -14%, rgba(20, 42, 215, 0.6) 0%, rgba(105, 117, 235, 0.34) 30%, rgba(205, 208, 249, 0.18) 52%, #ffffff 78%) fixed, #ffffff !important;
 }
 html[data-theme="light"]:not([data-theme="light"]) .rep-empty em {
   color: rgba(0, 0, 0, 0.86);
@@ -2806,28 +2806,6 @@ html[data-theme="light"]:not([data-theme="light"]) #home-member .home-ask input 
 html[data-theme="light"]:not([data-theme="light"]) .lc-composer textarea::placeholder {
   color: rgba(0, 0, 0, 0.45) !important;
 }
-html[data-theme="light"]:not([data-theme="light"]) :is(.po-sum,
-html[data-theme="light"] .la-line,
-html[data-theme="light"] .la-read) .la-tag,
-html[data-theme="light"]:not([data-theme="light"]) .hd-tag {
-  color: #000000 !important;
-}
-html[data-theme="light"]:not([data-theme="light"]) #home-member .member-next {
-  background: #f5f5f5 !important;
-  border: 1px solid rgba(0, 0, 0, 0.12) !important;
-  box-shadow: 0 40px 120px rgba(0, 0, 0, 0.04) !important;
-}
-html[data-theme="light"]:not([data-theme="light"]) body.is-signed-in #home {
-  background: #ffffff !important;
-}
-html[data-theme="light"]:not([data-theme="light"]) .wk-bar i,
-html[data-theme="light"]:not([data-theme="light"]) .po-bar i,
-html[data-theme="light"]:not([data-theme="light"]) .rep-progress i {
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.45);
-}
-html[data-theme="light"]:not([data-theme="light"]) #member-streak .wk-change {
-  color: #000000 !important;
-}
 html[data-theme="light"] .mh-moon::before {
   border: 1px solid rgba(0, 0, 0, 0.14);
 }
@@ -2866,7 +2844,39 @@ html[data-theme="light"][data-theme="light"] #onboard :is(input,
 html[data-theme="light"] textarea) {
   border-color: rgba(255, 255, 255, 0.2);
 }
+html[data-theme="light"] #home-guest .ai-chapter {
+  background: radial-gradient(90% 60% at 50% 0%, rgba(105, 120, 230, 0.4), transparent 70%), #ffffff !important;
+}
+html[data-theme="light"] body.is-home:not(.is-signed-in) .lp-nav a.on {
+  background: rgba(0, 31, 194, 0.9) !important;
+  color: #000000 !important;
+}
+html[data-theme="light"] body .onboard-progress li.on em {
+  color: #001671;
+}
+html[data-theme="light"] .mh-phase {
+  color: #001671 !important;
+}
+html[data-theme="light"] .wk-opts .wk-go {
+  background: #1f37cf !important;
+  color: #000000 !important;
+}
+html[data-theme="light"][data-theme="light"] .wk-opts .wk-go {
+  background: #2741d5 !important;
+  color: #000000 !important;
+}
+html[data-theme="light"] header.bar .bar-auth {
+  background: rgba(0, 31, 194, 0.14) !important;
+  color: #000000 !important;
+}
+html[data-theme="light"][data-theme="light"] header.bar .bar-auth {
+  background: #2741d5 !important;
+  border-color: #2741d5 !important;
+  color: #000000 !important;
+}
 /* KEEP: hand fixes */
+html[data-theme="light"][data-theme="light"] body.is-home:not(.is-signed-in) .lp-nav a.on { background: #2a44d8 !important; color: #ffffff !important; }
+html[data-theme="light"][data-theme="light"] .wk-opts .wk-go, html[data-theme="light"][data-theme="light"] header.bar .bar-auth { background: #2a44d8 !important; border-color: #2a44d8 !important; color: #ffffff !important; }
 /* the moonrise stays night in both themes */
 html[data-theme="light"][data-theme="light"] #home #hero .mr-h, html[data-theme="light"][data-theme="light"] #home #hero .mr-h :is(.mr-l1, .mr-l2) { color: #fff !important; }
 html[data-theme="light"][data-theme="light"] #home #hero .mr-h .mr-l3 { color: rgba(255,255,255,0.62) !important; }

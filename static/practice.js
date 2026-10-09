@@ -1761,12 +1761,12 @@ window.LunePractice = (function () {
       const bar = window.LuneImpact?.weekBarHtml ? `<div class="wk">${window.LuneImpact.weekBarHtml()}</div>` : "";
       const mode = window.LunePlans?.planMode?.();
       weekHost.innerHTML = mode === "free"
-        ? `<p class="rep-empty">No schedule: practise whenever it suits you. <button type="button" class="link-btn" data-wp-choose="plan">Plan my week instead</button></p>`
+        ? `<div class="rep-empty wk-choose-row"><p>No schedule. Practise whenever it suits you.</p><span class="wk-opts"><button type="button" class="quiet" data-wp-choose="plan">Plan my week instead</button></span></div>`
         : wp
           ? bar + window.LunePlans.planHtml(wp)
           : mode === "plan"
             ? `<p class="rep-empty">Lune is making this week’s plan from your goal…</p>`
-            : `<p class="rep-empty">Lune can plan your week around your goal, or you can play whenever it suits you. <button type="button" class="link-btn" data-wp-choose="plan">Plan my week</button> · <button type="button" class="link-btn" data-wp-choose="free">No schedule</button></p>`;
+            : `<div class="rep-empty wk-choose-row"><p>Lune can plan your week around your goal, or you can play whenever it suits you.</p><span class="wk-opts"><button type="button" class="quiet wk-go" data-wp-choose="plan">Plan my week</button><button type="button" class="quiet" data-wp-choose="free">No schedule</button></span></div>`;
       if (!wp && mode === "plan") window.LunePlans?.ensureWeekPlan?.().then((made) => made && renderRepertoire()).catch(() => {});
     }
     let pieces = [];

@@ -11204,7 +11204,7 @@ html[data-theme="light"] #home-member .member-rec { background: #fff !important;
 html:not([data-theme="light"]) body.is-repertoire, html:not([data-theme="light"]) body.is-repertoire #repertoire {
   background: radial-gradient(110% 50% at 50% -14%, rgba(40, 62, 235, 0.5) 0%, rgba(20, 32, 150, 0.28) 30%, rgba(6, 9, 50, 0.14) 52%, #000 78%) fixed, #000 !important;
 }
-html:not([data-theme="light"]) body.is-signed-in.is-home #home { background: radial-gradient(110% 55% at 50% -14%, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.035) 30%, rgba(255, 255, 255, 0.01) 52%, #000 78%) fixed, #000 !important; }
+html:not([data-theme="light"]) body.is-signed-in.is-home #home { background: radial-gradient(110% 55% at 50% -14%, rgba(40, 62, 235, 0.6) 0%, rgba(20, 32, 150, 0.34) 30%, rgba(6, 9, 50, 0.18) 52%, #000 78%) fixed, #000 !important; }
 html:not([data-theme="light"]) body.is-repertoire #app, html:not([data-theme="light"]) body.is-repertoire main, html:not([data-theme="light"]) body.is-repertoire #home { background: transparent !important; }
 
 html:not([data-theme="light"]) .rep-empty em { color: rgba(255,255,255,0.86); font-style: italic; }
@@ -11550,24 +11550,6 @@ html:not([data-theme="light"]) .lc-composer, html:not([data-theme="light"]) #hom
 html:not([data-theme="light"]) .lc-composer:focus-within, html:not([data-theme="light"]) #home-member .home-ask:focus-within { border-color: rgba(255,255,255,0.55) !important; box-shadow: 0 0 0 4px rgba(255,255,255,0.06) !important; }
 html:not([data-theme="light"]) .lc-composer textarea, html:not([data-theme="light"]) #home-member .home-ask input { color: #f5f5f5 !important; background: transparent !important; -webkit-text-fill-color: #f5f5f5; }
 html:not([data-theme="light"]) .lc-composer textarea::placeholder { color: rgba(255,255,255,0.45) !important; -webkit-text-fill-color: rgba(255,255,255,0.45); }
-html:not([data-theme="light"]) .lc-send, html:not([data-theme="light"]) .lc-round { background: #f5f5f5 !important; color: #000 !important; box-shadow: none !important; }
-
-/* ===================== The app at night: black and white, one light source ===================== */
-html:not([data-theme="light"]) body:not(.is-home), html:not([data-theme="light"]) body.is-signed-in { --lune-blue: #f2f2f2; --lune-blue-hi: #ffffff; }
-html:not([data-theme="light"]) :is(#home-member, #repertoire, #onboard, #studio, dialog, .ask-lune, .lune-chat) :is(button.primary, .btn-primary, .wk-go):not(:disabled) {
-  background: #f5f5f5 !important; color: #000 !important; border-color: #f5f5f5 !important; box-shadow: 0 10px 34px rgba(255,255,255,0.1) !important;
-  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease;
-}
-html:not([data-theme="light"]) :is(#home-member, #repertoire, #onboard, #studio, dialog, .ask-lune, .lune-chat) :is(button.primary, .wk-go):not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 14px 44px rgba(255,255,255,0.18) !important; }
-html:not([data-theme="light"]) :is(#home-member, #repertoire, #onboard, dialog, .ask-lune, .lune-chat) :is(.member-kicker, .eyebrow, .about-kicker, .rep-kicker, .wk-k, .ask-sub, .lc-sub, [class*="-kicker"]):not(.coach-kicker, #coach *) { color: rgba(255,255,255,0.58) !important; text-shadow: none !important; }
-html:not([data-theme="light"]) :is(.po-sum, .la-line, .la-read) .la-tag, html:not([data-theme="light"]) .hd-tag { color: #fff !important; }
-html:not([data-theme="light"]) #home-member .member-next { background: #0a0a0a !important; border: 1px solid rgba(255,255,255,0.12) !important; box-shadow: 0 40px 120px rgba(255,255,255,0.04) !important; }
-html:not([data-theme="light"]) #home-member, html:not([data-theme="light"]) #home-member::before, html:not([data-theme="light"]) #home-member::after { background-image: none !important; }
-html:not([data-theme="light"]) body.is-signed-in #home { background: #000 !important; }
-html:not([data-theme="light"]) .lp-nav a.on::before, html:not([data-theme="light"]) .studio-tabs .on::before { background: #fff !important; box-shadow: 0 0 8px rgba(255,255,255,0.8) !important; }
-html:not([data-theme="light"]) .wk-bar i, html:not([data-theme="light"]) .po-bar i, html:not([data-theme="light"]) .rep-progress i { background: #fff !important; box-shadow: 0 0 10px rgba(255,255,255,0.45); }
-html:not([data-theme="light"]) .wk-days b.on { background: #fff !important; box-shadow: 0 0 8px rgba(255,255,255,0.6) !important; }
-html:not([data-theme="light"]) #member-streak .wk-change { color: #fff !important; }
 
 /* stars behind the signed-in home and the setup */
 #home-member, #onboard { position: relative; isolation: isolate; }
@@ -11633,3 +11615,39 @@ html[data-theme="light"] #onboard :is(input, textarea) { background: #fff; borde
 .mh-row .mh-phase { margin: 0; text-align: left; max-width: 26em; }
 @media (max-width: 640px) { .mh-row { margin-bottom: 4px; } .mh-row .mh-moon { --size: 28px; } #home-member .member-hero { padding-top: max(0px, calc(var(--mh-pad, 0px))); } #home-member .member-kicker { margin-top: 0; } }
 html:not([data-theme="light"]) :is(#coach, .coach) .coach-kicker { color: #555 !important; }
+
+/* Lune's navy, back where it belongs: the night sky over the moon, the accents, the setup */
+#home #hero.mr-hero { background: radial-gradient(120% 70% at 50% -10%, #0d1a5c 0%, #071033 34%, #02040f 62%, #000 82%) !important; }
+#home #hero.mr-hero::after { background: radial-gradient(520px circle at var(--mx) var(--my), rgba(110,140,255,0.10), transparent 70%); }
+#home .mr-kicker, #home-guest .about-kicker { color: #8ea4ff !important; }
+#home .mr-idea, #home .mr-tonight { background: radial-gradient(80% 60% at 50% 0%, rgba(20,34,120,0.35), transparent 70%), #000 !important; }
+#home-guest .ai-chapter { background: radial-gradient(90% 60% at 50% 0%, rgba(25,40,150,0.4), transparent 70%), #000 !important; }
+#home .mr-tonight .hd-tag { color: #8ea4ff !important; background: rgba(61,92,255,0.14); }
+#home .mr-tonight .hd-send { background: #3d5cff !important; color: #fff !important; }
+body.is-home:not(.is-signed-in) .lp-nav a.on { background: rgba(61,92,255,0.9) !important; color: #fff !important; }
+.mr-keys { box-shadow: 0 -18px 70px rgba(80,110,255,0.22); }
+.mr-n { box-shadow: 0 0 16px rgba(140,165,255,0.7); }
+.mr-moon { filter: drop-shadow(0 0 calc(26px + var(--mr-p) * 50px) rgba(150,175,255, calc(0.3 + var(--mr-p) * 0.3))); }
+html body .onboard-progress li.done span { background: #6f8bff !important; border-color: #6f8bff !important; box-shadow: 0 0 10px rgba(111,139,255,0.6); }
+html body .onboard-progress li.on span { border-color: #8ea4ff !important; box-shadow: inset -5px 0 0 0 #8ea4ff, 0 0 12px rgba(111,139,255,0.5); }
+html body .onboard-progress li.on em { color: #8ea4ff; }
+.mh-moon { filter: drop-shadow(0 0 calc(16px + var(--wk-p) * 30px) rgba(140,165,255, calc(0.35 + var(--wk-p) * 0.35))); }
+.mh-phase { color: #8ea4ff !important; }
+html[data-theme="light"] .mh-phase { color: #2238c4 !important; }
+/* choices are buttons, not links in a sentence */
+.wk-choose-row { display: grid; gap: 12px; }
+.wk-choose-row p { margin: 0; }
+.wk-opts button { height: 40px; padding: 0 18px; border-radius: 999px; font-size: 15px; }
+.wk-opts .wk-go { background: #3048e0 !important; color: #fff !important; border: 0 !important; }
+html[data-theme="light"] .wk-opts .wk-go { background: #2a44d8 !important; color: #fff !important; }
+.mh-row .mh-phase { white-space: nowrap; }
+/* Repertoire's add row: the field and its button share one height */
+#repertoire .rep-add :is(input, button), #repertoire form :is(input[type="text"], input:not([type]), button[type="submit"]) { height: 44px; box-sizing: border-box; border-radius: 12px; }
+/* the top bar's Sign in is a pill with room for its words, never a squeezed circle */
+header.bar .bar-auth { width: auto !important; min-width: 0 !important; height: 38px !important; min-height: 38px !important; padding: 0 16px !important; border-radius: 999px !important; aspect-ratio: auto !important; font-size: 14px !important; line-height: 1 !important; display: inline-flex; align-items: center; background: rgba(61,92,255,0.14) !important; border: 1px solid rgba(138,162,255,0.4) !important; color: #fff !important; }
+html[data-theme="light"] header.bar .bar-auth { background: #2a44d8 !important; border-color: #2a44d8 !important; color: #fff !important; }
+@media (max-width: 520px) { header.bar .bar-auth { height: 36px !important; min-height: 36px !important; padding: 0 14px !important; font-size: 13px !important; } }
+#repertoire .rep-add { display: flex; gap: 8px; align-items: stretch; }
+#repertoire .rep-add input, #repertoire .rep-add button { height: 46px !important; min-height: 46px !important; box-sizing: border-box; border-radius: 14px !important; }
+#repertoire .rep-add input { flex: 1; min-width: 0; padding: 0 16px; }
+#repertoire .rep-add button { padding: 0 20px; }
