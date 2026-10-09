@@ -11768,3 +11768,29 @@ html[data-theme="light"][data-theme="light"] .mr-sub { color: #fff; }
   #home-member .mh-phase { margin: 8px auto 16px !important; }
   #home-member .home-ask-chips { margin: 10px auto 16px !important; }
 }
+
+/* a quieter opening: the moon, one line, two buttons, the piano */
+#home #hero .mr-h { font-size: min(5.6vw, 7vh, 80px) !important; line-height: 1.06; font-weight: 400; }
+#home #hero .mr-inner .hero-cta { margin-top: clamp(22px, 4vh, 40px); }
+.mr-moon { --size: min(10vw, 9vh, 112px); margin-bottom: clamp(18px, 3.4vh, 36px); filter: drop-shadow(0 0 calc(18px + var(--mr-p) * 40px) rgba(150,175,255, calc(0.22 + var(--mr-p) * 0.3))) !important; }
+#home #hero.mr-hero { padding-top: clamp(90px, 15vh, 170px); }
+.mr-n { opacity: 0.75; }
+.mr-keys { box-shadow: 0 -18px 60px rgba(61,92,255,0.14), 0 0 0 1px rgba(255,255,255,0.05) !important; }
+.mr-hint { opacity: 0.6; }
+@media (max-width: 760px) {
+  #home #hero .mr-h { font-size: min(9vw, 4.8vh, 40px) !important; }
+  .mr-moon { --size: min(16vw, 8vh, 72px); }
+  #home #hero.mr-hero { padding-top: clamp(80px, 13vh, 120px); }
+}
+/* the promise opens the next section */
+.mr-promise { margin: 0 0 clamp(28px, 5vh, 48px); font-family: var(--ui); font-weight: 400; font-size: clamp(34px, 5vw, 64px); line-height: 1.05; letter-spacing: -0.03em; color: #fff; }
+.mr-promise em { font-style: italic; }
+.mr-promise .mr-dimmer { display: block; color: rgba(255,255,255,0.5); }
+.mr-fall { flex: 0 1 auto !important; height: clamp(70px, 17vh, 170px) !important; max-height: none; }
+.mr-n { opacity: 0.6; }
+@media (max-width: 760px) {
+  #home #hero .mr-inner .hero-cta { display: flex !important; flex-direction: row !important; gap: 10px; width: auto; }
+  #home #hero .mr-inner .hero-cta button { width: auto !important; flex: none; height: 44px; padding: 0 20px !important; font-size: 15px; }
+  .mr-hint { display: none; }
+  .mr-fall { height: clamp(60px, 14vh, 130px) !important; }
+}
