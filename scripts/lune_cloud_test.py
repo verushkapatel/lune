@@ -1657,7 +1657,39 @@ def section_moon(browser):
     check("moon: the home's moon is half full at 2 of 4 days, and says why", r[0] == "0.500" and r[1].startswith("2 of 4 days") and r[2], r)
     ctx.close()
 
-SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week, "catalogue": section_catalogue, "console": section_console, "account": section_account, "latest": section_latest, "voice": section_voice, "progress": section_progress, "home": section_home, "loop": section_practice_loop, "studio": section_studio, "plans": section_plans, "voice2": section_voice2, "aipage": section_aipage, "fixes": section_fixes, "timing": section_timing, "sync": section_sync, "luneai": section_luneai, "moon": section_moon}
+def section_library(browser):
+    """The open library: public-domain piano scores found by search and opened without an upload."""
+    import os
+    LIB = os.environ.get("LUNE_LIBRARY_DIR", "/tmp/claude-0/pdmx/out")
+    pg = new_page(browser, 390, 844)
+    def serve(route):
+        rel = route.request.url.split("/library/scores/", 1)[1]
+        path = os.path.join(LIB, rel)
+        if os.path.exists(path):
+            route.fulfill(status=200, body=open(path, "rb").read(), headers={"Access-Control-Allow-Origin": "*", "Content-Type": "application/octet-stream"})
+        else:
+            route.continue_()
+    def live(route):
+        # the test browser has no proxy: fetch the hosted file from here
+        import urllib.request
+        route.fulfill(status=200, body=urllib.request.urlopen(route.request.url, timeout=30).read(), headers={"Access-Control-Allow-Origin": "*"})
+    pg.route("https://raw.githubusercontent.com/verushkapatel/lune/library/scores/**", serve if os.path.isdir(LIB) else live)
+    pg.goto(BASE, wait_until="networkidle")
+    lib = pg.evaluate("async () => { const l = await LuneFetchScore.loadLibrary(); return { n: l.rows.length, first: l.rows[0], credit: l.credit }; }")
+    check("library: the open library's index loads on demand, with its credit", lib["n"] > 100 and "PDMX" in lib["credit"]["source"] and lib["credit"]["license"] == "Public domain or CC0", lib)
+    pg.evaluate("() => document.getElementById('home-guest').hidden = false")
+    want = lib["first"]
+    q = want["title"].split(" ")[0] + " " + (want["title"].split(" ")[1] if len(want["title"].split(" ")) > 1 else "")
+    rows = pg.evaluate("""async (q) => { searchAll(q); await new Promise(r => setTimeout(r, 900)); return searchAll(q).map(r => [r.query, r.title, r.subtitle]); }""", q)
+    check("library: search lists open-library pieces after Lune's own", any(r[0].startswith("pdmx-") and r[2].startswith("Open library") for r in rows), (q, rows[:8]))
+    piece = pg.evaluate("""async (id) => { const p = await tryOpen({ query: id, title: '' }); return p && { opened: p.opened, title: p.title, bytes: (p.musicxml || '').length, credit: p.credit && p.credit.source, notes: (p.musicxml.match(/<note[ >]/g) || []).length }; }""", want["id"])
+    check("library: picking one opens its score straight from the library, credited", bool(piece) and piece["opened"] and piece["notes"] > 30 and "PDMX" in (piece["credit"] or ""), piece)
+    wrong = pg.evaluate("async () => { const p = await tryOpen({ query: 'pdmx-doesnotexist', title: 'Fur Elise' }); return p && p.opened !== false ? p.title : null; }")
+    check("library: an unknown library id never opens a different piece by its title", wrong is None, wrong)
+    check("library: no page errors", not pg.errors, pg.errors)
+    pg.context.close()
+
+SECTIONS = {"ai": section_ai, "install": section_install, "tabs": section_tabs, "a11y": section_a11y, "ratings": section_ratings, "week": section_week, "catalogue": section_catalogue, "console": section_console, "account": section_account, "latest": section_latest, "voice": section_voice, "progress": section_progress, "home": section_home, "loop": section_practice_loop, "studio": section_studio, "plans": section_plans, "voice2": section_voice2, "aipage": section_aipage, "fixes": section_fixes, "timing": section_timing, "sync": section_sync, "luneai": section_luneai, "moon": section_moon, "library": section_library}
 
 if __name__ == "__main__":
     want = sys.argv[1:] or list(SECTIONS)

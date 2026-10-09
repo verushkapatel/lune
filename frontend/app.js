@@ -587,7 +587,7 @@ function filterSearchIndex(query, limit = SEARCH_LIMIT, index = activeSearchInde
     const score = scoreIndexEntry(q, entry, tokens);
     if (score > 0) scored.push({ score, entry });
   }
-  scored.sort((a, b) => b.score - a.score || String(a.entry.title).localeCompare(String(b.entry.title)));
+  scored.sort((a, b) => b.score - a.score || (b.entry.w || 0) - (a.entry.w || 0) || String(a.entry.title).localeCompare(String(b.entry.title)));
   const seen = new Set();
   const results = [];
   for (const { entry } of scored) {
@@ -600,7 +600,9 @@ function filterSearchIndex(query, limit = SEARCH_LIMIT, index = activeSearchInde
       id: `free-${entry.query}`,
       title: entry.title,
       composer: entry.composer,
-      subtitle: LUNE_ON_PAGES ? `Free score · ${entry.group || entry.composer || ""}` : `Free score · ${entry.group || ""}`,
+      subtitle: entry.remote && /^pdmx-/.test(entry.query || "")
+        ? `Open library · ${entry.composer || "Public domain"}`
+        : LUNE_ON_PAGES ? `Free score · ${entry.group || entry.composer || ""}` : `Free score · ${entry.group || ""}`,
       epoch: entry.epoch || entry.era || composerEraFallback(entry.composer) || "",
       portrait: localComposerFaceUrl(entry.composer) || "",
       openable: true,
@@ -707,6 +709,31 @@ function renderSearchResults(box, all, q) {
   box.appendChild(frag);
 }
 
+/*
+ * The open library (tens of thousands of public-domain piano scores) joins
+ * search once it has loaded; it loads on the first search, not before.
+ */
+let libraryRows = null;
+let libraryLoading = null;
+function ensureLibrary() {
+  if (libraryRows || libraryLoading || !window.LuneFetchScore?.loadLibrary) return;
+  libraryLoading = window.LuneFetchScore.loadLibrary().then((lib) => {
+    libraryRows = lib?.rows || [];
+    if (lastSearchQuery && lastSearchQuery.length >= 2 && !$("results")?.hidden) paintSearch(lastSearchQuery);
+  });
+}
+
+/** The main index first, then the open library, without listing a piece twice. */
+function searchAll(q, limit = SEARCH_LIMIT) {
+  const main = filterSearchIndex(q, limit);
+  ensureLibrary();
+  if (!libraryRows?.length) return main;
+  const have = new Set(main.map((r) => `${normSearch(r.title)}\0${normSearch(r.composer)}`));
+  const extra = filterSearchIndex(q, limit, libraryRows).filter((r) => !have.has(`${normSearch(r.title)}\0${normSearch(r.composer)}`));
+  const room = Math.max(4, limit - main.length);
+  return [...main, ...extra.slice(0, room)];
+}
+
 /** Sync filter+render — never touches the network. */
 function paintSearch(query) {
   const box = $("results");
@@ -720,7 +747,7 @@ function paintSearch(query) {
   const t0 = performance.now();
   const gen = ++searchGen;
   box.hidden = false;
-  const all = filterSearchIndex(q);
+  const all = searchAll(q);
   if (gen !== searchGen) return;
   renderSearchResults(box, all, q);
   if (typeof console !== "undefined" && console.debug) {
@@ -747,7 +774,7 @@ async function search(query, { openBest = false } = {}) {
   box.hidden = false;
 
   // Prefer full index if already ready; otherwise use fallback immediately.
-  let all = filterSearchIndex(q);
+  let all = searchAll(q);
   // One short wait for the prefetch if it is already in flight (submit only).
   if (!all.length && (!searchIndex || !searchIndex.length) && searchIndexPromise) {
     try {
@@ -759,7 +786,7 @@ async function search(query, { openBest = false } = {}) {
       /* ignore */
     }
     if (gen !== searchGen) return;
-    all = filterSearchIndex(q);
+    all = searchAll(q);
   }
 
   const works = all.filter((r) => r.kind !== "composer");
@@ -822,6 +849,10 @@ async function loadStaticXml(file) {
 }
 
 async function tryOpenStatic(body) {
+  if (window.LuneFetchScore?.isLibraryId?.(body.query)) {
+    const lib = await window.LuneFetchScore.tryOpenRemote(body);
+    if (lib) return lib;
+  }
   // Prefer allowlisted remote MusicXML when the search hit is marked remote.
   if (body.remote && window.LuneFetchScore?.tryOpenRemote) {
     const remote = await window.LuneFetchScore.tryOpenRemote(body);
@@ -893,6 +924,14 @@ async function tryOpenStatic(body) {
 }
 
 async function tryOpen(body) {
+  if (window.LuneFetchScore?.isLibraryId?.(body.query)) {
+    try {
+      const lib = await window.LuneFetchScore.tryOpenRemote(body);
+      if (lib) return lib;
+    } catch {
+      /* fall through */
+    }
+  }
   try {
     if (LUNE_ON_PAGES) return await tryOpenStatic(body);
     const res = await fetch(luneUrl("/api/search/open"), {
