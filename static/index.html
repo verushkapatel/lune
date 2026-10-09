@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- lune40 -->
-  <!-- deploy-lune40 -->
-  <!-- deploy-lune40 -->
+  <!-- lune41 -->
+  <!-- deploy-lune41 -->
+  <!-- deploy-lune41 -->
 
 <meta charset="UTF-8">
   <script>
@@ -34,14 +34,14 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Lune">
-  <link rel="icon" href="static/assets/favicon.svg?v=lune40" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=lune40">
+  <link rel="icon" href="static/assets/favicon.svg?v=lune41" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=lune41">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2?v=lune40" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="static/assets/fonts/fraunces-latin-standard-normal.woff2?v=lune41" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="static/assets/fonts/manrope-var.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="static/styles.css?v=lune40">
-  <link rel="stylesheet" href="static/theme-light.css?v=lune40">
-  <link rel="preload" href="static/search-index.json?v=lune40" as="fetch" crossorigin>
+  <link rel="stylesheet" href="static/styles.css?v=lune41">
+  <link rel="stylesheet" href="static/theme-light.css?v=lune41">
+  <link rel="preload" href="static/search-index.json?v=lune41" as="fetch" crossorigin>
 </head>
 <body>
   <div id="lune-intro" aria-hidden="true">
@@ -166,9 +166,10 @@
       <!-- Signed-in studio home (shown when body.is-signed-in) -->
       <div class="home-member" id="home-member" hidden>
         <section class="member-hero" aria-label="Your studio">
-          <div class="mh-row"><div class="mh-moon" aria-hidden="true"><i class="mr-moon-lit"></i></div><p class="mh-phase" id="mh-phase"></p></div>
+          <div class="mh-moon" aria-hidden="true"><i class="mr-moon-lit"></i></div>
           <p class="member-kicker" id="member-today">Today</p>
           <h1 class="member-title" id="member-greeting">Welcome back.</h1>
+          <p class="mh-phase" id="mh-phase"></p>
           <!-- Lune AI first: one bar, as on ChatGPT's home -->
           <form class="home-ask" id="home-ask" autocomplete="off" aria-label="Ask Lune AI">
             <span class="home-ask-orb" aria-hidden="true"></span>
@@ -190,8 +191,8 @@
           </section>
           <p class="member-streak" id="member-streak"></p>
           <div class="member-quick" role="group" aria-label="Elsewhere in Lune">
-            <button type="button" class="quiet" id="btn-member-search">Find a score</button>
-            <button type="button" class="quiet" id="btn-member-week">This week</button>
+            <button type="button" class="quiet mq" id="btn-member-search"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M16 16.5L20 20.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span>Find a score</span></button>
+            <button type="button" class="quiet mq" id="btn-member-week"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4 10h16M9 3v4M15 3v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span>This week</span></button>
           </div>
           <p class="member-lead" id="member-lead" hidden></p>
           <div class="home-continue member-continue" id="member-continue" hidden></div>
@@ -288,7 +289,8 @@
         <div class="home-hero-inner mr-inner">
           <div class="home-continue" id="home-continue" hidden></div>
           <p class="mr-kicker">Lune · a piano studio</p>
-          <h1 id="hero-h" class="mr-h"><span class="mr-l1">Sit down.</span> <span class="mr-l2">Play.</span><span class="mr-l3">Lune takes care of the rest.</span></h1>
+          <h1 id="hero-h" class="mr-h"><span class="mr-l1">When practice feels lost.</span> <span class="mr-l2">Find the light again.</span></h1>
+          <p class="mr-sub"><span>Sit down.</span> <em>Play.</em> <span class="mr-dimmer">Lune takes care of the rest.</span></p>
           <p class="lead mr-lead">Every note named, every hard bar explained, tonight’s practice planned. Free, for every pianist.</p>
           <div class="hero-cta">
             <button type="button" class="hero-cta-main" data-open-piece="debussy-clair-de-lune" data-open-panel="score">Open Clair de lune</button>
@@ -938,28 +940,28 @@
   <script src="static/vendor/opensheetmusicdisplay.min.js"></script>
   <script src="static/vendor/pdf.min.js"></script>
   <script src="static/vendor/Tone.js"></script>
-  <script src="static/piano.js?v=lune40"></script>
-  <script src="static/annotate.js?v=lune40"></script>
-  <script src="static/lite-analyze.js?v=lune40"></script>
-  <script src="static/fetch-score.js?v=lune40"></script>
-  <script src="static/lyric-lane.js?v=lune40"></script>
-  <script src="static/menu.js?v=lune40"></script>
-  <script src="static/lune-fx.js?v=lune40"></script>
-  <script src="static/lune-config.js?v=lune40"></script>
-  <script src="static/store.js?v=lune40"></script>
-  <script src="static/onboard.js?v=lune40"></script>
-  <script src="static/impact.js?v=lune40"></script>
-  <script src="static/feedback.js?v=lune40"></script>
-  <script src="static/ai-device.js?v=lune40"></script>
-  <script src="static/ask.js?v=lune40"></script>
-  <script src="static/markings.js?v=lune40"></script>
-  <script src="static/plans.js?v=lune40"></script>
-  <script src="static/app.js?v=lune40"></script>
-  <script src="static/studio-ui.js?v=lune40"></script>
-  <script src="static/landing-score.js?v=lune40"></script>
-  <script src="static/moonrise.js?v=lune40"></script>
-  <script src="static/practice.js?v=lune40"></script>
-  <script src="static/study.js?v=lune40"></script>
-  <script src="static/install.js?v=lune40"></script>
+  <script src="static/piano.js?v=lune41"></script>
+  <script src="static/annotate.js?v=lune41"></script>
+  <script src="static/lite-analyze.js?v=lune41"></script>
+  <script src="static/fetch-score.js?v=lune41"></script>
+  <script src="static/lyric-lane.js?v=lune41"></script>
+  <script src="static/menu.js?v=lune41"></script>
+  <script src="static/lune-fx.js?v=lune41"></script>
+  <script src="static/lune-config.js?v=lune41"></script>
+  <script src="static/store.js?v=lune41"></script>
+  <script src="static/onboard.js?v=lune41"></script>
+  <script src="static/impact.js?v=lune41"></script>
+  <script src="static/feedback.js?v=lune41"></script>
+  <script src="static/ai-device.js?v=lune41"></script>
+  <script src="static/ask.js?v=lune41"></script>
+  <script src="static/markings.js?v=lune41"></script>
+  <script src="static/plans.js?v=lune41"></script>
+  <script src="static/app.js?v=lune41"></script>
+  <script src="static/studio-ui.js?v=lune41"></script>
+  <script src="static/landing-score.js?v=lune41"></script>
+  <script src="static/moonrise.js?v=lune41"></script>
+  <script src="static/practice.js?v=lune41"></script>
+  <script src="static/study.js?v=lune41"></script>
+  <script src="static/install.js?v=lune41"></script>
 </body>
 </html>

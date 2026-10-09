@@ -1725,7 +1725,7 @@ window.LuneOnboard = (function () {
             ? `data-open-piece="${esc(r.id)}"`
             : `data-rec-q="${esc(r.query || r.title)}"`;
           return `<button type="button" class="member-rec${i === 0 ? " member-rec-featured" : ""}" ${openAttrs}>
-            <span class="member-rec-role">${esc(role)}</span>
+            ${i === 0 ? `<span class="member-rec-role">${esc(role)}</span>` : ""}
             <span class="member-rec-title">${esc(r.title)}</span>
             <span class="member-rec-by">${esc(r.composer || "")}</span>
           </button>`;
