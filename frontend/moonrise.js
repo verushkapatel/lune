@@ -421,7 +421,7 @@ window.LuneMoon = (function () {
     const cap = document.getElementById("mh-phase");
     if (cap)
       cap.textContent =
-        done >= goal ? `Full moon. ${goal} of ${goal} days this week.` : `${done} of ${goal} days this week. The moon fills as you practise.`;
+        done >= goal ? `Full moon · ${goal} of ${goal} days` : `${done} of ${goal} days this week`;
   }
 
   document.addEventListener("DOMContentLoaded", () => stars(document.getElementById("onboard")));

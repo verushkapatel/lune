@@ -46,6 +46,8 @@ NO_FLIP = re.compile(r"\.mr-|mr-hero|lune-key|lune-talk|\.lt-|lune-loader|lune-o
 # Hand fixes, found by going through every screen in light mode. They win.
 KEEP = """
 /* KEEP: hand fixes */
+html[data-theme="light"][data-theme="light"] body.is-home:not(.is-signed-in) .lp-nav a.on { background: #2a44d8 !important; color: #ffffff !important; }
+html[data-theme="light"][data-theme="light"] .wk-opts .wk-go, html[data-theme="light"][data-theme="light"] header.bar .bar-auth { background: #2a44d8 !important; border-color: #2a44d8 !important; color: #ffffff !important; }
 /* the moonrise stays night in both themes */
 html[data-theme="light"][data-theme="light"] #home #hero .mr-h, html[data-theme="light"][data-theme="light"] #home #hero .mr-h :is(.mr-l1, .mr-l2) { color: #fff !important; }
 html[data-theme="light"][data-theme="light"] #home #hero .mr-h .mr-l3 { color: rgba(255,255,255,0.62) !important; }

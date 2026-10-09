@@ -190,6 +190,9 @@
       return;
     }
     if (!/^[\w-]{3,40}$/.test(live) || live === mine) return;
+    // only ever offer a newer Lune: a stale stamp (or a cached older one) is not an update
+    const num = (v) => Number(String(v).match(/(\d+)$/)?.[1] || NaN);
+    if (!(num(live) > num(mine))) return;
     const tried = (() => {
       try {
         return sessionStorage.getItem("lune.updated-to");
