@@ -1610,25 +1610,9 @@ window.LuneOnboard = (function () {
     requestAnimationFrame(() => requestAnimationFrame(top));
   }
 
+  // Guests sign in from the top bar (or the menu on a phone); no extra row above the score.
   function paintKeepBanner() {
-    let bar = $("keep-account-banner");
-    if (signedIn()) {
-      if (bar) bar.remove();
-      return;
-    }
-    if (!onboarded()) return;
-    if (!bar) {
-      bar = document.createElement("div");
-      bar.id = "keep-account-banner";
-      bar.className = "keep-account-banner";
-      bar.innerHTML = `
-        <p>Exploring on this device. <strong>Make Lune yours</strong>, free.</p>
-        <button type="button" class="primary" data-lp-personalise>Begin</button>`;
-      const app = $("app");
-      const header = app?.querySelector?.("header.bar");
-      if (header) header.after(bar);
-      else app?.prepend?.(bar);
-    }
+    $("keep-account-banner")?.remove();
   }
 
   function paintHomeRecs() {

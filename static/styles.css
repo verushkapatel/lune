@@ -11853,3 +11853,121 @@ html[data-theme="light"] .lc-composer.is-writing .lc-stop { background: #111; co
 .lune-chat .chat-log::-webkit-scrollbar, .ask-lune .ask-log::-webkit-scrollbar { width: 8px; }
 .lune-chat .chat-log::-webkit-scrollbar-thumb, .ask-lune .ask-log::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.14); border-radius: 8px; }
 .lune-chat .chat-log::-webkit-scrollbar-track, .ask-lune .ask-log::-webkit-scrollbar-track { background: transparent; }
+
+/* ---- Declutter: one top bar, solid surfaces, the score gets the room ---- */
+
+/* Guests sign in from the top bar on every page; the extra banner row is gone. */
+#keep-account-banner { display: none !important; }
+body.is-home:not(.is-signed-in) header.bar #btn-bar-auth,
+body.is-studio:not(.studio-compact):not(.is-signed-in) header.bar #btn-bar-auth { display: inline-flex !important; }
+body.is-home:not(.is-signed-in) header.bar #btn-bar-auth { margin-left: 0 !important; }
+body.is-home:not(.is-signed-in) header.bar .lp-nav { margin-left: auto !important; }
+@media (max-width: 760px) {
+  body.is-home:not(.is-signed-in) header.bar .lp-nav { display: none !important; }
+  body.is-home:not(.is-signed-in) header.bar #btn-bar-auth { margin-left: auto !important; }
+}
+header.bar .bar-auth { gap: 0; }
+
+/* The landing bar sits on the sky at the top and turns solid once the page moves. */
+body.is-home:not(.is-signed-in) header.bar { transition: background-color 0.3s ease, border-color 0.3s ease; border-bottom: 1px solid transparent !important; }
+body.is-home.lp-scrolled:not(.is-signed-in) header.bar {
+  background: rgba(4, 5, 9, 0.86) !important; border-bottom-color: rgba(255, 255, 255, 0.07) !important;
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+}
+html[data-theme="light"] body.is-home.lp-scrolled:not(.is-signed-in) header.bar { background: rgba(255, 255, 255, 0.9) !important; border-bottom-color: rgba(0, 0, 0, 0.08) !important; }
+
+/* Studio top bar on a computer: no back and forward (the tabs do that), icons for Share and Settings. */
+body.is-studio:not(.studio-compact) header.bar #studio-nav { display: none !important; }
+body.is-studio:not(.studio-compact) header.bar :is(#btn-share, #btn-settings) .bar-tool-label { display: none !important; }
+body.is-studio:not(.studio-compact) header.bar :is(#btn-share, #btn-settings, #btn-repertoire) {
+  width: 38px !important; min-width: 38px !important; height: 38px !important; min-height: 38px !important;
+  padding: 0 !important; justify-content: center !important; border-radius: 999px !important;
+}
+body.is-studio:not(.studio-compact) header.bar #btn-bar-auth { margin-left: auto !important; }
+body.is-studio:not(.studio-compact) header.bar #btn-bar-auth .bar-auth-rest { display: none; }
+
+/* The score: a quiet keyboard focus ring instead of a bright box. */
+#score-scroll:focus { outline: none !important; }
+#score-scroll:focus-visible { outline: none !important; box-shadow: inset 0 0 0 2px rgba(138, 162, 255, 0.45) !important; }
+
+/* Solid surfaces: no gradient edges or glows on the ask boxes and panels. */
+.lc-composer::before, .chat-form::before, .ask-form::before, #home-member .home-ask::before, .lp-askbar::before { content: none !important; display: none !important; }
+.lc-composer, #home-member .home-ask { border: 1px solid rgba(255, 255, 255, 0.14) !important; }
+:is(.lc-composer, #home-member .home-ask):focus-within { border-color: rgba(138, 162, 255, 0.55) !important; }
+:is(.chat-form, .ask-form):has(.lc-composer) { border: 0 !important; background: transparent !important; box-shadow: none !important; }
+.lune-talk[open], dialog#ask-panel[open], .ask-panel[open] { background: #08090c !important; box-shadow: 0 30px 90px rgba(0, 0, 0, 0.6) !important; border-color: rgba(255, 255, 255, 0.1) !important; }
+.lc-send, .lc-round { box-shadow: none !important; }
+/* the bar panel is drawn light and flipped for the dark theme, so its ask box is light here */
+.coach .lp-askbar { background: #f1f1f3 !important; border: 1px solid rgba(0, 0, 0, 0.1) !important; }
+.coach .lp-askbar:focus-within { border-color: rgba(30, 50, 140, 0.45) !important; }
+
+/* Landing: a solid night, the stars and the moon do the work. */
+.fx-aurora { display: none !important; }
+#home #hero.home-hero.mr-hero { background: #03050c !important; }
+#hero.home-hero::after { background: none !important; }
+/* light theme: the hero stays a night sky, so the bar over it stays dark until the page moves */
+html[data-theme="light"] body.is-home:not(.is-signed-in):not(.lp-scrolled) header.bar { background: transparent !important; background-image: none !important; }
+html[data-theme="light"] body.is-home:not(.is-signed-in):not(.lp-scrolled) header.bar .lp-nav { background: rgba(0, 0, 0, 0.55) !important; border-color: rgba(255, 255, 255, 0.14) !important; }
+html[data-theme="light"] body.is-home:not(.is-signed-in):not(.lp-scrolled) header.bar .lp-nav a:not(.on) { color: rgba(255, 255, 255, 0.82) !important; }
+html[data-theme="light"] body.is-home:not(.is-signed-in):not(.lp-scrolled) header.bar :is(#btn-settings, .brand, #btn-home) { color: #f2f2f2 !important; background: rgba(0, 0, 0, 0.4) !important; border-color: rgba(255, 255, 255, 0.14) !important; }
+html[data-theme="light"] body.is-home:not(.is-signed-in):not(.lp-scrolled) header.bar :is(.brand, #btn-home) { background: transparent !important; border: 0 !important; }
+html[data-theme="light"] body.is-home.lp-scrolled:not(.is-signed-in) header.bar { background-image: none !important; }
+/* light theme: the words that read along were white on white */
+html[data-theme="light"] #home .mr-read, html[data-theme="light"] .mr-promise { color: #111 !important; }
+html[data-theme="light"] .mr-promise .mr-dimmer { color: rgba(0, 0, 0, 0.45) !important; }
+#hero .mr-moon-lit { background: #ededeb !important; }
+#hero .mr-moon-lit::after { background: none !important; }
+#hero .mr-n { background: rgba(214, 222, 255, 0.85) !important; }
+#hero .mr-n.mr-nb { background: #5b78ff !important; }
+#hero .mr-keys::before { background: #0c0c10 !important; }
+#hero .mr-keys::after { background: none !important; }
+#hero .mr-k.mr-wk { background: #f6f4ee !important; }
+#hero .mr-k.mr-bk { background: #131317 !important; }
+/* the example replies arrive quickly, so no card looks empty */
+.ai-you { transition-delay: 0.05s !important; }
+.ai-lune { transition-delay: 0.25s !important; transition-duration: 0.45s, 0.45s, 0.6s !important; }
+
+/* Landing: less empty space between chapters. */
+body.is-home .mr-idea { padding-top: 120px !important; padding-bottom: 72px !important; }
+body.is-home .ai-chapter { padding-top: 96px !important; padding-bottom: 64px !important; }
+body.is-home .lp-free { padding-top: 80px !important; padding-bottom: 80px !important; }
+body.is-home .home-close { min-height: 0 !important; padding-top: 96px !important; padding-bottom: 104px !important; }
+body.is-home .lp-more { margin-top: 0 !important; }
+
+/* Bar panel notes: one soft chip per note or chord, the finger as a small superscript. */
+.coach .notes { gap: 6px !important; margin-bottom: 6px !important; }
+.coach .notes .chip {
+  border: 0 !important; border-radius: 9px !important; padding: 4px 9px !important; background: #ececef !important;
+  font-family: var(--ui) !important; font-size: 15px !important; font-weight: 500 !important; letter-spacing: 0 !important; gap: 1px !important;
+}
+.coach .notes .chip :is(.tone-letter, b, i) { font-family: var(--ui) !important; letter-spacing: 0 !important; }
+.coach .notes .chip :is(.tone-finger, i) {
+  font-size: 10.5px !important; font-weight: 600 !important; color: #2a44d8 !important; position: relative; top: -0.45em; margin-left: 1px;
+}
+.coach .notes .chip.finger-only b { color: #2a44d8 !important; font-size: 12px !important; margin-right: 3px !important; }
+.coach .notes .chip .tone-letter { font-size: 15px !important; }
+.coach .notes .chip .chord-tone { gap: 1px !important; }
+
+/* Phone studio: the tempo tab says what it holds. */
+.st-rail-handle { width: 34px !important; height: 58px !important; }
+.st-rail-tag { display: flex; flex-direction: column; align-items: center; line-height: 1; font-variant-numeric: tabular-nums; }
+.st-rail-tag b { font-size: 13px; font-weight: 500; color: #f2f2f2; }
+.st-rail-tag small { font-size: 8.5px; letter-spacing: 0.06em; color: #a6a6a6; margin-top: 3px; }
+body.studio-compact.is-studio .st-rail { transform: translate(calc(100% - 34px), -50%); }
+body.studio-compact.is-studio .st-rail.open { transform: translate(0, -50%); }
+.st-rail.open .st-rail-tag { display: none; }
+.st-rail.open .st-rail-handle::after { content: "›"; font-size: 24px; line-height: 1; color: #e8e8e8; margin-top: -3px; }
+html[data-theme="light"] .st-rail.open .st-rail-handle::after { color: #111; }
+html[data-theme="light"] .st-rail-tag b { color: #111; }
+html[data-theme="light"] .st-rail-tag small { color: #555; }
+
+/* Compact studio on a tablet: Play and + keep to the right, as on a phone. */
+body.studio-compact.is-studio header.bar #st-play { margin-left: auto !important; }
+
+/* Phone menu: sign in at the bottom for guests. */
+.sm-signin {
+  display: flex; width: 100%; align-items: center; justify-content: center; min-height: 50px; margin-top: 12px;
+  border-radius: 14px; border: 0; background: #2a44d8; color: #fff; font: inherit; font-size: 15px; cursor: pointer;
+}
+.sm-signin:active { transform: scale(0.98); }
+.sm-signin:focus-visible { outline: 2px solid #9db4ff; outline-offset: 2px; }
