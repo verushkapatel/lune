@@ -121,15 +121,17 @@ Rules:
 - Answer a simple question in one or two sentences. For analysis, cover what each hand does, what makes it hard, and exactly how to practise it: one short sentence of what the score shows, then at most four numbered steps, each on its own line, each one concrete action.
 - Keep answers under 120 words unless the pianist asks for more. Every sentence must be useful at the piano.
 - You cannot hear the pianist. If asked how their playing sounded, say plainly that you cannot hear them play, then say what to listen for in that bar.
+- A greeting, thanks or small talk is welcome: reply warmly in one sentence and ask what they are working on at the piano.
 - Only if a question has nothing to do with music or the piano, answer warmly in one sentence that you are here for their piano playing, and offer one related thing you would be glad to help with. Questions about the pianist's own playing, practice or progress are always piano questions.
 - Speak naturally to the pianist. Never mention CONTEXT, JSON, data or "the information provided"; if the score data lacks something, simply answer from general piano knowledge and say it is general advice.
 - If CONTEXT.replyStyle is "spoken", the answer will be read aloud: reply in two or three short, warm, conversational sentences, with no lists, numbers as words where natural, and no symbols.
 - When asked for a practice plan, give short numbered steps tied to bar numbers from CONTEXT, sized to the minutes available, and keep the pianist's stated goal.
 - CONTEXT.conversation, when present, holds the last turns of this chat; answer the newest question in that light.
 - For a general piano question (technique, practice habits, musical terms) that does not depend on a score, answer from general piano teaching and say it is general advice. Never present general advice as a fact about the pianist's score.
+- Name a bar number only if that bar is in CONTEXT. With no score open (CONTEXT.openPiece is null), never mention bar numbers.
 - Say plainly when you are unsure.
 - Write piece and composer names correctly and in full (Liebestraum No. 3, Clair de lune, Für Elise, Gymnopédie No. 1, Chopin, Debussy, Liszt, Rachmaninoff). If the pianist's spelling of a name looks like a mishearing, read it as the closest real piece, preferring CONTEXT.piece.
-- Plain text only. No markdown, no headings.`;
+- Format: short paragraphs. Use a numbered list for steps, one step per line, and **bold** only for a bar number or the one thing that matters most. No headings, no tables, no emoji.`;
 
   function aiSettings() {
     let endpoint = "";
@@ -242,12 +244,13 @@ Rules:
     account: {
       available: () => !!aiServer() && cloudAccount(),
       label: () => "Lune AI",
-      async answer(question, ctx) {
+      async answer(question, ctx, { signal } = {}) {
         ctx = spokenCtx(ctx);
         const token = await store().accessToken();
         if (!token) throw new Error("Sign in again to use Lune AI.");
         const ctl = new AbortController();
         const timer = setTimeout(() => ctl.abort(), 45000);
+        signal?.addEventListener("abort", () => ctl.abort(), { once: true });
         try {
           const res = await fetch(`${aiServer()}/ask`, {
             method: "POST",
@@ -286,11 +289,21 @@ Rules:
     /** A language model behind an OpenAI-compatible chat endpoint. */
     endpoint: {
       available: () => !!aiSettings().endpoint,
-      async answer(question, ctx) {
+      async answer(question, ctx, { signal, onToken } = {}) {
         ctx = spokenCtx(ctx);
         const { endpoint, model } = aiSettings();
         const ctl = new AbortController();
-        const timer = setTimeout(() => ctl.abort(), 45000);
+        // a local model can take a while to load the first time; give up only when it goes quiet
+        let timer = 0;
+        const quiet = () => {
+          clearTimeout(timer);
+          timer = setTimeout(() => ctl.abort(), 90000);
+        };
+        quiet();
+        signal?.addEventListener("abort", () => ctl.abort(), { once: true });
+        // earlier turns go as real turns, so a follow-up ("and the left hand?") reads naturally
+        const turns = (ctx?.conversation || []).slice(-8).map((m) => ({ role: m.from === "pianist" ? "user" : "assistant", content: String(m.text || "") }));
+        const facts = ctx && ctx.conversation ? { ...ctx, conversation: undefined } : ctx;
         try {
           const res = await fetch(endpoint, {
             method: "POST",
@@ -298,19 +311,51 @@ Rules:
             signal: ctl.signal,
             body: JSON.stringify({
               model,
-              stream: false,
-              temperature: 0.3,
+              stream: !!onToken,
+              temperature: 0.4,
               messages: [
                 { role: "system", content: SYSTEM_PROMPT },
-                { role: "user", content: `CONTEXT:\n${JSON.stringify(ctx)}\n\nQUESTION: ${question}` },
+                ...turns,
+                { role: "user", content: `CONTEXT:\n${JSON.stringify(facts)}\n\nQUESTION: ${question}` },
               ],
             }),
           });
           if (!res.ok) throw new Error(`model returned ${res.status}`);
+          if (onToken && res.body && /event-stream|ndjson/i.test(res.headers.get("content-type") || "")) {
+            const reader = res.body.getReader();
+            const dec = new TextDecoder();
+            let buf = "";
+            let text = "";
+            for (;;) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              quiet();
+              buf += dec.decode(value, { stream: true });
+              let nl;
+              while ((nl = buf.indexOf("\n")) >= 0) {
+                const row = buf.slice(0, nl).trim();
+                buf = buf.slice(nl + 1);
+                const data = row.startsWith("data:") ? row.slice(5).trim() : row;
+                if (!data || data === "[DONE]") continue;
+                try {
+                  const j = JSON.parse(data);
+                  const t = j?.choices?.[0]?.delta?.content ?? j?.message?.content ?? "";
+                  if (t) {
+                    text += t;
+                    onToken(t);
+                  }
+                } catch {
+                  /* a keep-alive or partial line */
+                }
+              }
+            }
+            if (!text.trim()) throw new Error("model sent no answer");
+            return text.trim().slice(0, 6000);
+          }
           const data = await res.json();
           const text = data?.choices?.[0]?.message?.content ?? data?.message?.content ?? data?.answer;
           if (!text || typeof text !== "string") throw new Error("model sent no answer");
-          return text.trim().slice(0, 4000);
+          return text.trim().slice(0, 6000);
         } finally {
           clearTimeout(timer);
         }
@@ -360,6 +405,55 @@ Rules:
           : null;
   const fallbackNote = (err) =>
     err?.userMessage ? `${err.userMessage} This is Lune’s built-in reply.` : "The model didn’t answer, so this is Lune’s built-in reply.";
+  /** The model that is really answering, named plainly for the header. */
+  function whoAnswers() {
+    const m = active();
+    if (m === providers.endpoint) return `${aiSettings().model.replace(/:latest$/, "")} · local`;
+    if (m === providers.account) return aiName().replace(/ Instruct$/, "");
+    if (m === providers.device) return `${D()?.MODEL.name || "Lune AI"} · in this browser`;
+    return "";
+  }
+  function privacyLine() {
+    const m = active();
+    if (m === providers.endpoint) return `Answers come from ${aiSettings().model.replace(/:latest$/, "")} on your own computer and can be wrong. Nothing leaves it.`;
+    if (m === providers.device) return "Answers are written in this browser and can be wrong. Nothing leaves this device.";
+    return "Lune AI can be wrong. Lune’s server stores none of it; this chat stays in this browser.";
+  }
+
+  /*
+   * Ollama on this computer: ask it which models it has and use the strongest
+   * one a laptop can run (the most parameters, up to 35B), skipping embedding
+   * models. Returns the model chosen, or throws with a message to show.
+   */
+  async function findOllama() {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 3000);
+    let tags;
+    try {
+      const r = await fetch("http://localhost:11434/api/tags", { signal: ctl.signal });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      tags = await r.json();
+    } catch {
+      throw new Error(`Ollama isn’t answering on this computer. Start it with: OLLAMA_ORIGINS=${location.origin} ollama serve`);
+    } finally {
+      clearTimeout(timer);
+    }
+    const size = (m) => {
+      const p = String(m.details?.parameter_size || m.name.match(/:(\d+(?:\.\d+)?)b/i)?.[1] || "").match(/(\d+(?:\.\d+)?)\s*([BM])?/i);
+      return p ? Number(p[1]) / (/m/i.test(p[2] || "") ? 1000 : 1) : 0;
+    };
+    const usable = (tags.models || []).filter((m) => m?.name && !/embed|bge|minilm|nomic/i.test(m.name) && size(m) <= 35);
+    if (!usable.length) throw new Error("Ollama is running but has no chat model yet. In Terminal: ollama pull qwen2.5:7b");
+    usable.sort((a, b) => size(b) - size(a));
+    const name = usable[0].name;
+    try {
+      localStorage.setItem("lune.ai.endpoint", "http://localhost:11434/v1/chat/completions");
+      localStorage.setItem("lune.ai.model", name);
+    } catch {
+      /* private mode: lasts for this visit only through aiSettings' fallbacks */
+    }
+    return name;
+  }
 
   /* ---------- actions ---------- */
 
@@ -470,7 +564,7 @@ Rules:
               ? "good"
               : null;
     // "bar 2 is hard, how should I practise it?" is a rating and a question; "is bar 2 hard?" is only a question
-    const ratingStatement = !isQuestion || !/^(is|are|was|were|did|does|do|how hard|which|what)\b/.test(t.trim());
+    const ratingStatement = !isQuestion || !/^(is|are|was|were|did|does|do|why|how|which|what|where|when|who|can|could|should|would|will|explain|tell|show)\b/.test(t.trim());
     if (grade && ratingStatement && bars.length && /\b(was|went|felt|is|that|it)\b/.test(t)) {
       const logged = await rate(bars, grade);
       // a hard bar, or a "how do I…", deserves real help, not only a receipt
@@ -493,8 +587,9 @@ Rules:
 
     // questions about the whole piece
     const p = state.piece;
-    if (!d) {
-      if (/\b(hard|difficult|tricky|worst|practi[sc]e|work on|focus)\b/.test(t)) {
+    // "which bars are hardest?" is about the piece, even with a bar selected
+    if (!d || /\b(which bars|hardest bars|whole piece|the piece)\b/.test(t)) {
+      if (/\b(hard(er|est)?|difficult|trick(y|ier|iest)|worst|practi[sc]e|work on|focus)\b/.test(t)) {
         const h = hardest(4);
         return {
           question: true,
@@ -573,38 +668,52 @@ Rules:
     open({ bar });
     line("you", act.label);
     const model = active();
+    const forBar = act.bar ? bar || selectedBarsSorted()[0] || null : null;
     let a = null;
     let failure = null;
+    let said = null;
     if (model) {
-      const shown = thinkingRow();
-      let streamed = "";
-      try {
-        a = await model.answer(TASKS[task](), await buildContext(act.bar ? bar || selectedBarsSorted()[0] || null : null), {
-          onToken: (t) => {
-            streamed += t;
-          },
-        });
-      } catch (err) {
-        a = null;
-        failure = err;
-      }
-      shown.closest(".ask-row")?.remove();
+      said = line("lune", "", { src: "model" });
+      const res = await streamAnswer(said, async ({ signal, onToken }) => model.answer(TASKS[task](), await buildContext(forBar), { signal, onToken }));
+      if (res.stopped) return stoppedAt(said, res.text, { q: act.label, bar: forBar });
+      a = res.text || null;
+      failure = res.error;
     }
     let note = "";
     if (!a) {
       note = fallbackNote(failure);
       a = act.fallback ? (await reply(act.fallback)).a : "Lune’s built-in answers can’t summarise practice. This week shows the days, bars and ratings instead.";
-    }
+      if (said) {
+        richText(said, a);
+        setSrc(said, "rules");
+      } else said = line("lune", a, { src: "rules" });
+    } else said.dataset.via = "model";
     if (state.piece) window.LunePlans?.noteActivity?.("question", { key: keyFor(), title: state.piece?.overview?.title || state.piece?.title || "" });
-    remember({ bar: act.bar ? bar || selectedBarsSorted()[0] || null : null, q: act.label, a, note: note || undefined, via: note ? undefined : "model", t: Date.now() });
-    const said = line("lune", note ? a : "", { src: note ? "rules" : "model" });
-    if (!note) {
-      await revealAnswer(said, a);
-      said.dataset.via = "model";
-    }
+    remember({ bar: forBar, q: act.label, a, note: note || undefined, via: note ? undefined : "model", t: Date.now() });
     addActions(said);
-    if (note) sayIfVoice(a);
-    if (note) line("lune", note).classList.add("ask-note");
+    if (note) {
+      sayIfVoice(a);
+      line("lune", note).classList.add("ask-note");
+    } else voiceAfter(a);
+  }
+  /** Where an answer came from, said under it; changed when a model fails and the built-in answer stands in. */
+  function setSrc(el, src) {
+    const s = el.parentElement?.querySelector(".ask-src");
+    if (!s) return;
+    s.className = `ask-src ask-src-${src === "model" ? "ai" : "rules"}`;
+    s.textContent = src === "model" ? "Lune AI · can be wrong" : "Built-in answer, read from the score";
+  }
+  /** Stop pressed: keep what was written, say it was stopped, and keep it in this bar's history. */
+  function stoppedAt(el, text, { q, bar }) {
+    if (!text) {
+      el.closest(".ask-row")?.remove();
+      line("lune", "Stopped.").classList.add("ask-note");
+      return "";
+    }
+    el.dataset.via = "model";
+    addActions(el);
+    remember({ bar, q, a: text, via: "model", t: Date.now() });
+    return text;
   }
 
   /* ---------- "Now superpowered with Lune AI" (landing page and signed-in home) ---------- */
@@ -660,6 +769,8 @@ Rules:
     speak: '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 10v4h3l4 3.5v-11L8 10H5zM15.5 9a4 4 0 0 1 0 6M17.8 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     copy: '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 15V6a1 1 0 0 1 1-1h9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
     check: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    stop: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor"/></svg>',
+    retry: '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3M4.5 4.5v4h4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     info: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 11v5M12 8v.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
   };
 
@@ -673,6 +784,7 @@ Rules:
         <button type="button" class="lc-tool lc-mic" id="${prefix}-mic" aria-pressed="false" aria-label="Dictate">${ICON.mic}</button>
         <button type="button" class="lc-round lc-talk" id="${prefix}-talk" aria-label="Voice chat with Lune">${ICON.talk}</button>
         <button type="submit" class="lc-round lc-send ${prefix}-send" aria-label="Send" hidden>${ICON.send}</button>
+        <button type="button" class="lc-round lc-stop" aria-label="Stop writing">${ICON.stop}</button>
       </div>
       <div class="lc-listen" id="${prefix}-listen" hidden>
         <button type="button" class="lc-tool" data-listen="cancel" aria-label="Cancel dictation">${ICON.close}</button>
@@ -687,44 +799,158 @@ Rules:
    * them, numbered steps as a real list, **bold** kept as bold. Text only, so
    * nothing the model writes can become markup.
    */
-  function richText(el, text) {
+  function richText(el, text, { live = false } = {}) {
     if (!el) return;
     const esc2 = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-    const inline = (t) => esc2(t).replace(/\*\*([^*]+)\*\*/g, "$1").replace(/(^|\s)\*([^*\n]+)\*(?=\s|[.,;:!?]|$)/g, "$1<em>$2</em>");
-    const lines = String(text || "").replace(/\r/g, "").split("\n").map((l) => l.trim().replace(/^#{1,6}\s+/, "")).filter(Boolean);
-    // a step names its bars: "@Bar 12 ...", "Bar 12: ...", "1. Bars 26 and 30, hands ..."
-    const tagOf = (t) => {
-      const m = t.match(/^@?(bars?\s+[\d][\d,\s–\-to and]*?)(?=[\s:.,—–-]+[a-z(]|$)[\s:.,—–-]*/i);
-      if (!m) return null;
-      const label = m[1].replace(/\s+/g, " ").replace(/\s*(?:to|-|–)\s*/g, "–").replace(/\s*and\s*/g, ", ").replace(/[,\s]+$/, "");
-      return { tag: "@" + label[0].toUpperCase() + label.slice(1), rest: t.slice(m[0].length) };
-    };
+    // "bar 12", "bars 26–30": a link to those bars when they are in the open score
+    const barLinks = (html) =>
+      state.piece
+        ? html.replace(/\b(bars?)\s+(\d{1,4})(?:\s*(?:–|-|to)\s*(\d{1,4}))?\b/gi, (m, w, a, b) => {
+            const from = Number(a);
+            const to = b ? Number(b) : from;
+            if (to < from || to - from > 64 || !debriefFor(from) || !debriefFor(to)) return m;
+            return `<button type="button" class="la-bar" data-bars="${from}-${to}">${m}</button>`;
+          })
+        : html;
+    const inline = (t) =>
+      barLinks(
+        esc2(t)
+          .replace(/`([^`]+)`/g, "$1")
+          .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+          .replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s.,;:!?)]|$)/g, "$1<em>$2</em>")
+      );
+    // the server's range answers start lines with "@Bar 12"; shown as a bold lead-in
+    const lead = (t) => t.replace(/^@((?:bars?)\s+\d+(?:\s*(?:[–,-]|and|to)\s*\d+)*)[\s:.,—–-]*/i, (m, label) => `**${label[0].toUpperCase()}${label.slice(1)}** · `);
     let html = "";
-    let leadDone = false;
-    let step = 0;
-    for (const line of lines) {
-      const sum = line.match(/^(?:in\s+)?summary[:,]?\s*(.*)$/i);
-      const num = line.match(/^(\d+)[.)]\s+(.*)$/);
-      const dot = line.match(/^[-•*]\s+(.*)$/);
-      const body = num ? num[2] : dot ? dot[1] : line;
-      const tagged = tagOf(body);
-      if (sum) {
-        html += `<p class="la-line la-sum"><span class="la-tag">Summary</span> ${inline(sum[1])}</p>`;
-      } else if (tagged) {
-        html += `<p class="la-line"><span class="la-tag">${esc2(tagged.tag)}</span> ${inline(tagged.rest)}</p>`;
-      } else if (num || dot) {
-        step += 1;
-        html += `<p class="la-line"><span class="la-tag">@Step ${num ? num[1] : step}</span> ${inline(body)}</p>`;
-      } else if (!leadDone) {
-        html += `<p class="la-lead">${inline(line)}</p>`;
-        leadDone = true;
-      } else {
-        html += `<p class="la-p">${inline(line)}</p>`;
+    let list = null;
+    const closeList = () => {
+      if (list) html += `</${list}>`;
+      list = null;
+    };
+    for (const raw of String(text || "").replace(/\r/g, "").split("\n")) {
+      const t = raw.trim();
+      if (!t) {
+        closeList();
+        continue;
       }
+      const num = t.match(/^(\d+)[.)]\s+(.*)$/);
+      const dot = t.match(/^[-•*]\s+(.*)$/);
+      if (num || dot) {
+        const kind = num ? "ol" : "ul";
+        if (list !== kind) {
+          closeList();
+          html += num && Number(num[1]) > 1 ? `<ol start="${Number(num[1])}">` : `<${kind}>`;
+          list = kind;
+        }
+        html += `<li>${inline(lead(num ? num[2] : dot[1]))}</li>`;
+        continue;
+      }
+      closeList();
+      const head = t.match(/^#{1,6}\s+(.*)$/);
+      const sum = t.match(/^(?:in\s+)?summary\s*[:,]\s*(.*)$/i);
+      if (head) html += `<p class="la-h">${inline(head[1])}</p>`;
+      else if (sum) html += `<p class="la-sum"><strong>Summary</strong> · ${inline(sum[1])}</p>`;
+      else html += `<p>${inline(lead(t))}</p>`;
     }
-    el.innerHTML = `<p class="la-read" aria-hidden="true"><span class="la-mark">◠</span> ${esc2(readingLine())}</p>${html}`;
-    el.classList.add("rich", "la");
+    closeList();
+    // the caret sits at the end of the last line while words are still arriving
+    if (live) html = html.replace(/(<\/(?:p|li)>)((?:<\/[ou]l>)?)$/, '<span class="la-caret" aria-hidden="true"></span>$1$2') || '<span class="la-caret" aria-hidden="true"></span>';
+    el.innerHTML = html;
+    el.raw = String(text || "");
+    el.classList.add("rich", "la2");
+    el.classList.remove("la");
   }
+
+  /* ---------- an answer being written: thinking, then words as they arrive, then Stop/Retry ---------- */
+
+  let writing = null;
+  function setWriting(on) {
+    document.querySelectorAll(".lc-composer").forEach((c) => c.classList.toggle("is-writing", on));
+  }
+  const nearBottom = (log) => !log || log.scrollHeight - log.scrollTop - log.clientHeight < 120;
+  function thinkingHtml() {
+    const where = state.piece ? `<span class="la-think-where">${esc(readingLine())}</span>` : "";
+    return `<span class="la-think" aria-hidden="true"><i></i><i></i><i></i></span>${where}<span class="visually-hidden">Lune is thinking</span>`;
+  }
+  /** A whole answer that arrived at once is shown at reading pace, already formatted. */
+  async function paceIn(full, onToken, signal) {
+    if (window.LuneFX?.reduced?.()) return onToken(full);
+    const parts = String(full).match(/\s*\S+/g) || [String(full)];
+    const per = Math.max(1, Math.ceil(parts.length / 40));
+    for (let i = 0; i < parts.length && !signal.aborted; i += per) {
+      onToken(parts.slice(i, i + per).join(""));
+      await new Promise((r) => requestAnimationFrame(r));
+    }
+  }
+  /**
+   * Write a model's answer into `el` as it arrives. `run({signal, onToken})`
+   * calls the model. Resolves to { text, stopped, error }.
+   */
+  async function streamAnswer(el, run) {
+    writing?.abort();
+    const ctl = new AbortController();
+    writing = ctl;
+    setWriting(true);
+    const log = el.closest(".chat-log, .ask-log");
+    el.classList.add("la-thinking");
+    el.setAttribute("aria-busy", "true");
+    el.innerHTML = thinkingHtml();
+    let text = "";
+    let raf = 0;
+    let error = null;
+    const paint = () => {
+      raf = 0;
+      if (!el.isConnected) return;
+      const stick = nearBottom(log);
+      el.classList.remove("la-thinking");
+      richText(el, text, { live: true });
+      if (stick && log) log.scrollTop = log.scrollHeight;
+    };
+    const onToken = (t) => {
+      if (ctl.signal.aborted) return;
+      text += t;
+      if (!raf) raf = requestAnimationFrame(paint);
+    };
+    const stopped = new Promise((_, reject) => ctl.signal.addEventListener("abort", () => reject(Object.assign(new Error("Stopped"), { name: "AbortError" })), { once: true }));
+    try {
+      const final = await Promise.race([run({ signal: ctl.signal, onToken }), stopped]);
+      if (final && !text) await paceIn(final, onToken, ctl.signal);
+      if (final && !ctl.signal.aborted) text = String(final);
+    } catch (err) {
+      if (!ctl.signal.aborted) error = err;
+    }
+    cancelAnimationFrame(raf);
+    const wasStopped = ctl.signal.aborted && !error;
+    if (writing === ctl) {
+      writing = null;
+      setWriting(false);
+    }
+    text = text.trim();
+    el.classList.remove("la-thinking");
+    el.removeAttribute("aria-busy");
+    if (text) richText(el, text);
+    else el.innerHTML = "";
+    return { text, stopped: wasStopped, error };
+  }
+  document.addEventListener("click", (e) => {
+    if (e.target.closest?.(".lc-stop")) {
+      e.preventDefault();
+      writing?.abort();
+      return;
+    }
+    const b = e.target.closest?.(".la-bar");
+    if (!b) return;
+    const [from, to] = b.dataset.bars.split("-").map(Number);
+    const bars = [];
+    for (let n = from; n <= to; n++) bars.push(n);
+    const chat = $("lune-chat");
+    if (chat?.open) chat.close();
+    try {
+      setBarSelection(bars, { open: false, primary: from });
+    } catch {
+      /* the score isn't on screen */
+    }
+  });
   /** "Reading Für Elise · 3/8 · A minor", and the bars in question. */
   let readingBars = null;
   function readingLine() {
@@ -754,7 +980,8 @@ Rules:
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
         e.preventDefault();
-        if (input.value.trim()) onSend();
+        // while Lune is still writing, the words wait in the box
+        if (input.value.trim() && !writing) onSend();
       }
     });
     return fit;
@@ -887,20 +1114,9 @@ Rules:
     toast(on ? "Voice replies on: Lune reads its answers aloud" : "Voice replies off");
     if (!on) P()?.stopSpeaking?.();
   }
-  /** Show an answer: typed in, or, with voice replies on, revealed word by word as Lune says it. */
-  async function revealAnswer(el, text) {
-    if (voiceReplies() && !talking && P()?.speakAndWait) {
-      const words = String(text).replace(/\*\*/g, "").split(/(\s+)/);
-      el.textContent = "";
-      el.classList.add("live");
-      try {
-        await P().speakAndWait(text, { onProgress: (f) => (el.textContent = words.slice(0, Math.ceil(f * words.length)).join("")) });
-      } catch {
-        /* the words are shown below either way */
-      }
-      el.classList.remove("live");
-    } else if (window.LuneFX) await window.LuneFX.typeText(el, text);
-    richText(el, text);
+  /** After an answer was streamed in: read it aloud too, when voice replies are on. */
+  function voiceAfter(text) {
+    if (text && voiceReplies() && !talking) P()?.speak?.(String(text).replace(/\*\*/g, ""));
   }
   function sayIfVoice(text) {
     // voice chat speaks for itself; this is for typed questions
@@ -1072,7 +1288,7 @@ Rules:
     const send = () => {
       const input = $("ask-input");
       const text = input.value.trim();
-      if (!text) return;
+      if (!text || writing) return;
       input.value = "";
       fitAsk();
       ask(text);
@@ -1102,7 +1318,8 @@ Rules:
     p.querySelector("#ask-log").addEventListener("click", (e) => {
       const b = e.target.closest("[data-msg-act]");
       if (!b) return;
-      const text = b.closest(".ask-row")?.querySelector(".ask-msg")?.textContent || "";
+      const msg = b.closest(".ask-row")?.querySelector(".ask-msg");
+      const text = String(msg?.raw || msg?.textContent || "").replace(/\*\*/g, "");
       if (b.dataset.msgAct === "speak") P()?.speak?.(text);
       if (b.dataset.msgAct === "copy") {
         navigator.clipboard?.writeText(text).then(() => toast("Copied"), () => toast("Couldn’t copy"));
@@ -1153,39 +1370,6 @@ Rules:
     if (src) bar.appendChild(src);
     el.parentElement.appendChild(bar);
   }
-  /** Lune at work: the reading log, one line at a time. */
-  const STAGES = [[0, "Reading the score"], [1100, "Looking at both hands"], [2600, "Choosing what to practise"], [4600, "Writing it out"], [9000, "A longer answer, nearly there"]];
-  function workingHtml() {
-    const esc2 = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-    return `<div class="la la-working"><p class="la-read"><span class="lune-moon" aria-hidden="true"></span> ${esc2(readingLine())}</p><div class="la-stages"></div></div><span class="visually-hidden">Lune is working on it</span>`;
-  }
-  function runStages(el) {
-    const t0 = Date.now();
-    let shown = 0;
-    const tick = () => {
-      const host = el.querySelector(".la-stages");
-      if (!el.isConnected || !host) return clearInterval(iv);
-      const ms = Date.now() - t0;
-      while (shown < STAGES.length && ms >= STAGES[shown][0]) {
-        host.querySelectorAll(".la-stage").forEach((x) => x.classList.add("done"));
-        const p = document.createElement("p");
-        p.className = "la-line la-stage";
-        p.innerHTML = `<span class="la-dot"></span>${STAGES[shown][1]}`;
-        host.appendChild(p);
-        shown += 1;
-      }
-    };
-    tick();
-    const iv = setInterval(tick, 200);
-    return el;
-  }
-  function thinkingRow() {
-    const el = line("lune", "Thinking…");
-    el.classList.add("ask-thinking");
-    el.innerHTML = workingHtml();
-    return runStages(el);
-  }
-
   function paintContext() {
     const fine = $("ask-fine");
     if (fine) {
@@ -1412,38 +1596,38 @@ Rules:
     }
     // A question may go to the connected model; the built-in answer is the fallback.
     const model = out.question ? active() : null;
-    if (model) {
-      const shown = thinkingRow();
-      let streamed = "";
-      try {
-        // a bar just rated hard: ask for what to do about it, not a summary of the bar
-        const asked = out.range
-          ? `${text}\n\nAnswer bar by bar for bars ${out.range.join(", ")} (CONTEXT.barsInQuestion). One line per bar, each starting "@Bar N", saying what is hard in that bar and one concrete way to practise it. Then one line starting "Summary:" with two sentences: what ties these bars together and the order to practise them in. No other text.`
-          : out.saved === "review" ? `${text}\n\nI find this bar hard. Give me concrete steps to practise it, tied to what is in it.` : text;
-        out.a = await model.answer(asked, out.range ? await rangeContext(out.range) : await buildContext(out.bar || selectedBarsSorted()[0] || null), {
-          onToken: (t) => {
-            streamed += t;
-            shown.textContent = streamed;
-          },
-        });
-        out.via = "model";
-      } catch (err) {
-        out.note = [out.note, fallbackNote(err)].filter(Boolean).join(" ");
-      }
-      shown.closest(".ask-row")?.remove();
-    }
     // counted before it is saved, so the session that starts here includes it
     if (out.question) window.LunePlans?.noteActivity?.("question", { key: keyFor(), title: state.piece?.overview?.title || state.piece?.title || "" });
-    // every answer says where it came from: the score through Lune's rules, or a language model
-    const said = line("lune", out.via === "model" ? "" : out.a, { src: out.via === "model" ? "model" : out.question ? "rules" : "lune" });
-    remember({ bar: out.bar || null, q: text, a: out.a, note: out.note, via: out.via, t: Date.now() });
-    if (out.via === "model") {
-      // Lune AI's words arrive as if typed; built-in answers appear at once
-      await revealAnswer(said, out.a);
-      said.dataset.via = "model";
+    let said;
+    if (model) {
+      // the answer's own row appears at once, thinks, then fills in as the words arrive
+      said = line("lune", "", { src: "model" });
+      // a bar just rated hard: ask for what to do about it, not a summary of the bar
+      const asked = out.range
+        ? `${text}\n\nAnswer bar by bar for bars ${out.range.join(", ")} (CONTEXT.barsInQuestion). One line per bar, each starting "@Bar N", saying what is hard in that bar and one concrete way to practise it. Then one line starting "Summary:" with two sentences: what ties these bars together and the order to practise them in. No other text.`
+        : out.saved === "review" ? `${text}\n\nI find this bar hard. Give me concrete steps to practise it, tied to what is in it.` : text;
+      const forBar = out.bar || selectedBarsSorted()[0] || null;
+      const res = await streamAnswer(said, async ({ signal, onToken }) =>
+        model.answer(asked, out.range ? await rangeContext(out.range) : await buildContext(forBar), { signal, onToken })
+      );
+      if (res.stopped) return stoppedAt(said, res.text, { q: text, bar: out.bar || null });
+      if (res.text) {
+        out.a = res.text;
+        out.via = "model";
+        said.dataset.via = "model";
+      } else {
+        out.note = [out.note, fallbackNote(res.error)].filter(Boolean).join(" ");
+        richText(said, out.a);
+        setSrc(said, "rules");
+      }
+    } else {
+      // every answer says where it came from: the score through Lune's rules, or a language model
+      said = line("lune", out.a, { src: out.question ? "rules" : "lune" });
     }
+    remember({ bar: out.bar || null, q: text, a: out.a, note: out.note, via: out.via, t: Date.now() });
     addActions(said);
-    if (out.via !== "model") sayIfVoice(out.a);
+    if (out.via === "model") voiceAfter(out.a);
+    else sayIfVoice(out.a);
     if (out.note) line("lune", out.note).classList.add("ask-note");
     $("ask-log").scrollTop = $("ask-log").scrollHeight;
     if (out.saved) {
@@ -1466,18 +1650,17 @@ Rules:
       if (!gloss) line("lune", "Lune’s glossary doesn’t have that one yet. Sign in and Lune AI explains any marking.", { src: "lune" });
       return;
     }
-    const shown = thinkingRow();
-    try {
-      const a = await model.answer(question, await buildContext(selectedBarsSorted()[0] || null));
-      shown.closest(".ask-row")?.remove();
-      const said = line("lune", "", { src: "model" });
-      await revealAnswer(said, a);
+    const said = line("lune", "", { src: "model" });
+    const res = await streamAnswer(said, async ({ signal, onToken }) => model.answer(question, await buildContext(selectedBarsSorted()[0] || null), { signal, onToken }));
+    if (res.stopped) return stoppedAt(said, res.text, { q: question, bar: null });
+    if (res.text) {
       said.dataset.via = "model";
       addActions(said);
-      remember({ bar: null, q: question, a, via: "model", t: Date.now() });
-    } catch (err) {
-      shown.closest(".ask-row")?.remove();
-      if (!gloss) line("lune", fallbackNote(err) || "Lune AI didn’t answer just now.").classList.add("ask-note");
+      remember({ bar: null, q: question, a: res.text, via: "model", t: Date.now() });
+      voiceAfter(res.text);
+    } else {
+      said.closest(".ask-row")?.remove();
+      if (!gloss) line("lune", fallbackNote(res.error) || "Lune AI didn’t answer just now.").classList.add("ask-note");
     }
   }
 
@@ -1656,6 +1839,9 @@ Rules:
     if (state.piece) {
       const p = state.piece;
       ctx.openPiece = { title: p.overview?.title || p.title || null, composer: p.overview?.composer || p.composer || null, hardestBars: hardest(5) };
+    } else {
+      ctx.openPiece = null;
+      ctx.noScoreOpen = "No score is open, so there are no bar numbers to refer to. Answer as general piano teaching and do not name any bar.";
     }
     return ctx;
   }
@@ -1664,23 +1850,33 @@ Rules:
     const log = $("chat-log");
     const row = document.createElement("div");
     row.className = `chat-row chat-from-${who}`;
-    const bubble = document.createElement("p");
+    // Lune's answers are formatted (paragraphs, lists), so they need a block, not a paragraph
+    const bubble = document.createElement(who === "lune" ? "div" : "p");
     bubble.className = "chat-bubble";
     bubble.textContent = text;
     row.appendChild(bubble);
-    if (who === "lune" && via === "model") {
-      // read aloud and copy, as under a ChatGPT answer; both use the words as finally shown
-      const bar = document.createElement("div");
-      bar.className = "ask-actions";
-      bar.innerHTML = `<button type="button" class="lc-mini chat-say" aria-label="Read this answer aloud">${ICON.speak}</button><button type="button" class="lc-mini chat-copy" aria-label="Copy this answer">${ICON.copy}</button>`;
-      bar.querySelector(".chat-say").addEventListener("click", () => P()?.speak?.(bubble.textContent));
-      bar.querySelector(".chat-copy").addEventListener("click", () => navigator.clipboard?.writeText(bubble.textContent).then(() => toast("Copied")).catch(() => {}));
-      row.appendChild(bar);
-    }
+    if (who === "lune" && via === "model") chatActions(bubble);
     log.appendChild(row);
     requestAnimationFrame(() => row.classList.add("in"));
     log.scrollTop = log.scrollHeight;
     return bubble;
+  }
+  /** Read aloud, copy and (for the newest answer) try again, as under a ChatGPT answer. */
+  function chatActions(bubble, { retry, note = false } = {}) {
+    const row = bubble.parentElement;
+    row.querySelector(".ask-actions")?.remove();
+    const bar = document.createElement("div");
+    bar.className = "ask-actions";
+    // a note ("Stopped.", an error) only offers to try again
+    bar.innerHTML = `${
+      note ? "" : `<button type="button" class="lc-mini chat-say" aria-label="Read this answer aloud">${ICON.speak}</button><button type="button" class="lc-mini chat-copy" aria-label="Copy this answer">${ICON.copy}</button>`
+    }${retry ? `<button type="button" class="lc-mini chat-retry" aria-label="Try again">${ICON.retry}</button>` : ""}`;
+    if (!bar.innerHTML) return;
+    const words = () => String(bubble.raw || bubble.textContent).replace(/\*\*/g, "");
+    bar.querySelector(".chat-say")?.addEventListener("click", () => P()?.speak?.(words()));
+    bar.querySelector(".chat-copy")?.addEventListener("click", () => navigator.clipboard?.writeText(words()).then(() => toast("Copied")).catch(() => toast("Couldn’t copy")));
+    bar.querySelector(".chat-retry")?.addEventListener("click", retry);
+    row.appendChild(bar);
   }
 
   function ensureChat() {
@@ -1709,8 +1905,13 @@ Rules:
       <div class="chat-log" id="chat-log" role="log" aria-live="polite"></div>
       <div class="chat-starters" id="chat-starters"></div>
       <div class="chat-locked" id="chat-locked" hidden>
-        <p>Lune AI is free with a Lune account.</p>
-        <button type="button" class="primary" data-chat-signin>Sign in to chat</button>
+        <p class="chat-locked-h">Lune AI is free with a Lune account.</p>
+        <p>It reads the score you have open, knows your Repertoire and your week, and answers like a patient teacher.</p>
+        <div class="chat-locked-actions">
+          <button type="button" class="primary" data-chat-signin>Sign in to chat</button>
+          <button type="button" class="link-btn" data-chat-ollama>Use Ollama on this computer</button>
+        </div>
+        <p class="chat-locked-msg" id="chat-locked-msg" role="status" aria-live="polite"></p>
       </div>
       <form class="chat-form ask-form" id="chat-form" autocomplete="off">${composerHtml("chat", "Ask anything about piano…")}</form>
       <p class="chat-fine" id="chat-fine"></p>
@@ -1762,11 +1963,23 @@ Rules:
         d.close();
         window.LuneOnboard?.openCreateAccount?.();
       }
+      if (e.target.closest?.("[data-chat-ollama]")) {
+        const msg = $("chat-locked-msg");
+        msg.textContent = "Looking for Ollama on this computer…";
+        findOllama()
+          .then((name) => {
+            msg.textContent = "";
+            toast(`Lune AI is using ${name.replace(/:latest$/, "")} on this computer`);
+            paintChat();
+            setTimeout(() => $("chat-input")?.focus(), 30);
+          })
+          .catch((err) => (msg.textContent = err.message));
+      }
     });
     const sendChat = () => {
       const input = $("chat-input");
       const text = input.value.trim();
-      if (!text) return;
+      if (!text || writing) return;
       input.value = "";
       fitChat();
       chatAsk(text);
@@ -1796,8 +2009,8 @@ Rules:
     $("chat-form").hidden = !model;
     $("chat-clear").hidden = !log.length;
     $("chat-starters").innerHTML = model && !log.length ? CHAT_STARTERS.map((q) => `<button type="button" data-starter="${esc(q)}">${esc(q)}</button>`).join("") : "";
-    $("chat-sub").textContent = model ? aiName().replace(/ Instruct$/, "") : "Needs a free Lune account";
-    $("chat-fine").textContent = model ? "Lune AI can be wrong. Lune’s server stores none of it; this chat stays in this browser." : "";
+    $("chat-sub").textContent = model ? whoAnswers() : "Needs a free Lune account";
+    $("chat-fine").textContent = model ? privacyLine() : "";
     if (model && !log.length) {
       const empty = document.createElement("div");
       empty.className = "ask-empty";
@@ -1810,33 +2023,53 @@ Rules:
   async function chatAsk(text) {
     const model = active();
     if (!model) return paintChat();
+    if (writing) return "";
     const log = chatLog();
     log.push({ who: "you", text, t: Date.now() });
     saveChat(log);
     $("chat-starters").innerHTML = "";
     $("chat-clear").hidden = false;
     $("lune-chat")?.classList.remove("is-empty");
-    chatLine("you", text);
     $("chat-log").querySelector(".ask-empty")?.remove();
-    const wait = chatLine("lune", "Thinking…");
-    wait.classList.add("chat-wait");
-    wait.innerHTML = workingHtml();
-    runStages(wait);
-    let answer = "";
+    const mine = chatLine("you", text);
+    // the answer's own row appears at once, thinks, then fills in as the words arrive
+    const shown = chatLine("lune", "");
+    const res = await streamAnswer(shown, async ({ signal, onToken }) => model.answer(text, await buildChatContext(log.slice(0, -1)), { signal, onToken }));
+    let answer = res.text;
     let via = "model";
-    try {
-      answer = await model.answer(text, await buildChatContext(log.slice(0, -1)), { onToken: (t) => { answer += t; } });
-    } catch (err) {
+    if (!answer && res.stopped) {
+      answer = "Stopped.";
       via = "note";
-      answer = err?.userMessage || "Lune AI didn’t answer just now. Try again in a minute.";
+    } else if (!answer) {
+      via = "note";
+      answer = res.error?.userMessage || "Lune AI didn’t answer just now. Try again in a moment.";
     }
-    wait.parentElement.remove();
-    // saved before it is typed out, so a follow-up sent mid-typing still carries it
+    if (via === "note") {
+      shown.textContent = answer;
+      shown.classList.add("chat-note");
+    }
     log.push({ who: "lune", text: answer, via, t: Date.now() });
     saveChat(log);
-    const shown = chatLine("lune", via === "model" ? "" : answer, { via });
-    if (via === "model") await revealAnswer(shown, answer);
-    else shown.textContent = answer;
+    paintHistoryList();
+    // the newest answer can be asked again: both turns go, and the question is sent fresh
+    chatActions(shown, {
+      note: via === "note",
+      retry: () => {
+        if (writing) return;
+        // rewritten in place: an empty log through saveChat would start a different chat
+        const st = chatStore();
+        const conv = st.convs.find((c) => c.id === st.cur);
+        if (conv) {
+          if (conv.msgs[conv.msgs.length - 1]?.who === "lune") conv.msgs.pop();
+          if (conv.msgs[conv.msgs.length - 1]?.who === "you") conv.msgs.pop();
+          putChats(st);
+        }
+        shown.parentElement.remove();
+        mine.parentElement.remove();
+        chatAsk(text);
+      },
+    });
+    if (via === "model") voiceAfter(answer);
     return answer;
   }
 

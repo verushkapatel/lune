@@ -11794,3 +11794,62 @@ html[data-theme="light"][data-theme="light"] .mr-sub { color: #fff; }
   .mr-hint { display: none; }
   .mr-fall { height: clamp(60px, 14vh, 130px) !important; }
 }
+
+/* ---- Lune AI, final: one voice, real lists, streamed in place, solid night ---- */
+.lune-chat[open], .lune-talk[open] { background: #08090c !important; border-color: rgba(255, 255, 255, 0.07) !important; box-shadow: 0 40px 120px -30px rgba(0, 0, 0, 0.8) !important; }
+.lune-chat::backdrop { background: rgba(0, 0, 0, 0.82); }
+.lune-chat .chat-head { background: #08090c !important; border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important; }
+.chat-hist { background: #0d0e12 !important; }
+.lune-chat .chat-sub { color: rgba(255, 255, 255, 0.5) !important; letter-spacing: 0.02em; }
+:is(#lune-chat, #ask-lune) :is(.chat-bubble, .ask-msg).la2,
+:is(#lune-chat, #ask-lune) :is(.chat-bubble, .ask-msg).la2 * { font-family: var(--ui) !important; }
+:is(#lune-chat, #ask-lune) :is(.chat-bubble, .ask-msg).la2 { font-size: 18px !important; line-height: 1.62 !important; color: #ececf1 !important; white-space: normal !important; }
+:is(#lune-chat, #ask-lune) .la2 p { margin: 0 0 12px !important; color: inherit !important; font-size: inherit !important; }
+:is(#lune-chat, #ask-lune) .la2 > :last-child { margin-bottom: 0 !important; }
+:is(#lune-chat, #ask-lune) .la2 strong { font-weight: 600; color: #fff; }
+:is(#lune-chat, #ask-lune) .la2 .la-h { font-weight: 600; color: #fff !important; margin-top: 18px !important; }
+:is(#lune-chat, #ask-lune) .la2 .la-sum { margin-top: 16px !important; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+:is(#lune-chat, #ask-lune) .la2 :is(ol, ul) { display: block !important; list-style: revert !important; margin: 4px 0 14px !important; padding: 0 0 0 1.5em !important; }
+:is(#lune-chat, #ask-lune) .la2 :is(ol, ul) > li { display: list-item !important; margin: 0 0 8px !important; padding: 0 0 0 4px !important; background: none !important; border: 0 !important; border-radius: 0 !important; }
+:is(#lune-chat, #ask-lune) .la2 :is(ol, ul) > li::before { content: none !important; }
+:is(#lune-chat, #ask-lune) .la2 ol > li::marker { color: #8ea4e6 !important; font-weight: 600; font-variant-numeric: tabular-nums; }
+:is(#lune-chat, #ask-lune) .la2 ul > li::marker { color: rgba(255, 255, 255, 0.4); }
+.la-bar { all: unset; cursor: pointer; color: #b9c8f0; text-decoration: underline; text-decoration-color: rgba(111, 143, 214, 0.55); text-underline-offset: 3px; text-decoration-thickness: 1px; border-radius: 3px; }
+.la-bar:hover { color: #fff; text-decoration-color: currentColor; }
+.la-bar:focus-visible { outline: 2px solid var(--navy-ink, #6f8fd6); outline-offset: 2px; }
+.la-caret { display: inline-block; width: 7px; height: 7px; margin-left: 4px; border-radius: 50%; background: #dfe6f7; vertical-align: 0.12em; animation: la-caret-pulse 1.1s ease-in-out infinite; }
+@keyframes la-caret-pulse { 0%, 100% { opacity: 0.35; transform: scale(0.8); } 50% { opacity: 1; transform: none; } }
+.la-thinking { display: flex !important; align-items: center; gap: 12px; min-height: 30px; }
+.la-think { display: inline-flex; gap: 5px; }
+.la-think i { width: 6px; height: 6px; border-radius: 50%; background: rgba(255, 255, 255, 0.75); animation: la-think 1.2s ease-in-out infinite; }
+.la-think i:nth-child(2) { animation-delay: 0.15s; }
+.la-think i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes la-think { 0%, 80%, 100% { opacity: 0.25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+.la-think-where { font-family: var(--ui) !important; font-size: 14px !important; color: rgba(255, 255, 255, 0.45) !important; }
+.chat-note { color: rgba(255, 255, 255, 0.55) !important; font-size: 15px !important; }
+/* Send becomes Stop while Lune is writing */
+.lc-composer .lc-stop { display: none; }
+.lc-composer.is-writing .lc-stop { display: inline-flex; align-items: center; justify-content: center; background: #f2f2f4; color: #0a0a0a; }
+.lc-composer.is-writing :is(.lc-send, .lc-talk) { display: none !important; }
+.ask-actions { opacity: 0.55; transition: opacity 0.2s ease; }
+.chat-row:hover .ask-actions, .ask-row:hover .ask-actions, .ask-actions:focus-within { opacity: 1; }
+@media (hover: none) { .ask-actions { opacity: 1; } }
+/* the locked page: what Lune AI is, then the two ways in */
+.chat-locked-h { margin: 0; font-size: 24px !important; color: #fff !important; }
+.chat-locked-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 20px; margin-top: 14px; }
+.chat-locked-msg { margin: 10px 0 0; font-size: 14px; color: rgba(255, 255, 255, 0.6); max-width: 46ch; overflow-wrap: anywhere; }
+/* Easy read wins over Lune AI's typeface */
+body.lp-readable :is(#lune-chat, #ask-lune), body.lp-readable :is(#lune-chat, #ask-lune) * { font-family: "Atkinson Hyperlegible", system-ui, sans-serif !important; }
+@media (prefers-reduced-motion: reduce) { .la-caret, .la-think i { animation: none !important; } }
+html[data-theme="light"] .lune-chat[open], html[data-theme="light"] .lune-chat .chat-head { background: #fff !important; }
+html[data-theme="light"] .chat-hist { background: #f6f6f7 !important; }
+html[data-theme="light"] :is(#lune-chat, #ask-lune) :is(.chat-bubble, .ask-msg).la2 { color: #1b1b1f !important; }
+html[data-theme="light"] :is(#lune-chat, #ask-lune) .la2 strong, html[data-theme="light"] :is(#lune-chat, #ask-lune) .la2 .la-h { color: #000; }
+html[data-theme="light"] .la-bar { color: #1f3f8f; }
+html[data-theme="light"] .la-caret, html[data-theme="light"] .la-think i { background: #333; }
+html[data-theme="light"] .la-think-where, html[data-theme="light"] .lune-chat .chat-sub { color: #666 !important; }
+html[data-theme="light"] .lc-composer.is-writing .lc-stop { background: #111; color: #fff; }
+.lune-chat .chat-log, .ask-lune .ask-log, .chat-hist .ch-list { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.14) transparent; }
+.lune-chat .chat-log::-webkit-scrollbar, .ask-lune .ask-log::-webkit-scrollbar { width: 8px; }
+.lune-chat .chat-log::-webkit-scrollbar-thumb, .ask-lune .ask-log::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.14); border-radius: 8px; }
+.lune-chat .chat-log::-webkit-scrollbar-track, .ask-lune .ask-log::-webkit-scrollbar-track { background: transparent; }

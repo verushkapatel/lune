@@ -2111,7 +2111,7 @@ window.LunePractice = (function () {
       <span><strong>${label}</strong><small>${hint}</small></span></label>`;
     d.innerHTML = `${closeRow}<h2>Reading &amp; access</h2>
       ${row("largePrint", "Large print", "Bigger notes, letters and buttons")}
-      ${row("readableFont", "Easy read letters", "A typeface for dyslexia")}
+      ${row("readableFont", "Easy read letters", "A typeface where every letter shape is distinct")}
       ${row("highContrast", "High contrast", "Black on white for the score")}
       ${row("autoRead", "Read bars aloud", "Each bar you select is described")}
       <h3>Keyboard shortcuts</h3>
@@ -2436,7 +2436,7 @@ window.LunePractice = (function () {
             .map(([v, l]) => `<button type="button" data-theme-set="${v}" aria-pressed="${(document.documentElement.dataset.theme || "dark") === v}">${l}</button>`)
             .join("")}
         </div>
-        ${sw("readableFont", "Easy-read letters", "A typeface for dyslexia")}
+        ${sw("readableFont", "Easy-read letters", "A typeface where every letter shape is distinct")}
         ${sw("largePrint", "Large print", "Bigger notes, letters and buttons")}
         ${sw("highContrast", "High contrast", "Black on white for the score")}
         ${sw("autoRead", "Read bars aloud", "Each bar you select is described")}
