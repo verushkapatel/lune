@@ -434,7 +434,9 @@ Rules:
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       tags = await r.json();
     } catch {
-      throw new Error(`Ollama isn’t answering on this computer. Start it with: OLLAMA_ORIGINS=${location.origin} ollama serve`);
+      throw new Error(
+        `Lune couldn’t reach Ollama on this computer. Start it with: OLLAMA_ORIGINS=${location.origin} ollama serve — and if your browser asks to let this site use apps on your device, choose Allow.`
+      );
     } finally {
       clearTimeout(timer);
     }
