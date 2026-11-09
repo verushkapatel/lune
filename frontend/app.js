@@ -19,7 +19,6 @@ function luneUrl(path) {
   return `${LUNE_ROOT}${path}`;
 }
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = luneUrl("/static/vendor/pdf.worker.min.js");
 
 const COMPOSER_FACE_FILES = {
   chopin: "chopin.jpg",
@@ -445,6 +444,8 @@ let searchIndexPromise = null;
 let searchGen = 0;
 let lastSearchQuery = "";
 
+window.luneSearchIndex = () => ensureSearchIndex();
+
 function activeSearchIndex() {
   return searchIndex && searchIndex.length ? searchIndex : SEARCH_FALLBACK;
 }
@@ -465,6 +466,7 @@ function normSearch(text) {
     .trim();
 }
 
+/** The one place the search index is fetched; onboarding asks here too (window.luneSearchIndex). */
 function ensureSearchIndex() {
   if (searchIndexReady) return Promise.resolve(searchIndex);
   if (!searchIndexPromise) {
@@ -480,6 +482,7 @@ function ensureSearchIndex() {
         if (items.length) {
           searchIndex = items;
           searchIndexReady = true;
+          window.__LUNE_SEARCH_ITEMS__ = items; // onboarding's dream-piece list reads the same copy
         }
         if (typeof console !== "undefined" && console.debug) {
           console.debug(
@@ -4405,8 +4408,11 @@ function bind() {
       items[activeIdx].click();
     }
   });
-  // Prefetch the free-score index so the first keystroke is already local.
-  ensureSearchIndex();
+  // Prefetch the free-score index so the first keystroke is already local,
+  // once the first screen is drawn: it is ~100 KB compressed and not needed to paint.
+  const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1200));
+  if (document.readyState === "complete") idle(() => ensureSearchIndex());
+  else window.addEventListener("load", () => idle(() => ensureSearchIndex()), { once: true });
   on("btn-search", "click", () => {
     const next = !document.body.classList.contains("phone-search-open");
     document.body.classList.toggle("phone-search-open", next);
@@ -4816,8 +4822,11 @@ try {
       if (parseRoute()) applyRoute().catch(() => {});
     }
   };
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, { once: true });
-  else boot();
+  // Scripts are deferred: they run after parsing (readyState "interactive"), and
+  // practice.js, study.js and others load after this file. DOMContentLoaded fires
+  // once every deferred script has run, so boot waits for it.
+  if (document.readyState === "complete") boot();
+  else document.addEventListener("DOMContentLoaded", boot, { once: true });
 } catch (err) {
   console.error("Lune bind failed", err);
   const t = document.getElementById("toast");

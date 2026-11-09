@@ -80,8 +80,14 @@ window.LuneStore = (function () {
   function remote() {
     return !!(client && session?.user);
   }
-  async function init() {
-    if (!configured()) return;
+  let clientReady = null;
+  /** Start (once) and wait for the Supabase client. Resolves even if it can't load. */
+  function ensureClient() {
+    if (!configured()) return Promise.resolve();
+    if (!clientReady) clientReady = startClient();
+    return clientReady;
+  }
+  async function startClient() {
     try {
       await loadClientLibrary(); // only fetched when accounts are switched on
       client = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
@@ -99,6 +105,30 @@ window.LuneStore = (function () {
       client = null;
     }
     emit();
+  }
+  /** A stored cloud session, an auth redirect, or a code still to be entered on this device. */
+  function cloudHint() {
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        if (/^sb-.+-auth-token$/.test(localStorage.key(i) || "")) return true;
+      }
+    } catch {
+      /* blocked storage: no stored session either */
+    }
+    if (/[#&?](access_token|refresh_token|error_description)=|[?&]code=/.test(location.href)) return true;
+    const local = localAccount();
+    return !!(local && (local.awaitingCode || local.awaitingLink));
+  }
+  async function init() {
+    if (!configured()) return;
+    // Someone with a cloud session needs it before the first screen is chosen.
+    if (cloudHint()) return ensureClient();
+    // A guest doesn't: the ~210 KB client loads once the page is idle, and every
+    // account call below waits for it, so nothing falls back to the device by mistake.
+    const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1500));
+    const later = () => idle(() => ensureClient());
+    if (document.readyState === "complete") later();
+    else window.addEventListener("load", later, { once: true });
   }
   function emit() {
     for (const fn of listeners) {
@@ -181,6 +211,7 @@ window.LuneStore = (function () {
    * dashboard query if the RPC isn't installed yet.
    */
   async function ownerImpactStats() {
+    await ensureClient();
     if (!isOwner()) throw new Error("Owner sign-in required.");
     syncPlanCountPref();
     const users = await ownerUserCount().catch(() => ({ users: null }));
@@ -234,6 +265,7 @@ window.LuneStore = (function () {
   }
 
   async function publishImpactSnapshot(stats, enabled = true) {
+    await ensureClient();
     if (!isOwner()) throw new Error("Owner sign-in required.");
     const clean = {
       users: stats?.users ?? null,
@@ -263,6 +295,7 @@ window.LuneStore = (function () {
   }
 
   async function fetchPublicImpact() {
+    await ensureClient();
     const local = prefs().impactPublic;
     if (configured() && client) {
       try {
@@ -288,6 +321,7 @@ window.LuneStore = (function () {
   }
 
   async function createShareLink(payload) {
+    await ensureClient();
     const token = uuid().replace(/-/g, "").slice(0, 22);
     const row = {
       id: uuid(),
@@ -330,6 +364,7 @@ window.LuneStore = (function () {
     return row;
   }
   async function revokeShareLink(token) {
+    await ensureClient();
     mutateLocal((d) => {
       const row = (d.shareLinks || []).find((s) => s.token === token);
       if (row) row.revoked = true;
@@ -344,6 +379,7 @@ window.LuneStore = (function () {
     return [...(readLocal().shareLinks || [])];
   }
   async function fetchShareByToken(token) {
+    await ensureClient();
     const local = (readLocal().shareLinks || []).find((s) => s.token === token && !s.revoked);
     if (local) return local;
     if (configured() && client) {
@@ -359,6 +395,7 @@ window.LuneStore = (function () {
   }
 
   async function ownerUserCount() {
+    await ensureClient();
     if (!isOwner()) throw new Error("Owner sign-in required.");
     if (!configured() || !client) {
       return { users: null, mode: "local", note: "Cloud accounts aren’t configured on this build." };
@@ -381,6 +418,7 @@ window.LuneStore = (function () {
   }
 
   async function signIn(email) {
+    await ensureClient();
     const clean = String(email || "").trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) throw new Error("That doesn’t look like an email address.");
     // Cloud email OTP when Supabase is wired; otherwise create a local account so the
@@ -417,6 +455,7 @@ window.LuneStore = (function () {
   }
   /** Confirm the email OTP from Supabase (`verifyOtp`, type email). Codes are typically 8 digits. */
   async function verifyOtp(email, token) {
+    await ensureClient();
     const clean = String(email || "").trim().toLowerCase();
     const code = String(token || "").replace(/\D+/g, "");
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) throw new Error("That doesn’t look like an email address.");
@@ -471,6 +510,7 @@ window.LuneStore = (function () {
     return true;
   }
   async function signOut() {
+    await ensureClient();
     if (client) await client.auth.signOut();
     session = null;
     mutateLocal((d) => {
@@ -479,6 +519,7 @@ window.LuneStore = (function () {
     emit();
   }
   async function deleteAccount() {
+    await ensureClient();
     if (remote()) {
       check(await client.rpc("delete_my_account"));
       await client.auth.signOut();
@@ -882,6 +923,7 @@ window.LuneStore = (function () {
   /* ---------------- study (anonymous) ---------------- */
 
   async function addStudyRows(rows) {
+    await ensureClient();
     if (client) {
       const { error } = await client.from("study_results").insert(rows);
       if (!error) return "cloud";
@@ -900,6 +942,7 @@ window.LuneStore = (function () {
 
   /** Returns "cloud" when the row was stored; "mail" means the caller should offer email instead. */
   async function addFeedback(row) {
+    await ensureClient();
     if (client) {
       const { error } = await client.from("feedback").insert(row);
       if (!error) return "cloud";
@@ -908,6 +951,7 @@ window.LuneStore = (function () {
   }
 
   async function ownerFeedback() {
+    await ensureClient();
     if (!isOwner()) throw new Error("Owner sign-in required.");
     if (!client) throw new Error("Feedback is stored in the cloud — sign in online to read it.");
     const { data, error } = await client.rpc("owner_feedback");

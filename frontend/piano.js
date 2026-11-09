@@ -142,8 +142,76 @@ window.LunePiano = (function () {
     return s;
   }
 
+  /* Tone.js (~340 KB, and a long task to evaluate) stays off the page load: it is
+     fetched on the first Play. iOS only lets sound start inside the tap itself, so
+     the tap opens a plain AudioContext synchronously and Tone adopts it once loaded. */
+  let toneLoading = null;
+  let gestureCtx = null;
+  function loadTone() {
+    if (typeof Tone !== "undefined") return Promise.resolve();
+    if (!toneLoading) {
+      toneLoading = new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = typeof window.luneUrl === "function" ? window.luneUrl("/static/vendor/Tone.js") : "static/vendor/Tone.js";
+        s.onload = () => resolve();
+        s.onerror = () => {
+          toneLoading = null;
+          reject(new Error("Couldn’t load the piano sound — check your connection and press Play again."));
+        };
+        document.head.appendChild(s);
+      });
+    }
+    return toneLoading;
+  }
+  /**
+   * Browsers keep audio suspended until a tap, and only a call made inside the tap
+   * counts. Samples may start warming up before any tap (opening a score by link);
+   * that warm-up then waits on a suspended context, and a later Play used to wait
+   * on the same promise forever. So every tap or key press resumes whatever audio
+   * context exists, synchronously, before any handler runs.
+   */
+  function resumeInGesture() {
+    try {
+      if (typeof Tone !== "undefined") {
+        if (Tone.context.state !== "running") Tone.context.resume();
+      } else if (gestureCtx) {
+        if (gestureCtx.state !== "running") gestureCtx.resume();
+      } else if (toneLoading) {
+        openGestureContext();
+      }
+    } catch {
+      /* the next tap tries again */
+    }
+  }
+  for (const type of ["pointerdown", "keydown", "click"]) {
+    document.addEventListener(type, resumeInGesture, { capture: true, passive: true });
+  }
+
+  function openGestureContext() {
+    if (gestureCtx || typeof Tone !== "undefined") return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    try {
+      gestureCtx = new AC({ latencyHint: "interactive" });
+      gestureCtx.resume?.().catch?.(() => {});
+    } catch {
+      gestureCtx = null;
+    }
+  }
+
   async function unlockAudio() {
+    if (navigator.userActivation?.isActive !== false) openGestureContext(); // before any await: still inside the tap
+    resumeInGesture();
+    await loadTone();
     if (typeof Tone === "undefined") throw new Error("Tone.js missing");
+    if (gestureCtx && !unlockAudio.adopted) {
+      unlockAudio.adopted = true;
+      try {
+        Tone.setContext(gestureCtx);
+      } catch {
+        /* Tone keeps its own context; Tone.start() below resumes it */
+      }
+    }
     await Tone.start();
     try {
       if (Tone.context.state !== "running") await Tone.context.resume();
@@ -172,7 +240,6 @@ window.LunePiano = (function () {
       return sampler;
     }
     if (loading) return loading;
-    if (typeof Tone === "undefined") throw new Error("Tone.js missing");
     loading = (async () => {
       await unlockAudio();
       buildChain();

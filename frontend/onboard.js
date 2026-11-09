@@ -279,8 +279,9 @@ window.LuneOnboard = (function () {
       const name = String(c || "").trim();
       if (name) set.add(name);
     }
-    const index = await loadJson("/static/search-index.json");
-    for (const it of index?.items || []) {
+    // same fetch as search (app.js), so the 900 KB index is downloaded once
+    const items = (await window.luneSearchIndex?.().catch?.(() => null)) || (await loadJson("/static/search-index.json"))?.items || [];
+    for (const it of items) {
       const c = String(it.composer || "").trim();
       if (c && c.toLowerCase() !== "traditional") set.add(c);
     }
@@ -867,6 +868,11 @@ window.LuneOnboard = (function () {
   function showOnboard(n = 0) {
     ensureDom();
     loadDraft();
+    if (!libraryComposerNames.length) {
+      ensureLibraryComposers().then(() => {
+        if (step === 0 && !$("onboard")?.hidden) paintOnboard();
+      });
+    }
     store()?.setPref?.("seenWelcome", true);
     step = n;
     hideAllMains();
@@ -1972,18 +1978,15 @@ window.LuneOnboard = (function () {
     ensureDom();
     ensureTourDom();
     loadDraft();
-    ensureLibraryComposers().then(() => {
-      if (step === 0 && !$("onboard")?.hidden) paintOnboard();
-    });
-    // Expose search-index items for dream-piece filtering when app.js loads them.
-    fetch(
-      typeof window.luneUrl === "function" ? window.luneUrl("/static/search-index.json") : "static/search-index.json"
-    )
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data?.items) window.__LUNE_SEARCH_ITEMS__ = data.items;
-      })
-      .catch(() => {});
+    // The full composer list is only for the setup picker: fetch it once the first screen is up.
+    const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1200));
+    const loadComposers = () =>
+      ensureLibraryComposers().then(() => {
+        if (step === 0 && !$("onboard")?.hidden) paintOnboard();
+      });
+    if (document.readyState === "complete") idle(loadComposers);
+    else window.addEventListener("load", () => idle(loadComposers), { once: true });
+    // Dream-piece filtering reads window.__LUNE_SEARCH_ITEMS__, filled by app.js's single index fetch.
     // Cloud prefs are fetched once per sign-in, not on every store change
     // (the fetch itself reports a change, which used to start it again).
     let prefsPulled = false;

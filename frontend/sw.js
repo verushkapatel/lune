@@ -38,6 +38,9 @@ async function precache() {
   await cache.put(ROOT, page);
 
   const urls = new Set([new URL("manifest.webmanifest", ROOT).href]);
+  // Not named in index.html but needed offline: the piano engine (loaded on first Play,
+  // see piano.js) and the two catalogue files every search and piece open reads.
+  for (const extra of ["static/vendor/Tone.js", "static/search-index.json", "static/opens.json"]) urls.add(new URL(extra, ROOT).href);
   for (const m of html.matchAll(/\s(?:src|href)="(static\/[^"#]+)"/g)) urls.add(new URL(m[1], ROOT).href);
 
   // fonts are named in the stylesheet, not the page

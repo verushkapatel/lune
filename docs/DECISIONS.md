@@ -36,6 +36,10 @@
 - Piece-card Remove stays a hidden confirm control; the overflow item clicks it so the two-step “Remove? (press again)” behaviour is unchanged.
 - Coach advice “More on this bar” is stored on `window._luneAdviceOpen` for the session only (no storage change).
 - Score open is allowlist-only free MusicXML/MXL (musetrainer, OpenScore, etc. via `raw.githubusercontent.com`). Never auto-ingest random PDFs or paid APIs. Fetch-on-open stores credit (source URL + license); UI shows “Fetched from … · license · View source”. Static site uses `remote-catalog.json` + `fetch-score.js`; local API uses the same catalog when resolve misses.
+- Loading: scripts are `defer`red, so the landing paints before ~2 MB of JavaScript arrives; `app.js` boots on `DOMContentLoaded`, after every deferred script. Not loaded with the page: PDF.js (unused in the browser — PDFs go to the desktop server), `follow.js` (Play along has no interface), Tone.js (fetched on the first Play; a score warms it up), supabase.js (fetched when the page is idle unless a cloud session or sign-in is under way; every account call waits for it, so nothing falls back to the device by mistake). The search index (~100 KB compressed) is fetched once, when idle, and shared with onboarding.
+- Sound starts from the tap: a capture listener resumes the audio context on every pointerdown/keydown/click, before handlers run. Before this, a warm-up started without a tap (opening a score by link) could leave the first Play waiting forever behind “Warming up the piano” (seen 1 in 6 tries). The first tap that needs Tone opens a plain AudioContext synchronously and Tone adopts it (iOS only allows sound started inside the tap).
+- The service worker also keeps Tone.js, `search-index.json` and `opens.json`, which index.html no longer names, so a piece opened once still reads, searches and plays offline.
+- Open pieces are a navigation list with `aria-current`, not a tablist (a tab can't contain its own close button). A skip link comes first in tab order and moves focus into the visible view. Toasts are mirrored to an always-present live region.
 
 ## Visible buttons (before → after)
 
