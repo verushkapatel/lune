@@ -194,10 +194,25 @@ function toast(msg) {
   if (!el) return;
   el.textContent = msg;
   el.hidden = false;
+  // the toast itself is display:none between messages, which screen readers skip;
+  // a live region that is always present carries the words instead
+  const live = $("toast-live");
+  if (live) live.textContent = msg;
   clearTimeout(toast.t);
   // long messages stay long enough to read
   toast.t = setTimeout(() => (el.hidden = true), Math.max(2800, String(msg).length * 55));
 }
+
+/* ---------- skip link: past the header to whichever view is showing ---------- */
+
+document.getElementById("skip-link")?.addEventListener("click", (e) => {
+  // the app routes on the hash, so the link moves focus instead of following "#"
+  e.preventDefault();
+  const view = [...document.querySelectorAll("main")].find((m) => !m.hidden && m.offsetParent !== null);
+  if (!view) return;
+  if (!view.hasAttribute("tabindex")) view.setAttribute("tabindex", "-1");
+  view.focus();
+});
 
 /* ---------- piano loader (shown while scores / samples load) ---------- */
 
@@ -1120,8 +1135,6 @@ function renderPieceTabs() {
   for (const s of state.sessions) {
     const tab = document.createElement("div");
     tab.className = "piece-tab" + (studio && s.id === state.activeSessionId ? " on" : "");
-    tab.setAttribute("role", "tab");
-    tab.setAttribute("aria-selected", s.id === state.activeSessionId ? "true" : "false");
     const composerName = s.piece?.overview?.composer || s.piece?.composer || "";
     const faceUrl =
       localComposerFaceUrl(composerName) ||
@@ -1142,7 +1155,9 @@ function renderPieceTabs() {
     btn.type = "button";
     btn.className = "piece-tab-label";
     btn.title = s.piece?.title || s.shortTitle;
-    btn.textContent = s.id === state.activeSessionId ? s.shortTitle : s.shortTitle;
+    btn.textContent = s.shortTitle;
+    // a switcher of open pieces, not a tablist: each entry has its own close button
+    if (s.id === state.activeSessionId) btn.setAttribute("aria-current", "true");
     btn.addEventListener("click", () => {
       // from the home page the "active" piece still has to be brought back on stage
       if (!document.body.classList.contains("is-studio") && s.id === state.activeSessionId) showView("studio");

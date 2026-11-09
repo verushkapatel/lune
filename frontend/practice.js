@@ -1612,7 +1612,7 @@ window.LunePractice = (function () {
       listen.className = "quiet ink coach-listen";
       listen.textContent = "Listen";
       listen.title = "Hear this bar described: notes, fingers and a tip";
-      listen.setAttribute("aria-label", "Hear this bar described");
+      listen.setAttribute("aria-label", "Listen: hear this bar described");
       listen.addEventListener("click", () => readSelectedAloud());
     }
   }

@@ -97,6 +97,26 @@ button {
   clip: rect(0, 0, 0, 0);
   border: 0;
 }
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -60px;
+  z-index: 1000;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+.skip-link:focus,
+.skip-link:focus-visible {
+  top: 10px;
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+main:focus { outline: none; }
+
 html, body {
   height: 100%;
   margin: 0;
