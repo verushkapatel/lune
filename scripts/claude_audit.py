@@ -104,7 +104,7 @@ AUDIT_JS = r"""
 
 
 def wait_stable(page, sel, timeout=60):
-    page.wait_for_selector("#osmd svg", timeout=timeout * 1000)
+    page.wait_for_selector("#osmd:not([data-partial]) svg", timeout=timeout * 1000)
     last, stable, end = -1, 0, time.time() + timeout
     while time.time() < end:
         n = page.locator(sel).count()
@@ -133,7 +133,7 @@ def open_piece(page, query):
     for _ in range(6):
         page.click("#tab-score")
         try:
-            page.wait_for_selector("#osmd svg", timeout=15000)
+            page.wait_for_selector("#osmd:not([data-partial]) svg", timeout=15000)
             break
         except Exception:
             continue

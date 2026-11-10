@@ -13,4 +13,5 @@ Lune-mac.zip
 # local working folders
 .backup-before-claude/
 tmp-verify-screenshots/
-assets/
+/assets/
+pages-site/

@@ -26,6 +26,9 @@ ADJACENT_SPANS: Dict[Tuple[int, int], Tuple[int, int, int, int]] = {
 }
 
 RUN_BREAK_BEATS = 2.0
+# Any rest of an eighth or longer lets the hand reposition: the next note
+# starts a new run instead of being fingered as part of the previous line.
+REST_BREAK_QL = 0.5
 LEAP_BREAK_SEMITONES = 16
 
 # Cost of passing the thumb under a given finger, or crossing that finger back
@@ -341,8 +344,28 @@ def _solve_chord(notes: List[NoteInfo], hand: str) -> None:
             note.fingering_note = ""
 
 
+_BAR_STARTS: Dict[int, float] = {}
+
+
+def _set_bar_starts(analysis: ScoreAnalysis, beats_per_measure: float) -> None:
+    """Real start of every bar in quarter notes; a pickup is only as long as its notes."""
+    _BAR_STARTS.clear()
+    position = 0.0
+    measures = sorted(analysis.measures, key=lambda m: m.number)
+    for index, measure in enumerate(measures):
+        _BAR_STARTS[measure.number] = position
+        content = max((n.offset + n.quarter_length for n in measure.notes), default=beats_per_measure)
+        length = beats_per_measure
+        if index == 0 and 0 < content < beats_per_measure - 1e-6:
+            length = content
+        position += length
+
+
 def _global_position(note: NoteInfo, beats_per_measure: float) -> float:
-    return (note.measure - 1) * beats_per_measure + note.offset
+    start = _BAR_STARTS.get(note.measure)
+    if start is None:
+        return (note.measure - 1) * beats_per_measure + note.offset
+    return start + note.offset
 
 
 def _beats_per_measure(time_signature: str) -> float:
@@ -356,6 +379,7 @@ def _beats_per_measure(time_signature: str) -> float:
 def suggest_fingering(analysis: ScoreAnalysis, hand_span: str = "medium") -> ScoreAnalysis:
     _state.span_scale = HAND_SPAN_SCALE.get(hand_span, 1.0)
     beats = _beats_per_measure(analysis.time_signature)
+    _set_bar_starts(analysis, beats)
 
     for hand in ("RH", "LH"):
         hand_notes = [
@@ -394,7 +418,8 @@ def suggest_fingering(analysis: ScoreAnalysis, hand_span: str = "medium") -> Sco
                     _global_position(previous, beats) + previous.quarter_length
                 )
                 leap = abs(note.midi - previous.midi)
-                if gap > RUN_BREAK_BEATS or leap > LEAP_BREAK_SEMITONES:
+                repositions = gap >= REST_BREAK_QL or (gap >= 0.25 and leap >= 5)
+                if repositions or gap > RUN_BREAK_BEATS or leap > LEAP_BREAK_SEMITONES:
                     _solve_run(run, hand)
                     run = []
             run.append(note)

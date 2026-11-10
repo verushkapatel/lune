@@ -3,7 +3,13 @@
 const $ = (id) => document.getElementById(id);
 
 // Project Pages live at /lune/. Absolute /static and /api URLs would miss that prefix.
-const LUNE_ON_PAGES = location.hostname.endsWith(".github.io");
+// Static export (GitHub Pages, or any host serving the export flagged with
+// <meta name="lune-static">): no Python server, everything runs in the browser.
+const LUNE_ON_PAGES =
+  location.hostname.endsWith(".github.io") ||
+  location.hostname === "lune.page" ||
+  location.hostname.endsWith(".lune.page") ||
+  !!document.querySelector('meta[name="lune-static"][content="1"]');
 const LUNE_ROOT = LUNE_ON_PAGES
   ? location.pathname.replace(/\/static(?:\/.*)?$/, "").replace(/\/index\.html$/, "").replace(/\/$/, "")
   : "";
@@ -13,7 +19,6 @@ function luneUrl(path) {
   return `${LUNE_ROOT}${path}`;
 }
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = luneUrl("/static/vendor/pdf.worker.min.js");
 
 const COMPOSER_FACE_FILES = {
   chopin: "chopin.jpg",
@@ -32,9 +37,121 @@ const COMPOSER_FACE_FILES = {
   handel: "handel.jpg",
   rimsky: "rimsky.jpg",
   "rimsky-korsakov": "rimsky.jpg",
+  ravel: "ravel.jpg",
+  rachmaninoff: "rachmaninoff.jpg",
+  rachmaninov: "rachmaninoff.jpg",
+  mendelssohn: "mendelssohn.jpg",
+  grieg: "grieg.jpg",
+  faure: "faure.jpg",
+  "fauré": "faure.jpg",
+  "saint-saens": "saint-saens.jpg",
+  "saint-saëns": "saint-saens.jpg",
+  mussorgsky: "mussorgsky.jpg",
+  scarlatti: "scarlatti.jpg",
+  clementi: "clementi.jpg",
+  czerny: "czerny.jpg",
+  burgmuller: "burgmuller.jpg",
+  "burgmüller": "burgmuller.jpg",
+  granados: "granados.jpg",
+  albeniz: "albeniz.jpg",
+  "albéniz": "albeniz.jpg",
+  gershwin: "gershwin.jpg",
+  macdowell: "macdowell.jpg",
+  field: "field.jpg",
+  pachelbel: "pachelbel.jpg",
+  purcell: "purcell.jpg",
+  vivaldi: "vivaldi.jpg",
+  telemann: "telemann.jpg",
+  busoni: "busoni.jpg",
+  gluck: "gluck.jpg",
+  weber: "weber.jpg",
+  dvorak: "dvorak.jpg",
+  "dvořák": "dvorak.jpg",
+  sibelius: "sibelius.jpg",
+  scriabin: "scriabin.jpg",
+  franck: "franck.jpg",
+  bartok: "bartok.jpg",
+  "bartók": "bartok.jpg",
+  poulenc: "poulenc.jpg",
+  prokofiev: "prokofiev.jpg",
+  paderewski: "paderewski.jpg",
+  moszkowski: "moszkowski.jpg",
+  gottschalk: "gottschalk.jpg",
 };
-const COMPOSER_FACE_V = "fix67";
+const COMPOSER_FACE_V = "faces01";
 const COMPOSER_SILHOUETTE = luneUrl(`/static/assets/composers/silhouette.svg?v=${COMPOSER_FACE_V}`);
+
+/** Last-name / alias → era when search-index or overview lacks one. */
+const COMPOSER_ERA_FALLBACK = {
+  bach: "Baroque",
+  handel: "Baroque",
+  scarlatti: "Baroque",
+  pachelbel: "Baroque",
+  purcell: "Baroque",
+  vivaldi: "Baroque",
+  telemann: "Baroque",
+  mozart: "Classical",
+  haydn: "Classical",
+  clementi: "Classical",
+  czerny: "Classical",
+  hummel: "Classical",
+  gluck: "Classical",
+  beethoven: "Early Romantic",
+  schubert: "Early Romantic",
+  field: "Early Romantic",
+  weber: "Early Romantic",
+  chopin: "Romantic",
+  schumann: "Romantic",
+  liszt: "Romantic",
+  brahms: "Romantic",
+  mendelssohn: "Romantic",
+  grieg: "Romantic",
+  tchaikovsky: "Romantic",
+  mussorgsky: "Romantic",
+  rimsky: "Romantic",
+  korsakov: "Romantic",
+  dvorak: "Romantic",
+  franck: "Romantic",
+  faure: "Romantic",
+  "saint-saens": "Romantic",
+  gottschalk: "Romantic",
+  moszkowski: "Romantic",
+  paderewski: "Romantic",
+  macdowell: "Romantic",
+  burgmuller: "Romantic",
+  albeniz: "Romantic",
+  granados: "Romantic",
+  scriabin: "Late Romantic",
+  rachmaninoff: "Late Romantic",
+  rachmaninov: "Late Romantic",
+  sibelius: "Late Romantic",
+  busoni: "Late Romantic",
+  leontovych: "Romantic",
+  debussy: "Impressionist",
+  ravel: "Impressionist",
+  satie: "Impressionist",
+  joplin: "Modern",
+  bartok: "Modern",
+  gershwin: "Modern",
+  poulenc: "Modern",
+  traditional: "Folk",
+};
+
+function composerEraFallback(name) {
+  const key = composerFaceKey(name);
+  if (key && COMPOSER_ERA_FALLBACK[key]) return COMPOSER_ERA_FALLBACK[key];
+  const n = String(name || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\([^)]*\)/g, " ");
+  if (n.includes("rimsky") || n.includes("korsakov")) return "Romantic";
+  if (n.includes("saint") && n.includes("saen")) return "Romantic";
+  for (const k of Object.keys(COMPOSER_ERA_FALLBACK).sort((a, b) => b.length - a.length)) {
+    if (n.includes(k)) return COMPOSER_ERA_FALLBACK[k];
+  }
+  return "";
+}
 
 const state = {
   piece: null,
@@ -62,6 +179,8 @@ const state = {
   keyboard: null,
   keyboardVisible: false,
   playRate: 1,
+  practiceBpm: 72,
+  markedBpm: 72,
   sessions: [],
   activeSessionId: null,
   sessionSeq: 0,
@@ -74,10 +193,25 @@ function toast(msg) {
   if (!el) return;
   el.textContent = msg;
   el.hidden = false;
+  // the toast itself is display:none between messages, which screen readers skip;
+  // a live region that is always present carries the words instead
+  const live = $("toast-live");
+  if (live) live.textContent = msg;
   clearTimeout(toast.t);
   // long messages stay long enough to read
   toast.t = setTimeout(() => (el.hidden = true), Math.max(2800, String(msg).length * 55));
 }
+
+/* ---------- skip link: past the header to whichever view is showing ---------- */
+
+document.getElementById("skip-link")?.addEventListener("click", (e) => {
+  // the app routes on the hash, so the link moves focus instead of following "#"
+  e.preventDefault();
+  const view = [...document.querySelectorAll("main")].find((m) => !m.hidden && m.offsetParent !== null);
+  if (!view) return;
+  if (!view.hasAttribute("tabindex")) view.setAttribute("tabindex", "-1");
+  view.focus();
+});
 
 /* ---------- piano loader (shown while scores / samples load) ---------- */
 
@@ -129,17 +263,42 @@ function fmtTime(sec) {
 }
 
 function showView(name) {
+  if (
+    (name === "studio" || name === "discover" || name === "repertoire") &&
+    window.LuneOnboard &&
+    !LuneOnboard.unlocked()
+  ) {
+    LuneOnboard.requireUnlock();
+    return;
+  }
+  // Leaving the studio closes the microphone.
+  if (name !== "studio") window.LuneFollow?.stop?.({ quiet: true });
   const home = $("home");
   const discover = $("discover");
   const studio = $("studio");
   if (home) home.hidden = name !== "home";
   if (discover) discover.hidden = name !== "discover";
   if (studio) studio.hidden = name !== "studio";
+  const rep = $("repertoire");
+  if (rep) rep.hidden = name !== "repertoire";
+  const study = $("study");
+  if (study) study.hidden = name !== "study";
+  const welcome = $("welcome");
+  const onboard = $("onboard");
+  const hello = $("hello");
+  if (welcome) welcome.hidden = true;
+  if (onboard) onboard.hidden = true;
+  if (hello) hello.hidden = true;
+  document.body.classList.toggle("is-repertoire", name === "repertoire");
+  document.body.classList.toggle("is-study", name === "study");
   document.body.classList.toggle("is-home", name === "home");
   document.body.classList.toggle("is-discover", name === "discover");
   document.body.classList.toggle("is-studio", name === "studio");
-  document.body.classList.remove("phone-search-open");
+  document.body.classList.remove("is-welcome", "is-onboard", "is-hello", "phone-search-open");
+  if (name === "home") window.LuneOnboard?.paintSignedHome?.();
   $("btn-search")?.setAttribute("aria-expanded", "false");
+  const studioNav = $("studio-nav");
+  if (studioNav) studioNav.hidden = name !== "studio";
   if (name !== "studio") {
     closeCoach();
     document.body.classList.remove("studio-search-open");
@@ -152,6 +311,7 @@ function showView(name) {
   } else {
     const seg = $("studio-seg");
     if (seg) seg.hidden = false;
+    refreshStudioNav();
   }
   // Never leave the results popup hanging over discover/studio
   if (name !== "home") closeSearchResults({ blur: true });
@@ -174,7 +334,7 @@ function closeSearchResults({ blur = false } = {}) {
 const SEARCH_LIMIT = 8;
 // Paint on the next frame only — coalesces burst keystrokes, ~0–16ms feel (no 100ms lag).
 const SEARCH_DEBOUNCE_MS = 0;
-const SEARCH_INDEX_URL = luneUrl("/static/search-index.json?v=fix67");
+const SEARCH_INDEX_URL = luneUrl("/static/search-index.json?v=catalog03");
 /** Composers whose piano works are typically still under copyright — honest empty state. */
 const COPYRIGHT_ERA_COMPOSERS = [
   "ginastera", "prokofiev", "shostakovich", "khachaturian", "kabalevsky",
@@ -284,6 +444,8 @@ let searchIndexPromise = null;
 let searchGen = 0;
 let lastSearchQuery = "";
 
+window.luneSearchIndex = () => ensureSearchIndex();
+
 function activeSearchIndex() {
   return searchIndex && searchIndex.length ? searchIndex : SEARCH_FALLBACK;
 }
@@ -304,6 +466,7 @@ function normSearch(text) {
     .trim();
 }
 
+/** The one place the search index is fetched; onboarding asks here too (window.luneSearchIndex). */
 function ensureSearchIndex() {
   if (searchIndexReady) return Promise.resolve(searchIndex);
   if (!searchIndexPromise) {
@@ -319,6 +482,7 @@ function ensureSearchIndex() {
         if (items.length) {
           searchIndex = items;
           searchIndexReady = true;
+          window.__LUNE_SEARCH_ITEMS__ = items; // onboarding's dream-piece list reads the same copy
         }
         if (typeof console !== "undefined" && console.debug) {
           console.debug(
@@ -337,64 +501,131 @@ function ensureSearchIndex() {
   return searchIndexPromise;
 }
 
-function scoreIndexEntry(q, entry) {
-  // Scoring must stay cheap on broad queries (bach/chopin match hundreds of rows).
-  // Never re-run unicode normalize here — `hay` is already normalized server-side.
+// Words that carry no meaning in a title search ("river flows in you" must
+// not match every title containing "in").
+const SEARCH_STOPWORDS = new Set([
+  "a", "an", "the", "in", "of", "and", "for", "to", "by", "on", "at", "my", "you", "your",
+  "de", "la", "le", "les", "du", "des", "von", "van", "der", "die", "das", "und", "piece", "music",
+  "score", "sheet", "piano", "free", "musicxml",
+]);
+
+/** Rough phonetic folding so "moonlite"/"moonlight", "gymnopedy"/"gymnopedie" meet. */
+function foldWord(w) {
+  return w
+    .replace(/ght/g, "t")
+    .replace(/ph/g, "f")
+    .replace(/ck/g, "k")
+    .replace(/qu/g, "k")
+    .replace(/y$/g, "ie")
+    .replace(/(.)\1+/g, "$1")
+    .replace(/e$/g, "");
+}
+
+function editDistanceWithin(a, b, max) {
+  if (Math.abs(a.length - b.length) > max) return false;
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    let rowMin = i;
+    for (let j = 1; j <= b.length; j++) {
+      const v = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      cur.push(v);
+      if (v < rowMin) rowMin = v;
+    }
+    if (rowMin > max) return false;
+    prev = cur;
+  }
+  return prev[b.length] <= max;
+}
+
+const hayWordCache = new WeakMap();
+function hayWords(entry) {
+  let w = hayWordCache.get(entry);
+  if (!w) {
+    const words = [...new Set(String(entry.hay || "").split(" ").filter(Boolean))];
+    w = { words, folded: words.map(foldWord) };
+    hayWordCache.set(entry, w);
+  }
+  return w;
+}
+
+/** 3 exact word · 2.4 prefix · 1.6 typo/phonetic · 0 no match. */
+function tokenMatch(token, entry) {
+  const { words, folded } = hayWords(entry);
+  const isNum = /^\d+$/.test(token);
+  let best = 0;
+  const ft = foldWord(token);
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i];
+    if (w === token) return 3;
+    if (isNum) continue; // numbers must match exactly (op 10 ≠ op 1)
+    if (token.length >= 2 && w.startsWith(token)) best = Math.max(best, 2.4);
+    else if (token.length >= 4) {
+      const max = token.length >= 7 ? 2 : 1;
+      if (folded[i] === ft || editDistanceWithin(ft, folded[i], max)) best = Math.max(best, 1.6);
+    }
+  }
+  return best;
+}
+
+function scoreIndexEntry(q, entry, tokens) {
   const hay = entry.hay || "";
   let score = 0;
-  const queryRaw = String(entry.query || "").toLowerCase();
+  for (const t of tokens) {
+    const m = tokenMatch(t, entry);
+    if (!m) return 0; // every meaningful word must match something
+    score += m;
+  }
+  if (hay.includes(q)) score += 6; // whole phrase in order
+  const title = normSearch(entry.title || "");
+  if (title.startsWith(q)) score += 4;
+  else if (title.includes(q)) score += 2;
   const group = entry.group || "";
-
-  if (queryRaw) {
-    if (queryRaw === q) score += 22;
-    else if (queryRaw.includes(q) || q.includes(queryRaw)) score += 12;
-  }
-  if (hay.includes(q)) {
-    score = Math.max(score, 8);
-    // Prefer title-ish hits: query appears early in hay (title is first).
-    if (hay.startsWith(q) || hay.indexOf(q) < 48) score += 10;
-  }
-  for (const t of q.split(" ")) {
-    if (t.length > 1 && hay.includes(t)) score += 3;
-  }
-  if (group.startsWith("Featured") || group.startsWith("Open MusicXML")) score += 12;
-  else if (
-    group.startsWith("Beethoven piano") ||
-    group.startsWith("Mozart piano") ||
-    group.startsWith("Chopin") ||
-    group.startsWith("Haydn piano")
-  ) {
-    score += 8;
-  } else if (group.startsWith("Bach chorales") || group.startsWith("music21")) {
-    score -= 3;
-  }
+  if (group.startsWith("Featured") || group.startsWith("Open MusicXML")) score += 1.5;
+  else if (group.startsWith("Bach chorales") || group.startsWith("music21")) score -= 1;
+  // The work itself before its arrangements and copies: typing "fur elise" should
+  // open Beethoven's Für Elise, not a file called "Fur Elise - Beethoven" by
+  // "for beginner piano". Everything still appears; only the order changes.
+  if (title === q) score += 5;
+  const composer = String(entry.composer || "").trim();
+  if (!composer || /^unknown$/i.test(composer) || /\b(piano|easy|beginners?|arr\.?|version)\b/i.test(composer)) score -= 3;
+  if (/\b(easy|beginners?|fingered|simplified|version \d|musicxml|mxl)\b|\s[-—]\s.*\b(1[6-9]\d\d|20\d\d)\b|\s[-—]\s[A-Z][a-z]+$/i.test(entry.title || "")) score -= 2;
+  // near-ties go to the better-known composer (Debussy's Clair de lune before
+  // Jaëll's): how many of their pieces the catalogue holds, capped small
+  score += Math.min(1, Math.log10(1 + (composerCounts().get(normSearch(composer)) || 0)) / 2);
   return score;
+}
+
+let composerCountCache = { index: null, counts: new Map() };
+function composerCounts() {
+  const index = activeSearchIndex();
+  if (composerCountCache.index !== index) {
+    const counts = new Map();
+    for (const e of index) {
+      const k = normSearch(e.composer || "");
+      if (k) counts.set(k, (counts.get(k) || 0) + 1);
+    }
+    composerCountCache = { index, counts };
+  }
+  return composerCountCache.counts;
 }
 
 function filterSearchIndex(query, limit = SEARCH_LIMIT, index = activeSearchIndex()) {
   const q = normSearch(query);
   if (q.length < 2 || !index || !index.length) return [];
-  const tokens = q.split(" ").filter((t) => t.length > 1);
-  // Keep only a small top band while scanning — avoid sorting hundreds of chorale hits.
-  const band = limit * 4;
+  let tokens = q.split(" ").filter((t) => t && !SEARCH_STOPWORDS.has(t));
+  if (!tokens.length) tokens = q.split(" ").filter(Boolean);
   const scored = [];
   for (const entry of index) {
-    const hay = entry.hay || "";
-    if (!(hay.includes(q) || tokens.some((t) => hay.includes(t)))) continue;
-    const score = scoreIndexEntry(q, entry);
-    if (score < 6) continue;
-    scored.push({ score, entry });
-    if (scored.length > band * 3) {
-      // Occasional trim so broad queries (bach) don't accumulate 400+ rows.
-      scored.sort((a, b) => b.score - a.score);
-      scored.length = band;
-    }
+    const score = scoreIndexEntry(q, entry, tokens);
+    if (score > 0) scored.push({ score, entry });
   }
-  scored.sort((a, b) => b.score - a.score);
+  scored.sort((a, b) => b.score - a.score || String(a.entry.title).localeCompare(String(b.entry.title)));
   const seen = new Set();
   const results = [];
   for (const { entry } of scored) {
-    const key = `${entry.title}\0${entry.composer}`;
+    // one row per piece, even if the index lists it under several names
+    const key = `${normSearch(entry.title)}\0${normSearch(entry.composer)}`;
     if (seen.has(key)) continue;
     seen.add(key);
     results.push({
@@ -402,9 +633,9 @@ function filterSearchIndex(query, limit = SEARCH_LIMIT, index = activeSearchInde
       id: `free-${entry.query}`,
       title: entry.title,
       composer: entry.composer,
-      subtitle: `Free score · ${entry.group || ""}`,
-      epoch: "",
-      portrait: "",
+      subtitle: LUNE_ON_PAGES ? `Free score · ${entry.group || entry.composer || ""}` : `Free score · ${entry.group || ""}`,
+      epoch: entry.epoch || entry.era || composerEraFallback(entry.composer) || "",
+      portrait: localComposerFaceUrl(entry.composer) || "",
       openable: true,
       query: entry.query,
     });
@@ -591,56 +822,73 @@ async function loadStaticXml(file) {
 }
 
 async function tryOpenStatic(body) {
+  // Prefer allowlisted remote MusicXML when the search hit is marked remote.
+  if (body.remote && window.LuneFetchScore?.tryOpenRemote) {
+    const remote = await window.LuneFetchScore.tryOpenRemote(body);
+    if (remote && remote.opened !== false) return remote;
+  }
   const rows = await loadStaticOpens();
-  let best = null;
-  let bestScore = 0;
-  for (const row of rows) {
-    const score = scoreStaticOpen(body, row);
-    if (score > bestScore) {
-      best = row;
-      bestScore = score;
+  // 1) exact catalogue id / query (typeahead picks and shared links)
+  let best = rows.find((r) => (body.query && (r.id === body.query || r.query === body.query)));
+  // 2) typed text → the same strict search the typeahead uses
+  if (!best) {
+    const typed = body.query || body.title || "";
+    const hit = filterSearchIndex(typed, 1, rows)[0];
+    if (hit) best = rows.find((r) => r.query === hit.query || r.id === hit.id) || null;
+  }
+  if (best?.file) {
+    try {
+      const musicxml = await loadStaticXml(best.file);
+      if (body.analyze && best.analysis) {
+        const res = await fetch(luneUrl(`/static/${best.analysis}`));
+        if (res.ok) {
+          const full = await res.json();
+          full.musicxml = musicxml;
+          full.opened = true;
+          full.kind = "score";
+          full.needsAnalysis = false;
+          full.openQuery = body.query || "";
+          full.id = best.id || full.id || "";
+          if (best.credit && !full.credit) full.credit = best.credit;
+          if (best.fallbackNote) full.fallbackNote = best.fallbackNote;
+          return full;
+        }
+      }
+      return {
+        kind: "score",
+        opened: true,
+        needsAnalysis: true,
+        title: best.title,
+        composer: best.composer,
+        filename: (best.file || "").split("/").pop(),
+        musicxml,
+        overview: best.overview || {},
+        epoch: best.epoch || "",
+        era: best.epoch || "",
+        debriefs: {},
+        source: best.source || "library",
+        downloadName: best.downloadName || "score.musicxml",
+        id: best.id || "",
+        credit: best.credit || null,
+        openQuery: body.query || "",
+        fallbackNote: best.fallbackNote || "",
+      };
+    } catch {
+      /* fall through to remote fetch */
     }
   }
-  if (!best || bestScore < 18) {
-    return {
-      kind: "catalogue",
-      opened: false,
-      title: body.title || body.query || "",
-      composer: body.composer || "",
-      message:
-        "No free MusicXML for this exact title yet. Search for a known free piece, or open your own MusicXML.",
-    };
-  }
-  const musicxml = await loadStaticXml(best.file);
-  if (body.analyze && best.analysis) {
-    const res = await fetch(luneUrl(`/static/${best.analysis}`));
-    if (res.ok) {
-      const full = await res.json();
-      full.musicxml = musicxml;
-      full.opened = true;
-      full.kind = "score";
-      full.needsAnalysis = false;
-      full.openQuery = body.query || "";
-      if (best.fallbackNote) full.fallbackNote = best.fallbackNote;
-      return full;
-    }
+  // 3) Allowlisted free MusicXML/MXL fetch (GitHub raw only — no PDFs, no paid APIs)
+  if (window.LuneFetchScore?.tryOpenRemote) {
+    const remote = await window.LuneFetchScore.tryOpenRemote(body);
+    if (remote) return remote;
   }
   return {
-    kind: "score",
-    opened: true,
-    needsAnalysis: true,
-    title: best.title,
-    composer: best.composer,
-    filename: (best.file || "").split("/").pop(),
-    musicxml,
-    overview: best.overview || {},
-    epoch: best.epoch || "",
-    era: best.epoch || "",
-    debriefs: {},
-    source: best.source || "library",
-    downloadName: best.downloadName || "score.musicxml",
-    openQuery: body.query || "",
-    fallbackNote: best.fallbackNote || "",
+    kind: "catalogue",
+    opened: false,
+    title: body.title || body.query || "",
+    composer: body.composer || "",
+    message:
+      "No free MusicXML for that title in Lune’s allowlisted sources yet. Try another spelling, pick a result from search, or upload your own MusicXML.",
   };
 }
 
@@ -653,8 +901,22 @@ async function tryOpen(body) {
       body: JSON.stringify(body),
     });
     if (!res.ok) return null;
-    return await res.json();
+    const piece = await res.json();
+    if (piece && piece.opened !== false && piece.kind !== "catalogue") return piece;
+    // Server miss → try the same free remote MusicXML allowlist in-browser.
+    if (window.LuneFetchScore?.tryOpenRemote) {
+      const remote = await window.LuneFetchScore.tryOpenRemote(body);
+      if (remote && remote.opened !== false) return remote;
+    }
+    return piece;
   } catch {
+    if (window.LuneFetchScore?.tryOpenRemote) {
+      try {
+        return await window.LuneFetchScore.tryOpenRemote(body);
+      } catch {
+        return null;
+      }
+    }
     return null;
   }
 }
@@ -672,6 +934,8 @@ async function fetchAndDiscover(works) {
         epoch: item.epoch || "",
         query: item.query || typed,
         portrait: item.portrait || "",
+        remote: !!item.remote,
+        id: item.id || "",
       });
       if (!piece) continue;
       if (piece.opened === false || piece.kind === "catalogue") {
@@ -719,9 +983,15 @@ function composerFaceKey(name) {
   const n = String(name || "")
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/\d{3,4}\s*[-–—]\s*\d{3,4}/g, " ")
+    .replace(/[^a-z0-9\s\-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!n) return "";
-  if (n.includes("rimsky")) return "rimsky";
+  if (n.includes("rimsky") || n.includes("korsakov")) return "rimsky";
+  if (n.includes("saint") && n.includes("saen")) return "saint-saens";
   const keys = Object.keys(COMPOSER_FACE_FILES).sort((a, b) => b.length - a.length);
   for (const key of keys) {
     if (n.includes(key)) return key;
@@ -782,10 +1052,21 @@ function applyComposerFace(img, fallbackEl, composer, remoteUrl) {
 
 /* ---------- piece sessions (browser-like tabs) ---------- */
 
+/** Tab label: the name a pianist would say ("Moonlight · I", "Für Elise"). */
 function shortPieceTitle(title) {
   const t = String(title || "Untitled").trim();
   if (t.length <= 28) return t;
-  return `${t.slice(0, 26).trim()}…`;
+  const nick = t.match(/[“"]([^”"]+)[”"]/);
+  const mvt = t.match(/Movement\s+(\d+)/i);
+  const roman = ["", "I", "II", "III", "IV", "V", "VI"];
+  if (nick) return mvt ? `${nick[1]} · ${roman[+mvt[1]] || mvt[1]}` : nick[1];
+  const dash = t.split(/\s+—\s+/);
+  if (dash.length > 1 && !/^Movement/i.test(dash[1]) && dash[1].length <= 28) return dash[1];
+  const lead = dash[0].replace(/,\s*(op\.|BWV|K\.|Hob\.|WoO|S\.|L\.).*$/i, "");
+  let base = lead;
+  if ((mvt ? base.length + 5 : base.length) > 28) base = base.replace(/\s+in\s+[A-G](-sharp|-flat)?\s+(major|minor)/i, "");
+  const short = mvt ? `${base} · ${roman[+mvt[1]] || mvt[1]}` : base;
+  return short.length <= 28 ? short : `${short.slice(0, 26).trim()}…`;
 }
 
 function activeSession() {
@@ -803,6 +1084,8 @@ function snapshotActiveSession() {
   s.showTips = !!state.showTips;
   s.showLines = !!state.showLines;
   s.playRate = state.playRate || 1;
+  s.practiceBpm = state.practiceBpm || 72;
+  s.markedBpm = state.markedBpm || state.practiceBpm || 72;
   s.keyboardVisible = !!state.keyboardVisible;
   s.selected = state.selected;
   s.selectedBars = [...(state.selectedBars || [])];
@@ -856,51 +1139,60 @@ function renderPieceTabs() {
     return;
   }
 
-  // Single piece: quiet title, no tab chrome — keep a lone + to open another.
-  const multi = n >= 2;
+  const studio = document.body.classList.contains("is-studio");
+  const active = activeSession();
+  const title =
+    active?.shortTitle ||
+    shortPieceTitle(active?.piece?.title || active?.piece?.overview?.title || "");
   if (quiet) {
-    const active = activeSession();
-    const title =
-      active?.shortTitle ||
-      shortPieceTitle(active?.piece?.title || active?.piece?.overview?.title || "");
     quiet.textContent = title;
-    quiet.hidden = multi || !document.body.classList.contains("is-studio");
+    quiet.hidden = !studio || (n >= 2 && window.innerWidth > 760);
     quiet.title = active?.piece?.title || title;
   }
-  host.hidden = false;
+  const mark = $("btn-bookmark");
+  if (mark) mark.hidden = false;
+  // On the home page every open piece keeps its tab, so one tap returns to it.
+  host.hidden = studio ? n < 2 : false;
+  if (studio && n < 2) {
+    host.textContent = "";
+    return;
+  }
 
   const frag = document.createDocumentFragment();
-  if (multi) {
-    for (const s of state.sessions) {
-      const tab = document.createElement("div");
-      tab.className = "piece-tab" + (s.id === state.activeSessionId ? " on" : "");
-      tab.setAttribute("role", "tab");
-      tab.setAttribute("aria-selected", s.id === state.activeSessionId ? "true" : "false");
-      const composerName =
-        s.piece?.overview?.composer || s.piece?.composer || "";
-      const faceUrl =
-        localComposerFaceUrl(composerName) ||
-        (s.piece?.overview?.composerInfo?.image || "").trim() ||
-        COMPOSER_SILHOUETTE;
-      const face = document.createElement("img");
-      face.className = "piece-tab-face";
-      face.alt = "";
-      face.width = 18;
-      face.height = 18;
-      face.decoding = "async";
-      face.src = faceUrl;
-      face.onerror = () => {
-        face.onerror = null;
-        face.src = COMPOSER_SILHOUETTE;
-      };
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "piece-tab-label";
-      btn.title = s.piece?.title || s.shortTitle;
-      btn.textContent = s.shortTitle;
-      btn.addEventListener("click", () => {
-        activateSession(s.id).catch((e) => toast(e.message));
-      });
+  for (const s of state.sessions) {
+    const tab = document.createElement("div");
+    tab.className = "piece-tab" + (studio && s.id === state.activeSessionId ? " on" : "");
+    const composerName = s.piece?.overview?.composer || s.piece?.composer || "";
+    const faceUrl =
+      localComposerFaceUrl(composerName) ||
+      (s.piece?.overview?.composerInfo?.image || "").trim() ||
+      COMPOSER_SILHOUETTE;
+    const face = document.createElement("img");
+    face.className = "piece-tab-face";
+    face.alt = "";
+    face.width = 18;
+    face.height = 18;
+    face.decoding = "async";
+    face.src = faceUrl;
+    face.onerror = () => {
+      face.onerror = null;
+      face.src = COMPOSER_SILHOUETTE;
+    };
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "piece-tab-label";
+    btn.title = s.piece?.title || s.shortTitle;
+    btn.textContent = s.shortTitle;
+    // a switcher of open pieces, not a tablist: each entry has its own close button
+    if (s.id === state.activeSessionId) btn.setAttribute("aria-current", "true");
+    btn.addEventListener("click", () => {
+      // from the home page the "active" piece still has to be brought back on stage
+      if (!document.body.classList.contains("is-studio") && s.id === state.activeSessionId) showView("studio");
+      else activateSession(s.id).catch((e) => toast(e.message));
+    });
+    tab.appendChild(face);
+    tab.appendChild(btn);
+    if (n >= 2 || !studio) {
       const close = document.createElement("button");
       close.type = "button";
       close.className = "piece-tab-close";
@@ -910,26 +1202,23 @@ function renderPieceTabs() {
         e.stopPropagation();
         closeSession(s.id).catch((err) => toast(err.message));
       });
-      tab.appendChild(face);
-      tab.appendChild(btn);
       tab.appendChild(close);
-      frag.appendChild(tab);
     }
+    frag.appendChild(tab);
   }
   const add = document.createElement("button");
   add.type = "button";
-  add.className = "piece-tab-add";
+  add.className = "piece-tab-new";
+  add.setAttribute("aria-label", "Open another piece in a new tab");
   add.title = "Open another piece";
-  add.setAttribute("aria-label", "Open another piece");
   add.textContent = "+";
-  add.addEventListener("click", openStudioSearch);
+  add.addEventListener("click", () => {
+    if (document.body.classList.contains("is-studio")) openStudioSearch();
+    else $("q")?.focus();
+  });
   frag.appendChild(add);
   host.appendChild(frag);
-  if (!multi) {
-    host.classList.add("piece-tabs-solo");
-  } else {
-    host.classList.remove("piece-tabs-solo");
-  }
+  host.classList.toggle("piece-tabs-solo", n < 2);
 }
 
 function openStudioSearch() {
@@ -972,6 +1261,9 @@ function applySessionToState(s) {
   state.showTips = s.showTips !== false;
   state.showLines = s.showLines !== false;
   state.playRate = s.playRate || 1;
+  state.practiceBpm = s.practiceBpm || markedTempoBpm();
+  state.markedBpm = s.markedBpm || state.practiceBpm;
+  state._tempoSeedKey = s.piece?.id || s.piece?.title || "";
   state.keyboardVisible = !!s.keyboardVisible || (s.panel || "") === "piano";
   state.selected = s.selected;
   state.selectedBars = Array.isArray(s.selectedBars)
@@ -984,6 +1276,8 @@ function applySessionToState(s) {
   state.mode = "studio";
   syncTogglesFromState();
   setPlayRate(state.playRate);
+  applyPieceMeter();
+  syncTempoUi();
 }
 
 function fillPieceChrome(piece) {
@@ -998,16 +1292,38 @@ function fillPieceChrome(piece) {
   if ($("btn-download")) $("btn-download").hidden = !piece.musicxml;
 }
 
-function buildExplainChapters(piece, { canOpen }) {
+function buildExplainChapters(piece, opts) {
+  // Never show the same sentence twice on one page (prose + highlight list).
+  const chapters = buildExplainChaptersRaw(piece, opts);
+  const seen = new Set();
+  const key = (t) => String(t || "").trim().toLowerCase();
+  for (const ch of chapters) {
+    const body = key(ch.body);
+    ch.extras = (ch.extras || []).filter((x) => {
+      const k = key(x);
+      if (!k || seen.has(k) || body.includes(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    for (const part of body.split(/(?<=[.!?])\s+/)) if (part) seen.add(part);
+  }
+  return chapters;
+}
+
+function buildExplainChaptersRaw(piece, { canOpen }) {
   const o = piece.overview || {};
   const composer = o.composer || piece.composer || "";
-  const era = o.era || o.epoch || "";
+  const era = o.era || o.epoch || composerEraFallback(composer) || "";
+  const eraLabel =
+    (o.eraInfo && o.eraInfo.label && o.eraInfo.label !== "Unknown era" && o.eraInfo.label) ||
+    era ||
+    "Style";
   const ci = o.composerInfo || {};
   return [
     {
       label: "Composer",
       title: `About ${ci.name || composer || "the composer"}`,
-      body: ci.full || ci.bio || ci.hook || "Composer story loading…",
+      body: ci.full || ci.bio || ci.hook || (composer ? `${composer}’s story isn’t in Lune’s notes yet.` : "Add a composer to this score’s details to see their story here."),
       extras: ci.highlights || [],
     },
     {
@@ -1018,7 +1334,7 @@ function buildExplainChapters(piece, { canOpen }) {
     },
     {
       label: "World",
-      title: `Era · ${(o.eraInfo && o.eraInfo.label) || era || "Style"}`,
+      title: `Era · ${eraLabel}`,
       body: (o.eraInfo && o.eraInfo.story) || "",
       extras: (o.eraInfo && o.eraInfo.tips) || [],
     },
@@ -1037,7 +1353,7 @@ function renderExplainPanel(piece) {
   const o = piece?.overview || {};
   const title = o.title || piece?.title || "Untitled";
   const composer = o.composer || piece?.composer || "";
-  const era = o.era || o.epoch || "";
+  const era = o.era || o.epoch || composerEraFallback(composer) || "";
   const ci = o.composerInfo || {};
   const canOpen = piece?.kind === "score" && !!piece?.musicxml;
 
@@ -1091,12 +1407,81 @@ function renderExplainPanel(piece) {
       host.appendChild(article);
     });
   }
+  renderPieceCredit(piece);
+  window.LunePractice?.decorateExplain(piece);
+}
 
+/** Fine-print source line for the open piece (overview + under the score). */
+function renderPieceCredit(piece) {
+  const c = piece?.credit || null;
+  const o = piece?.overview || {};
+  const link = (text, href) =>
+    href ? `<a href="${escapeHtml(href)}" target="_blank" rel="noopener">${escapeHtml(text)}</a>` : escapeHtml(text);
+  const bits = [];
+  if (piece?.local) bits.push("Your own score — read in this browser only");
+  else if (c?.source) {
+    const prefix = piece?.remoteFetched ? "Fetched from " : "Score: ";
+    const parts = [`${prefix}${link(c.source, c.sourceUrl)}`];
+    if (c.license) parts.push(link(c.license, c.licenseUrl));
+    if (c.sourceUrl) parts.push(link("View source", c.sourceUrl));
+    bits.push(parts.join(" · "));
+  }
+  if (!piece?.local) {
+    bits.push(
+      `Notes adapted in part from ${link("Wikipedia", o.historyUrl || "https://en.wikipedia.org/")} (${link("CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/")})`
+    );
+  }
+  bits.push(`Piano: ${link("Salamander Grand", "https://sfzinstruments.github.io/pianos/salamander")} (CC BY 3.0)`);
+  const html = `${bits.join(" · ")} · <button type="button" class="link-btn" data-open-credits>All credits</button>`;
+  for (const id of ["explain-credit", "score-credit"]) {
+    const el = $(id);
+    if (el) el.innerHTML = html;
+  }
+}
+
+function openCredits(section) {
+  const dlg = $("credits-dialog");
+  if (!dlg) return;
+  if (typeof dlg.showModal === "function") dlg.showModal();
+  else dlg.setAttribute("open", "");
+  if (section === "privacy") $("credits-privacy")?.scrollIntoView({ block: "start" });
+  else dlg.scrollTop = 0;
+}
+
+/** ← overview (Explain) · → score. Logo is Home. */
+function refreshStudioNav() {
+  const back = $("btn-nav-back");
+  const fwd = $("btn-nav-fwd");
+  if (!back || !fwd) return;
+  const panel = state.panel || "explain";
+  const atOverview = panel === "explain";
+  const atScore = panel === "score" || panel === "piano";
+  back.disabled = atOverview;
+  back.setAttribute("aria-label", "Overview");
+  back.title = "Overview";
+  back.classList.toggle("is-dim", atOverview);
+  fwd.disabled = atScore;
+  fwd.setAttribute("aria-label", "Score");
+  fwd.title = "Score";
+  fwd.classList.toggle("is-dim", atScore);
+}
+
+function studioNavBack() {
+  const panel = state.panel || "explain";
+  if (panel === "score" || panel === "piano") setStudioPanel("explain");
+}
+
+function studioNavForward() {
+  if ((state.panel || "explain") === "explain") setStudioPanel("score");
 }
 
 function setStudioPanel(panel, { skipScore = false } = {}) {
   const next = ["score", "explain", "piano"].includes(panel) ? panel : "explain";
   state.panel = next;
+  // Same piece, new tab → update the link in place (opening a piece pushes).
+  if (state.piece && parseRoute()?.id === pieceRouteId(state.piece)) {
+    setRoute(state.piece, next, { replace: true });
+  }
   state.mode = next === "explain" ? "ask" : next === "score" ? "listen" : "piano";
   const s = activeSession();
   if (s) s.panel = next;
@@ -1124,6 +1509,7 @@ function setStudioPanel(panel, { skipScore = false } = {}) {
   document.body.classList.toggle("is-panel-score", next === "score");
   document.body.classList.toggle("is-panel-explain", next === "explain");
   document.body.classList.toggle("is-panel-piano", next === "piano");
+  refreshStudioNav();
 
   const dock = $("studio-dock");
   if (dock) dock.hidden = !(next === "score" || next === "piano");
@@ -1135,12 +1521,24 @@ function setStudioPanel(panel, { skipScore = false } = {}) {
 
   // Piano tab = keyboard focus mode (always show). Score = optional dock.
   if (next === "piano") {
-    state.keyboardVisible = true;
-    applyKeyboardVisibility(true);
+    applyKeyboardVisibility(false);
+    if (state.piece?.musicxml && !state.scoreReady) {
+      ensureScoreReady()
+        .then(() => {
+          primeTimeline();
+          mountPianoTutorial();
+        })
+        .catch(() => {});
+    } else {
+      primeTimeline();
+      mountPianoTutorial();
+    }
   } else if (next === "score") {
     applyKeyboardVisibility(!!state.keyboardVisible);
+    window.LuneTutorial?.stop?.();
   } else {
     applyKeyboardVisibility(false);
+    window.LuneTutorial?.stop?.();
   }
 
   if (next === "explain") {
@@ -1150,8 +1548,16 @@ function setStudioPanel(panel, { skipScore = false } = {}) {
   if (next === "score") {
     requestAnimationFrame(() => {
       paintSelectionHilites();
+      window.LunePractice?.afterScoreRender();
     });
+  } else {
+    window.LuneFollow?.stop?.({ quiet: true });
+    // the bar panel belongs to the score; it must not cover the Overview or the Piano
+    if (state.coachOpen) closeCoach();
+    window.LuneAsk?.close?.();
   }
+
+  syncTempoUi();
 
   if (next === "score" && !skipScore && state.piece?.musicxml) {
     // fire-and-forget; caller may await ensureScoreReady separately
@@ -1184,6 +1590,32 @@ function prefetchAnalysis(piece) {
   return p;
 }
 
+/** Arm the full-piece timeline (no audio needed) so the clock shows the real length. */
+function primeTimeline() {
+  try {
+    if (LunePiano.isPlaying()) return;
+    const notes = pieceNotes();
+    if (!notes.length) return;
+    seedTempoFromPiece();
+    LunePiano.setRate?.(state.playRate || 1);
+    state.timelineKind = "piece";
+    LunePiano.arm(notes, { ...playbackHandlers(), from: 0, ...playbackTempoOpts() });
+    renderScrubTicks();
+    syncPlayButton();
+    if (state.panel === "piano") mountPianoTutorial();
+  } catch {
+    /* the clock fills in on first play instead */
+  }
+}
+
+function mountPianoTutorial() {
+  const roll = $("piano-roll");
+  if (!roll || !window.LuneTutorial) return;
+  LuneTutorial.mount(roll);
+  LuneTutorial.start();
+  applyPieceMeter();
+}
+
 async function ensureScoreReady() {
   if (!state.piece?.musicxml) {
     $("file")?.click();
@@ -1195,7 +1627,7 @@ async function ensureScoreReady() {
     !Object.keys(state.piece.debriefs).length;
   return withLoader(needs ? "Reading the score" : "Engraving the page", async () => {
     if (needs) {
-      const full = await (prefetchAnalysis(state.piece) || tryOpen({
+      let full = await (prefetchAnalysis(state.piece) || tryOpen({
         title: state.piece.title || "",
         composer: state.piece.composer || "",
         epoch: state.piece.epoch || state.piece.era || "",
@@ -1206,6 +1638,41 @@ async function ensureScoreReady() {
           "",
         analyze: true,
       }));
+      // Pages: no Python analysis sidecar → read the MusicXML in the browser.
+      const stillEmpty =
+        !full ||
+        full.kind !== "score" ||
+        !full.debriefs ||
+        !Object.keys(full.debriefs).length;
+      if (stillEmpty && state.piece.musicxml && window.LuneLite?.analyze) {
+        try {
+          const local = LuneLite.analyze(state.piece.musicxml, {
+            filename: state.piece.filename || state.piece.downloadName || "score.musicxml",
+          });
+          full = {
+            ...state.piece,
+            ...local,
+            musicxml: state.piece.musicxml,
+            opened: true,
+            needsAnalysis: false,
+            title: state.piece.title || local.title,
+            composer: state.piece.composer || local.composer,
+            overview: state.piece.overview?.title ? state.piece.overview : local.overview,
+            id: state.piece.id || "",
+            credit: state.piece.credit || null,
+            openQuery: state.piece.openQuery || "",
+            // Analysing in the browser must not turn a library piece into an
+            // "uploaded" one: it keeps its catalogue identity, link and source.
+            local: !!state.piece.local,
+            source: state.piece.source || local.source,
+            epoch: state.piece.epoch || local.epoch || "",
+            era: state.piece.era || local.era || "",
+            repKey: state.piece.repKey,
+          };
+        } catch (err) {
+          console.warn("[lune] local analysis failed", err);
+        }
+      }
       if (full && full.kind === "score" && full.musicxml) {
         state.piece = full;
         state.rawMusicxml = full.musicxml || "";
@@ -1215,6 +1682,7 @@ async function ensureScoreReady() {
           s.rawMusicxml = full.musicxml || "";
           s.shortTitle = shortPieceTitle(full.title || full.overview?.title);
         }
+        seedTempoFromPiece({ force: true });
         renderPieceTabs();
         fillPieceChrome(full);
         renderExplainPanel(full);
@@ -1233,24 +1701,131 @@ async function ensureScoreReady() {
     const s = activeSession();
     if (s) s.scoreReady = true;
     updateScrub({ progress: 0, total: 0, bar: null });
+    primeTimeline(); // after the reset: the clock shows the real length
     return true;
   });
 }
 
+/** Light MusicXML peek for meter/tempo — no full fingering pass. */
+function peekScoreMeta(xml) {
+  const src = String(xml || "");
+  let timeSignature = "";
+  let tempo = "";
+  const beats = src.match(/<beats>\s*(\d+)\s*<\/beats>/i);
+  const beatType = src.match(/<beat-type>\s*(\d+)\s*<\/beat-type>/i);
+  if (beats && beatType) timeSignature = `${beats[1]}/${beatType[1]}`;
+  const sound = src.match(/<sound[^>]*\btempo\s*=\s*["'](\d+(?:\.\d+)?)["']/i);
+  if (sound) tempo = `${Math.round(Number(sound[1]))} bpm`;
+  if (!tempo) {
+    const perMin = src.match(/per-minute[^>]*>\s*(\d+(?:\.\d+)?)\s*</i);
+    if (perMin) tempo = `${Math.round(Number(perMin[1]))} bpm`;
+  }
+  return { timeSignature, tempo };
+}
+
+/**
+ * All written <sound tempo> markings with their measure numbers.
+ * MusicXML tempo is always quarters-per-minute.
+ */
+function extractTempoMap(xml) {
+  const src = String(xml || "");
+  if (!src) return [];
+  const map = [];
+  const chunks = src.split(/(?=<measure\b)/i);
+  let bar = 1;
+  for (const chunk of chunks) {
+    const nm = chunk.match(/<measure[^>]*\bnumber\s*=\s*["'](-?\d+)/i);
+    if (nm) bar = Number(nm[1]);
+    let found = false;
+    for (const m of chunk.matchAll(/<sound\b[^>]*\btempo\s*=\s*["'](\d+(?:\.\d+)?)["'][^>]*>/gi)) {
+      const bpm = Number(m[1]);
+      if (Number.isFinite(bpm) && bpm > 0) {
+        map.push({ bar, bpm });
+        found = true;
+      }
+    }
+    if (found) continue;
+    // Some editions print a metronome mark without the playback tempo: read the
+    // mark itself (♩ = 72, ♪ = 120, ♩. = 50) and convert it to crotchets a minute.
+    const mm = chunk.match(/<metronome\b[^>]*>([\s\S]*?)<\/metronome>/i);
+    if (mm) {
+      const unit = (mm[1].match(/<beat-unit>\s*([a-z0-9]+)\s*<\/beat-unit>/i) || [])[1];
+      const per = Number((mm[1].match(/<per-minute>\s*[^\d]*(\d+(?:\.\d+)?)/i) || [])[1]);
+      const crotchets = { whole: 4, half: 2, quarter: 1, eighth: 0.5, "16th": 0.25 }[String(unit || "").toLowerCase()];
+      if (crotchets && per > 0) {
+        const dotted = /<beat-unit-dot\s*\/?>/i.test(mm[1]) ? 1.5 : 1;
+        map.push({ bar, bpm: per * crotchets * dotted });
+      }
+    }
+  }
+  return map;
+}
+
+function pieceTempoMap() {
+  try {
+    return extractTempoMap(state.piece?.musicxml);
+  } catch {
+    return [];
+  }
+}
+
+function playbackTempoOpts(extra = {}) {
+  const marked = state.markedBpm || markedTempoBpm();
+  const map = pieceTempoMap();
+  return {
+    tempoBpm: practiceTempoBpm(),
+    baseBpm: marked,
+    tempoMap: map.length ? map : [{ bar: pieceBarSpan()[0], bpm: marked }],
+    ...extra,
+  };
+}
+
+/** Pull time signature / tempo from MusicXML when the catalogue overview lacks them. */
+function enrichPieceMeta(piece) {
+  if (!piece?.musicxml) return piece;
+  const hasTs = !!(piece.timeSignature || piece.overview?.timeSignature);
+  const hasTempo = !!(piece.tempo || piece.overview?.tempo);
+  if (hasTs && hasTempo) return piece;
+  try {
+    const local = peekScoreMeta(piece.musicxml);
+    if (!hasTs && local.timeSignature) {
+      piece.timeSignature = local.timeSignature;
+      if (piece.overview) piece.overview.timeSignature = local.timeSignature;
+    }
+    if (!hasTempo && local.tempo) {
+      piece.tempo = local.tempo;
+      if (piece.overview) piece.overview.tempo = local.tempo;
+    }
+  } catch {
+    /* keep catalogue meta */
+  }
+  return piece;
+}
+
 async function openPieceSession(piece, { panel = "explain" } = {}) {
+  if (window.LuneOnboard && !LuneOnboard.requireUnlock()) return;
+  if (window.LuneOnboard && !LuneOnboard.requirePieceAccess?.(piece)) return;
   snapshotActiveSession();
   stopAll();
   closeCoach();
+  enrichPieceMeta(piece);
   const session = createSession(piece, panel);
   state.sessions.push(session);
   state.activeSessionId = session.id;
   applySessionToState(session);
   fillPieceChrome(piece);
+  seedTempoFromPiece({ force: true });
   renderPieceTabs();
+  // The piece has its own tab now; the search box is free for the next one.
+  const q = $("q");
+  if (q) q.value = "";
+  closeSearchResults();
   showView("studio");
+  renderPieceTabs(); // now that the studio is on screen, mark this piece's tab as current
   setStudioPanel(panel, { skipScore: true });
   renderExplainPanel(piece);
   syncOpenButtons(piece);
+  setRoute(piece, panel);
   // Warm everything the Score tab needs while the pianist reads the overview.
   prefetchAnalysis(piece);
   try {
@@ -1281,8 +1856,10 @@ async function activateSession(id) {
   syncOpenButtons(s.piece);
   showView("studio");
   setStudioPanel(s.panel || "explain", { skipScore: true });
+  setRoute(s.piece, s.panel || "explain");
   if ((s.panel || "explain") === "score" && s.piece?.musicxml) {
     await renderScore();
+    primeTimeline();
   } else if ((s.panel || "explain") === "explain") {
     renderExplainPanel(s.piece);
   } else if ((s.panel || "explain") === "piano") {
@@ -1396,21 +1973,233 @@ function listenBarSpan() {
   return pieceBarSpan();
 }
 
+/** Quarters in a bar from the time signature (9/8 → 4.5). */
+function signatureBarQuarters() {
+  const ts = state.piece?.timeSignature || state.piece?.overview?.timeSignature || "4/4";
+  const [b, bt] = String(ts).split("/").map(Number);
+  if (b > 0 && bt > 0) return (b * 4) / bt;
+  return 4;
+}
+
+/** True span of one bar in quarter notes — never "last onset + 1". */
+function barLengthQuarters(barNum, pack) {
+  const d = debriefFor(barNum) || state.piece?.debriefs?.[String(barNum)];
+  if (Number(d?.ql) > 0) return Number(d.ql);
+  const fromNotes = (pack || []).length
+    ? Math.max(...pack.map((n) => (Number(n.offset) || 0) + (Number(n.duration) || 0)))
+    : 0;
+  const fromTs = signatureBarQuarters();
+  // Pickup / incomplete bars land shorter than the signature.
+  if (fromNotes > 0 && fromNotes < fromTs - 0.2) return fromNotes;
+  return Math.max(fromTs, fromNotes, 1);
+}
+
+function normalizeNoteHand(h, fallback = null) {
+  const s = String(h || "").toLowerCase();
+  if (s === "lh" || s === "l" || s === "left") return "lh";
+  if (s === "rh" || s === "r" || s === "right") return "rh";
+  return fallback;
+}
+
+/**
+ * Ties and hands, read from the MusicXML: which notes only continue a held
+ * note (never struck), how much longer the note that starts the tie really
+ * sounds, and which staff each note is written on (lower staff = left hand).
+ * The analysis lists every written note, so without this a tied melody note
+ * was struck again at each tie, or cut short.
+ * Keys are "bar:midi:offset" with the offset in thousandths of a crotchet.
+ */
+const _tieCache = new WeakMap();
+function tieIndex(piece) {
+  const empty = { stops: new Set(), extra: new Map(), staff: new Map(), pedal: [], dyn: [] };
+  if (!piece?.musicxml) return empty;
+  if (_tieCache.has(piece)) return _tieCache.get(piece);
+  // pedal: [{bar, q, down}] as marked; dyn: [{bar, q, v}] loudness marks (90 = forte)
+  const out = { stops: new Set(), extra: new Map(), staff: new Map(), pedal: [], dyn: [] };
+  _tieCache.set(piece, out);
+  const STEP = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+  const text = (el, tag) => {
+    for (const c of el.children) if (c.nodeName === tag) return c.textContent.trim();
+    return "";
+  };
+  try {
+    const doc = new DOMParser().parseFromString(piece.musicxml, "application/xml");
+    if (doc.getElementsByTagName("parsererror").length) return out;
+    const parts = [...doc.getElementsByTagName("part")];
+    for (const part of parts) {
+      // lower staff (or the second part) is the left hand
+      const partStaff = parts.length > 1 ? (parts.indexOf(part) === 0 ? 1 : 2) : 0;
+      let div = 1;
+      const open = new Map(); // midi → key of the note that started the tie
+      let index = 0;
+      for (const m of part.children) {
+        if (m.nodeName !== "measure") continue;
+        index += 1;
+        const num = parseInt(m.getAttribute("number"), 10);
+        const bar = Number.isFinite(num) ? num : index;
+        let pos = 0;
+        let last = 0;
+        for (const el of m.children) {
+          const tag = el.nodeName;
+          if (tag === "attributes") {
+            const d = parseInt(el.getElementsByTagName("divisions")[0]?.textContent, 10);
+            if (d > 0) div = d;
+          } else if (tag === "backup") pos -= parseInt(text(el, "duration"), 10) || 0;
+          else if (tag === "forward") pos += parseInt(text(el, "duration"), 10) || 0;
+          else if (tag === "direction" || tag === "sound") {
+            const q = pos / div;
+            for (const pd of el.getElementsByTagName("pedal")) {
+              const type = pd.getAttribute("type");
+              if (type === "start" || type === "change") out.pedal.push({ bar, q, down: true });
+              else if (type === "stop") out.pedal.push({ bar, q, down: false });
+            }
+            const snd = tag === "sound" ? el : el.getElementsByTagName("sound")[0];
+            const v = Number(snd?.getAttribute("dynamics"));
+            if (v > 0) out.dyn.push({ bar, q, v });
+          } else if (tag === "note") {
+            const chord = [...el.children].some((c) => c.nodeName === "chord");
+            const grace = [...el.children].some((c) => c.nodeName === "grace");
+            const dur = parseInt(text(el, "duration"), 10) || 0;
+            const onset = chord ? last : pos;
+            if (!chord) {
+              last = pos;
+              if (!grace) pos += dur;
+            }
+            const pitch = [...el.children].find((c) => c.nodeName === "pitch");
+            if (!pitch || grace) continue;
+            const midi =
+              (parseInt(text(pitch, "octave"), 10) + 1) * 12 +
+              (STEP[text(pitch, "step").toUpperCase()] ?? 0) +
+              Math.round(Number(text(pitch, "alter")) || 0);
+            const ties = [...el.children].filter((c) => c.nodeName === "tie").map((t) => t.getAttribute("type"));
+            const key = `${bar}:${midi}:${Math.round((onset / div) * 1000)}`;
+            if (!out.staff.has(key)) out.staff.set(key, partStaff || parseInt(text(el, "staff"), 10) || 1);
+            if (ties.includes("stop") && open.has(midi)) {
+              const root = open.get(midi);
+              out.stops.add(key);
+              out.extra.set(root, (out.extra.get(root) || 0) + dur / div);
+              if (!ties.includes("start")) open.delete(midi);
+            } else if (ties.includes("start")) {
+              open.set(midi, key);
+            }
+          }
+        }
+      }
+    }
+  } catch {
+    /* play the notes as written */
+  }
+  return out;
+}
+
 function collectNotes(fromBar, toBar) {
+  const ties = tieIndex(state.piece);
+  const barStart = new Map();
   const notes = [];
   const debriefs = state.piece?.debriefs || {};
   let barCursor = 0;
   for (let b = fromBar; b <= toBar; b++) {
     const d = debriefFor(b) || debriefs[String(b)];
-    const pack = d?.playback || [...(d?.rh || []), ...(d?.lh || [])];
-    const localMax = Math.max(0, ...pack.map((n) => Number(n.offset) || 0));
+    const pack = d?.playback?.length
+      ? d.playback.map((n) => ({ ...n, hand: normalizeNoteHand(n.hand) }))
+      : [
+          ...(d?.rh || []).map((n) => ({ ...n, hand: normalizeNoteHand(n.hand, "rh") })),
+          ...(d?.lh || []).map((n) => ({ ...n, hand: normalizeNoteHand(n.hand, "lh") })),
+        ];
+    const seen = new Set();
     for (const n of pack) {
       if (!n.midi) continue;
-      notes.push({ ...n, absOffset: barCursor + (Number(n.offset) || 0), bar: b });
+      // Same pitch at the same onset from mirrored voices → one attack.
+      const key = `${Math.round((Number(n.offset) || 0) * 1000)}:${n.midi}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const tieKey = `${b}:${n.midi}:${Math.round((Number(n.offset) || 0) * 1000)}`;
+      if (ties.stops.has(tieKey)) continue; // held over from the note before
+      const held = ties.extra.get(tieKey) || 0;
+      const staff = ties.staff.get(tieKey);
+      notes.push({
+        ...n,
+        hand: staff ? (staff >= 2 ? "lh" : "rh") : n.hand,
+        duration: (Number(n.duration) || 0) + held,
+        absOffset: barCursor + (Number(n.offset) || 0),
+        bar: b,
+      });
     }
-    barCursor += Math.max(localMax + 1, 1);
+    barStart.set(b, barCursor);
+    barCursor += barLengthQuarters(b, pack);
   }
+  shapePerformance(notes, ties, barStart, barCursor);
   return notes;
+}
+
+/**
+ * Turn written notes into something closer to a performance: the sustain
+ * pedal (as marked, or changed with the harmony in music that expects it),
+ * the score's own dynamics, and the top line sung over the accompaniment.
+ * Only the sound changes; what is drawn stays the written length.
+ */
+function shapePerformance(notes, index, barStart, endQ) {
+  if (!notes.length) return;
+  const abs = (m) => (barStart.has(m.bar) ? barStart.get(m.bar) + m.q : null);
+
+  // --- loudness: step to each marking, easing in over the bar before it
+  const marks = index.dyn.map((d) => ({ q: abs(d), v: d.v })).filter((d) => d.q != null).sort((a, b) => a.q - b.q);
+  const level = (q) => {
+    if (!marks.length) return 1;
+    let i = 0;
+    while (i + 1 < marks.length && marks[i + 1].q <= q) i += 1;
+    let v = marks[i].v;
+    const next = marks[i + 1];
+    if (next && next.q - q < 4) v += (next.v - v) * (1 - (next.q - q) / 4);
+    return Math.max(0.74, Math.min(1.4, Math.pow(v / 60, 0.6)));
+  };
+
+  // --- pedal changes (crotchets from the start of this stretch)
+  let changes = index.pedal.map((p) => ({ q: abs(p), down: p.down })).filter((p) => p.q != null).sort((a, b) => a.q - b.q);
+  if (!changes.length) {
+    const era = String(state.piece?.epoch || state.piece?.era || state.piece?.overview?.era || "").toLowerCase();
+    if (/romantic|impression|modern|20th|contemporary/.test(era)) {
+      // No marks in this edition: change the pedal at each bar and whenever the bass moves on.
+      let lastBass = null;
+      let lastQ = -9;
+      const seenBar = new Set();
+      for (const n of notes) {
+        const q = n.absOffset;
+        const barLine = !seenBar.has(n.bar);
+        seenBar.add(n.bar);
+        const isBass = n.hand === "lh" && (lastBass == null || n.midi <= lastBass + 2);
+        if (barLine || (isBass && n.midi !== lastBass && q - lastQ >= 1)) {
+          changes.push({ q: barLine ? barStart.get(n.bar) : q, down: true });
+          lastQ = q;
+        }
+        if (isBass) lastBass = n.midi;
+      }
+      changes.sort((a, b) => a.q - b.q);
+    }
+  }
+
+  let ci = 0;
+  let k = 0;
+  while (k < notes.length) {
+    // notes struck together
+    let j = k;
+    while (j < notes.length && Math.abs(notes[j].absOffset - notes[k].absOffset) < 0.02) j += 1;
+    const group = notes.slice(k, j);
+    const q = notes[k].absOffset;
+    while (ci + 1 < changes.length && changes[ci + 1].q <= q + 0.02) ci += 1;
+    const cur = changes[ci];
+    const pedalDown = cur && cur.q <= q + 0.02 && cur.down;
+    const release = pedalDown ? (changes[ci + 1]?.q ?? endQ) : null;
+    const top = Math.max(...group.map((n) => n.midi));
+    const lvl = level(q);
+    for (const n of group) {
+      // held by the pedal until it changes (never more than two bars' worth)
+      if (release != null) n.sustainTo = Math.min(release, q + 9);
+      const melody = n.midi === top && n.hand !== "lh";
+      n.dyn = lvl * (melody ? 1.12 : n.hand === "lh" ? 0.88 : 0.92);
+    }
+    k = j;
+  }
 }
 
 function pieceNotes() {
@@ -1427,6 +2216,129 @@ function playbackHandlers() {
       clearKeyboard();
     },
   };
+}
+
+/** Original tempo from the score marking (unclamped parse, sensible default). */
+function markedTempoBpm() {
+  const raw =
+    state.piece?.tempo ||
+    state.piece?.overview?.tempo ||
+    state.piece?.meta?.tempo ||
+    "";
+  const m = String(raw).match(/(\d{2,3}(?:\.\d+)?)\s*(?:bpm)?/i);
+  let marked = m ? Number(m[1]) : NaN;
+  if (!Number.isFinite(marked)) {
+    const map = pieceTempoMap();
+    if (map.length) marked = map[0].bpm;
+  }
+  if (!Number.isFinite(marked) || marked <= 0) marked = 72;
+  return Math.max(40, Math.min(208, marked));
+}
+
+/** Practice tempo — user slider, seeded from the marking (original = 1.0×). */
+function practiceTempoBpm() {
+  if (Number.isFinite(state.practiceBpm) && state.practiceBpm > 0) {
+    return Math.max(40, Math.min(208, state.practiceBpm));
+  }
+  return markedTempoBpm();
+}
+
+function pieceTimeSignature() {
+  return state.piece?.timeSignature || state.piece?.overview?.timeSignature || "4/4";
+}
+
+function applyPieceMeter() {
+  const ts = pieceTimeSignature();
+  const [b, bt] = String(ts).split("/").map(Number);
+  try {
+    LunePiano.setMeter?.(b || 4, bt || 4);
+  } catch {
+    /* ignore */
+  }
+  const meterEl = $("bpm-meter");
+  if (meterEl) meterEl.textContent = ts;
+  const meta = $("piano-tut-meta");
+  if (meta) {
+    const title = state.piece?.overview?.title || state.piece?.title || "This piece";
+    meta.textContent = `${title} · ${ts} · original tempo marked — drag to practice`;
+  }
+}
+
+function syncTempoUi() {
+  const marked = state.markedBpm || markedTempoBpm();
+  const bpm = practiceTempoBpm();
+  const slider = $("bpm-slider");
+  const readout = $("bpm-readout");
+  const mark = $("bpm-orig-mark");
+  if (slider) {
+    const needMax = Math.max(120, Math.ceil(marked / 10) * 10, Math.ceil(bpm / 10) * 10);
+    if (Number(slider.max) < needMax) slider.max = String(Math.min(208, needMax));
+    if (document.activeElement !== slider) slider.value = String(bpm);
+  }
+  if (readout) readout.textContent = String(Math.round(bpm));
+  if (mark && slider) {
+    const min = Number(slider.min) || 40;
+    const max = Number(slider.max) || 120;
+    const pct = ((Math.max(min, Math.min(max, marked)) - min) / (max - min)) * 100;
+    mark.style.left = `${pct}%`;
+    mark.title = `Original · ${Math.round(marked)} bpm`;
+  }
+  const meterEl = $("bpm-meter");
+  if (meterEl) meterEl.textContent = pieceTimeSignature();
+}
+
+function setPracticeBpm(bpm, { rebuild = true } = {}) {
+  const next = Math.max(40, Math.min(208, Number(bpm) || 72));
+  state.practiceBpm = next;
+  try {
+    if (rebuild && LunePiano.hasTimeline?.()) {
+      LunePiano.setTempoBpm(next, { rebuild: true });
+    } else {
+      LunePiano.setTempoBpm?.(next, { rebuild: false });
+    }
+  } catch {
+    /* ignore */
+  }
+  syncTempoUi();
+  if (rebuild) {
+    renderScrubTicks();
+    syncPlayButton();
+  }
+}
+
+function seedTempoFromPiece({ force = false } = {}) {
+  const pieceKey = state.piece?.id || state.piece?.title || "";
+  if (!force && state._tempoSeedKey === pieceKey && pieceKey) {
+    applyPieceMeter();
+    syncTempoUi();
+    return;
+  }
+  state._tempoSeedKey = pieceKey;
+  const marked = markedTempoBpm();
+  state.markedBpm = marked;
+  // Default = written tempo (1.0×). Slider still lets you practice slower/faster.
+  state.practiceBpm = marked;
+  applyPieceMeter();
+  try {
+    LunePiano.setTempoBpm?.(state.practiceBpm, { rebuild: false });
+  } catch {
+    /* ignore */
+  }
+  syncTempoUi();
+}
+
+async function toggleMetronome() {
+  const btn = $("btn-metro");
+  const want = !(LunePiano.isMetronomeOn?.() || false);
+  applyPieceMeter();
+  try {
+    await LunePiano.setMetronome?.(want);
+  } catch (err) {
+    toast(err.message || "Metronome needs a quick tap first");
+    return;
+  }
+  btn?.setAttribute("aria-pressed", want ? "true" : "false");
+  btn?.classList.toggle("on", want);
 }
 
 /** Ensure the full-piece timeline is armed so scrub / Play-from-here works. */
@@ -1450,7 +2362,7 @@ async function ensurePieceTimeline(seekRatio = null) {
   }
   if (!LunePiano.hasTimeline() || state.timelineKind !== "piece") {
     state.timelineKind = "piece";
-    LunePiano.arm(notes, { ...playbackHandlers(), from: ratio });
+    LunePiano.arm(notes, { ...playbackHandlers(), from: ratio, ...playbackTempoOpts() });
   } else if (seekRatio != null) {
     LunePiano.seek(ratio, { resumeIfWasPlaying: false });
   }
@@ -1478,7 +2390,8 @@ function updateScrub({ progress, total, bar }) {
   const scrub = $("scrub");
   if (scrub) {
     if (!state.scrubbing && total > 0) {
-      scrub.value = String(Math.round((progress / total) * 1000));
+      const v = String(Math.round((progress / total) * 1000));
+      if (scrub.value !== v) scrub.value = v;
       state.scrubRatio = progress / total;
     } else if (total <= 0) {
       scrub.value = "0";
@@ -1487,8 +2400,11 @@ function updateScrub({ progress, total, bar }) {
   }
   const timeEl = $("scrub-time");
   const barEl = $("scrub-bar");
-  if (timeEl) timeEl.textContent = `${fmtTime(progress)} / ${fmtTime(total)}`;
-  if (barEl) barEl.textContent = bar ? `Bar ${bar}` : "Bar —";
+  const timeText = `${fmtTime(progress)} / ${fmtTime(total)}`;
+  const barText = bar ? `Bar ${bar}` : "Bar —";
+  // This runs every frame while playing: touch the page only when the text changes.
+  if (timeEl && timeEl.textContent !== timeText) timeEl.textContent = timeText;
+  if (barEl && barEl.textContent !== barText) barEl.textContent = barText;
   placePlayhead(bar, progress, total);
   syncPlayButton();
 }
@@ -1502,7 +2418,7 @@ function syncPlayButton() {
   const aria =
     label === "Pause" ? "Pause" : label === "Resume" ? "Resume" : "Play";
   const playBtn = $("btn-play-range");
-  if (playBtn) {
+  if (playBtn && playBtn.textContent !== label) {
     playBtn.textContent = label;
     playBtn.setAttribute("aria-label", aria);
   }
@@ -1512,8 +2428,10 @@ function syncPlayButton() {
     const canStop =
       LunePiano.isPlaying() ||
       (LunePiano.hasTimeline() && LunePiano.progress() > 0.02);
-    stop.disabled = !canStop;
-    stop.setAttribute("aria-disabled", canStop ? "false" : "true");
+    if (stop.disabled === canStop) {
+      stop.disabled = !canStop;
+      stop.setAttribute("aria-disabled", canStop ? "false" : "true");
+    }
   }
 }
 
@@ -1548,6 +2466,88 @@ function barLocalRatio(bar, progress) {
   return Math.max(0, Math.min(1, (progress - start) / span));
 }
 
+/**
+ * Everything the playhead needs for one bar: where the bar sits and which x
+ * belongs to which moment. Measured once per bar (and again if the score is
+ * re-engraved or the tempo changes) — never on every animation frame, which
+ * forced a layout 60 times a second and made playback stutter.
+ */
+let _phGeo = null;
+function playheadGeometry(bar, host) {
+  const svg = host.querySelector("svg");
+  const total = LunePiano.duration() || 0;
+  const g = _phGeo;
+  if (g && g.bar === bar && g.osmd === state.osmd && g.svg === svg && g.w === host.clientWidth && g.total === total) {
+    return g;
+  }
+  const bounds = LuneAnnotate.measureBoundsInHost?.(state.osmd, host, bar);
+  if (!bounds) return null;
+  const anchors = LuneAnnotate.playheadAnchorsInHost?.(state.osmd, host, bar) || [];
+  const marks = LunePiano.barMarkers?.() || [];
+  const idx = marks.findIndex((m) => Number(m.bar) === Number(bar));
+  const startT = idx >= 0 ? marks[idx].t : 0;
+  const endT = idx >= 0 && idx + 1 < marks.length ? marks[idx + 1].t : total || startT + 1;
+  const span = Math.max(0.001, endT - startT);
+  const barQl = Math.max(0.25, barLengthQuarters(bar, null) || signatureBarQuarters() || 4);
+  const pad = Math.min(10, Math.max(2, bounds.width * 0.02));
+
+  // Each engraved onset gets the time its note sounds (by offset in the bar).
+  const byQ = new Map();
+  try {
+    for (const e of LunePiano.getEvents?.() || []) {
+      if (Number(e.bar) !== Number(bar) || !Number.isFinite(e.barOff)) continue;
+      const k = Math.round(e.barOff * 1000);
+      if (!byQ.has(k)) byQ.set(k, e.t);
+    }
+  } catch {
+    /* constant-tempo fallback below */
+  }
+  const timed = anchors
+    .map((a) => ({ t: byQ.get(Math.round(a.q * 1000)) ?? startT + (a.q / barQl) * span, x: a.x }))
+    .sort((a, b) => a.t - b.t);
+
+  _phGeo = {
+    bar,
+    osmd: state.osmd,
+    svg,
+    w: host.clientWidth,
+    total,
+    bounds,
+    timed,
+    startT,
+    endT,
+    xMin: bounds.left + pad,
+    xMax: bounds.left + bounds.width - pad,
+  };
+  return _phGeo;
+}
+
+/** Playhead x at this moment: glides between the bar's engraved onsets. */
+function playheadX(g, progress) {
+  const { timed, startT, endT, xMin, xMax } = g;
+  if (!timed.length) {
+    const u = Math.max(0, Math.min(1, (progress - startT) / Math.max(0.001, endT - startT)));
+    return xMin + u * Math.max(0, xMax - xMin);
+  }
+  const first = timed[0];
+  const last = timed[timed.length - 1];
+  // Lead-in before the first onset (rests / pickup silence inside the bar)
+  if (progress <= first.t) {
+    const u = Math.max(0, Math.min(1, (progress - startT) / Math.max(0.001, first.t - startT)));
+    return xMin + u * Math.max(0, first.x - xMin);
+  }
+  if (progress >= last.t) {
+    const u = Math.max(0, Math.min(1, (progress - last.t) / Math.max(0.001, endT - last.t)));
+    return last.x + u * Math.max(0, xMax - last.x);
+  }
+  for (let i = 0; i < timed.length - 1; i++) {
+    const a = timed[i];
+    const b = timed[i + 1];
+    if (progress >= a.t && progress <= b.t) return a.x + ((progress - a.t) / Math.max(0.001, b.t - a.t)) * (b.x - a.x);
+  }
+  return first.x;
+}
+
 let _playheadScrollAt = 0;
 let _playheadLastBar = null;
 
@@ -1558,8 +2558,9 @@ function placePlayhead(bar, progress = 0, total = 0) {
 
   const hide = () => {
     line.hidden = true;
-    line.classList.remove("on");
+    line.classList.remove("on", "playing");
     line.style.transform = "";
+    line._geo = null;
     line.style.height = "";
     line.style.top = "";
     if (hilite) {
@@ -1569,7 +2570,8 @@ function placePlayhead(bar, progress = 0, total = 0) {
     _playheadLastBar = null;
   };
 
-  if (!bar && !(total > 0)) {
+  // Before the first play the clock is armed at 0:00 — no marker on bar 1 yet.
+  if ((!bar && !(total > 0)) || (!LunePiano.isPlaying() && !(progress > 0.05) && !state.scrubbing)) {
     hide();
     return;
   }
@@ -1577,66 +2579,80 @@ function placePlayhead(bar, progress = 0, total = 0) {
   // Prefer OSMD measure geometry when the score is on stage
   const host = $("osmd");
   const scroll = $("score-scroll");
-  const bounds =
-    state.osmd && host && !host.hidden
-      ? LuneAnnotate.measureBoundsInHost?.(state.osmd, host, bar)
-      : null;
+  const geo =
+    state.osmd && host && !host.hidden && scroll && state.panel === "score" ? playheadGeometry(bar, host) : null;
+  const bounds = geo?.bounds || null;
 
-  if (bounds && scroll && state.panel === "score") {
-    const local = barLocalRatio(bar, progress);
-    const x = bounds.left + Math.max(2, Math.min(bounds.width - 2, local * bounds.width));
+  if (bounds) {
+    const x = playheadX(geo, progress);
+    const playing = !!LunePiano.isPlaying?.();
+    const barChangedNow = _playheadLastBar !== Number(bar) || line.hidden;
     line.hidden = false;
     line.classList.add("on");
-    line.style.top = `${Math.max(0, bounds.top - 4)}px`;
-    line.style.height = `${bounds.height + 8}px`;
-    line.style.left = "0";
-    line.style.transform = `translateX(${x}px)`;
-
-    if (hilite) {
-      hilite.hidden = false;
-      hilite.style.left = `${bounds.left}px`;
-      hilite.style.top = `${bounds.top}px`;
-      hilite.style.width = `${bounds.width}px`;
-      hilite.style.height = `${bounds.height}px`;
+    line.classList.toggle("playing", playing && !state.scrubbing);
+    // Only the x moves within a bar; the box is set once per bar.
+    if (barChangedNow || line._geo !== geo) {
+      line._geo = geo;
+      line.style.top = `${Math.max(0, bounds.top - 6)}px`;
+      line.style.height = `${bounds.height + 12}px`;
+      line.style.left = "0";
+      if (hilite) {
+        hilite.hidden = false;
+        hilite.style.left = `${bounds.left}px`;
+        hilite.style.top = `${bounds.top}px`;
+        hilite.style.width = `${bounds.width}px`;
+        hilite.style.height = `${bounds.height}px`;
+      }
     }
+    line.style.transform = `translate3d(${x}px,0,0)`;
 
-    // Auto-follow when the sounding measure leaves the viewport (throttled)
-    const now = performance.now();
+    // Follow the sounding measure without smooth-scroll rocking.
+    // During playback: instant scroll, only on bar change, and only when
+    // the measure is substantially out of view. Prefer vertical; skip tiny
+    // horizontal nudges so we don’t fight the reader.
     const barChanged = _playheadLastBar !== Number(bar);
     _playheadLastBar = Number(bar);
-    if (barChanged || now - _playheadScrollAt > 280) {
-      const pad = 56;
+    if (barChanged || (!playing && state.scrubbing)) {
+      const pad = 72;
       const viewTop = scroll.scrollTop;
       const viewBottom = viewTop + scroll.clientHeight;
       const mTop = bounds.top;
       const mBottom = bounds.top + bounds.height;
+      const substantiallyOut =
+        mTop < viewTop + pad * 0.35 || mBottom > viewBottom - pad * 0.35;
       let nextTop = scroll.scrollTop;
       let nextLeft = scroll.scrollLeft;
       let moved = false;
-      if (mTop < viewTop + pad) {
-        nextTop = Math.max(0, mTop - pad);
-        moved = true;
-      } else if (mBottom > viewBottom - pad) {
-        nextTop = Math.max(0, mBottom - scroll.clientHeight + pad);
-        moved = true;
+      if (substantiallyOut) {
+        if (mTop < viewTop + pad) {
+          nextTop = Math.max(0, mTop - pad);
+          moved = true;
+        } else if (mBottom > viewBottom - pad) {
+          nextTop = Math.max(0, mBottom - scroll.clientHeight + pad);
+          moved = true;
+        }
       }
+      // Horizontal: only when the playhead is well off-screen (not every tick).
       const viewLeft = scroll.scrollLeft;
       const viewRight = viewLeft + scroll.clientWidth;
-      if (x < viewLeft + pad) {
-        nextLeft = Math.max(0, x - pad);
-        moved = true;
-      } else if (x > viewRight - pad) {
-        nextLeft = Math.max(0, x - scroll.clientWidth + pad);
-        moved = true;
+      const hPad = Math.max(96, scroll.clientWidth * 0.18);
+      if (x < viewLeft + 24 || x > viewRight - 24) {
+        if (x < viewLeft + hPad) {
+          nextLeft = Math.max(0, x - hPad);
+          moved = true;
+        } else if (x > viewRight - hPad) {
+          nextLeft = Math.max(0, x - scroll.clientWidth + hPad);
+          moved = true;
+        }
       }
       if (moved) {
-        _playheadScrollAt = now;
-        // Cinematic follow: always glide, never jump (unless the user asked for calm).
+        _playheadScrollAt = performance.now();
         const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
         scroll.scrollTo({
           top: nextTop,
           left: nextLeft,
-          behavior: reduced ? "auto" : "smooth",
+          // Instant during playback — smooth + frequent updates rocks the page.
+          behavior: playing || reduced ? "auto" : "smooth",
         });
       }
     }
@@ -1652,6 +2668,7 @@ function placePlayhead(bar, progress = 0, total = 0) {
   }
   line.hidden = false;
   line.classList.add("on");
+  line.classList.toggle("playing", !!LunePiano.isPlaying?.() && !state.scrubbing);
   let ratio = total > 0 ? Math.max(0, Math.min(1, progress / total)) : 0;
   if (!(total > 0)) {
     const nums = Object.keys(state.piece?.debriefs || {})
@@ -1664,7 +2681,7 @@ function placePlayhead(bar, progress = 0, total = 0) {
   line.style.top = "0";
   line.style.height = "100%";
   line.style.left = "0";
-  line.style.transform = `translateX(${x}px)`;
+  line.style.transform = `translate3d(${x}px,0,0)`;
 }
 
 function stopAll() {
@@ -1699,7 +2716,7 @@ function stopAll() {
     const line = $("playhead-line");
     if (line) {
       line.hidden = true;
-      line.classList.remove("on");
+      line.classList.remove("on", "playing");
     }
     const hilite = $("measure-hilite");
     if (hilite) hilite.hidden = true;
@@ -1825,18 +2842,17 @@ function syncKbdToggleUi() {
   if (!btn) return;
   const on = !!state.keyboardVisible && state.panel === "score";
   btn.setAttribute("aria-pressed", on ? "true" : "false");
-  btn.textContent = on ? "Hide" : "Keys";
+  btn.textContent = on ? "Hide piano" : "Show piano";
   btn.classList.toggle("on", on);
 }
 
 function applyKeyboardVisibility(on) {
   const dock = $("piano-dock");
   if (!dock) return;
-  const show =
-    (state.panel === "piano" && on !== false) ||
-    (state.panel === "score" && !!on);
+  // The Piano tab draws its own keyboard under the falling notes, lined up
+  // key for key; the dock is the slim keyboard under the score.
+  const show = state.panel === "score" && !!on;
   if (state.panel === "score") state.keyboardVisible = !!on;
-  if (state.panel === "piano") state.keyboardVisible = true;
 
   dock.classList.toggle("collapsed", !show);
   dock.hidden = !show;
@@ -1881,7 +2897,7 @@ function clearKeyboard() {
 }
 
 function onPianoKeys(payload) {
-  if (!state.keyboardVisible && state.panel !== "piano") return;
+  if (!state.keyboardVisible || state.panel !== "score") return;
   const kbd = ensureKeyboard();
   if (!kbd) return;
   if (payload?.changed !== false || payload?.active?.length) {
@@ -1900,26 +2916,63 @@ function setPlayRate(rate) {
   document.querySelectorAll(".speed-btn").forEach((btn) => {
     btn.classList.toggle("on", Number(btn.dataset.rate) === r);
   });
+  const trigger = $("btn-speed");
+  if (trigger) trigger.textContent = `${r}×`.replace(/(\.0)×$/, "×");
 }
 
 function bindHomeChapters() {
-  const chapters = document.querySelectorAll(".home-chapter");
+  const home = $("home");
+  const chapters = document.querySelectorAll(
+    ".home-chapter, .home-features, .about-maker, .home-sim, .home-statement, .home-billboard, .home-feat, .home-feat-intro, .home-close, .home-screen, [data-reveal]"
+  );
   if (!chapters.length || typeof IntersectionObserver === "undefined") {
     chapters.forEach((el) => el.classList.add("is-in"));
-    return;
-  }
-  const io = new IntersectionObserver(
-    (entries) => {
-      for (const e of entries) {
-        if (e.isIntersecting) {
-          e.target.classList.add("is-in");
-          io.unobserve(e.target);
+  } else {
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            e.target.classList.add("is-in");
+            io.unobserve(e.target);
+          }
         }
-      }
-    },
-    { root: $("home") || null, threshold: 0.18, rootMargin: "0px 0px -8% 0px" }
-  );
-  chapters.forEach((el) => io.observe(el));
+      },
+      { root: home || null, threshold: 0.16, rootMargin: "0px 0px -8% 0px" }
+    );
+    chapters.forEach((el) => io.observe(el));
+  }
+
+  if (home && !home.dataset.scrollBound) {
+    home.dataset.scrollBound = "1";
+    let ticking = false;
+    const hero = home.querySelector(".home-hero-inner");
+    const motif = home.querySelector(".home-hero-motif");
+    const finePointer = window.matchMedia?.("(hover: hover) and (pointer: fine)")?.matches;
+    home.addEventListener(
+      "scroll",
+      () => {
+        if (ticking) return;
+        ticking = true;
+        requestAnimationFrame(() => {
+          const y = home.scrollTop;
+          home.classList.toggle("is-scrolled", y > 40);
+          // Parallax only on fine pointers — phones stay momentum-friendly
+          if (finePointer && hero) {
+            const t = Math.min(1, y / Math.max(280, window.innerHeight * 0.55));
+            hero.style.transform = `translate3d(0, ${t * 36}px, 0) scale(${1 - t * 0.03})`;
+            hero.style.opacity = String(1 - t * 0.45);
+          }
+          if (finePointer && motif) {
+            const t = Math.min(1, y / Math.max(320, window.innerHeight * 0.6));
+            motif.style.transform = `translate3d(0, ${t * 56}px, 0) scale(${1 + t * 0.06})`;
+            motif.style.opacity = String(0.07 * (1 - t * 0.65));
+          }
+          ticking = false;
+        });
+      },
+      { passive: true }
+    );
+  }
 }
 
 async function togglePlayback() {
@@ -1986,6 +3039,7 @@ async function startPiecePlayback(seekRatio = 0) {
   state.timelineKind = "piece";
   await LunePiano.play(notes, {
     from: ratio,
+    ...playbackTempoOpts(),
     ...playbackHandlers(),
   });
   renderScrubTicks();
@@ -2113,9 +3167,81 @@ function applyVoiceSpacing(osmd, pass) {
 
 const ALLOW_SPACING_RERENDER = false;
 
+const LUNE_LYRIC_LANE = true;
+
+/** Give engraved lane text our label styling (OSMD draws plain <text>). */
+function styleLaneText(host) {
+  const mode = state.renderedLaneMode || "off";
+  if (mode === "off") return;
+  if (mode !== "both") {
+    const cls = mode === "letters" ? "lane-letter" : "lane-finger";
+    for (const t of host.querySelectorAll("svg g.lyrics text")) t.classList.add(cls);
+    return;
+  }
+  // Both labels were engraved together: read each one's tag once, then show
+  // whichever the pianist asked for.
+  for (const t of host.querySelectorAll("svg g.lyrics text")) {
+    if (t.dataset.letter != null) continue;
+    const info = LuneLane.untag(t.textContent);
+    if (!info) continue;
+    t.dataset.letter = info.letter;
+    t.dataset.finger = info.finger;
+    t.textContent = info.letter;
+    t.classList.add("lane-letter");
+  }
+}
+
+/** Notes / Fingers / Off without engraving again: swap the text in place. */
+function showLaneMode(host) {
+  const mode = state.scoreFingers ? "fingers" : state.scoreLetters ? "letters" : "off";
+  host.classList.toggle("lane-hidden", mode === "off");
+  if (mode === "off") return;
+  for (const t of host.querySelectorAll("svg g.lyrics text[data-letter]")) {
+    const text = mode === "fingers" ? t.dataset.finger : t.dataset.letter;
+    if (t.textContent !== text) t.textContent = text;
+    t.classList.toggle("lane-finger", mode === "fingers");
+    t.classList.toggle("lane-letter", mode !== "fingers");
+  }
+}
+
+/** Centre every label on its own spot so a short digit sits where the letter was. */
+function centreLaneLabels(host) {
+  for (const t of host.querySelectorAll("svg g.lyrics text[data-letter]")) {
+    if (t.getAttribute("text-anchor") === "middle") continue;
+    let b;
+    try {
+      b = t.getBBox();
+    } catch {
+      continue;
+    }
+    if (!b.width) continue;
+    t.setAttribute("x", String(b.x + b.width / 2));
+    t.setAttribute("text-anchor", "middle");
+  }
+}
+
 function applyScoreOverlays() {
   const host = $("osmd");
   if (!host || !state.osmd) return;
+  if (LUNE_LYRIC_LANE) {
+    // Labels are part of the engraving; just style them and drop any overlay.
+    // Each drawing is laid out once: the frame, settle and resize callbacks
+    // that follow one render find it done.
+    const svg = host.querySelector("svg");
+    if (svg && !svg.__luneLaneDone) {
+      LuneAnnotate.clearLetterOverlays(host);
+      styleLaneText(host);
+      // later passes settle labels an earlier one moved into new company
+      // (three, as many as the frame / settle / render callbacks used to run)
+      state.laneStaggered = 0;
+      for (let i = 0; i < 3; i++) state.laneStaggered += staggerLaneLabels(host);
+      if (state.renderedLaneMode === "both") centreLaneLabels(host);
+      svg.__luneLaneDone = true;
+    }
+    if (state.renderedLaneMode === "both") showLaneMode(host);
+    window.LunePractice?.afterScoreRender();
+    return;
+  }
   const wantLetters = !!state.scoreLetters;
   const wantFingers = !!state.scoreFingers;
   if (!wantLetters && !wantFingers) {
@@ -2193,6 +3319,7 @@ function bindOsmdRenderOverlays(osmd) {
   let settleTimer = 0;
   const reapply = () => {
     if (state.osmd !== osmd) return;
+    untangleScoreDirections($("osmd"));
     applyScoreOverlays();
     paintSelectionHilites();
   };
@@ -2218,6 +3345,88 @@ function bindOsmdRenderOverlays(osmd) {
   }
 }
 
+/**
+ * OSMD often stacks metronome (♩ = 50) on top of verbal tempo ("Andante…")
+ * and wedges directions into each other. Nudge colliding direction text apart
+ * in the drawn SVG without re-engraving the notes.
+ */
+function untangleScoreDirections(host) {
+  const svg = host?.querySelector?.("svg");
+  if (!svg) return;
+  const texts = [...svg.querySelectorAll("text")].filter((t) => {
+    if (t.closest("g.lyrics")) return false;
+    if (t.classList.contains("lune-letter") || t.classList.contains("lune-finger")) return false;
+    if (t.classList.contains("lane-letter") || t.classList.contains("lane-finger")) return false;
+    const s = (t.textContent || "").trim();
+    if (!s || /^\d+$/.test(s)) return false; // measure numbers
+    return true;
+  });
+  if (texts.length < 2) return;
+
+  const box = (el) => {
+    try {
+      return el.getBBox();
+    } catch {
+      return null;
+    }
+  };
+  const overlap = (a, b) => a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+  const isMetronome = (el) => /[=＝]|♩|♪|bpm/i.test(el.textContent || "") || /^\s*\d{2,3}\s*$/.test((el.textContent || "").trim());
+
+  // Prefer lifting metronome marks; otherwise shift the lower/right label.
+  for (let pass = 0; pass < 3; pass++) {
+    let moved = 0;
+    for (let i = 0; i < texts.length; i++) {
+      const a = texts[i];
+      const ba = box(a);
+      if (!ba || ba.width < 1 || ba.height < 1) continue;
+      for (let j = i + 1; j < texts.length; j++) {
+        const b = texts[j];
+        const bb = box(b);
+        if (!bb || bb.width < 1 || bb.height < 1) continue;
+        // Only untangle labels that share a neighbourhood (same system header).
+        if (Math.abs(ba.y - bb.y) > 28 || Math.abs(ba.x - bb.x) > 160) continue;
+        if (!overlap(ba, bb) && !(ba.y < bb.y + bb.height + 2 && ba.y + ba.height + 2 > bb.y && ba.x < bb.x + bb.width + 4 && ba.x + ba.width + 4 > bb.x)) {
+          continue;
+        }
+        let lift = a;
+        let stay = b;
+        if (isMetronome(b) && !isMetronome(a)) {
+          lift = b;
+          stay = a;
+        } else if (isMetronome(a) && !isMetronome(b)) {
+          lift = a;
+          stay = b;
+        } else if (bb.y >= ba.y) {
+          lift = b;
+          stay = a;
+        }
+        const curY = Number(lift.getAttribute("y"));
+        if (!Number.isFinite(curY)) continue;
+        const stayBox = box(stay);
+        const liftBox = box(lift);
+        if (!stayBox || !liftBox) continue;
+        const gap = 3;
+        const need = stayBox.y - (liftBox.y + liftBox.height);
+        if (need >= gap) continue;
+        const dy = gap - need;
+        lift.setAttribute("y", String(curY - dy));
+        // If still horizontally crushed, ease metronome to the right of the word.
+        const after = box(lift);
+        const other = box(stay);
+        if (after && other && overlap(after, other)) {
+          const curX = Number(lift.getAttribute("x"));
+          if (Number.isFinite(curX)) {
+            lift.setAttribute("x", String(Math.max(curX, other.x + other.width + 6)));
+          }
+        }
+        moved++;
+      }
+    }
+    if (!moved) break;
+  }
+}
+
 /** Re-engrave only when the score column really changes width (rotate, resize). */
 function watchScoreWidth() {
   const host = $("osmd");
@@ -2233,6 +3442,7 @@ function watchScoreWidth() {
       try {
         state.osmd.zoom = w >= 720 ? 1.18 : 1.08;
         state.osmd.render();
+        fitScoreToWidth(state.osmd);
       } catch {
         /* keep the last good engraving */
       }
@@ -2241,17 +3451,366 @@ function watchScoreWidth() {
   state.__scoreWidthObserver.observe(host);
 }
 
+/** Neighbouring lane labels (same row) whose ink touches. */
+function laneTouches(svg) {
+  const rows = new Map();
+  for (const el of svg.querySelectorAll("g.lyrics text")) {
+    if ((el.textContent || "").trim() === (window.LuneLane?.SPARE || "~")) continue;
+    const b = el.getBBox();
+    // group by baseline, not box top: "B♭" has a taller box than "F" on the
+    // same line, and must still be checked against it
+    const key = Math.round(Number(el.getAttribute("y")) || b.y);
+    if (!rows.has(key)) rows.set(key, []);
+    rows.get(key).push(b);
+  }
+  let n = 0;
+  for (const row of rows.values()) {
+    row.sort((a, b) => a.x - b.x);
+    for (let i = 1; i < row.length; i++) if (row[i].x < row[i - 1].x + row[i - 1].width + 1) n++;
+  }
+  return n;
+}
+
+/**
+ * Space for labels comes from the layout, not from nudging: while labels in a
+ * row touch, widen note spacing and re-engrave (fewer bars per line), then
+ * re-fit to the page width. Spacing grows relative to the notes, so the fit
+ * holds even when a dense bar has to be drawn smaller on a phone.
+ */
+function widenUntilLabelsFit(osmd) {
+  const host = $("osmd");
+  const svg0 = host?.querySelector("svg");
+  if (!svg0) return;
+  let touches = laneTouches(svg0);
+  const R = osmd.EngravingRules;
+  for (let pass = 0; pass < 3 && touches > 0; pass++) {
+    const mul = (R.VoiceSpacingMultiplierVexflow || 1) * 1.3;
+    R.VoiceSpacingMultiplierVexflow = mul;
+    R.VoiceSpacingMultiplierVexFlow = mul;
+    R.VoiceSpacingAddendVexflow = (R.VoiceSpacingAddendVexflow || 3) + 2;
+    R.VoiceSpacingAddendVexFlow = R.VoiceSpacingAddendVexflow;
+    R.MinNoteDistance = (R.MinNoteDistance || 2) + 1.5;
+    osmd.render();
+    fitScoreToWidth(osmd);
+    touches = laneTouches(host.querySelector("svg"));
+  }
+  state.laneTouchesLeft = touches;
+}
+
+/**
+ * A bar can't be split across lines, so a very dense bar on a phone can be
+ * wider than the page. If anything sticks out past the right edge, scale the
+ * whole engraving down just enough and re-engrave (at most twice).
+ */
+const PREVIEW_BARS = 8; // drawn first while a long score engraves (renderScore)
+
+// piece|width → zoom that fits; kept across visits so a piece opened before
+// engraves once
+const FIT_ZOOM_STORE = "lune.fitZoom.v1";
+const fitZoomCache = (() => {
+  try {
+    return new Map(Object.entries(JSON.parse(localStorage.getItem(FIT_ZOOM_STORE) || "{}")));
+  } catch {
+    return new Map();
+  }
+})();
+function rememberFitZoom(key, zoom) {
+  if (fitZoomCache.get(key) === zoom) return;
+  fitZoomCache.delete(key);
+  fitZoomCache.set(key, zoom);
+  while (fitZoomCache.size > 300) fitZoomCache.delete(fitZoomCache.keys().next().value);
+  try {
+    localStorage.setItem(FIT_ZOOM_STORE, JSON.stringify(Object.fromEntries(fitZoomCache)));
+  } catch {
+    /* private mode / full: this visit still uses it */
+  }
+}
+
+function scoreOverflowRatio(host, svg, { staff = true } = {}) {
+  // How far the music's right edge runs past where the staff lines end (and
+  // the screen edge): notes drawn past the final barline mean the bar lacks
+  // room. With staff off, only the screen edge counts.
+  const hostBox = host.getBoundingClientRect();
+  let staffRight = 0;
+  if (staff) {
+    for (const m of svg.querySelectorAll("g.vf-measure")) {
+      for (const c of m.children) {
+        if (c.tagName.toLowerCase() !== "path") continue;
+        const r = c.getBoundingClientRect();
+        if (r.height < 2 && r.width > 10 && r.right > staffRight) staffRight = r.right;
+      }
+    }
+  }
+  let right = 0;
+  for (const g of svg.querySelectorAll("g.vf-stavenote, g.vf-beam, g.lyrics text")) {
+    const r = g.getBoundingClientRect();
+    if (r.width && r.right > right) right = r.right;
+  }
+  const limit = Math.min(hostBox.right, staffRight || hostBox.right);
+  const used = right - hostBox.left;
+  const room = limit - hostBox.left;
+  return used > room + 1.5 ? room / used : 1;
+}
+
+function fitScoreToWidth(osmd) {
+  const host = $("osmd");
+  let svg = host?.querySelector("svg");
+  if (!svg || !osmd) return;
+  const key = fitZoomKey();
+  // On a phone, notes pushed past their barline mean the lane is cramped:
+  // engraving smaller gives the labels room. On a wide page it doesn't (the
+  // engraver packs more bars per line and the overhang comes back), so there
+  // only music off the screen counts.
+  const narrow = (host.clientWidth || 0) < 720;
+  let ratio = scoreOverflowRatio(host, svg, { staff: narrow });
+  // Engrave again, smaller by the overflow (twice at most: each pass packs
+  // more bars per line, so the first rarely lands). Already engraved at the
+  // size that fitted last time: scale only, or every visit would shrink it.
+  const fromCache = fitZoomCache.get(key) === osmd.zoom;
+  for (let pass = 0; pass < 2 && ratio < 0.97 && !fromCache; pass++) {
+    osmd.zoom = Math.max(0.45, osmd.zoom * ratio * 0.96);
+    osmd.render();
+    svg = host.querySelector("svg");
+    ratio = scoreOverflowRatio(host, svg, { staff: narrow });
+  }
+  ratio = scoreOverflowRatio(host, svg, { staff: false });
+  rememberFitZoom(key, osmd.zoom);
+  if (ratio < 1 && svg) {
+    // last few pixels: scale the finished drawing (instant, same layout)
+    const w = Number(svg.getAttribute("width")) || svg.getBoundingClientRect().width;
+    const h = Number(svg.getAttribute("height")) || svg.getBoundingClientRect().height;
+    if (!svg.getAttribute("viewBox")) svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+    svg.setAttribute("width", String(w * ratio * 0.985));
+    svg.setAttribute("height", String(h * ratio * 0.985));
+  }
+}
+
+function fitZoomKey() {
+  const host = $("osmd");
+  const boost = window.LunePractice?.zoomBoost?.() || 1;
+  return `${state.piece?.id || state.piece?.title || ""}|${Math.round((host?.clientWidth || 0) / 20)}|${boost}`;
+}
+function cachedFitZoom(defaultZoom) {
+  const boost = window.LunePractice?.zoomBoost?.() || 1;
+  return fitZoomCache.get(fitZoomKey()) ?? defaultZoom * boost;
+}
+
+/**
+ * Last line of defence for the label lane: if two labels in the same row
+ * still touch (a bar so dense the engraver ran out of room), drop every
+ * other one onto a second line — the zig-zag used in beginner editions.
+ * A dropped label never lands on notation; if it would, it shrinks instead.
+ */
+function staggerLaneLabels(host) {
+  const svg = host?.querySelector("svg");
+  if (!svg) return 0;
+  const all = [...svg.querySelectorAll("g.lyrics text")];
+  if (!all.length) return 0;
+  const SPARE = window.LuneLane?.SPARE || "~";
+  // spare-line placeholders: hide them, remember where the empty line is
+  const spares = [];
+  const labels = [];
+  for (const el of all) {
+    if ((el.textContent || "").trim() === SPARE) {
+      el.setAttribute("visibility", "hidden");
+      el.classList.add("lane-spare");
+      const b = el.getBBox();
+      spares.push({ x: b.x, y: b.y, h: b.height, cy: Number(el.getAttribute("y")) });
+    } else labels.push(el);
+  }
+  // the spare line below a label: nearest placeholder underneath, same system
+  const spareBelow = (b) => {
+    let best = null;
+    for (const sp of spares) {
+      const dy = sp.y - b.y;
+      if (dy <= b.height * 0.5 || dy > b.height * 6) continue;
+      if (!best || dy < best.y - b.y) best = sp;
+    }
+    return best;
+  };
+  // notation that can hang into the lane (low stems, ledger notes, flags)
+  const CELL = 48;
+  const inkGrid = new Map();
+  for (const g of svg.querySelectorAll("g.vf-notehead, g.vf-stem, g.vf-flag, g.vf-beam, g.vf-modifiers")) {
+    let r;
+    try {
+      r = g.getBBox();
+    } catch {
+      continue;
+    }
+    if (!r.width && !r.height) continue;
+    for (let gx = Math.floor(r.x / CELL); gx <= Math.floor((r.x + r.width) / CELL); gx++)
+      for (let gy = Math.floor(r.y / CELL); gy <= Math.floor((r.y + r.height) / CELL); gy++) {
+        const k = gx * 100003 + gy;
+        if (!inkGrid.has(k)) inkGrid.set(k, []);
+        inkGrid.get(k).push(r);
+      }
+  }
+  const touchesInk = (b) => {
+    const t = b.y + b.height * 0.15;
+    const bot = b.y + b.height * 0.85;
+    for (let gx = Math.floor(b.x / CELL); gx <= Math.floor((b.x + b.width) / CELL); gx++)
+      for (let gy = Math.floor(t / CELL); gy <= Math.floor(bot / CELL); gy++)
+        for (const r of inkGrid.get(gx * 100003 + gy) || [])
+          if (b.x < r.x + r.width + 0.8 && b.x + b.width > r.x - 0.8 && t < r.y + r.height + 0.8 && bot > r.y - 0.8) return true;
+    return false;
+  };
+  const rows = new Map();
+  for (const el of labels) {
+    const b = el.getBBox();
+    // group by baseline, not box top: "B♭" has a taller box than "F" on the
+    // same line, and must still be checked against it
+    const key = Math.round(Number(el.getAttribute("y")) || b.y);
+    if (!rows.has(key)) rows.set(key, []);
+    rows.get(key).push({ el, b });
+  }
+  // A chord's letters read top note first. Dropping the upper label of a stack
+  // onto the spare line would put it under the notes below it (A♭ over F would
+  // read F, A♭), so only the bottom label of a stack may drop.
+  const boxes = labels.map((el) => ({ el, b: el.getBBox(), y: Number(el.getAttribute("y")) || 0 }));
+  // the labels under this one in its chord, nearest first: line by line, each
+  // directly under the last, so a stack never reaches into the next staff's lane
+  const stackBelow = (el, b) => {
+    const out = [];
+    let cur = { el, b, y: Number(el.getAttribute("y")) || b.y };
+    for (;;) {
+      const mid = cur.b.x + cur.b.width / 2;
+      const next = boxes
+        .filter(
+          (o) =>
+            o.el !== cur.el &&
+            o.y > cur.y + 0.5 &&
+            o.y - cur.y <= cur.b.height * 1.6 &&
+            Math.abs(o.b.x + o.b.width / 2 - mid) < Math.max(cur.b.width, o.b.width) * 0.6
+        )
+        .sort((p, q) => p.y - q.y)[0];
+      if (!next || out.includes(next)) return out;
+      out.push(next);
+      cur = next;
+    }
+  };
+  // slurs and ties: a whole chord moved down must not land on one
+  const curves = [];
+  for (const g of svg.querySelectorAll("g.vf-curve")) {
+    try {
+      const r = g.getBBox();
+      if (r.width || r.height) curves.push(r);
+    } catch {
+      /* not drawn */
+    }
+  }
+  // every label of the chord, one line lower, lands on free paper: no other label
+  // on that line within a gap, and no notation under it
+  const stackFits = (el, b, below, sp, gap) => {
+    const stack = [{ el, b }, ...below];
+    const targets = stack.slice(1).map((o) => Number(o.el.getAttribute("y"))).concat(sp.cy);
+    const members = new Set(stack.map((o) => o.el));
+    const overlaps = (a, r, pad) =>
+      a.x < r.x + r.width + pad && a.x + a.width + pad > r.x && a.y + a.height * 0.15 < r.y + r.height && a.y + a.height * 0.85 > r.y;
+    return stack.every((o, i) => {
+      const dy = targets[i] - (Number(o.el.getAttribute("y")) || 0);
+      const nb = { x: o.b.x, y: o.b.y + dy, width: o.b.width, height: o.b.height };
+      if (touchesInk(nb) || curves.some((r) => overlaps(nb, r, 0.8))) return false;
+      // any other label whose box it would meet, on whatever line
+      return !labels.some((other) => !members.has(other) && overlaps(nb, other.getBBox(), gap));
+    });
+  };
+  const shifted = new Set(); // labels already moved down with their stack
+  const dropped = new Map(); // spare-line y → right edge used so far
+  let moved = 0;
+  for (const row of rows.values()) {
+    row.sort((p, q) => p.b.x - q.b.x);
+    let lastRight = -Infinity;
+    for (const { el, b } of row) {
+      if (shifted.has(el)) continue;
+      // labels for different notes need a visible gap, not just no overlap,
+      // or "E G♯" reads as one word
+      const gap = Math.max(2.5, b.height * 0.3);
+      if (b.x >= lastRight + gap && !touchesInk(b)) {
+        lastRight = b.x + b.width;
+        continue;
+      }
+      const below = stackBelow(el, b);
+      const bottom = below.length ? below[below.length - 1] : { el, b };
+      const sp = spareBelow(bottom.b);
+      const key = sp ? Math.round(sp.y) : null;
+      const used = key != null ? dropped.get(key) ?? -Infinity : Infinity;
+      if (sp && below.length && bottom.b.x >= used + gap && stackFits(el, b, below, sp, gap)) {
+        // move the whole chord down a line, so its top note still reads first
+        const stack = [el, ...below.map((o) => o.el)];
+        const ys = stack.map((n) => n.getAttribute("y"));
+        ys.push(String(sp.cy));
+        stack.forEach((n, i) => n.setAttribute("y", ys[i + 1]));
+        for (const o of below) shifted.add(o.el);
+        dropped.set(key, Math.max(b.x + b.width, bottom.b.x + bottom.b.width));
+        moved++;
+        continue;
+      }
+      // no room to move the chord as one: the single label drops (as before)
+      const own = below.length ? spareBelow(b) : sp;
+      const ownKey = own ? Math.round(own.y) : null;
+      const ownUsed = ownKey != null ? dropped.get(ownKey) ?? -Infinity : Infinity;
+      if (own && b.x >= ownUsed + gap) {
+        el.setAttribute("y", String(own.cy));
+        dropped.set(ownKey, b.x + b.width);
+        moved++;
+        continue;
+      }
+      // still no room: shrink beside its neighbour (never below 65%)
+      const fs = parseFloat(getComputedStyle(el).fontSize) || 12;
+      const scale = Math.max(0.65, Math.min(0.92, (b.x + b.width - lastRight - gap) / b.width));
+      el.style.fontSize = `${fs * scale}px`;
+      const nb = el.getBBox();
+      const shift = Math.max(0, lastRight + gap - nb.x);
+      if (shift) el.setAttribute("x", String(Number(el.getAttribute("x")) + shift));
+      lastRight = nb.x + shift + nb.width;
+      moved++;
+    }
+  }
+  // Last: a label still sitting on notation (a beam or a low note hanging into
+  // the lane, where no spare line was free) slides up or down by part of a
+  // line, to the nearest spot clear of notation, slurs, markings and other
+  // labels. If there is none it stays where the engraver put it.
+  const marks = [];
+  for (const g of svg.querySelectorAll("g.vf-text:not(.lyrics)")) {
+    try {
+      const r = g.getBBox();
+      if (r.width || r.height) marks.push(r);
+    } catch {
+      /* not drawn */
+    }
+  }
+  const meets = (a, r, pad) =>
+    a.x < r.x + r.width + pad && a.x + a.width + pad > r.x && a.y + a.height * 0.15 < r.y + r.height && a.y + a.height * 0.85 > r.y;
+  const onInk = (b) => touchesInk(b) || curves.some((r) => meets(b, r, 0.8)) || marks.some((r) => meets(b, r, 0.8));
+  for (const el of labels) {
+    const b = el.getBBox();
+    if (!b.width || !onInk(b)) continue;
+    const y0 = Number(el.getAttribute("y"));
+    if (!Number.isFinite(y0)) continue;
+    const near = labels.filter((o) => o !== el).map((o) => o.getBBox()).filter((r) => Math.abs(r.y - b.y) < b.height * 2.5 && Math.abs(r.x - b.x) < b.width * 3 + 20);
+    for (const f of [0.25, -0.25, 0.5, -0.5, 0.75]) {
+      const nb = { x: b.x, y: b.y + b.height * f, width: b.width, height: b.height };
+      if (onInk(nb) || near.some((r) => meets(nb, r, 1.5))) continue;
+      el.setAttribute("y", String(y0 + b.height * f));
+      moved++;
+      break;
+    }
+  }
+  return moved;
+}
+
 async function renderScore() {
   const base = state.rawMusicxml || state.piece?.musicxml || "";
   if (!base) return;
   const wantLetters = !!state.scoreLetters;
   const wantFingers = !!state.scoreFingers;
-  // MusicXML fingers unused for display (drawFingerings:false); keep annotate
-  // path for compatibility. Letters are always SVG overlays.
-  const xml = LuneAnnotate.annotate(base, state.piece.debriefs || {}, {
-    fingers: wantFingers,
-    letters: false,
-  });
+  // Letters / finger numbers are engraved as a lyric lane under each staff:
+  // the engraver reserves the space and spaces bars so labels never collide.
+  // Letters and fingers are engraved together once; the toggle then swaps text.
+  const laneMode = "both";
+  state.renderedLaneMode = laneMode;
+  const xml = LuneLane.build(LuneLane.printed(base), { mode: laneMode, debriefs: state.piece.debriefs || {} });
   $("osmd").hidden = false;
   $("osmd").innerHTML = "";
   const osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay($("osmd"), {
@@ -2265,24 +3824,31 @@ async function renderScore() {
     drawCredits: false,
     drawPartNames: false,
     drawMeasureNumbers: true,
-    drawLyrics: false,
-    drawFingerings: false, // custom SVG fingers — OSMD piles chord digits
+    drawLyrics: true, // the letter / finger lane
+    drawFingerings: false,
   });
   try {
     const roomy = scoreNeedsRoom();
     osmd.EngravingRules.BetweenStaffDistance = roomy ? 9.5 : 3.5;
     osmd.EngravingRules.StaffDistance = roomy ? 18 : 7.5;
-    const wide = ($("osmd")?.clientWidth || 900) >= 720;
-    osmd.zoom = wide ? 1.18 : 1.08;
     state.overlaySpacePass = 0;
     state.overlaySpaceKey = overlaySpaceKey();
     state.overlaySpacingLock = false;
     if (roomy) applyVoiceSpacing(osmd, 0);
-    if (wantFingers) {
-      osmd.EngravingRules.FingeringPaddingY = 0.85;
-      osmd.EngravingRules.FingeringOffsetY = 0.35;
-      osmd.EngravingRules.FingeringTextSize = 1.55;
-    }
+    const R = osmd.EngravingRules;
+    R.LyricsHeight = 2.15; // label size (staff-space units)
+    R.LyricsYOffsetToStaffHeight = 0.9; // gap between staff and the lane
+    R.VerticalBetweenLyricsDistance = 0.35; // stacked chord tones
+    // Engraver defaults for label padding: extra padding pushed dense bars
+    // past their barlines; crowded labels use the reserved spare line instead.
+    R.LyricsUseXPaddingForLongLyrics = true;
+    R.HorizontalBetweenLyricsDistance = 0.45;
+    R.BetweenSyllableMinimumDistance = 0.6;
+    R.RenderLyricist = false;
+    // Lift metronome (♩ = 50) above verbal tempo so they don't sit on "Andante".
+    R.MetronomeMarksDrawn = true;
+    R.MetronomeMarkYShift = -2.8;
+    R.MetronomeMarkXShift = 2;
   } catch {
     /* older OSMD */
   }
@@ -2290,7 +3856,33 @@ async function renderScore() {
   state.scoreWasRoomy = scoreNeedsRoom();
   bindOsmdRenderOverlays(osmd);
   await osmd.load(xml);
+  // load() resets zoom, so set it afterwards: 1 (the size the label lane is
+  // tuned for), larger in large-print mode, or the cached fit for this width.
+  osmd.zoom = cachedFitZoom(1);
+  const host = $("osmd");
+  // A long score takes seconds to engrave on a phone, and nothing shows until
+  // it is done. Draw the opening bars on their own first, so music is on the
+  // page at once while the whole score engraves. #osmd[data-partial] marks
+  // that preview; the full drawing replaces it.
+  const R = osmd.EngravingRules;
+  if ((osmd.Sheet?.SourceMeasures?.length || 0) > PREVIEW_BARS * 2) {
+    host.dataset.partial = "1";
+    R.MaxMeasureToDrawIndex = PREVIEW_BARS - 1;
+    R.MaxMeasureToDrawNumber = PREVIEW_BARS;
+    try {
+      osmd.render();
+      await new Promise((done) => requestAnimationFrame(() => setTimeout(done, 0)));
+    } catch {
+      /* the full drawing below is what counts */
+    }
+    R.MaxMeasureToDrawIndex = Number.MAX_VALUE;
+    R.MaxMeasureToDrawNumber = Number.MAX_VALUE;
+    if (state.osmd !== osmd) return;
+  }
   osmd.render();
+  delete host.dataset.partial;
+  fitScoreToWidth(osmd);
+  untangleScoreDirections($("osmd"));
   state.osmdRenderedWidth = Math.round($("osmd")?.clientWidth || 0);
   watchScoreWidth();
   wireScoreMeasureClicks();
@@ -2441,6 +4033,7 @@ function clearBarSelection({ close = true } = {}) {
 }
 
 function paintSelectionHilites() {
+  window.LuneAsk?.onSelection?.();
   const layer = $("selection-hilites");
   if (!layer) return;
   layer.innerHTML = "";
@@ -2463,6 +4056,21 @@ function paintSelectionHilites() {
 
 async function refreshScoreAnnotations() {
   if (!state.piece?.musicxml) return;
+  if (LUNE_LYRIC_LANE) {
+    const want = state.scoreFingers ? "fingers" : state.scoreLetters ? "letters" : "off";
+    const host = $("osmd");
+    if (state.renderedLaneMode === "both" && state.osmd && host?.querySelector("svg")) {
+      showLaneMode(host); // already engraved: nothing to redraw
+      return;
+    }
+    if (want !== state.renderedLaneMode) {
+      const keepScroll = $("score-scroll")?.scrollTop || 0;
+      await renderScore();
+      primeTimeline();
+      if ($("score-scroll")) $("score-scroll").scrollTop = keepScroll;
+    }
+    return;
+  }
   const roomy = scoreNeedsRoom();
   // Seamless: if OSMD is up and staff spacing need is unchanged, only re-paint
   // SVG overlays — no full MusicXML reload flash.
@@ -2488,28 +4096,40 @@ function groupByOffset(arr) {
   return groups;
 }
 
+/** "D#5" → "D♯5", "Bb3" → "B♭3" for display. */
+function prettyPitch(text) {
+  return String(text || "").replace(/^([A-G])(##|#|bb|b)?/, (_, l, a) => l + ({ "##": "♯♯", "#": "♯", bb: "♭♭", b: "♭" }[a || ""] || ""));
+}
+
 function lettersBlock(d) {
+  const fingersFirst = !!state.scoreFingers;
   const fmt = (arr) =>
     groupByOffset(arr)
       .map((g) => {
         const sorted = [...g].sort((a, b) => (b.midi || 0) - (a.midi || 0));
         if (sorted.length === 1) {
           const n = sorted[0];
-          const finger = n.fingering ? `<i>${n.fingering}</i>` : "";
-          return `<span class="chip letter">${escapeHtml(n.letter)}${finger}</span>`;
+          const letter = escapeHtml(prettyPitch(n.letter || n.pitch || ""));
+          const finger = n.fingering || n.finger;
+          if (fingersFirst) {
+            return `<span class="chip finger-only">${finger ? `<b>${finger}</b>` : ""}${letter}</span>`;
+          }
+          return `<span class="chip letter">${letter}${finger ? `<i class="tone-finger">${finger}</i>` : ""}</span>`;
         }
         const inner = sorted
           .map((n) => {
-            const finger = n.fingering ? `<i>${n.fingering}</i>` : "";
-            return `<span class="chord-tone"><b class="tone-letter">${escapeHtml(
-              n.letter
-            )}</b>${finger ? `<i class="tone-finger">${n.fingering}</i>` : ""}</span>`;
+            const letter = escapeHtml(prettyPitch(n.letter || n.pitch || ""));
+            const finger = n.fingering || n.finger;
+            if (fingersFirst) {
+              return `<span class="chord-tone">${finger ? `<b class="tone-finger">${finger}</b>` : ""}<i class="tone-letter">${letter}</i></span>`;
+            }
+            return `<span class="chord-tone"><b class="tone-letter">${letter}</b>${finger ? `<i class="tone-finger">${finger}</i>` : ""}</span>`;
           })
           .join("");
-        return `<span class="chip letter chord" title="Chord">${inner}</span>`;
+        return `<span class="chip ${fingersFirst ? "finger-only" : "letter"} chord" title="Chord">${inner}</span>`;
       })
       .join("");
-  let html = `<h4>Letter names</h4>`;
+  let html = `<h4>Notes</h4>`;
   if (d.rh?.length) html += `<p class="hand-label">Right hand</p><div class="notes">${fmt(d.rh)}</div>`;
   if (d.lh?.length) html += `<p class="hand-label">Left hand</p><div class="notes">${fmt(d.lh)}</div>`;
   if (!d.rh?.length && !d.lh?.length) html += `<p class="dim">No pitched notes in this bar.</p>`;
@@ -2540,89 +4160,41 @@ function deepenBarCopy(d, num) {
 
 function barSectionHtml(num, d) {
   if (!d?.found) {
-    return `<section class="coach-bar-block"><h3>Bar ${num}</h3><p class="dim">No notes here.</p></section>`;
+    return `<section class="coach-bar-block">${lettersBlock({ rh: [], lh: [] })}</section>`;
   }
-  const headline = (d.headline || "").trim();
-  let html = `<section class="coach-bar-block"><h3>Bar ${num}${
-    headline ? `<span class="bar-headline">${escapeHtml(headline)}</span>` : ""
-  }</h3>`;
+  let html = `<section class="coach-bar-block">`;
   html += lettersBlock(d);
 
-  // Always surface finger numbers in the coach (score overlay remains Letters XOR Fingers)
-  if (d.fingerings && (d.fingerings.rh?.length || d.fingerings.lh?.length || d.rh?.some((n) => n.fingering) || d.lh?.some((n) => n.fingering))) {
-    html += `<h4>Fingers</h4>`;
-    for (const [label, pack] of [
-      ["Right hand", d.rh?.filter((n) => n.fingering != null) || []],
-      ["Left hand", d.lh?.filter((n) => n.fingering != null) || []],
-    ]) {
-      const rows = pack.length
-        ? pack
-        : label.startsWith("Right")
-          ? d.fingerings.rh
-          : d.fingerings.lh;
-      if (!rows?.length) continue;
-      const chips = groupByOffset(rows)
-        .map((g) => {
-          const sorted = [...g].sort((a, b) => (b.midi || 0) - (a.midi || 0));
-          if (sorted.length === 1) {
-            const n = sorted[0];
-            const finger = n.finger ?? n.fingering;
-            return `<span class="chip finger-only"><b>${finger}</b>${escapeHtml(n.letter || "")}</span>`;
-          }
-          const inner = sorted
-            .map((n) => {
-              const finger = n.finger ?? n.fingering;
-              return `<span class="chord-tone"><b class="tone-finger">${finger}</b><i class="tone-letter">${escapeHtml(
-                n.letter || ""
-              )}</i></span>`;
-            })
-            .join("");
-          return `<span class="chip finger-only chord" title="Chord">${inner}</span>`;
-        })
-        .join("");
-      html += `<p class="hand-label">${label}</p><div class="notes">${chips}</div>`;
-    }
-  }
-
-  if (d.harmony?.length) {
-    html += `<h4>Harmony</h4><p>${escapeHtml(d.harmony.join(" · "))}</p>`;
-  }
-
   const practice = deepenBarCopy(d, num);
-  if (state.showTips !== false && practice.length) {
-    html += `<h4>Practice</h4><ul class="focus-list">${practice
-      .map((line) => `<li>${escapeHtml(line)}</li>`)
-      .join("")}</ul>`;
-  }
-
+  const first = practice[0] || "";
+  const extra = [];
+  if (practice.length > 1) extra.push(...practice.slice(1));
   if (state.showLines !== false && d.lineAdvice) {
-    let any = false;
-    let block = `<h4>Line advice</h4>`;
     for (const [key, label] of [
       ["rh", "Right-hand line"],
       ["lh", "Left-hand line"],
       ["together", "Hands together"],
     ]) {
       const tips = d.lineAdvice[key] || [];
-      if (!tips.length) continue;
-      any = true;
-      block += `<p class="hand-label">${label}</p><ul>${tips
-        .map((t) => `<li>${escapeHtml(t)}</li>`)
-        .join("")}</ul>`;
+      if (tips.length) extra.push(`${label}: ${tips.join(" ")}`);
     }
-    if (any) html += block;
   }
-
   if (d.split?.needed && d.split.chunks?.length) {
-    html += `<h4>Break it apart</h4>`;
-    for (const [i, chunk] of d.split.chunks.entries()) {
-      html += `<div class="chunk"><div class="label">${escapeHtml(chunk.hand)} · chunk ${i + 1}</div><p>${escapeHtml(chunk.how)}</p></div>`;
-    }
-    if (d.split.practiceNotes?.length) {
-      html += `<h4>How to practise</h4><ul>${d.split.practiceNotes
+    extra.push(
+      ...d.split.chunks.map((chunk, i) => `${chunk.hand} · chunk ${i + 1}: ${chunk.how}`)
+    );
+    if (d.split.practiceNotes?.length) extra.push(...d.split.practiceNotes);
+  }
+  if (first) {
+    const open = !!window._luneAdviceOpen;
+    html += `<h4>How to practise it</h4><div class="coach-advice"><p>${escapeHtml(first)}</p>`;
+    if (extra.length) {
+      html += `<button type="button" class="coach-more-btn" data-coach-more aria-expanded="${open ? "true" : "false"}">${open ? "Less on this bar" : "More on this bar"}</button>`;
+      html += `<div class="coach-advice-more"${open ? "" : " hidden"}><ul class="focus-list">${extra
         .map((line) => `<li>${escapeHtml(line)}</li>`)
-        .join("")}</ul>`;
+        .join("")}</ul></div>`;
     }
+    html += `</div>`;
   }
 
   html += `</section>`;
@@ -2633,14 +4205,18 @@ function refreshCoachChrome() {
   const bars = selectedBarsSorted();
   const title = $("coach-title");
   if (title) title.textContent = selectionTitle(bars);
-  const clear = $("coach-clear");
-  if (clear) clear.hidden = bars.length < 1;
+  const kicker = document.querySelector(".coach-kicker");
+  if (kicker) kicker.textContent = bars.length > 1 ? "Bars" : "Bar";
+  const diff = $("coach-diff");
+  if (diff) {
+    const d = bars.length === 1 ? debriefFor(bars[0]) : null;
+    const tag = (d?.headline || "").trim();
+    diff.hidden = !tag;
+    diff.textContent = tag;
+  }
   const hear = $("btn-hear");
   if (hear) {
-    hear.textContent =
-      bars.length > 1
-        ? `Play bars ${bars[0]}\u2013${bars[bars.length - 1]}`
-        : "Play this bar";
+    hear.textContent = bars.length > 1 ? "Play bars" : "Play bar";
     hear.disabled = !bars.length;
   }
   const lineBtn = $("btn-line");
@@ -2722,10 +4298,38 @@ function openBarCoach() {
     const d = debriefFor(num);
     html += barSectionHtml(num, d);
   }
-  if (bars.length === 1) {
-    html += lineSummaryHtml(bars[0]);
-  }
   body.innerHTML = html;
+  body.querySelector("[data-coach-more]")?.addEventListener("click", (e) => {
+    window._luneAdviceOpen = !window._luneAdviceOpen;
+    const more = body.querySelector(".coach-advice-more");
+    const btn = e.currentTarget;
+    if (more) more.hidden = !window._luneAdviceOpen;
+    btn.setAttribute("aria-expanded", window._luneAdviceOpen ? "true" : "false");
+    btn.textContent = window._luneAdviceOpen ? "Less on this bar" : "More on this bar";
+  });
+  keepBarVisible(bars[0]);
+  window.LunePractice?.decorateCoach(bars);
+}
+
+/** Phone: the bar sheet covers the lower half — scroll the tapped bar above it. */
+function keepBarVisible(num) {
+  if (!num || window.innerWidth > 760) return;
+  requestAnimationFrame(() => {
+    try {
+      const scroller = $("score-scroll");
+      const b = LuneAnnotate.measureBoundsInHost?.(state.osmd, $("osmd"), num);
+      if (!scroller || !b) return;
+      const sheet = $("coach")?.getBoundingClientRect();
+      const visibleBottom = sheet ? sheet.top : window.innerHeight * 0.54;
+      const sr = scroller.getBoundingClientRect();
+      const top = b.screenTop;
+      const bottom = b.screenBottom;
+      if (top >= sr.top + 8 && bottom <= visibleBottom - 8) return;
+      scroller.scrollBy({ top: top - sr.top - 16, behavior: "smooth" });
+    } catch {
+      /* keep the current scroll */
+    }
+  });
 }
 
 function openCoach() {
@@ -2739,7 +4343,7 @@ function closeCoach() {
   if (coach) coach.hidden = true;
   state.coachOpen = false;
   document.body.classList.remove("coach-open");
-  // Keep selection + listen region; only hide the panel
+  if (state.selectedBars?.length) clearBarSelection({ close: false });
   requestAnimationFrame(() => paintSelectionHilites());
 }
 
@@ -2749,13 +4353,8 @@ async function askPlan() {
     toast("Pick a bar first");
     return;
   }
-  const res = await fetch(luneUrl("/api/piece/practice"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ musicxml: state.piece.musicxml, bars }),
-  });
-  if (!res.ok) return toast("Could not build practice notes");
-  const plan = await res.json();
+  // Built locally from the bar data already loaded (same steps the server used).
+  const plan = LuneLite.practicePlan(state.piece, bars);
   openCoach();
   refreshCoachChrome();
   let html = `<h3>Practice · ${escapeHtml(selectionTitle(bars))}</h3>`;
@@ -2780,24 +4379,177 @@ function downloadScore() {
   URL.revokeObjectURL(url);
   toast("Downloaded");
 }
+window.downloadScore = downloadScore;
 
 async function openFile(file) {
+  if (!file) return;
   await withLoader(`Opening ${file.name}`, async () => {
-    const form = new FormData();
-    form.append("file", file, file.name);
-    const res = await fetch(luneUrl("/api/piece"), { method: "POST", body: form });
-    if (!res.ok) throw new Error("Could not open file");
-    await landOnDiscover(await res.json());
+    const isNotation = /\.(musicxml|xml|mxl)$/i.test(file.name || "");
+    // With a server (desktop app / local run), PDFs and photos still go to it.
+    if (!LUNE_ON_PAGES && !isNotation) {
+      try {
+        const form = new FormData();
+        form.append("file", file, file.name);
+        const res = await fetch(luneUrl("/api/piece"), { method: "POST", body: form });
+        if (res.ok) {
+          await landOnDiscover(await res.json());
+          return;
+        }
+      } catch {
+        /* fall through to the in-browser reader and its explanation */
+      }
+    }
+    try {
+      const xml = await LuneLite.readScoreFile(file);
+      const piece = LuneLite.analyze(xml, { filename: file.name });
+      await window.LunePractice?.onUploadOpened(piece, xml);
+      await openPieceSession(piece, { panel: "score" });
+      setRoute(piece, "score");
+    } catch (err) {
+      const friendly =
+        err instanceof LuneLite.LiteError
+          ? err.message
+          : "Couldn’t open this file. Export it again as MusicXML (.musicxml) and try once more.";
+      toast(friendly);
+    }
   });
 }
 
-function goHome({ keepTabs = false } = {}) {
+/* ---------- shareable links: #/<piece-id>/<tab> ---------- */
+
+function pieceRouteId(piece) {
+  if (!piece || piece.local) return "";
+  if (piece.id) return piece.id;
+  const q = piece.openQuery || piece.title || "";
+  return normSearch(q).replace(/\s+/g, "-").slice(0, 80);
+}
+
+let routeApplying = false;
+function setRoute(piece, panel, { replace = false } = {}) {
+  if (routeApplying) return;
+  const id = pieceRouteId(piece);
+  const hash = piece?.local ? "#/your-score" : id ? `#/${id}/${panel || "explain"}` : "";
+  const title = piece ? `${piece.overview?.title || piece.title || "Score"} — Lune` : "Lune — so practice feels right again";
+  document.title = title;
+  if (location.hash === hash) return;
+  const url = `${location.pathname}${location.search}${hash}`;
+  try {
+    if (replace) history.replaceState({ lune: hash }, title, url);
+    else history.pushState({ lune: hash }, title, url);
+  } catch {
+    /* file:// or sandboxed — links just don't update */
+  }
+}
+
+function parseRoute() {
+  const m = (location.hash || "").match(/^#\/([^/]+)(?:\/(score|explain|piano))?/);
+  if (!m) return null;
+  return { id: decodeURIComponent(m[1]), panel: m[2] || "explain" };
+}
+
+async function applyRoute() {
+  if (window.LunePractice?.handleRoute(location.hash)) return;
+  const r = parseRoute();
+  routeApplying = true;
+  try {
+    if (!r) {
+      if (!$("home") || $("home").hidden) goHome({ keepTabs: true });
+      document.title = "Lune — so practice feels right again";
+      return;
+    }
+    if (window.LuneOnboard && !LuneOnboard.requirePieceAccess?.(r.id)) {
+      goHome({ keepTabs: true });
+      return;
+    }
+    if (r.id === "your-score") {
+      const s = state.sessions.find((x) => x.piece?.local);
+      if (s) await activateSession(s.id);
+      else {
+        goHome({ keepTabs: true });
+        toast("Uploaded scores stay on the device they were opened on — upload it again here.");
+      }
+      return;
+    }
+    // older links use ids that now resolve to a renamed catalogue entry
+    // (debussy-clair-de-lune → claude-debussy-claire-de-lune): a session also answers
+    // to the id it was opened from, so changing panel doesn't open the piece again
+    const open = state.sessions.find((x) => pieceRouteId(x.piece) === r.id || x.routeAliases?.has(r.id));
+    if (open) {
+      if (open.id !== state.activeSessionId) await activateSession(open.id);
+      else showView("studio");
+      if (r.panel === "score") await switchToScorePanel();
+      else setStudioPanel(r.panel);
+      return;
+    }
+    // static site: exact catalogue id; local server: let it resolve the words
+    const askedFor = location.hash;
+    // A score fetched on open can take many seconds. If the pianist goes to another
+    // piece meanwhile, the loader (which blocks the page) goes at once, and this
+    // score must not take the screen back when it lands.
+    showLoader("Finding the score");
+    let released = false;
+    const release = () => {
+      if (released) return;
+      released = true;
+      window.removeEventListener("hashchange", release);
+      hideLoader();
+    };
+    window.addEventListener("hashchange", release);
+    let piece;
+    try {
+      piece = await tryOpen(LUNE_ON_PAGES ? { query: r.id } : { query: r.id.replace(/-/g, " "), title: "" });
+    } finally {
+      release();
+    }
+    if (location.hash !== askedFor) return;
+    if (!piece || piece.kind !== "score") {
+      goHome({ keepTabs: true });
+      toast("That link points to a score Lune doesn’t have any more — search for it instead.");
+      return;
+    }
+    const already = state.sessions.find((x) => pieceRouteId(x.piece) && pieceRouteId(x.piece) === pieceRouteId(piece));
+    if (already) {
+      (already.routeAliases ||= new Set()).add(r.id);
+      if (already.id !== state.activeSessionId) await activateSession(already.id);
+      else showView("studio");
+      if (r.panel === "score") await switchToScorePanel();
+      else setStudioPanel(r.panel);
+      return;
+    }
+    await openPieceSession(piece, { panel: r.panel === "score" ? "explain" : r.panel });
+    const opened = activeSession();
+    if (opened && pieceRouteId(opened.piece) !== r.id) (opened.routeAliases ||= new Set()).add(r.id);
+    if (r.panel === "score") await switchToScorePanel();
+  } finally {
+    routeApplying = false;
+    const active = activeSession();
+    if (active && r) document.title = `${active.piece?.overview?.title || active.piece?.title || "Score"} — Lune`;
+  }
+}
+
+function goHome({ keepTabs = false, forceApp = false } = {}) {
+  // Signed-in users always get the personal home — never bounce back into the gate.
+  const signedIn = !!window.LuneOnboard?.signedIn?.();
+  if (!forceApp && window.LuneOnboard && !LuneOnboard.unlocked() && !signedIn) {
+    LuneOnboard.route();
+    return;
+  }
   stopAll();
   closeCoach();
   snapshotActiveSession();
   state.mode = "home";
   showView("home");
+  window.LuneOnboard?.paintSignedHome?.();
+  window.LuneOnboard?.applyGateChrome?.();
   if (!keepTabs) renderPieceTabs();
+  if (!routeApplying && location.hash) {
+    try {
+      history.pushState({ lune: "" }, "Lune", `${location.pathname}${location.search}`);
+    } catch {
+      /* ignore */
+    }
+    document.title = "Lune — so practice feels right again";
+  }
 }
 
 function bind() {
@@ -2810,6 +4562,39 @@ function bind() {
   on("top-search", "submit", (e) => {
     e.preventDefault();
     search($("q").value, { openBest: true });
+  });
+  document.getElementById("hero-chips")?.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-open-piece]");
+    if (!b) return;
+    if (window.LuneOnboard && !LuneOnboard.requirePieceAccess?.(b.dataset.openPiece)) return;
+    try {
+      history.pushState({ lune: b.dataset.openPiece }, "", `${location.pathname}${location.search}#/${b.dataset.openPiece}/explain`);
+    } catch {
+      location.hash = `#/${b.dataset.openPiece}/explain`;
+      return;
+    }
+    applyRoute().catch((err) => toast(err.message));
+  });
+  // Member recs / chapter CTAs that open catalogue pieces by id
+  document.getElementById("home")?.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-open-piece]");
+    if (!b || b.closest("#hero-chips")) return;
+    if (window.LuneOnboard && !LuneOnboard.requirePieceAccess?.(b.dataset.openPiece)) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    e.preventDefault();
+    const id = b.dataset.openPiece;
+    // The landing's "Open Clair de lune" goes straight to the page of music.
+    const panel = b.dataset.openPanel === "score" ? "score" : "explain";
+    try {
+      history.pushState({ lune: id }, "", `${location.pathname}${location.search}#/${id}/${panel}`);
+    } catch {
+      location.hash = `#/${id}/${panel}`;
+      return;
+    }
+    applyRoute().catch((err) => toast(err.message));
   });
   on("q", "input", () => {
     // Sync filter+render (~1–3ms). No debounce, no rAF, no network.
@@ -2838,8 +4623,11 @@ function bind() {
       items[activeIdx].click();
     }
   });
-  // Prefetch the free-score index so the first keystroke is already local.
-  ensureSearchIndex();
+  // Prefetch the free-score index so the first keystroke is already local,
+  // once the first screen is drawn: it is ~100 KB compressed and not needed to paint.
+  const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1200));
+  if (document.readyState === "complete") idle(() => ensureSearchIndex());
+  else window.addEventListener("load", () => idle(() => ensureSearchIndex()), { once: true });
   on("btn-search", "click", () => {
     const next = !document.body.classList.contains("phone-search-open");
     document.body.classList.toggle("phone-search-open", next);
@@ -2880,6 +4668,7 @@ function bind() {
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
+      if (document.querySelector(".lune-menu.is-open")) return;
       if (state.coachOpen) {
         closeCoach();
         e.preventDefault();
@@ -2908,6 +4697,8 @@ function bind() {
   });
 
   on("btn-home", "click", () => goHome());
+  on("btn-nav-back", "click", () => studioNavBack());
+  on("btn-nav-fwd", "click", () => studioNavForward());
   on("btn-open", "click", () => $("file")?.click());
   on("btn-home-upload", "click", () => $("file")?.click());
   on("btn-discover-home", "click", () => goHome());
@@ -2949,7 +4740,9 @@ function bind() {
     stopAll();
   });
   on("btn-toggle-kbd", "click", () => {
-    setKeyboardVisible(!state.keyboardVisible);
+    // go by what is on screen, not a remembered flag that may be stale
+    const dock = $("piano-dock");
+    setKeyboardVisible(!dock || dock.hidden);
   });
   on("btn-hide-kbd", "click", () => {
     if (state.panel === "piano") setStudioPanel("score");
@@ -3034,10 +4827,23 @@ function bind() {
 
   bindPlayheadScrub();
 
-  document.querySelectorAll(".speed-btn").forEach((btn) => {
-    btn.addEventListener("click", () => setPlayRate(btn.dataset.rate));
-  });
   setPlayRate(1);
+  syncTempoUi();
+  on("btn-metro", "click", () => {
+    toggleMetronome().catch((e) => toast(e.message || String(e)));
+  });
+  const bpmSlider = $("bpm-slider");
+  if (bpmSlider) {
+    bpmSlider.addEventListener("input", () => {
+      setPracticeBpm(Number(bpmSlider.value), { rebuild: true });
+    });
+    bpmSlider.addEventListener("change", () => {
+      setPracticeBpm(Number(bpmSlider.value), { rebuild: true });
+    });
+  }
+  window.addEventListener("resize", () => {
+    if (state.panel === "piano") window.LuneTutorial?.resize?.();
+  });
   syncPlayButton();
   try {
     LunePiano.setKeysHandler?.(onPianoKeys);
@@ -3160,20 +4966,82 @@ function bind() {
 
   on("btn-hear", "click", () => playSelectedBars().catch((e) => toast(e.message)));
   on("btn-line", "click", () => playSelectedLine().catch((e) => toast(e.message)));
-  on("btn-plan", "click", () => askPlan().catch((e) => toast(e.message)));
-  on("btn-download", "click", downloadScore);
+  document.addEventListener("click", (e) => {
+    if (e.target.closest?.("#btn-plan")) askPlan().catch((err) => toast(err.message));
+  });
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest?.("[data-open-credits]");
+    if (b) openCredits(b.getAttribute("data-open-credits"));
+  });
+  $("credits-dialog")?.addEventListener("click", (e) => {
+    if (e.target === $("credits-dialog")) $("credits-dialog").close();
+  });
   on("coach-close", "click", closeCoach);
   on("coach-clear", "click", () => clearBarSelection({ close: true }));
   on("file", "change", () => {
+    if (window.LuneOnboard && !LuneOnboard.requireUnlock()) {
+      $("file").value = "";
+      return;
+    }
     const f = $("file").files?.[0];
     $("file").value = "";
     if (f) openFile(f).catch((e) => toast(e.message));
   });
+
+  // Piano tutorial + audio/keyboard hand filter
+  const setTutHand = (mode) => {
+    window.LuneTutorial?.setHandFilter?.(mode);
+    window.LunePiano?.setHandFilter?.(mode);
+    ["both", "rh", "lh"].forEach((m) => {
+      const el = $(`tut-hand-${m}`);
+      if (!el) return;
+      const on = m === mode;
+      el.classList.toggle("on", on);
+      el.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  };
+  on("tut-hand-both", "click", () => setTutHand("both"));
+  on("tut-hand-rh", "click", () => setTutHand("rh"));
+  on("tut-hand-lh", "click", () => setTutHand("lh"));
 }
+
+window.goHome = goHome;
+window.openPieceSession = openPieceSession;
+window.toast = toast;
+window.showView = showView;
 
 try {
   bind();
-  showView("home");
+  window.addEventListener("popstate", () => applyRoute().catch(() => {}));
+  // Repertoire / study / onboard modules load after this file.
+  const boot = async () => {
+    try {
+      await window.LuneStore?.init?.();
+    } catch (e) {
+      console.warn("[lune] store init", e);
+    }
+    window.LuneOnboard?.init?.();
+    window.LuneImpact?.init?.();
+    const gate = window.LuneOnboard?.route?.() || "app";
+    window.LunePractice?.init().catch((e) => console.warn("[lune] practice init", e));
+    if (gate === "hello") {
+      // Post-sign-in welcome is already showing — don't overwrite with guest home.
+      return;
+    }
+    if (window.LuneImpact?.handleRoute?.()) return;
+    if (gate === "app") {
+      showView("home");
+      window.LuneOnboard?.paintHomeRecs?.();
+      window.LuneOnboard?.applyGateChrome?.();
+      window.LuneImpact?.paintHomeImpact?.();
+      if (parseRoute()) applyRoute().catch(() => {});
+    }
+  };
+  // Scripts are deferred: they run after parsing (readyState "interactive"), and
+  // practice.js, study.js and others load after this file. DOMContentLoaded fires
+  // once every deferred script has run, so boot waits for it.
+  if (document.readyState === "complete") boot();
+  else document.addEventListener("DOMContentLoaded", boot, { once: true });
 } catch (err) {
   console.error("Lune bind failed", err);
   const t = document.getElementById("toast");

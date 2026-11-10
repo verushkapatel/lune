@@ -70,7 +70,7 @@ def main():
         except Exception:
             pass
         check("piano loader shown while preparing score", loader_seen)
-        page.wait_for_selector("#osmd svg", timeout=40000)
+        page.wait_for_selector("#osmd:not([data-partial]) svg", timeout=40000)
         page.wait_for_selector("#lune-loader", state="hidden", timeout=40000)
         page.wait_for_timeout(800)
         check(
@@ -212,7 +212,7 @@ def main():
         open_fur_elise(page2)
         page2.screenshot(path=str(SHOTS / "06-phone-explain.png"))
         page2.click("#btn-explain-score")
-        page2.wait_for_selector("#osmd svg", timeout=40000)
+        page2.wait_for_selector("#osmd:not([data-partial]) svg", timeout=40000)
         page2.wait_for_selector("#lune-loader", state="hidden", timeout=40000)
         page2.wait_for_timeout(1000)
         page2.screenshot(path=str(SHOTS / "07-phone-score.png"))

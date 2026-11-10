@@ -7,7 +7,8 @@ shows the music itself — not a wall of text. Click a passage for letter names,
 fingering, voices, harmony, and how to play that spot. History and playing notes
 live under **About**. A practice plan appears only if you ask.
 
-No account. No API key for the coach. Free on your machine.
+No account needed, no API key for the coach. Free on your machine and at
+<https://verushkapatel.github.io/lune/>.
 
 ## Run
 
@@ -32,3 +33,52 @@ open dist/Lune.app
 MusicXML (export from MuseScore) unlocks exact notes and fingering. PDF and
 photos show the page for click-to-focus; pair them with MusicXML when you need
 the full note breakdown.
+
+## Practice features
+
+- **Repertoire** — type the pieces you're learning and keep them in one place,
+  with a status (learning · polishing · ready) and when you last practised.
+  Saved in the browser; sign in to sync across devices
+  ([docs/ACCOUNTS.md](docs/ACCOUNTS.md)).
+- **Notes on bars, typed or spoken** — select a bar and write "play faster
+  here", or press **Tell Lune** and say "bar 12, keep the left hand quiet".
+  Notes show as markers on the score and are tagged (tempo, dynamics,
+  fingering, memory, pedal…).
+- **Today's bars** — rate a bar Again / Hard / Good / Easy after practising it
+  and Lune schedules it again just before you'd forget (spaced repetition).
+- **Play along** — Lune listens through the microphone, follows your place in
+  the score, flags wrong notes and hesitations, and draws a stumble map; the
+  bars that tripped you go straight into Today's bars. Audio never leaves the
+  browser.
+- **Teacher links** — select bars, write instructions, and share a link; the
+  student opens the piece at those bars and can save the assignment.
+- **Reading & access** — bar descriptions read aloud (R), arrow keys from bar
+  to bar, large print, an easier-to-read typeface (Atkinson Hyperlegible),
+  high contrast, and braille music (.brf) downloads for library pieces.
+- **Feedback** (`#feedback`) — what changed, in the pianist's or teacher's own
+  words, with an explicit quote permission ([docs/OUTREACH.md](docs/OUTREACH.md)).
+- **Reading study** (`#/study`) — a 10-minute experiment on whether the letter
+  row helps students learn to read ([docs/study-protocol.md](docs/study-protocol.md)).
+- **Fingering benchmark** against the PIG dataset
+  ([docs/fingering-benchmark.md](docs/fingering-benchmark.md)).
+
+## Tests
+
+```bash
+scripts/sync_pages_dev.sh                      # copy frontend/ into the built site
+# serve a folder whose /lune/ is pages-site on port 8137, then:
+.venv/bin/python scripts/lune_flow_test.py     # flows, AI provider + fallback, music, accessibility, phone
+.venv/bin/python scripts/contrast_audit.py     # contrast on ten screens, dark and light
+.venv/bin/python scripts/claude_pages_test.py http://127.0.0.1:8137/lune/     # catalogue: every bundled piece opens
+.venv/bin/python scripts/claude_practice_test.py http://127.0.0.1:8137/lune/  # Repertoire, remarks, review, links
+python3 scripts/verify_no_blocked.py           # no in-copyright piece listed or shipped
+```
+
+## Build
+
+```bash
+scripts/build_site.sh        # clean build into pages-site (downloads sources; slow)
+python3 scripts/build_light_theme.py   # after changing styles.css
+```
+
+Ask Lune can use a language model on your own computer: see [docs/AI.md](docs/AI.md).

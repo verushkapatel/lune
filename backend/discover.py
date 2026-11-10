@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 import unicodedata
 import urllib.error
@@ -16,6 +17,7 @@ USER_AGENT = "LuneScoreCoach/5.0 (local music practice app)"
 
 # Local portraits under frontend/assets/composers/ — served at /static/...
 # Prefer these over Wikipedia/OpenOpus hotlinks so faces never depend on remote thumbs.
+# Keep in sync with frontend/app.js COMPOSER_FACE_FILES.
 LOCAL_COMPOSER_FACES: Dict[str, str] = {
     "chopin": "chopin.jpg",
     "beethoven": "beethoven.jpg",
@@ -33,20 +35,64 @@ LOCAL_COMPOSER_FACES: Dict[str, str] = {
     "handel": "handel.jpg",
     "rimsky": "rimsky.jpg",
     "rimsky-korsakov": "rimsky.jpg",
+    "korsakov": "rimsky.jpg",
+    "ravel": "ravel.jpg",
+    "rachmaninoff": "rachmaninoff.jpg",
+    "rachmaninov": "rachmaninoff.jpg",
+    "mendelssohn": "mendelssohn.jpg",
+    "grieg": "grieg.jpg",
+    "faure": "faure.jpg",
+    "saint-saens": "saint-saens.jpg",
+    "mussorgsky": "mussorgsky.jpg",
+    "scarlatti": "scarlatti.jpg",
+    "clementi": "clementi.jpg",
+    "czerny": "czerny.jpg",
+    "burgmuller": "burgmuller.jpg",
+    "granados": "granados.jpg",
+    "albeniz": "albeniz.jpg",
+    "gershwin": "gershwin.jpg",
+    "macdowell": "macdowell.jpg",
+    "field": "field.jpg",
+    "pachelbel": "pachelbel.jpg",
+    "purcell": "purcell.jpg",
+    "vivaldi": "vivaldi.jpg",
+    "telemann": "telemann.jpg",
+    "busoni": "busoni.jpg",
+    "gluck": "gluck.jpg",
+    "weber": "weber.jpg",
+    "dvorak": "dvorak.jpg",
+    "sibelius": "sibelius.jpg",
+    "scriabin": "scriabin.jpg",
+    "franck": "franck.jpg",
+    "bartok": "bartok.jpg",
+    "poulenc": "poulenc.jpg",
+    "prokofiev": "prokofiev.jpg",
+    "paderewski": "paderewski.jpg",
+    "moszkowski": "moszkowski.jpg",
+    "gottschalk": "gottschalk.jpg",
 }
-LOCAL_FACE_CACHE_BUST = "fix50"
+LOCAL_FACE_CACHE_BUST = "faces01"
+
+
+def _fold_name(text: str) -> str:
+    n = (text or "").lower()
+    n = "".join(
+        ch for ch in unicodedata.normalize("NFD", n) if unicodedata.category(ch) != "Mn"
+    )
+    # Strip years / parenthetical dates: "Debussy(1862–1918)" → "debussy"
+    n = re.sub(r"\([^)]*\)", " ", n)
+    n = re.sub(r"\d{3,4}\s*[-–—]\s*\d{3,4}", " ", n)
+    n = re.sub(r"&[a-z]+;", " ", n)  # HTML entities like &uuml;
+    n = re.sub(r"[^a-z0-9\s\-]", " ", n)
+    return re.sub(r"\s+", " ", n).strip()
 
 
 def local_composer_face_url(composer: str) -> str:
     """Return a stable /static portrait URL for a known composer, else empty."""
-    n = (composer or "").lower()
-    # Strip combining accents so "Frédéric" still matches.
-    n = "".join(
-        ch for ch in unicodedata.normalize("NFD", n) if unicodedata.category(ch) != "Mn"
-    )
+    n = _fold_name(composer)
     if not n:
         return ""
-    if "rimsky" in n:
+    if "rimsky" in n or "korsakov" in n:
         key = "rimsky"
     else:
         key = ""
@@ -55,7 +101,7 @@ def local_composer_face_url(composer: str) -> str:
                 key = candidate
                 break
         if not key:
-            last = n.strip().split()[-1] if n.strip() else ""
+            last = n.split()[-1] if n else ""
             key = last if last in LOCAL_COMPOSER_FACES else ""
     file = LOCAL_COMPOSER_FACES.get(key) or ""
     if not file:
@@ -91,6 +137,10 @@ ERA_STORIES: Dict[str, str] = {
         "Harmony stretches further; textures grow denser. Pieces can feel cinematic — "
         "long arcs of tension and release."
     ),
+    "impressionist": (
+        "Colour and atmosphere over hard edges. Pedal washes, floating rhythms, and "
+        "harmony that suggests moonlight, water, or mist more than a march."
+    ),
     "20th century": (
         "Rules get rewritten. Some music is folk-simple, some is crunchy and modern — "
         "listen for new colours, rhythms, and atmospheres."
@@ -98,6 +148,14 @@ ERA_STORIES: Dict[str, str] = {
     "modern": (
         "Anything goes: jazz colours, folk tunes, film-like scenes, or stark minimalism. "
         "Ask what mood the composer wants in each section."
+    ),
+    "contemporary": (
+        "Living or recent music: styles range widely. Listen for the composer’s own rules "
+        "before you force older habits onto the page."
+    ),
+    "folk": (
+        "Tunes that travelled by ear. Keep the melody clear and singable, the pulse honest, "
+        "and ornaments light."
     ),
 }
 
@@ -218,12 +276,24 @@ def _era_key(epoch: str) -> str:
     for key in ERA_STORIES:
         if key in e:
             return key
+    if "impression" in e:
+        return "impressionist"
     if "romanti" in e:
         return "romantic"
     if "classic" in e:
         return "classical"
     if "baroq" in e:
         return "baroque"
+    if "renaissance" in e:
+        return "renaissance"
+    if "medieval" in e or "middle age" in e:
+        return "medieval"
+    if "contempor" in e:
+        return "contemporary"
+    if "folk" in e or "traditional" in e:
+        return "folk"
+    if "modern" in e or "20th" in e or "ragtime" in e:
+        return "modern"
     return ""
 
 
@@ -242,7 +312,10 @@ def _era_blurb(epoch: str) -> Dict[str, str]:
         "early romantic": ["Let the melody breathe.", "Balance heart with a steady left hand.", "Colour the harmony softly."],
         "romantic": ["Follow the long line.", "Dynamic waves, not flat grey.", "Pedal for glow, not mud."],
         "late romantic": ["Plan the big arcs.", "Voices inside chords still need to sing.", "Don’t rush the quiet."],
+        "impressionist": ["Let colour bloom; don’t force a march beat.", "Pedal for mist, clear for melody.", "Soft attacks, long listens."],
         "20th century": ["Trust odd colours.", "Rhythm can be the main character.", "Silence counts."],
+        "modern": ["Trust odd colours.", "Rhythm can be the main character.", "Silence counts."],
+        "folk": ["Sing the tune first.", "Keep the pulse honest.", "Ornaments stay light."],
     }.get(key, ["Find the singing line.", "Mark one mood word for each section.", "Slow practice first."])
     return {"label": label, "story": story, "tips": tips, "key": key}
 
@@ -300,7 +373,7 @@ COMPOSER_FALLBACKS: Dict[str, Dict[str, str]] = {
             "Scott Joplin (c.1867–1917) helped define ragtime: a marching left-hand stride under a syncopated "
             "right-hand tune. Keep the bounce honest and the melody playful, never rushed into a blur."
         ),
-        "era": "20th Century",
+        "era": "Modern",
     },
     "traditional": {
         "hook": "Folk tunes are teachers — clear melody, simple harmony, strong memory.",
@@ -310,25 +383,132 @@ COMPOSER_FALLBACKS: Dict[str, Dict[str, str]] = {
         ),
         "era": "Folk",
     },
+    "debussy": {
+        "hook": "Debussy paints with pedal and colour — Clair de lune is the soul of Lune.",
+        "bio": (
+            "Claude Debussy (1862–1918) opened new doors of harmony and atmosphere. "
+            "Let chords bloom; don’t force a classical march beat onto floating phrases."
+        ),
+        "era": "Impressionist",
+    },
+    "scriabin": {
+        "hook": "Scriabin moves from Chopin-like lyricism into mystical late colours.",
+        "bio": (
+            "Alexander Scriabin (1872–1915) began close to Chopin and ended in a unique harmonic world. "
+            "Early pieces want singing tone; later ones ask for brave colour and careful voicing."
+        ),
+        "era": "Late Romantic",
+    },
+    "liszt": {
+        "hook": "Liszt turns the piano into an orchestra — brilliance with a singing heart.",
+        "bio": (
+            "Franz Liszt (1811–1886) redefined piano virtuosity and transcription. "
+            "Shape long lines even when the figuration is dazzling."
+        ),
+        "era": "Romantic",
+    },
+    "satie": {
+        "hook": "Satie’s calm has a wry smile — simple on the page, carefully placed in time.",
+        "bio": (
+            "Erik Satie (1866–1925) wrote spare, memorable piano music. "
+            "Keep Gymnopédies unhurried and evenly weighted."
+        ),
+        "era": "Impressionist",
+    },
 }
 
+# Last-name / alias → era label shown in search and overview.
+# Prefer a real music-history era over leaving pieces as "Unknown".
 COMPOSER_ERA_DEFAULTS = {
-    "beethoven": "Early Romantic",
-    "mozart": "Classical",
-    "chopin": "Romantic",
+    # Baroque
     "bach": "Baroque",
-    "schumann": "Romantic",
-    "joplin": "20th Century",
-    "debussy": "20th Century",
-    "haydn": "Classical",
     "handel": "Baroque",
+    "haendel": "Baroque",
+    "scarlatti": "Baroque",
+    "pachelbel": "Baroque",
+    "purcell": "Baroque",
+    "vivaldi": "Baroque",
+    "telemann": "Baroque",
+    "couperin": "Baroque",
+    "rameau": "Baroque",
+    "telemann": "Baroque",
+    "gluck": "Classical",
+    # Classical
+    "mozart": "Classical",
+    "haydn": "Classical",
+    "clementi": "Classical",
+    "czerny": "Classical",
+    "hummel": "Classical",
+    "dussek": "Classical",
+    "kuhlau": "Classical",
+    "diabelli": "Classical",
+    # Early Romantic / Romantic bridge
+    "beethoven": "Early Romantic",
     "schubert": "Early Romantic",
+    "field": "Early Romantic",
+    "weber": "Early Romantic",
+    "mendelssohn": "Romantic",
+    "chopin": "Romantic",
+    "schumann": "Romantic",
+    "liszt": "Romantic",
+    "brahms": "Romantic",
+    "grieg": "Romantic",
+    "tchaikovsky": "Romantic",
+    "chaikovsky": "Romantic",
+    "mussorgsky": "Romantic",
+    "rimsky": "Romantic",
+    "korsakov": "Romantic",
+    "dvorak": "Romantic",
+    "franck": "Romantic",
+    "faure": "Romantic",
+    "saint-saens": "Romantic",
+    "gottschalk": "Romantic",
+    "moszkowski": "Romantic",
+    "paderewski": "Romantic",
+    "macdowell": "Romantic",
+    "burgmuller": "Romantic",
+    "burgmueller": "Romantic",
+    "albeniz": "Romantic",
+    "granados": "Romantic",
+    "scriabin": "Late Romantic",
+    "rachmaninoff": "Late Romantic",
+    "rachmaninov": "Late Romantic",
+    "sibelius": "Late Romantic",
+    "busoni": "Late Romantic",
+    "leontovych": "Romantic",
+    # Impressionist / early modern
+    "debussy": "Impressionist",
+    "ravel": "Impressionist",
+    "satie": "Impressionist",
+    # Modern / 20th century (PD works only when shipped)
+    "joplin": "Modern",
+    "bartok": "Modern",
+    "gershwin": "Modern",
+    "poulenc": "Modern",
+    "prokofiev": "Modern",
+    "shostakovich": "Modern",
+    "traditional": "Folk",
+    "anon": "Folk",
+    "anonymous": "Folk",
+    "folk": "Folk",
 }
 
 
 def _composer_key(name: str) -> str:
-    n = (name or "").lower()
-    for key in COMPOSER_FALLBACKS:
+    n = _fold_name(name)
+    if not n:
+        return ""
+    if "rimsky" in n or "korsakov" in n:
+        return "rimsky"
+    if "saint" in n and "saen" in n:
+        return "saint-saens"
+    if "burgmull" in n or "burgmueller" in n:
+        return "burgmuller"
+    # Prefer longer alias hits (rachmaninoff before bach-like substrings).
+    for key in sorted(COMPOSER_ERA_DEFAULTS.keys(), key=len, reverse=True):
+        if key in n:
+            return key
+    for key in sorted(COMPOSER_FALLBACKS.keys(), key=len, reverse=True):
         if key in n:
             return key
     last = n.split()[-1] if n else ""
