@@ -19,7 +19,6 @@ function luneUrl(path) {
   return `${LUNE_ROOT}${path}`;
 }
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = luneUrl("/static/vendor/pdf.worker.min.js");
 
 const COMPOSER_FACE_FILES = {
   chopin: "chopin.jpg",
@@ -178,7 +177,7 @@ const state = {
   timelineKind: null, // "piece" | null — transport always plays the whole piece
   snippetEnd: null, // timeline seconds where a bar/line snippet auto-pauses
   keyboard: null,
-  keyboardVisible: kbdPref(),
+  keyboardVisible: false,
   playRate: 1,
   practiceBpm: 72,
   markedBpm: 72,
@@ -194,10 +193,25 @@ function toast(msg) {
   if (!el) return;
   el.textContent = msg;
   el.hidden = false;
+  // the toast itself is display:none between messages, which screen readers skip;
+  // a live region that is always present carries the words instead
+  const live = $("toast-live");
+  if (live) live.textContent = msg;
   clearTimeout(toast.t);
   // long messages stay long enough to read
   toast.t = setTimeout(() => (el.hidden = true), Math.max(2800, String(msg).length * 55));
 }
+
+/* ---------- skip link: past the header to whichever view is showing ---------- */
+
+document.getElementById("skip-link")?.addEventListener("click", (e) => {
+  // the app routes on the hash, so the link moves focus instead of following "#"
+  e.preventDefault();
+  const view = [...document.querySelectorAll("main")].find((m) => !m.hidden && m.offsetParent !== null);
+  if (!view) return;
+  if (!view.hasAttribute("tabindex")) view.setAttribute("tabindex", "-1");
+  view.focus();
+});
 
 /* ---------- piano loader (shown while scores / samples load) ---------- */
 
@@ -216,17 +230,8 @@ function hideLoader() {
   const el = $("lune-loader");
   if (!el) return;
   _loaderCount = Math.max(0, _loaderCount - 1);
-  if (_loaderCount === 0) {
-    el.hidden = true;
-    endBootLoader();
-  }
+  if (_loaderCount === 0) el.hidden = true;
 }
-
-/** The loader shown from the first frame when a link opens a piece; it goes once the piece is up. */
-function endBootLoader() {
-  document.documentElement.classList.remove("boot-piece");
-}
-setTimeout(endBootLoader, 20000); // never stuck behind it
 
 /** Run an async task under the piano loader; always hides it afterwards. */
 async function withLoader(text, task) {
@@ -439,6 +444,8 @@ let searchIndexPromise = null;
 let searchGen = 0;
 let lastSearchQuery = "";
 
+window.luneSearchIndex = () => ensureSearchIndex();
+
 function activeSearchIndex() {
   return searchIndex && searchIndex.length ? searchIndex : SEARCH_FALLBACK;
 }
@@ -459,6 +466,7 @@ function normSearch(text) {
     .trim();
 }
 
+/** The one place the search index is fetched; onboarding asks here too (window.luneSearchIndex). */
 function ensureSearchIndex() {
   if (searchIndexReady) return Promise.resolve(searchIndex);
   if (!searchIndexPromise) {
@@ -474,6 +482,7 @@ function ensureSearchIndex() {
         if (items.length) {
           searchIndex = items;
           searchIndexReady = true;
+          window.__LUNE_SEARCH_ITEMS__ = items; // onboarding's dream-piece list reads the same copy
         }
         if (typeof console !== "undefined" && console.debug) {
           console.debug(
@@ -574,7 +583,31 @@ function scoreIndexEntry(q, entry, tokens) {
   const group = entry.group || "";
   if (group.startsWith("Featured") || group.startsWith("Open MusicXML")) score += 1.5;
   else if (group.startsWith("Bach chorales") || group.startsWith("music21")) score -= 1;
+  // The work itself before its arrangements and copies: typing "fur elise" should
+  // open Beethoven's Für Elise, not a file called "Fur Elise - Beethoven" by
+  // "for beginner piano". Everything still appears; only the order changes.
+  if (title === q) score += 5;
+  const composer = String(entry.composer || "").trim();
+  if (!composer || /^unknown$/i.test(composer) || /\b(piano|easy|beginners?|arr\.?|version)\b/i.test(composer)) score -= 3;
+  if (/\b(easy|beginners?|fingered|simplified|version \d|musicxml|mxl)\b|\s[-—]\s.*\b(1[6-9]\d\d|20\d\d)\b|\s[-—]\s[A-Z][a-z]+$/i.test(entry.title || "")) score -= 2;
+  // near-ties go to the better-known composer (Debussy's Clair de lune before
+  // Jaëll's): how many of their pieces the catalogue holds, capped small
+  score += Math.min(1, Math.log10(1 + (composerCounts().get(normSearch(composer)) || 0)) / 2);
   return score;
+}
+
+let composerCountCache = { index: null, counts: new Map() };
+function composerCounts() {
+  const index = activeSearchIndex();
+  if (composerCountCache.index !== index) {
+    const counts = new Map();
+    for (const e of index) {
+      const k = normSearch(e.composer || "");
+      if (k) counts.set(k, (counts.get(k) || 0) + 1);
+    }
+    composerCountCache = { index, counts };
+  }
+  return composerCountCache.counts;
 }
 
 function filterSearchIndex(query, limit = SEARCH_LIMIT, index = activeSearchIndex()) {
@@ -587,7 +620,7 @@ function filterSearchIndex(query, limit = SEARCH_LIMIT, index = activeSearchInde
     const score = scoreIndexEntry(q, entry, tokens);
     if (score > 0) scored.push({ score, entry });
   }
-  scored.sort((a, b) => b.score - a.score || (b.entry.w || 0) - (a.entry.w || 0) || String(a.entry.title).localeCompare(String(b.entry.title)));
+  scored.sort((a, b) => b.score - a.score || String(a.entry.title).localeCompare(String(b.entry.title)));
   const seen = new Set();
   const results = [];
   for (const { entry } of scored) {
@@ -600,9 +633,7 @@ function filterSearchIndex(query, limit = SEARCH_LIMIT, index = activeSearchInde
       id: `free-${entry.query}`,
       title: entry.title,
       composer: entry.composer,
-      subtitle: entry.remote && /^pdmx-/.test(entry.query || "")
-        ? `Open library · ${entry.composer || "Public domain"}`
-        : LUNE_ON_PAGES ? `Free score · ${entry.group || entry.composer || ""}` : `Free score · ${entry.group || ""}`,
+      subtitle: LUNE_ON_PAGES ? `Free score · ${entry.group || entry.composer || ""}` : `Free score · ${entry.group || ""}`,
       epoch: entry.epoch || entry.era || composerEraFallback(entry.composer) || "",
       portrait: localComposerFaceUrl(entry.composer) || "",
       openable: true,
@@ -611,37 +642,6 @@ function filterSearchIndex(query, limit = SEARCH_LIMIT, index = activeSearchInde
     if (results.length >= limit) break;
   }
   return results;
-}
-
-/*
- * Any piece, not only Lune's library: a search link to MuseScore's piano
- * scores (opened in a new tab, where the pianist downloads a file their
- * licence allows), and one tap to open that MusicXML or .mxl file in Lune,
- * which then reads it like any library piece. Lune never downloads from
- * MuseScore itself: its scores sit behind an account and its terms.
- */
-function anyPieceRow(q) {
-  const row = document.createElement("div");
-  row.className = "result result-anywhere";
-  const find = document.createElement("a");
-  find.className = "result-anywhere-find";
-  find.href = `https://musescore.com/sheetmusic?text=${encodeURIComponent(q)}&instrumentation=114`;
-  find.target = "_blank";
-  find.rel = "noopener noreferrer";
-  find.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M16 16l4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
-  find.append(`Find “${q}” on MuseScore`);
-  const open = document.createElement("button");
-  open.type = "button";
-  open.className = "result-anywhere-open";
-  open.textContent = "Open the downloaded file";
-  open.addEventListener("click", () => {
-    closeSearchResults({ blur: true });
-    $("file")?.click();
-  });
-  const how = document.createElement("small");
-  how.textContent = "Pop, film, jazz, anything: download it as MusicXML, then open it here for letters, fingering, playback and Lune AI.";
-  row.append(find, open, how);
-  return row;
 }
 
 function renderSearchResults(box, all, q) {
@@ -679,7 +679,6 @@ function renderSearchResults(box, all, q) {
       wrap.appendChild(info);
     }
     box.appendChild(wrap);
-    box.appendChild(anyPieceRow(q));
     return;
   }
   box.textContent = "";
@@ -705,33 +704,7 @@ function renderSearchResults(box, all, q) {
     });
     frag.appendChild(btn);
   }
-  frag.appendChild(anyPieceRow(q));
   box.appendChild(frag);
-}
-
-/*
- * The open library (tens of thousands of public-domain piano scores) joins
- * search once it has loaded; it loads on the first search, not before.
- */
-let libraryRows = null;
-let libraryLoading = null;
-function ensureLibrary() {
-  if (libraryRows || libraryLoading || !window.LuneFetchScore?.loadLibrary) return;
-  libraryLoading = window.LuneFetchScore.loadLibrary().then((lib) => {
-    libraryRows = lib?.rows || [];
-    if (lastSearchQuery && lastSearchQuery.length >= 2 && !$("results")?.hidden) paintSearch(lastSearchQuery);
-  });
-}
-
-/** The main index first, then the open library, without listing a piece twice. */
-function searchAll(q, limit = SEARCH_LIMIT) {
-  const main = filterSearchIndex(q, limit);
-  ensureLibrary();
-  if (!libraryRows?.length) return main;
-  const have = new Set(main.map((r) => `${normSearch(r.title)}\0${normSearch(r.composer)}`));
-  const extra = filterSearchIndex(q, limit, libraryRows).filter((r) => !have.has(`${normSearch(r.title)}\0${normSearch(r.composer)}`));
-  const room = Math.max(4, limit - main.length);
-  return [...main, ...extra.slice(0, room)];
 }
 
 /** Sync filter+render — never touches the network. */
@@ -747,7 +720,7 @@ function paintSearch(query) {
   const t0 = performance.now();
   const gen = ++searchGen;
   box.hidden = false;
-  const all = searchAll(q);
+  const all = filterSearchIndex(q);
   if (gen !== searchGen) return;
   renderSearchResults(box, all, q);
   if (typeof console !== "undefined" && console.debug) {
@@ -774,7 +747,7 @@ async function search(query, { openBest = false } = {}) {
   box.hidden = false;
 
   // Prefer full index if already ready; otherwise use fallback immediately.
-  let all = searchAll(q);
+  let all = filterSearchIndex(q);
   // One short wait for the prefetch if it is already in flight (submit only).
   if (!all.length && (!searchIndex || !searchIndex.length) && searchIndexPromise) {
     try {
@@ -786,7 +759,7 @@ async function search(query, { openBest = false } = {}) {
       /* ignore */
     }
     if (gen !== searchGen) return;
-    all = searchAll(q);
+    all = filterSearchIndex(q);
   }
 
   const works = all.filter((r) => r.kind !== "composer");
@@ -849,10 +822,6 @@ async function loadStaticXml(file) {
 }
 
 async function tryOpenStatic(body) {
-  if (window.LuneFetchScore?.isLibraryId?.(body.query)) {
-    const lib = await window.LuneFetchScore.tryOpenRemote(body);
-    if (lib) return lib;
-  }
   // Prefer allowlisted remote MusicXML when the search hit is marked remote.
   if (body.remote && window.LuneFetchScore?.tryOpenRemote) {
     const remote = await window.LuneFetchScore.tryOpenRemote(body);
@@ -924,14 +893,6 @@ async function tryOpenStatic(body) {
 }
 
 async function tryOpen(body) {
-  if (window.LuneFetchScore?.isLibraryId?.(body.query)) {
-    try {
-      const lib = await window.LuneFetchScore.tryOpenRemote(body);
-      if (lib) return lib;
-    } catch {
-      /* fall through */
-    }
-  }
   try {
     if (LUNE_ON_PAGES) return await tryOpenStatic(body);
     const res = await fetch(luneUrl("/api/search/open"), {
@@ -1013,10 +974,7 @@ async function landOnDiscover(piece) {
     openPieceSession(piece, { panel: "explain", analyze: false });
     return;
   }
-  // a new tab opened from the score (the + button) opens on its score, ready to play
-  const fromScore = document.body.classList.contains("is-studio") && state.panel === "score";
-  await openPieceSession(piece, { panel: "explain", analyze: false });
-  if (fromScore && state.piece?.musicxml) await switchToScorePanel();
+  openPieceSession(piece, { panel: "explain", analyze: false });
 }
 
 /* ---------- composer faces ---------- */
@@ -1157,7 +1115,7 @@ function createSession(piece, panel = "explain") {
     showTips: true,
     showLines: true,
     playRate: 1,
-    keyboardVisible: kbdPref(),
+    keyboardVisible: false,
     selected: null,
     selectedBars: [],
     scrubRatio: 0,
@@ -1166,77 +1124,7 @@ function createSession(piece, panel = "explain") {
   };
 }
 
-/* Open tabs survive a reload: only their ids are kept, and a tab's score is
- * fetched again when it is clicked. Uploaded scores are not kept. */
-const TABS_KEY = "lune.tabs";
-let tabsRestored = false;
-
-function sessionRouteId(s) {
-  return s?.lazy ? s.lazy.id : pieceRouteId(s?.piece);
-}
-
-function saveTabs() {
-  if (!tabsRestored) return; // nothing is written over the saved tabs before they are read
-  const tabs = state.sessions
-    .filter((s) => sessionRouteId(s))
-    .map((s) => ({
-      id: sessionRouteId(s),
-      title: s.shortTitle,
-      composer: s.lazy ? s.lazy.composer : s.piece?.overview?.composer || s.piece?.composer || "",
-      panel: s.panel || "explain",
-    }));
-  try {
-    if (tabs.length) localStorage.setItem(TABS_KEY, JSON.stringify({ tabs, active: sessionRouteId(activeSession()) || null, at: Date.now() }));
-    else localStorage.removeItem(TABS_KEY);
-  } catch {
-    /* private mode: tabs last for this visit */
-  }
-}
-
-/** Put back the tabs from the last visit, without loading any score. */
-function restoreTabs() {
-  if (tabsRestored) return;
-  tabsRestored = true;
-  let saved = null;
-  try {
-    saved = JSON.parse(localStorage.getItem(TABS_KEY) || "null");
-  } catch {
-    saved = null;
-  }
-  if (!Array.isArray(saved?.tabs)) return;
-  for (const t of saved.tabs.slice(0, 12)) {
-    if (!t?.id || state.sessions.some((s) => sessionRouteId(s) === t.id)) continue;
-    const s = createSession(null, t.panel === "score" || t.panel === "piano" ? t.panel : "explain");
-    s.lazy = { id: String(t.id), composer: String(t.composer || "") };
-    s.shortTitle = String(t.title || t.id);
-    state.sessions.push(s);
-  }
-  renderPieceTabs();
-}
-
-/** A restored tab gets its score when it is first opened. */
-async function materializeSession(s) {
-  if (!s?.lazy) return true;
-  const id = s.lazy.id;
-  const piece = await withLoader("Opening the score", () =>
-    tryOpen(LUNE_ON_PAGES ? { query: id } : { query: id.replace(/-/g, " "), title: "" })
-  ).catch(() => null);
-  if (!piece || piece.kind !== "score") {
-    state.sessions.splice(state.sessions.indexOf(s), 1);
-    renderPieceTabs();
-    toast("That tab’s score couldn’t be opened again, so it was closed.");
-    return false;
-  }
-  enrichPieceMeta(piece);
-  delete s.lazy;
-  s.piece = piece;
-  s.rawMusicxml = piece.musicxml || "";
-  s.shortTitle = shortPieceTitle(piece.overview?.title || piece.title);
-  return true;
-}
-
 function renderPieceTabs() {
-  saveTabs();
   const host = $("piece-tabs");
   const quiet = $("studio-piece-quiet");
   if (!host) return;
@@ -1252,35 +1140,29 @@ function renderPieceTabs() {
   }
 
   const studio = document.body.classList.contains("is-studio");
-  // on a phone the top bar has its own +, so one open piece needs no strip; elsewhere the strip,
-  // with its + for a new tab, is always there
-  const compact = document.body.classList.contains("studio-compact");
-  const solo = studio && compact && n < 2;
   const active = activeSession();
   const title =
     active?.shortTitle ||
     shortPieceTitle(active?.piece?.title || active?.piece?.overview?.title || "");
   if (quiet) {
     quiet.textContent = title;
-    quiet.hidden = !studio || !compact;
+    quiet.hidden = !studio || (n >= 2 && window.innerWidth > 760);
     quiet.title = active?.piece?.title || title;
   }
   const mark = $("btn-bookmark");
   if (mark) mark.hidden = false;
   // On the home page every open piece keeps its tab, so one tap returns to it.
-  host.hidden = solo;
-  if (solo) {
+  host.hidden = studio ? n < 2 : false;
+  if (studio && n < 2) {
     host.textContent = "";
     return;
   }
 
   const frag = document.createDocumentFragment();
   for (const s of state.sessions) {
-    const current = s.id === state.activeSessionId && !s.lazy;
     const tab = document.createElement("div");
-    tab.className = "piece-tab" + (current ? " on" : "") + (s.lazy ? " piece-tab-lazy" : "");
-    tab.setAttribute("role", "presentation");
-    const composerName = s.lazy ? s.lazy.composer : s.piece?.overview?.composer || s.piece?.composer || "";
+    tab.className = "piece-tab" + (studio && s.id === state.activeSessionId ? " on" : "");
+    const composerName = s.piece?.overview?.composer || s.piece?.composer || "";
     const faceUrl =
       localComposerFaceUrl(composerName) ||
       (s.piece?.overview?.composerInfo?.image || "").trim() ||
@@ -1301,8 +1183,8 @@ function renderPieceTabs() {
     btn.className = "piece-tab-label";
     btn.title = s.piece?.title || s.shortTitle;
     btn.textContent = s.shortTitle;
-    // plain buttons in a labelled group: a tab list may hold only tabs, and this strip also has close and +
-    if (current) btn.setAttribute("aria-current", "page");
+    // a switcher of open pieces, not a tablist: each entry has its own close button
+    if (s.id === state.activeSessionId) btn.setAttribute("aria-current", "true");
     btn.addEventListener("click", () => {
       // from the home page the "active" piece still has to be brought back on stage
       if (!document.body.classList.contains("is-studio") && s.id === state.activeSessionId) showView("studio");
@@ -1310,7 +1192,7 @@ function renderPieceTabs() {
     });
     tab.appendChild(face);
     tab.appendChild(btn);
-    if (n >= 2 || !studio || !compact) {
+    if (n >= 2 || !studio) {
       const close = document.createElement("button");
       close.type = "button";
       close.className = "piece-tab-close";
@@ -1329,10 +1211,9 @@ function renderPieceTabs() {
   add.className = "piece-tab-new";
   add.setAttribute("aria-label", "Open another piece in a new tab");
   add.title = "Open another piece";
-  add.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  add.textContent = "+";
   add.addEventListener("click", () => {
-    if (window.LuneStudioUI) setTimeout(() => window.LuneStudioUI.openSearch(), 0);
-    else if (document.body.classList.contains("is-studio")) openStudioSearch();
+    if (document.body.classList.contains("is-studio")) openStudioSearch();
     else $("q")?.focus();
   });
   frag.appendChild(add);
@@ -1604,13 +1485,6 @@ function setStudioPanel(panel, { skipScore = false } = {}) {
   state.mode = next === "explain" ? "ask" : next === "score" ? "listen" : "piano";
   const s = activeSession();
   if (s) s.panel = next;
-  // Explain has the piece title as its own h1; Score and Piano get one for screen readers
-  const h1 = $("studio-h1");
-  if (h1) {
-    const t = state.piece?.overview?.title || state.piece?.title || "Score";
-    h1.textContent = `${t}: ${next === "score" ? "score" : next === "piano" ? "piano" : "overview"}`;
-    h1.hidden = next === "explain";
-  }
 
   ["score", "explain", "piano"].forEach((name) => {
     const el = $(`panel-${name}`);
@@ -1857,42 +1731,17 @@ function extractTempoMap(xml) {
   const src = String(xml || "");
   if (!src) return [];
   const map = [];
-  // Only the first part's measures: every part repeats the same tempo marks.
-  const firstPart = (src.match(/<part\b[\s\S]*?<\/part>/i) || [src])[0];
-  const chunks = firstPart.split(/(?=<measure\b)/i);
+  const chunks = src.split(/(?=<measure\b)/i);
   let bar = 1;
-  let divisions = 1;
   for (const chunk of chunks) {
     const nm = chunk.match(/<measure[^>]*\bnumber\s*=\s*["'](-?\d+)/i);
-    if (!nm) continue;
-    bar = Number(nm[1]);
-    /*
-     * Walk the bar in order, keeping the position in crotchets, so a tempo change
-     * written partway through a bar (an edition's rubato, a ritardando to a
-     * fermata) starts where it is written and not at the barline.
-     */
-    let pos = 0;
+    if (nm) bar = Number(nm[1]);
     let found = false;
-    const tags = chunk.matchAll(/<(divisions|note|backup|forward|sound|metronome)\b([^>]*)>([\s\S]*?)<\/\1>|<(sound)\b([^>]*)\/>/gi);
-    for (const m of tags) {
-      const tag = (m[1] || m[4] || "").toLowerCase();
-      const attrs = m[2] || m[5] || "";
-      const body = m[3] || "";
-      if (tag === "divisions") {
-        divisions = Math.max(1, Number(body.trim()) || 1);
-      } else if (tag === "note") {
-        const dur = Number((body.match(/<duration>\s*(\d+(?:\.\d+)?)\s*<\/duration>/i) || [])[1]) || 0;
-        if (!/<chord\s*\/?>/i.test(body) && !/<grace\b/i.test(body)) pos += dur / divisions;
-      } else if (tag === "backup" || tag === "forward") {
-        const dur = Number((body.match(/<duration>\s*(\d+(?:\.\d+)?)\s*<\/duration>/i) || [])[1]) || 0;
-        pos += (tag === "backup" ? -dur : dur) / divisions;
-      } else if (tag === "sound") {
-        const t = attrs.match(/\btempo\s*=\s*["'](\d+(?:\.\d+)?)["']/i);
-        const bpm = t ? Number(t[1]) : 0;
-        if (Number.isFinite(bpm) && bpm > 0) {
-          map.push({ bar, off: Math.max(0, pos), bpm });
-          found = true;
-        }
+    for (const m of chunk.matchAll(/<sound\b[^>]*\btempo\s*=\s*["'](\d+(?:\.\d+)?)["'][^>]*>/gi)) {
+      const bpm = Number(m[1]);
+      if (Number.isFinite(bpm) && bpm > 0) {
+        map.push({ bar, bpm });
+        found = true;
       }
     }
     if (found) continue;
@@ -1914,12 +1763,7 @@ function extractTempoMap(xml) {
 
 function pieceTempoMap() {
   try {
-    // a mark written at (or a hair past) the barline belongs to its own bar, never to the next
-    const lens = measureLengths(state.piece);
-    return extractTempoMap(state.piece?.musicxml).map((r) => {
-      const len = lens?.get(r.bar);
-      return len > 0 && r.off != null && r.off >= len ? { ...r, off: Math.max(0, len - 0.001) } : r;
-    });
+    return extractTempoMap(state.piece?.musicxml);
   } catch {
     return [];
   }
@@ -1961,24 +1805,6 @@ function enrichPieceMeta(piece) {
 async function openPieceSession(piece, { panel = "explain" } = {}) {
   if (window.LuneOnboard && !LuneOnboard.requireUnlock()) return;
   if (window.LuneOnboard && !LuneOnboard.requirePieceAccess?.(piece)) return;
-  // the same piece already has a tab (perhaps one restored from the last visit): use it
-  const rid = pieceRouteId(piece);
-  const twin = rid && state.sessions.find((x) => sessionRouteId(x) === rid);
-  if (twin) {
-    if (twin.lazy) {
-      enrichPieceMeta(piece);
-      delete twin.lazy;
-      twin.piece = piece;
-      twin.rawMusicxml = piece.musicxml || "";
-      twin.shortTitle = shortPieceTitle(piece.overview?.title || piece.title);
-      twin.panel = panel;
-    }
-    if (twin.id === state.activeSessionId) showView("studio");
-    else await activateSession(twin.id);
-    if (panel === "score") await switchToScorePanel();
-    else setStudioPanel(panel);
-    return;
-  }
   snapshotActiveSession();
   stopAll();
   closeCoach();
@@ -2018,12 +1844,11 @@ async function activateSession(id) {
     showView("studio");
     return;
   }
-  const s = state.sessions.find((x) => x.id === id);
-  if (!s) return;
-  if (s.lazy && !(await materializeSession(s))) return;
   snapshotActiveSession();
   stopAll();
   closeCoach();
+  const s = state.sessions.find((x) => x.id === id);
+  if (!s) return;
   state.activeSessionId = id;
   applySessionToState(s);
   fillPieceChrome(s.piece);
@@ -2033,9 +1858,7 @@ async function activateSession(id) {
   setStudioPanel(s.panel || "explain", { skipScore: true });
   setRoute(s.piece, s.panel || "explain");
   if ((s.panel || "explain") === "score" && s.piece?.musicxml) {
-    // a tab restored from the last visit has its notes but not yet its bars: read them first
-    if (!state.piece?.debriefs || !Object.keys(state.piece.debriefs).length) await ensureScoreReady();
-    else await renderScore();
+    await renderScore();
     primeTimeline();
   } else if ((s.panel || "explain") === "explain") {
     renderExplainPanel(s.piece);
@@ -2159,74 +1982,7 @@ function signatureBarQuarters() {
 }
 
 /** True span of one bar in quarter notes — never "last onset + 1". */
-/*
- * How long each bar really is, read from the MusicXML: the furthest point any
- * voice reaches in the bar. The analysis's own length counts how long notes
- * ring, so a held chord made a 6/4 bar last 9 or 24 beats and playback sat in
- * silence before the next bar. Cadenzas written as one long bar stay long.
- */
-const _measureLenCache = new WeakMap();
-function measureLengths(piece) {
-  if (!piece?.musicxml) return null;
-  if (_measureLenCache.has(piece)) return _measureLenCache.get(piece);
-  const out = new Map();
-  const squeeze = new Set();
-  out.squeeze = squeeze;
-  try {
-    const src = String(piece.musicxml);
-    const firstPart = (src.match(/<part\b[\s\S]*?<\/part>/i) || [src])[0];
-    let divisions = 1;
-    let sig = 4; // crotchets in a bar of the current time signature
-    for (const chunk of firstPart.split(/(?=<measure\b)/i)) {
-      const nm = chunk.match(/<measure[^>]*\bnumber\s*=\s*["'](-?\d+)/i);
-      if (!nm) continue;
-      const bar = Number(nm[1]);
-      const ts = chunk.match(/<time\b[^>]*>[\s\S]*?<beats>\s*(\d+)[\s\S]*?<beat-type>\s*(\d+)/i);
-      if (ts) sig = (Number(ts[1]) * 4) / Math.max(1, Number(ts[2]));
-      let pos = 0;
-      let reach = 0; // how far any voice reaches, rests included
-      let sounded = 0; // how far real notes reach
-      for (const m of chunk.matchAll(/<(divisions|note|backup|forward)\b[^>]*>([\s\S]*?)<\/\1>/gi)) {
-        const tag = m[1].toLowerCase();
-        const body = m[2];
-        if (tag === "divisions") {
-          divisions = Math.max(1, Number(body.trim()) || 1);
-          continue;
-        }
-        const dur = Number((body.match(/<duration>\s*(\d+(?:\.\d+)?)\s*<\/duration>/i) || [])[1]) || 0;
-        if (tag === "note") {
-          if (/<grace\b/i.test(body)) continue;
-          const chord = /<chord\s*\/?>/i.test(body);
-          const start = chord ? pos - dur / divisions : pos;
-          if (!/<rest\b/i.test(body)) sounded = Math.max(sounded, start + dur / divisions);
-          if (!chord) pos += dur / divisions;
-        } else pos += (tag === "backup" ? -dur : dur) / divisions;
-        if (pos > reach) reach = pos;
-      }
-      /*
-       * A bar lasts its time signature. Exports often pad a voice with extra
-       * rests past the barline; those must not stretch the bar. Only real
-       * notes running past it (a cadenza) make it longer, and a pickup bar
-       * that is shorter than the signature stays short.
-       */
-      // a cadenza is written in small (cue) notes and may run as long as it likes
-      const cadenza = /<cue\s*\/>|size\s*=\s*["']cue["']/i.test(chunk);
-      let len = sig;
-      if (sounded > sig + 0.01 && cadenza) len = sounded;
-      else if (sounded > sig + 0.01) squeeze.add(bar); // a voice spills over: it is fitted back into the bar
-      else if (reach < sig - 0.2) len = reach;
-      if (len > 0) out.set(bar, Math.max(out.get(bar) || 0, len));
-    }
-  } catch {
-    /* fall back to the analysis below */
-  }
-  _measureLenCache.set(piece, out.size ? out : null);
-  return out.size ? out : null;
-}
-
 function barLengthQuarters(barNum, pack) {
-  const written = measureLengths(state.piece)?.get(Number(barNum));
-  if (written > 0) return written;
   const d = debriefFor(barNum) || state.piece?.debriefs?.[String(barNum)];
   if (Number(d?.ql) > 0) return Number(d.ql);
   const fromNotes = (pack || []).length
@@ -2255,20 +2011,11 @@ function normalizeNoteHand(h, fallback = null) {
  */
 const _tieCache = new WeakMap();
 function tieIndex(piece) {
-  const empty = { stops: new Set(), extra: new Map(), staff: new Map(), pedal: [], dyn: [], wedge: [], accents: [], orn: new Map(), ornNb: new Map(), graces: new Map() };
+  const empty = { stops: new Set(), extra: new Map(), staff: new Map(), pedal: [], dyn: [] };
   if (!piece?.musicxml) return empty;
   if (_tieCache.has(piece)) return _tieCache.get(piece);
   // pedal: [{bar, q, down}] as marked; dyn: [{bar, q, v}] loudness marks (90 = forte)
-  const out = { stops: new Set(), extra: new Map(), staff: new Map(), pedal: [], dyn: [], wedge: [], accents: [], orn: new Map(), ornNb: new Map(), graces: new Map() };
-  // the neighbour notes of an ornament: the next letter up or down, altered as the
-  // key signature says, unless the bar already altered that note, or the sign
-  // itself carries a small accidental
-  const LETTERS = "CDEFGAB";
-  const SHARPS = "FCGDAEB";
-  const keyAlter = (letter, fifths) =>
-    fifths > 0 ? (SHARPS.indexOf(letter) < fifths ? 1 : 0) : fifths < 0 ? ("BEADGCF".indexOf(letter) < -fifths ? -1 : 0) : 0;
-  const ACC = { sharp: 1, flat: -1, natural: 0, "double-sharp": 2, "sharp-sharp": 2, "flat-flat": -2, "double-flat": -2 };
-  const GRACE_Q = { whole: 4, half: 2, quarter: 1, eighth: 0.5, "16th": 0.25, "32nd": 0.125, "64th": 0.0625 };
+  const out = { stops: new Set(), extra: new Map(), staff: new Map(), pedal: [], dyn: [] };
   _tieCache.set(piece, out);
   const STEP = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
   const text = (el, tag) => {
@@ -2283,13 +2030,11 @@ function tieIndex(piece) {
       // lower staff (or the second part) is the left hand
       const partStaff = parts.length > 1 ? (parts.indexOf(part) === 0 ? 1 : 2) : 0;
       let div = 1;
-      let fifths = 0;
       const open = new Map(); // midi → key of the note that started the tie
       let index = 0;
       for (const m of part.children) {
         if (m.nodeName !== "measure") continue;
         index += 1;
-        const barAlt = new Map(); // "E5" → alteration written earlier in this bar
         const num = parseInt(m.getAttribute("number"), 10);
         const bar = Number.isFinite(num) ? num : index;
         let pos = 0;
@@ -2299,8 +2044,6 @@ function tieIndex(piece) {
           if (tag === "attributes") {
             const d = parseInt(el.getElementsByTagName("divisions")[0]?.textContent, 10);
             if (d > 0) div = d;
-            const f = parseInt(el.getElementsByTagName("fifths")[0]?.textContent, 10);
-            if (Number.isFinite(f)) fifths = f;
           } else if (tag === "backup") pos -= parseInt(text(el, "duration"), 10) || 0;
           else if (tag === "forward") pos += parseInt(text(el, "duration"), 10) || 0;
           else if (tag === "direction" || tag === "sound") {
@@ -2313,19 +2056,6 @@ function tieIndex(piece) {
             const snd = tag === "sound" ? el : el.getElementsByTagName("sound")[0];
             const v = Number(snd?.getAttribute("dynamics"));
             if (v > 0) out.dyn.push({ bar, q, v });
-            else {
-              // the printed marking itself (most editions have no playback value): pp, p, mf, f, ff, sfz…
-              const dynEl = el.getElementsByTagName("dynamics")[0];
-              const mark = dynEl?.firstElementChild?.nodeName?.toLowerCase();
-              const LEVEL = { pppp: 18, ppp: 26, pp: 36, p: 50, mp: 64, mf: 76, f: 90, ff: 104, fff: 116, ffff: 124, sf: 96, sfz: 100, sffz: 108, fz: 96, rf: 92, rfz: 96, fp: 84, sfp: 88 };
-              if (mark && LEVEL[mark]) {
-                // an accent mark (sf, sfz, fz) is one strong note, not a new level
-                if (/^(sf|sfz|sffz|fz|rf|rfz|sfp|fp)$/.test(mark)) out.accents.push({ bar, q });
-                else out.dyn.push({ bar, q, v: LEVEL[mark] });
-              }
-            }
-            // hairpins: crescendo and diminuendo between their start and stop
-            for (const w of el.getElementsByTagName("wedge")) out.wedge.push({ bar, q, type: w.getAttribute("type") });
           } else if (tag === "note") {
             const chord = [...el.children].some((c) => c.nodeName === "chord");
             const grace = [...el.children].some((c) => c.nodeName === "grace");
@@ -2336,47 +2066,11 @@ function tieIndex(piece) {
               if (!grace) pos += dur;
             }
             const pitch = [...el.children].find((c) => c.nodeName === "pitch");
-            if (!pitch) continue;
+            if (!pitch || grace) continue;
             const midi =
               (parseInt(text(pitch, "octave"), 10) + 1) * 12 +
               (STEP[text(pitch, "step").toUpperCase()] ?? 0) +
               Math.round(Number(text(pitch, "alter")) || 0);
-            const q1000 = Math.round((onset / div) * 1000);
-            const stepL = text(pitch, "step").toUpperCase();
-            const oct = parseInt(text(pitch, "octave"), 10);
-            barAlt.set(stepL + oct, Math.round(Number(text(pitch, "alter")) || 0));
-            if (grace) {
-              // grace notes belong to the next main note at this onset: keep them for collectNotes
-              const g = el.getElementsByTagName("grace")[0];
-              const gk = `${bar}:${q1000}`;
-              if (!out.graces.has(gk)) out.graces.set(gk, []);
-              out.graces.get(gk).push({ midi, slash: g?.getAttribute("slash") === "yes", staff: parseInt(text(el, "staff"), 10) || 1, written: GRACE_Q[text(el, "type")] || 0 });
-              continue;
-            }
-            // trills, turns and mordents, written over the note
-            const orn = el.getElementsByTagName("ornaments")[0];
-            if (orn) {
-              const kind = [...orn.children].map((c) => c.nodeName).find((n) => /^(trill-mark|turn|inverted-turn|delayed-turn|mordent|inverted-mordent|shake|wavy-line)$/.test(n));
-              if (kind && kind !== "wavy-line") out.orn.set(`${bar}:${midi}:${q1000}`, kind);
-              else if (kind === "wavy-line" && !out.orn.has(`${bar}:${midi}:${q1000}`)) out.orn.set(`${bar}:${midi}:${q1000}`, "trill-mark");
-              if (kind) {
-                const marks = {};
-                for (const a of orn.getElementsByTagName("accidental-mark")) {
-                  const v = ACC[a.textContent.trim()];
-                  if (v != null) marks[a.getAttribute("placement") === "below" ? "below" : "above"] = v;
-                }
-                const nb = (dir) => {
-                  let li = LETTERS.indexOf(stepL) + dir;
-                  let o = oct;
-                  if (li > 6) (li = 0), (o += 1);
-                  if (li < 0) (li = 6), (o -= 1);
-                  const L = LETTERS[li];
-                  const alt = marks[dir > 0 ? "above" : "below"] ?? barAlt.get(L + o) ?? keyAlter(L, fifths);
-                  return (o + 1) * 12 + STEP[L] + alt;
-                };
-                out.ornNb.set(`${bar}:${midi}:${q1000}`, { up: nb(1), down: nb(-1) });
-              }
-            }
             const ties = [...el.children].filter((c) => c.nodeName === "tie").map((t) => t.getAttribute("type"));
             const key = `${bar}:${midi}:${Math.round((onset / div) * 1000)}`;
             if (!out.staff.has(key)) out.staff.set(key, partStaff || parseInt(text(el, "staff"), 10) || 1);
@@ -2398,315 +2092,13 @@ function tieIndex(piece) {
   return out;
 }
 
-/*
- * Ornaments, played as pianists play them in recordings. Timed in seconds,
- * not beats, so a trill keeps a pianist's speed (about twelve notes a second)
- * in a slow nocturne and a quick sonata alike. Neighbour notes come from the
- * score: the key, any accidental earlier in the bar, and the small accidental
- * printed on the sign.
- * - trill: Bach, Mozart, Haydn and early Beethoven start on the note above;
- *   Romantic and later start on the note. A long trill ends with a turn
- *   (note below, then the note) unless the score writes its own ending.
- * - turn: upper, note, lower, note, sung rather than rushed; a turn written
- *   after the note comes at its end.
- * - mordent: note, lower, note. Inverted mordent: note, upper, note (from
- *   above in Baroque music, as a short trill).
- * - acciaccatura: crushed, a few hundredths of a second, just before the beat
- *   in Romantic music, on it in earlier music.
- * - appoggiatura: in Baroque and Classical music it leans on the beat for its
- *   written value (half the note, two thirds of a dotted one); later, short.
- * Ornament notes sit a little under the melody; an appoggiatura leans in.
- */
-function ornamentStyle() {
-  const era = String(state.piece?.epoch || state.piece?.era || composerEraFallback(state.piece?.composer || "") || "").toLowerCase();
-  const early = /baroque|classical|renaissance/.test(era) && !/romantic|impression|modern|20th|contemporary/.test(era);
-  return { early, baroque: /baroque/.test(era) };
-}
-
-function secondsPerQuarterAt(bar) {
-  const marked = state.markedBpm || markedTempoBpm() || 80;
-  const ratio = (practiceTempoBpm() || marked) / marked;
-  let bpm = marked;
-  for (const row of pieceTempoMap()) if ((Number(row.bar) || 0) <= bar && Number(row.bpm) > 0) bpm = Number(row.bpm);
-  return 60 / Math.max(20, bpm * ratio * (Number(state.playRate) || 1));
-}
-
-function realiseOrnaments(notes, idx) {
-  if (!idx?.orn?.size && !idx?.graces?.size) return notes;
-  const style = ornamentStyle();
-  const xml = String(state.piece?.musicxml || "");
-  const fifths = Number((xml.match(/<fifths>\s*(-?\d+)\s*<\/fifths>/) || [])[1] || 0);
-  const tonic = (((fifths * 7) % 12) + 12) % 12;
-  const scale = new Set([0, 2, 4, 5, 7, 9, 11].map((x) => (x + tonic) % 12));
-  const keyUp = (m) => {
-    for (let k = 1; k <= 2; k++) if (scale.has((m + k) % 12)) return m + k;
-    return m + 2;
-  };
-  const keyDown = (m) => {
-    for (let k = 1; k <= 2; k++) if (scale.has((((m - k) % 12) + 12) % 12)) return m - k;
-    return m - 2;
-  };
-  const out = [];
-  const usedGrace = new Set();
-  for (const n of notes) {
-    const off = Number(n.offset) || 0;
-    const q1000 = Math.round(off * 1000);
-    const dur = Math.max(0.0625, Number(n.duration) || 0);
-    const spq = secondsPerQuarterAt(n.bar || 1);
-    const sec = (s) => s / spq; // seconds → quarters here
-    const at = (dq, midi, len, dynScale = 1) => ({ ...n, midi, offset: off + dq, absOffset: n.absOffset + dq, duration: len, ornament: true, ornDyn: dynScale });
-    const nkey = `${n.bar}:${n.midi}:${q1000}`;
-    const nb = idx.ornNb?.get(nkey);
-    const upper = nb?.up ?? keyUp(n.midi);
-    const lower = nb?.down ?? keyDown(n.midi);
-
-    // grace notes before this note (the highest main note at the onset takes the right-hand ones)
-    const gk = `${n.bar}:${q1000}`;
-    let start = 0;
-    let mainDyn = 1;
-    const gs = idx.graces?.get(gk);
-    if (gs && !usedGrace.has(gk)) {
-      const mine = gs.filter((g) => (g.staff >= 2 ? "lh" : "rh") === (n.hand || "rh"));
-      if (mine.length) {
-        usedGrace.add(gk);
-        const slash = mine.every((g) => g.slash);
-        if (mine.length === 1 && !slash && style.early) {
-          // a Classical appoggiatura: on the beat, for its written value
-          const dotted = [0.375, 0.75, 1.5, 3, 6].some((d) => Math.abs(dur - d) < 1e-6);
-          const len = Math.min(mine[0].written || dur / 2, dotted ? (dur * 2) / 3 : dur / 2);
-          out.push(at(0, mine[0].midi, len, 1.12));
-          start = len;
-          mainDyn = 0.86;
-        } else {
-          const each = Math.min(sec(mine.length > 1 ? 0.075 : 0.055), dur / (mine.length + 2));
-          const total = each * mine.length;
-          // Romantic and later: just before the beat, so the main note keeps its place
-          const before = !style.early && off - total >= 0;
-          mine.forEach((g, i) => out.push(at(before ? i * each - total : i * each, g.midi, each * 1.15, 0.8)));
-          if (!before) start = total;
-        }
-      }
-    }
-
-    const kind = idx.orn?.get(nkey);
-    const body = dur - start;
-    if (!kind || body < sec(0.12)) {
-      out.push(start || mainDyn !== 1 ? at(start, n.midi, body, mainDyn) : n);
-      continue;
-    }
-    const seq = []; // [midi, quarters, dynScale]
-    if (kind === "trill-mark" || kind === "shake") {
-      const step = Math.min(sec(style.early ? 0.085 : 0.075), body / 4);
-      const total = Math.max(4, Math.floor(body / step));
-      const fromAbove = style.early;
-      // a long trill ends with a turn unless the score writes its own ending
-      const nextOn = `${n.bar}:${Math.round((off + dur) * 1000)}`;
-      const ending = total >= 10 && !idx.graces?.has(nextOn);
-      const alternations = total - (ending ? 2 : 0) - 1;
-      for (let i = 0; i < alternations; i++) {
-        const isUpper = fromAbove ? i % 2 === 0 : i % 2 === 1;
-        // the first two notes a touch slower, as fingers settle into it
-        const len = i < 2 ? step * 1.18 : step;
-        seq.push([isUpper ? upper : n.midi, len, i === 0 ? 1.04 : isUpper ? 0.84 : 0.94]);
-      }
-      if (ending) {
-        if (seq.length && seq[seq.length - 1][0] === n.midi) seq.push([upper, step, 0.84]);
-        seq.push([lower, step, 0.86]);
-      }
-      const used = seq.reduce((t, x) => t + x[1], 0);
-      seq.push([n.midi, Math.max(step, body - used), 0.96]);
-    } else if (kind === "turn" || kind === "delayed-turn" || kind === "inverted-turn") {
-      const fig = kind === "inverted-turn" ? [lower, n.midi, upper] : [upper, n.midi, lower];
-      const step = Math.min(sec(style.early ? 0.09 : 0.11), body / 5);
-      if (kind === "delayed-turn") {
-        seq.push([n.midi, body - step * 4, 1]);
-        fig.forEach((m) => seq.push([m, step, 0.86]));
-        seq.push([n.midi, step, 0.92]);
-      } else {
-        fig.forEach((m, i) => seq.push([m, step, i === 0 ? 1 : 0.86]));
-        seq.push([n.midi, body - step * 3, 0.95]);
-      }
-    } else if (kind === "mordent" || kind === "inverted-mordent") {
-      const step = Math.min(sec(0.065), body / 4);
-      if (kind === "inverted-mordent" && style.baroque) {
-        seq.push([upper, step, 1], [n.midi, step, 0.88], [upper, step, 0.86], [n.midi, body - step * 3, 0.95]);
-      } else {
-        seq.push([n.midi, step, 1], [kind === "mordent" ? lower : upper, step, 0.84], [n.midi, body - step * 2, 0.95]);
-      }
-    }
-    let t = start;
-    for (const [m, len, d] of seq) {
-      out.push(at(t, m, Math.max(0.03, len), d));
-      t += len;
-    }
-  }
-  out.sort((a, b) => a.absOffset - b.absOffset || a.midi - b.midi);
-  return out;
-}
-
-/**
- * Where a voice overruns its bar, the export usually padded it with rests it
- * marks invisible (print-object="no"). Without them the voice keeps the
- * printed rhythm. Maps `bar:midi:onset×1000` to the onset without those rests,
- * only for voices that overrun.
- */
-let _respace = null;
-function respaceIndex(piece) {
-  if (_respace && _respace.piece === piece) return _respace.map;
-  const map = new Map();
-  try {
-    const STEP = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
-    const doc = new DOMParser().parseFromString(piece?.musicxml || "", "application/xml");
-    const lens = measureLengths(piece);
-    for (const part of doc.querySelectorAll("part")) {
-      let div = 1;
-      for (const m of part.children) {
-        if (m.tagName !== "measure") continue;
-        const b = parseInt(m.getAttribute("number"), 10);
-        const d0 = m.querySelector("attributes divisions");
-        if (d0) div = Number(d0.textContent) || div;
-        const barLen = lens?.get?.(b) || 0;
-        const voices = new Map();
-        let t = 0, tFix = 0, last = 0, lastFix = 0, cur = null;
-        for (const el of m.children) {
-          if (el.tagName === "backup") { t -= Number(el.querySelector("duration")?.textContent) || 0; tFix = null; continue; }
-          if (el.tagName === "forward") { const d = Number(el.querySelector("duration")?.textContent) || 0; t += d; if (tFix != null) tFix += d; continue; }
-          if (el.tagName !== "note" || el.querySelector("grace")) continue;
-          const v = `${el.querySelector("staff")?.textContent || 1}|${el.querySelector("voice")?.textContent || 1}`;
-          if (!voices.has(v)) voices.set(v, { notes: [], fix: 0, start: t });
-          cur = voices.get(v);
-          if (tFix == null) tFix = t - (cur.start - cur.start); // a voice starts where the backup left the cursor
-          const dur = Number(el.querySelector("duration")?.textContent) || 0;
-          const chord = !!el.querySelector("chord");
-          const on = chord ? last : t;
-          const onFix = chord ? lastFix : on - cur.fix;
-          if (!chord) {
-            last = on; lastFix = onFix; t += dur;
-            if (el.querySelector("rest") && el.getAttribute("print-object") === "no") cur.fix += dur;
-          }
-          cur.end = Math.max(cur.end || 0, t);
-          const p = el.querySelector("pitch");
-          if (!p || el.querySelector("rest")) continue;
-          const midi = (Number(p.querySelector("octave")?.textContent) + 1) * 12 + (STEP[p.querySelector("step")?.textContent] ?? 0) + Math.round(Number(p.querySelector("alter")?.textContent) || 0);
-          cur.notes.push({ midi, on: on / div, onFix: onFix / div });
-        }
-        for (const vo of voices.values()) {
-          if (!barLen || (vo.end || 0) / div <= barLen + 0.01 || !vo.fix) continue;
-          for (const n of vo.notes) map.set(`${b}:${n.midi}:${Math.round(n.on * 1000)}`, n.onFix);
-        }
-      }
-    }
-  } catch {
-    /* no respacing */
-  }
-  _respace = { piece, map };
-  return map;
-}
-
-/**
- * Some exports write a voice longer than its bar: hidden rests far too long
- * (Liebestraum no. 3 starts a bar's arpeggio three beats late), or triplets at
- * full length. Squeezing the whole voice drags its notes off the other hand's
- * beats, so first take the excess out of the silences (the lead-in, then the
- * longest gaps), which puts the notes back on the beat; only if the silences
- * cannot absorb it is the voice scaled to fit.
- */
-function fitVoicesInBar(pack, barLen) {
-  const voices = new Map();
-  for (const n of pack) {
-    const k = `${n.staff ?? n.hand ?? ""}|${n.voice ?? n.hand ?? "x"}`;
-    if (!voices.has(k)) voices.set(k, []);
-    voices.get(k).push(n);
-  }
-  for (const list of voices.values()) {
-    const on = (n) => Number(n.offset) || 0;
-    const end = Math.max(...list.map((n) => on(n) + (Number(n.duration) || 0)));
-    let over = end - barLen;
-    if (over <= 0.01) continue;
-    const onsets = [...new Set(list.map((n) => Math.round(on(n) * 1000) / 1000))].sort((a, c) => a - c);
-    // silences before each onset: [at, length]
-    const gaps = [];
-    let reach = 0;
-    for (const t of onsets) {
-      if (t - reach > 0.01) gaps.push({ at: t, len: t - reach });
-      reach = Math.max(reach, ...list.filter((n) => Math.abs(on(n) - t) < 0.001).map((n) => t + (Number(n.duration) || 0)));
-    }
-    const room = gaps.reduce((a, g) => a + g.len, 0);
-    if (room + 0.01 >= over) {
-      // lead-in first, then the longest gaps, latest first on ties
-      const order = [...gaps].sort((a, c) => (a.at === onsets[0] ? -1 : c.at === onsets[0] ? 1 : c.len - a.len || c.at - a.at));
-      const cut = new Map();
-      for (const g of order) {
-        if (over <= 0.001) break;
-        const take = Math.min(g.len, over);
-        cut.set(g.at, take);
-        over -= take;
-      }
-      for (const n of list) {
-        let shift = 0;
-        for (const [at, take] of cut) if (on(n) >= at - 0.001) shift += take;
-        n.offset = on(n) - shift;
-      }
-      // a note may still ring past the barline: let it end there
-      for (const n of list) n.duration = Math.min(Number(n.duration) || 0, Math.max(0.05, barLen - on(n)));
-    } else {
-      const k = barLen / end;
-      for (const n of list) {
-        n.offset = on(n) * k;
-        n.duration = (Number(n.duration) || 0) * k;
-      }
-    }
-  }
-}
-
-/**
- * Bars in the order the file writes them. Counting upward from the first
- * number breaks on files that skip a number (a silent bar appears) or that
- * number a closing bar 0 (it would play first).
- */
-let _barSeq = null;
-function barSequence(fromBar, toBar) {
-  const piece = state.piece;
-  const range = () => {
-    const out = [];
-    for (let b = fromBar; b <= toBar; b++) out.push(b);
-    return out;
-  };
-  if (!piece?.musicxml) return range();
-  if (!_barSeq || _barSeq.piece !== piece) {
-    let order = [];
-    try {
-      const doc = new DOMParser().parseFromString(piece.musicxml, "application/xml");
-      const part = doc.querySelector("part");
-      const seen = new Set();
-      for (const m of part ? part.children : []) {
-        if (m.tagName !== "measure") continue;
-        const n = parseInt(m.getAttribute("number"), 10);
-        if (!Number.isFinite(n) || seen.has(n)) continue;
-        seen.add(n);
-        order.push(n);
-      }
-    } catch {
-      order = [];
-    }
-    _barSeq = { piece, order };
-  }
-  const order = _barSeq.order;
-  const i = order.indexOf(fromBar);
-  const j = order.lastIndexOf(toBar);
-  if (!order.length || i < 0 || j < 0) return range();
-  if (i <= j) return order.slice(i, j + 1);
-  // the whole piece asked for by its lowest and highest numbers
-  return order.filter((b) => b >= fromBar && b <= toBar);
-}
-
 function collectNotes(fromBar, toBar) {
   const ties = tieIndex(state.piece);
   const barStart = new Map();
   const notes = [];
   const debriefs = state.piece?.debriefs || {};
   let barCursor = 0;
-  for (const b of barSequence(fromBar, toBar)) {
+  for (let b = fromBar; b <= toBar; b++) {
     const d = debriefFor(b) || debriefs[String(b)];
     const pack = d?.playback?.length
       ? d.playback.map((n) => ({ ...n, hand: normalizeNoteHand(n.hand) }))
@@ -2715,18 +2107,6 @@ function collectNotes(fromBar, toBar) {
           ...(d?.lh || []).map((n) => ({ ...n, hand: normalizeNoteHand(n.hand, "lh") })),
         ];
     const seen = new Set();
-    // an export that writes triplets at full length makes a voice spill past the
-    // barline; that voice is fitted back into the bar, keeping its proportions
-    const lens = measureLengths(state.piece);
-    if (lens?.squeeze?.has(b)) {
-      // invisible filler rests pushed this voice past the barline: take them out
-      const re = respaceIndex(state.piece);
-      for (const n of pack) {
-        const k = `${b}:${n.midi}:${Math.round((Number(n.offset) || 0) * 1000)}`;
-        if (re.has(k)) n.offset = re.get(k);
-      }
-      fitVoicesInBar(pack, lens.get(b) || signatureBarQuarters());
-    }
     for (const n of pack) {
       if (!n.midi) continue;
       // Same pitch at the same onset from mirrored voices → one attack.
@@ -2748,11 +2128,8 @@ function collectNotes(fromBar, toBar) {
     barStart.set(b, barCursor);
     barCursor += barLengthQuarters(b, pack);
   }
-  const played = realiseOrnaments(notes, ties);
-  shapePerformance(played, ties, barStart, barCursor);
-  // ornament notes sit under the melody; an appoggiatura leans in
-  for (const n of played) if (n.ornDyn && n.ornDyn !== 1 && Number.isFinite(n.dyn)) n.dyn *= n.ornDyn;
-  return played;
+  shapePerformance(notes, ties, barStart, barCursor);
+  return notes;
 }
 
 /**
@@ -2774,51 +2151,14 @@ function shapePerformance(notes, index, barStart, endQ) {
     let v = marks[i].v;
     const next = marks[i + 1];
     if (next && next.q - q < 4) v += (next.v - v) * (1 - (next.q - q) / 4);
-    // a wide range: a real pianissimo and a real fortissimo
-    return Math.max(0.5, Math.min(1.6, Math.pow(v / 70, 0.85)));
+    return Math.max(0.74, Math.min(1.4, Math.pow(v / 60, 0.6)));
   };
-  // hairpins: a crescendo grows by about a dynamic step to its end, a diminuendo falls by one
-  const wedges = [];
-  {
-    const ws = (index.wedge || []).map((w) => ({ q: abs(w), type: w.type })).filter((w) => w.q != null).sort((a, b) => a.q - b.q);
-    let open = null;
-    for (const w of ws) {
-      if (w.type === "crescendo" || w.type === "diminuendo") open = w;
-      else if (w.type === "stop" && open && w.q > open.q) {
-        wedges.push({ from: open.q, to: w.q, dir: open.type === "crescendo" ? 1 : -1 });
-        open = null;
-      }
-    }
-  }
-  const wedgeAt = (q) => {
-    let f = 1;
-    for (const w of wedges) {
-      if (q <= w.from) continue;
-      const t = Math.min(1, (q - w.from) / Math.max(0.25, w.to - w.from));
-      // after the hairpin the new level holds until the next written marking
-      const nextMark = marks.find((m) => m.q > w.from);
-      if (nextMark && q >= nextMark.q && nextMark.q >= w.to) continue;
-      f *= 1 + w.dir * 0.28 * t;
-    }
-    return f;
-  };
-  const accentQs = new Set((index.accents || []).map((a) => abs(a)).filter((q) => q != null).map((q) => Math.round(q * 100)));
-  // where each bar begins, in order, for the four-bar phrase swell
-  const barOrder = [...barStart.keys()].sort((a, b) => a - b);
-  const barIndex = new Map(barOrder.map((b, i) => [b, i]));
-  const beatQ = Math.max(0.5, signatureBarQuarters() / Math.max(1, (() => {
-    const n = signatureBarQuarters();
-    return n % 1.5 === 0 && n > 3 ? n / 1.5 : Math.round(n);
-  })()));
-  let melodyAvg = null;
 
   // --- pedal changes (crotchets from the start of this stretch)
   let changes = index.pedal.map((p) => ({ q: abs(p), down: p.down })).filter((p) => p.q != null).sort((a, b) => a.q - b.q);
   if (!changes.length) {
     const era = String(state.piece?.epoch || state.piece?.era || state.piece?.overview?.era || "").toLowerCase();
-    // Romantic and later: pedal through each harmony. Classical: the same, lightly (it lifts
-    // within a beat of the bass moving). Baroque keyboard music is left unpedalled.
-    if (/classical|romantic|impression|modern|20th|contemporary/.test(era) && !/baroque/.test(era)) {
+    if (/romantic|impression|modern|20th|contemporary/.test(era)) {
       // No marks in this edition: change the pedal at each bar and whenever the bass moves on.
       let lastBass = null;
       let lastQ = -9;
@@ -2838,15 +2178,6 @@ function shapePerformance(notes, index, barStart, endQ) {
     }
   }
 
-  // what the score shows when Pedal is on: the marks, or the changes Lune plays
-  state.pedalPlan = {
-    marked: index.pedal.length > 0,
-    list: changes.map((c) => {
-      let bar = null;
-      for (const [b, q0] of barStart) if (q0 <= c.q + 0.001 && (bar == null || q0 >= barStart.get(bar))) bar = b;
-      return { bar, off: bar == null ? 0 : c.q - barStart.get(bar), down: c.down };
-    }).filter((c) => c.bar != null),
-  };
   let ci = 0;
   let k = 0;
   while (k < notes.length) {
@@ -2860,28 +2191,12 @@ function shapePerformance(notes, index, barStart, endQ) {
     const pedalDown = cur && cur.q <= q + 0.02 && cur.down;
     const release = pedalDown ? (changes[ci + 1]?.q ?? endQ) : null;
     const top = Math.max(...group.map((n) => n.midi));
-    const lvl = level(q) * wedgeAt(q);
-    // the shape a pianist gives, on top of what is written:
-    // weight on the downbeat and strong beats, lighter offbeats
-    const off = Number(group[0].offset) || 0;
-    const metric = off < 0.01 ? 1.1 : Math.abs(off / beatQ - Math.round(off / beatQ)) < 0.02 ? 1.03 : 0.94;
-    // a swell and taper across each four-bar phrase
-    const bi = barIndex.get(group[0].bar) || 0;
-    const len = barLengthQuarters(group[0].bar) || 1;
-    const phase = ((bi % 4) + Math.min(1, off / len)) / 4;
-    const arch = 0.9 + 0.2 * Math.sin(Math.PI * phase);
-    const accent = accentQs.has(Math.round(q * 100)) ? 1.3 : 1;
+    const lvl = level(q);
     for (const n of group) {
       // held by the pedal until it changes (never more than two bars' worth)
       if (release != null) n.sustainTo = Math.min(release, q + 9);
       const melody = n.midi === top && n.hand !== "lh";
-      // the tune sings: higher notes of the melody a little louder than its average
-      let contour = 1;
-      if (melody) {
-        melodyAvg = melodyAvg == null ? n.midi : melodyAvg * 0.85 + n.midi * 0.15;
-        contour = Math.max(0.92, Math.min(1.1, 1 + (n.midi - melodyAvg) * 0.008));
-      }
-      n.dyn = lvl * metric * arch * accent * contour * (melody ? 1.16 : n.hand === "lh" ? 0.84 : 0.9);
+      n.dyn = lvl * (melody ? 1.12 : n.hand === "lh" ? 0.88 : 0.92);
     }
     k = j;
   }
@@ -2904,33 +2219,6 @@ function playbackHandlers() {
 }
 
 /** Original tempo from the score marking (unclamped parse, sensible default). */
-/*
- * A tempo word with no metronome mark (Andante, Allegro, Poco moto): the usual
- * beats a minute for that word, counted in the beat the metre is felt in,
- * then turned into crotchets a minute for playback.
- */
-const TEMPO_WORDS = [
-  [/prestissimo/i, 200], [/presto/i, 176], [/vivacissimo/i, 168], [/vivace|vivo/i, 156],
-  [/allegro (ma )?non troppo|allegro moderato/i, 118], [/poco allegro|allegro (un )?poco/i, 108], [/allegro/i, 132], [/allegretto/i, 108],
-  [/moderato/i, 104], [/andantino/i, 92], [/andante/i, 80],
-  [/adagietto/i, 72], [/adagio/i, 66], [/larghetto/i, 60], [/lento/i, 56], [/largo/i, 50], [/grave/i, 42], [/con moto|poco moto|mosso/i, 128],
-];
-function tempoFromWords(text, timeSignature = "4/4") {
-  const t = String(text || "");
-  const hit = TEMPO_WORDS.find(([re]) => re.test(t));
-  if (!hit) return NaN;
-  const [num, den] = String(timeSignature).split("/").map(Number);
-  // the felt beat: a dotted crotchet in 6/8, 9/8, 12/8; a quaver in 3/8; a minim in 2/2; else the written beat
-  let crotchetsPerBeat = 4 / (den || 4);
-  if (den === 8 && num % 3 === 0 && num > 3) crotchetsPerBeat = 1.5;
-  if (den === 2) crotchetsPerBeat = 1.5; // cut time: the minim beat runs slower than the word's crotchet speed
-  return Math.round(hit[1] * crotchetsPerBeat);
-}
-function firstTempoWords(xml) {
-  const head = String(xml || "").split(/(?=<measure\b)/i).slice(0, 4).join("");
-  return [...head.matchAll(/<words\b[^>]*>([^<]+)<\/words>/gi)].map((m) => m[1]).join(" ");
-}
-
 function markedTempoBpm() {
   const raw =
     state.piece?.tempo ||
@@ -2943,7 +2231,6 @@ function markedTempoBpm() {
     const map = pieceTempoMap();
     if (map.length) marked = map[0].bpm;
   }
-  if (!Number.isFinite(marked)) marked = tempoFromWords(`${raw} ${firstTempoWords(state.piece?.musicxml)}`, pieceTimeSignature());
   if (!Number.isFinite(marked) || marked <= 0) marked = 72;
   return Math.max(40, Math.min(208, marked));
 }
@@ -3120,11 +2407,6 @@ function updateScrub({ progress, total, bar }) {
   if (barEl && barEl.textContent !== barText) barEl.textContent = barText;
   placePlayhead(bar, progress, total);
   syncPlayButton();
-  // a session at the piano counts toward the Repertoire summary
-  if (bar && bar !== state.lastPlayedBar && LunePiano.isPlaying()) {
-    state.lastPlayedBar = bar;
-    window.LunePlans?.noteActivity?.("play", { key: window.LunePractice?.keyFor?.(state.piece), title: state.piece?.overview?.title || state.piece?.title || "", bar });
-  }
 }
 
 function syncPlayButton() {
@@ -3269,29 +2551,6 @@ function playheadX(g, progress) {
 let _playheadScrollAt = 0;
 let _playheadLastBar = null;
 
-/** Ease the score to a position (or jump, for reduced motion or a scrub). */
-let _glide = 0;
-function glideScroll(el, top, left, ms) {
-  cancelAnimationFrame(_glide);
-  const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-  if (!ms || reduced) {
-    el.scrollTo({ top, left, behavior: "auto" });
-    return;
-  }
-  const t0 = performance.now();
-  const y0 = el.scrollTop;
-  const x0 = el.scrollLeft;
-  const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-  const step = (now) => {
-    const k = Math.min(1, (now - t0) / ms);
-    const e = ease(k);
-    el.scrollTop = y0 + (top - y0) * e;
-    el.scrollLeft = x0 + (left - x0) * e;
-    if (k < 1) _glide = requestAnimationFrame(step);
-  };
-  _glide = requestAnimationFrame(step);
-}
-
 function placePlayhead(bar, progress = 0, total = 0) {
   const line = $("playhead-line");
   const hilite = $("measure-hilite");
@@ -3347,27 +2606,54 @@ function placePlayhead(bar, progress = 0, total = 0) {
     }
     line.style.transform = `translate3d(${x}px,0,0)`;
 
-    // Follow the music: while it plays, the page glides so the sounding bar sits in the
-    // upper part of the view, the next line already showing beneath it.
+    // Follow the sounding measure without smooth-scroll rocking.
+    // During playback: instant scroll, only on bar change, and only when
+    // the measure is substantially out of view. Prefer vertical; skip tiny
+    // horizontal nudges so we don’t fight the reader.
     const barChanged = _playheadLastBar !== Number(bar);
     _playheadLastBar = Number(bar);
     if (barChanged || (!playing && state.scrubbing)) {
+      const pad = 72;
       const viewTop = scroll.scrollTop;
-      const viewH = scroll.clientHeight;
+      const viewBottom = viewTop + scroll.clientHeight;
       const mTop = bounds.top;
       const mBottom = bounds.top + bounds.height;
-      // keep the bar between 12% and 60% of the view; outside that, glide it to 22%
-      const comfy = mTop >= viewTop + viewH * 0.12 && mBottom <= viewTop + viewH * 0.6 + bounds.height * 0.4;
-      let nextTop = viewTop;
-      if (!comfy) nextTop = Math.max(0, mTop - viewH * 0.22);
+      const substantiallyOut =
+        mTop < viewTop + pad * 0.35 || mBottom > viewBottom - pad * 0.35;
+      let nextTop = scroll.scrollTop;
+      let nextLeft = scroll.scrollLeft;
+      let moved = false;
+      if (substantiallyOut) {
+        if (mTop < viewTop + pad) {
+          nextTop = Math.max(0, mTop - pad);
+          moved = true;
+        } else if (mBottom > viewBottom - pad) {
+          nextTop = Math.max(0, mBottom - scroll.clientHeight + pad);
+          moved = true;
+        }
+      }
+      // Horizontal: only when the playhead is well off-screen (not every tick).
       const viewLeft = scroll.scrollLeft;
+      const viewRight = viewLeft + scroll.clientWidth;
       const hPad = Math.max(96, scroll.clientWidth * 0.18);
-      let nextLeft = viewLeft;
-      if (x < viewLeft + 24) nextLeft = Math.max(0, x - hPad);
-      else if (x > viewLeft + scroll.clientWidth - 24) nextLeft = Math.max(0, x - scroll.clientWidth + hPad);
-      if (Math.abs(nextTop - viewTop) > 4 || nextLeft !== viewLeft) {
+      if (x < viewLeft + 24 || x > viewRight - 24) {
+        if (x < viewLeft + hPad) {
+          nextLeft = Math.max(0, x - hPad);
+          moved = true;
+        } else if (x > viewRight - hPad) {
+          nextLeft = Math.max(0, x - scroll.clientWidth + hPad);
+          moved = true;
+        }
+      }
+      if (moved) {
         _playheadScrollAt = performance.now();
-        glideScroll(scroll, nextTop, nextLeft, playing ? 520 : 0);
+        const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+        scroll.scrollTo({
+          top: nextTop,
+          left: nextLeft,
+          // Instant during playback — smooth + frequent updates rocks the page.
+          behavior: playing || reduced ? "auto" : "smooth",
+        });
       }
     }
     return;
@@ -3543,15 +2829,6 @@ function bindPlayheadScrub() {
   scroll.addEventListener("pointerdown", startDrag);
 }
 
-/** Show the keyboard under the score? On unless the pianist hid it. */
-function kbdPref() {
-  try {
-    return localStorage.getItem("lune.kbd") !== "0";
-  } catch {
-    return true;
-  }
-}
-
 function ensureKeyboard() {
   if (state.keyboard) return state.keyboard;
   const host = $("lune-keyboard");
@@ -3565,12 +2842,7 @@ function syncKbdToggleUi() {
   if (!btn) return;
   const on = !!state.keyboardVisible && state.panel === "score";
   btn.setAttribute("aria-pressed", on ? "true" : "false");
-  const label = on ? "Hide piano" : "Show piano";
-  if (btn.dataset.label !== label) {
-    btn.dataset.label = label;
-    btn.setAttribute("aria-label", label);
-    btn.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><rect x="3" y="6" width="18" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 6v12M12 6v12M16 6v12" stroke="currentColor" stroke-width="1.2"/><path d="M6.6 6h2.8v6.5H6.6zM10.6 6h2.8v6.5h-2.8zM14.6 6h2.8v6.5h-2.8z" fill="currentColor"/></svg><span class="kbd-tog-label">${label}</span>`;
-  }
+  btn.textContent = on ? "Hide piano" : "Show piano";
   btn.classList.toggle("on", on);
 }
 
@@ -3584,8 +2856,6 @@ function applyKeyboardVisibility(on) {
 
   dock.classList.toggle("collapsed", !show);
   dock.hidden = !show;
-  // the compact studio shows the metronome and speed at the bottom only when the piano is hidden
-  document.body.classList.toggle("kbd-on", show);
   dock.classList.toggle("is-focus", state.panel === "piano");
   dock.classList.toggle("is-slim", state.panel === "score" && show);
 
@@ -3595,12 +2865,6 @@ function applyKeyboardVisibility(on) {
 }
 
 function setKeyboardVisible(on) {
-  // a choice the pianist makes is remembered for every piece
-  try {
-    localStorage.setItem("lune.kbd", on ? "1" : "0");
-  } catch {
-    /* private mode */
-  }
   if (state.panel === "piano") {
     // Leaving focus mode returns to Score with keyboard preference
     if (!on) {
@@ -3659,7 +2923,7 @@ function setPlayRate(rate) {
 function bindHomeChapters() {
   const home = $("home");
   const chapters = document.querySelectorAll(
-    ".home-chapter, .home-features, .about-maker, .home-sim, .home-statement, .home-billboard, .home-feat, .home-feat-intro, .home-close, .home-screen, .ai-scene, [data-reveal]"
+    ".home-chapter, .home-features, .about-maker, .home-sim, .home-statement, .home-billboard, .home-feat, .home-feat-intro, .home-close, .home-screen, [data-reveal]"
   );
   if (!chapters.length || typeof IntersectionObserver === "undefined") {
     chapters.forEach((el) => el.classList.add("is-in"));
@@ -3738,11 +3002,6 @@ async function togglePlayback() {
 }
 
 async function startPiecePlayback(seekRatio = 0) {
-  // a piece not yet read (a restored tab, or straight from Explain) is read before anything plays
-  if (!Object.keys(state.piece?.debriefs || {}).length && state.piece?.musicxml) {
-    if (state.panel === "explain") setStudioPanel("score", { skipScore: true });
-    await ensureScoreReady();
-  }
   const notes = pieceNotes();
   if (!notes.length) {
     toast("Nothing to play");
@@ -3757,8 +3016,12 @@ async function startPiecePlayback(seekRatio = 0) {
     await ensureScoreReady();
   }
 
-  // The keyboard stays as the pianist left it: pressing Play never moves the page
-  if (state.panel === "piano") ensureKeyboard();
+  // Auto-show slim keyboard under the score during play (user can hide)
+  if (state.panel === "score" && !state.keyboardVisible) {
+    applyKeyboardVisibility(true);
+  } else if (state.panel === "piano") {
+    ensureKeyboard();
+  }
 
   try {
     await ensureSamplesWithLoader();
@@ -3807,7 +3070,8 @@ async function playSnippet(fromBar, toBar) {
   const startMark = marks.find((m) => Number(m.bar) === Number(fromBar)) || marks[0];
   const after = marks.find((m) => Number(m.bar) > Number(toBar));
   const end = after ? after.t : total;
-  if (state.panel !== "score" || state.keyboardVisible) ensureKeyboard();
+  if (state.panel === "score" && !state.keyboardVisible) applyKeyboardVisibility(true);
+  else ensureKeyboard();
   state.snippetEnd = end;
   LunePiano.seek(startMark.t / total, { resumeIfWasPlaying: false });
   LunePiano.resume();
@@ -3928,19 +3192,6 @@ function styleLaneText(host) {
 }
 
 /** Notes / Fingers / Off without engraving again: swap the text in place. */
-/** Switch Notes, Fingers or Off with a short cross-fade instead of a jump. */
-let laneFadeTimer = 0;
-function fadeLaneMode(host) {
-  const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-  if (still) return showLaneMode(host);
-  clearTimeout(laneFadeTimer);
-  host.classList.add("lane-fading");
-  laneFadeTimer = setTimeout(() => {
-    showLaneMode(host);
-    requestAnimationFrame(() => host.classList.remove("lane-fading"));
-  }, 110);
-}
-
 function showLaneMode(host) {
   const mode = state.scoreFingers ? "fingers" : state.scoreLetters ? "letters" : "off";
   host.classList.toggle("lane-hidden", mode === "off");
@@ -3972,16 +3223,22 @@ function centreLaneLabels(host) {
 function applyScoreOverlays() {
   const host = $("osmd");
   if (!host || !state.osmd) return;
-  requestAnimationFrame(drawPedalMarks);
   if (LUNE_LYRIC_LANE) {
     // Labels are part of the engraving; just style them and drop any overlay.
-    LuneAnnotate.clearLetterOverlays(host);
-    styleLaneText(host);
-    state.laneStaggered = staggerLaneLabels(host);
-    if (state.renderedLaneMode === "both") {
-      centreLaneLabels(host);
-      showLaneMode(host);
+    // Each drawing is laid out once: the frame, settle and resize callbacks
+    // that follow one render find it done.
+    const svg = host.querySelector("svg");
+    if (svg && !svg.__luneLaneDone) {
+      LuneAnnotate.clearLetterOverlays(host);
+      styleLaneText(host);
+      // later passes settle labels an earlier one moved into new company
+      // (three, as many as the frame / settle / render callbacks used to run)
+      state.laneStaggered = 0;
+      for (let i = 0; i < 3; i++) state.laneStaggered += staggerLaneLabels(host);
+      if (state.renderedLaneMode === "both") centreLaneLabels(host);
+      svg.__luneLaneDone = true;
     }
+    if (state.renderedLaneMode === "both") showLaneMode(host);
     window.LunePractice?.afterScoreRender();
     return;
   }
@@ -4183,7 +3440,7 @@ function watchScoreWidth() {
       if (Math.abs(w - (state.osmdRenderedWidth || 0)) < 8) return;
       state.osmdRenderedWidth = w;
       try {
-        state.osmd.zoom = cachedFitZoom(phoneScoreZoom());
+        state.osmd.zoom = w >= 720 ? 1.18 : 1.08;
         state.osmd.render();
         fitScoreToWidth(state.osmd);
       } catch {
@@ -4245,18 +3502,43 @@ function widenUntilLabelsFit(osmd) {
  * wider than the page. If anything sticks out past the right edge, scale the
  * whole engraving down just enough and re-engrave (at most twice).
  */
-const fitZoomCache = new Map(); // piece|width → zoom that fits
+const PREVIEW_BARS = 8; // drawn first while a long score engraves (renderScore)
 
-function scoreOverflowRatio(host, svg) {
-  // Compare the music's right edge with where the staff lines end (and the
-  // screen edge): notes drawn past the final barline mean the bar lacks room.
+// piece|width → zoom that fits; kept across visits so a piece opened before
+// engraves once
+const FIT_ZOOM_STORE = "lune.fitZoom.v1";
+const fitZoomCache = (() => {
+  try {
+    return new Map(Object.entries(JSON.parse(localStorage.getItem(FIT_ZOOM_STORE) || "{}")));
+  } catch {
+    return new Map();
+  }
+})();
+function rememberFitZoom(key, zoom) {
+  if (fitZoomCache.get(key) === zoom) return;
+  fitZoomCache.delete(key);
+  fitZoomCache.set(key, zoom);
+  while (fitZoomCache.size > 300) fitZoomCache.delete(fitZoomCache.keys().next().value);
+  try {
+    localStorage.setItem(FIT_ZOOM_STORE, JSON.stringify(Object.fromEntries(fitZoomCache)));
+  } catch {
+    /* private mode / full: this visit still uses it */
+  }
+}
+
+function scoreOverflowRatio(host, svg, { staff = true } = {}) {
+  // How far the music's right edge runs past where the staff lines end (and
+  // the screen edge): notes drawn past the final barline mean the bar lacks
+  // room. With staff off, only the screen edge counts.
   const hostBox = host.getBoundingClientRect();
   let staffRight = 0;
-  for (const m of svg.querySelectorAll("g.vf-measure")) {
-    for (const c of m.children) {
-      if (c.tagName.toLowerCase() !== "path") continue;
-      const r = c.getBoundingClientRect();
-      if (r.height < 2 && r.width > 10 && r.right > staffRight) staffRight = r.right;
+  if (staff) {
+    for (const m of svg.querySelectorAll("g.vf-measure")) {
+      for (const c of m.children) {
+        if (c.tagName.toLowerCase() !== "path") continue;
+        const r = c.getBoundingClientRect();
+        if (r.height < 2 && r.width > 10 && r.right > staffRight) staffRight = r.right;
+      }
     }
   }
   let right = 0;
@@ -4275,17 +3557,24 @@ function fitScoreToWidth(osmd) {
   let svg = host?.querySelector("svg");
   if (!svg || !osmd) return;
   const key = fitZoomKey();
-  let ratio = scoreOverflowRatio(host, svg);
-  // small overflows: scale the drawing (instant); big ones: re-engrave smaller
-  for (let pass = 0; pass < 2 && ratio < 0.97; pass++) {
-    // A bar that can't fit its line draws past the barline: engrave again,
-    // smaller by the overflow, so every bar has room.
+  // On a phone, notes pushed past their barline mean the lane is cramped:
+  // engraving smaller gives the labels room. On a wide page it doesn't (the
+  // engraver packs more bars per line and the overhang comes back), so there
+  // only music off the screen counts.
+  const narrow = (host.clientWidth || 0) < 720;
+  let ratio = scoreOverflowRatio(host, svg, { staff: narrow });
+  // Engrave again, smaller by the overflow (twice at most: each pass packs
+  // more bars per line, so the first rarely lands). Already engraved at the
+  // size that fitted last time: scale only, or every visit would shrink it.
+  const fromCache = fitZoomCache.get(key) === osmd.zoom;
+  for (let pass = 0; pass < 2 && ratio < 0.97 && !fromCache; pass++) {
     osmd.zoom = Math.max(0.45, osmd.zoom * ratio * 0.96);
     osmd.render();
     svg = host.querySelector("svg");
-    ratio = scoreOverflowRatio(host, svg);
+    ratio = scoreOverflowRatio(host, svg, { staff: narrow });
   }
-  fitZoomCache.set(key, osmd.zoom);
+  ratio = scoreOverflowRatio(host, svg, { staff: false });
+  rememberFitZoom(key, osmd.zoom);
   if (ratio < 1 && svg) {
     // last few pixels: scale the finished drawing (instant, same layout)
     const w = Number(svg.getAttribute("width")) || svg.getBoundingClientRect().width;
@@ -4294,12 +3583,6 @@ function fitScoreToWidth(osmd) {
     svg.setAttribute("width", String(w * ratio * 0.985));
     svg.setAttribute("height", String(h * ratio * 0.985));
   }
-}
-
-/** On a phone a bar or two per line reads like a real page; full size elsewhere. */
-function phoneScoreZoom() {
-  const w = $("osmd")?.clientWidth || window.innerWidth;
-  return w < 520 ? 0.74 : 1;
 }
 
 function fitZoomKey() {
@@ -4381,12 +3664,65 @@ function staggerLaneLabels(host) {
     if (!rows.has(key)) rows.set(key, []);
     rows.get(key).push({ el, b });
   }
+  // A chord's letters read top note first. Dropping the upper label of a stack
+  // onto the spare line would put it under the notes below it (A♭ over F would
+  // read F, A♭), so only the bottom label of a stack may drop.
+  const boxes = labels.map((el) => ({ el, b: el.getBBox(), y: Number(el.getAttribute("y")) || 0 }));
+  // the labels under this one in its chord, nearest first: line by line, each
+  // directly under the last, so a stack never reaches into the next staff's lane
+  const stackBelow = (el, b) => {
+    const out = [];
+    let cur = { el, b, y: Number(el.getAttribute("y")) || b.y };
+    for (;;) {
+      const mid = cur.b.x + cur.b.width / 2;
+      const next = boxes
+        .filter(
+          (o) =>
+            o.el !== cur.el &&
+            o.y > cur.y + 0.5 &&
+            o.y - cur.y <= cur.b.height * 1.6 &&
+            Math.abs(o.b.x + o.b.width / 2 - mid) < Math.max(cur.b.width, o.b.width) * 0.6
+        )
+        .sort((p, q) => p.y - q.y)[0];
+      if (!next || out.includes(next)) return out;
+      out.push(next);
+      cur = next;
+    }
+  };
+  // slurs and ties: a whole chord moved down must not land on one
+  const curves = [];
+  for (const g of svg.querySelectorAll("g.vf-curve")) {
+    try {
+      const r = g.getBBox();
+      if (r.width || r.height) curves.push(r);
+    } catch {
+      /* not drawn */
+    }
+  }
+  // every label of the chord, one line lower, lands on free paper: no other label
+  // on that line within a gap, and no notation under it
+  const stackFits = (el, b, below, sp, gap) => {
+    const stack = [{ el, b }, ...below];
+    const targets = stack.slice(1).map((o) => Number(o.el.getAttribute("y"))).concat(sp.cy);
+    const members = new Set(stack.map((o) => o.el));
+    const overlaps = (a, r, pad) =>
+      a.x < r.x + r.width + pad && a.x + a.width + pad > r.x && a.y + a.height * 0.15 < r.y + r.height && a.y + a.height * 0.85 > r.y;
+    return stack.every((o, i) => {
+      const dy = targets[i] - (Number(o.el.getAttribute("y")) || 0);
+      const nb = { x: o.b.x, y: o.b.y + dy, width: o.b.width, height: o.b.height };
+      if (touchesInk(nb) || curves.some((r) => overlaps(nb, r, 0.8))) return false;
+      // any other label whose box it would meet, on whatever line
+      return !labels.some((other) => !members.has(other) && overlaps(nb, other.getBBox(), gap));
+    });
+  };
+  const shifted = new Set(); // labels already moved down with their stack
   const dropped = new Map(); // spare-line y → right edge used so far
   let moved = 0;
   for (const row of rows.values()) {
     row.sort((p, q) => p.b.x - q.b.x);
     let lastRight = -Infinity;
     for (const { el, b } of row) {
+      if (shifted.has(el)) continue;
       // labels for different notes need a visible gap, not just no overlap,
       // or "E G♯" reads as one word
       const gap = Math.max(2.5, b.height * 0.3);
@@ -4394,12 +3730,29 @@ function staggerLaneLabels(host) {
         lastRight = b.x + b.width;
         continue;
       }
-      const sp = spareBelow(b);
+      const below = stackBelow(el, b);
+      const bottom = below.length ? below[below.length - 1] : { el, b };
+      const sp = spareBelow(bottom.b);
       const key = sp ? Math.round(sp.y) : null;
       const used = key != null ? dropped.get(key) ?? -Infinity : Infinity;
-      if (sp && b.x >= used + gap) {
-        el.setAttribute("y", String(sp.cy));
-        dropped.set(key, b.x + b.width);
+      if (sp && below.length && bottom.b.x >= used + gap && stackFits(el, b, below, sp, gap)) {
+        // move the whole chord down a line, so its top note still reads first
+        const stack = [el, ...below.map((o) => o.el)];
+        const ys = stack.map((n) => n.getAttribute("y"));
+        ys.push(String(sp.cy));
+        stack.forEach((n, i) => n.setAttribute("y", ys[i + 1]));
+        for (const o of below) shifted.add(o.el);
+        dropped.set(key, Math.max(b.x + b.width, bottom.b.x + bottom.b.width));
+        moved++;
+        continue;
+      }
+      // no room to move the chord as one: the single label drops (as before)
+      const own = below.length ? spareBelow(b) : sp;
+      const ownKey = own ? Math.round(own.y) : null;
+      const ownUsed = ownKey != null ? dropped.get(ownKey) ?? -Infinity : Infinity;
+      if (own && b.x >= ownUsed + gap) {
+        el.setAttribute("y", String(own.cy));
+        dropped.set(ownKey, b.x + b.width);
         moved++;
         continue;
       }
@@ -4414,40 +3767,40 @@ function staggerLaneLabels(host) {
       moved++;
     }
   }
+  // Last: a label still sitting on notation (a beam or a low note hanging into
+  // the lane, where no spare line was free) slides up or down by part of a
+  // line, to the nearest spot clear of notation, slurs, markings and other
+  // labels. If there is none it stays where the engraver put it.
+  const marks = [];
+  for (const g of svg.querySelectorAll("g.vf-text:not(.lyrics)")) {
+    try {
+      const r = g.getBBox();
+      if (r.width || r.height) marks.push(r);
+    } catch {
+      /* not drawn */
+    }
+  }
+  const meets = (a, r, pad) =>
+    a.x < r.x + r.width + pad && a.x + a.width + pad > r.x && a.y + a.height * 0.15 < r.y + r.height && a.y + a.height * 0.85 > r.y;
+  const onInk = (b) => touchesInk(b) || curves.some((r) => meets(b, r, 0.8)) || marks.some((r) => meets(b, r, 0.8));
+  for (const el of labels) {
+    const b = el.getBBox();
+    if (!b.width || !onInk(b)) continue;
+    const y0 = Number(el.getAttribute("y"));
+    if (!Number.isFinite(y0)) continue;
+    const near = labels.filter((o) => o !== el).map((o) => o.getBBox()).filter((r) => Math.abs(r.y - b.y) < b.height * 2.5 && Math.abs(r.x - b.x) < b.width * 3 + 20);
+    for (const f of [0.25, -0.25, 0.5, -0.5, 0.75]) {
+      const nb = { x: b.x, y: b.y + b.height * f, width: b.width, height: b.height };
+      if (onInk(nb) || near.some((r) => meets(nb, r, 1.5))) continue;
+      el.setAttribute("y", String(y0 + b.height * f));
+      moved++;
+      break;
+    }
+  }
   return moved;
 }
 
-/**
- * The Piano tab needs the score engraved for its timeline while the Score
- * panel is hidden. Engraving into a hidden (zero-width) panel draws bars with
- * negative widths, so the panel is laid out off screen at full width meanwhile.
- */
 async function renderScore() {
-  const pane = $("panel-score");
-  pane?.classList.add("is-engraving");
-  try {
-    await renderScoreInner();
-  } finally {
-    pane?.classList.remove("is-engraving");
-  }
-}
-
-async function renderScoreInner() {
-  const pane = $("panel-score");
-  const offstage = !!pane?.hidden;
-  if (offstage) {
-    pane.classList.add("score-offstage");
-    pane.hidden = false;
-  }
-  try {
-    await renderScoreNow();
-  } finally {
-    if (offstage && state.panel !== "score") pane.hidden = true;
-    pane?.classList.remove("score-offstage");
-  }
-}
-
-async function renderScoreNow() {
   const base = state.rawMusicxml || state.piece?.musicxml || "";
   if (!base) return;
   const wantLetters = !!state.scoreLetters;
@@ -4503,11 +3856,31 @@ async function renderScoreNow() {
   state.scoreWasRoomy = scoreNeedsRoom();
   bindOsmdRenderOverlays(osmd);
   await osmd.load(xml);
-  alignOsmdBarNumbers(osmd, xml);
   // load() resets zoom, so set it afterwards: 1 (the size the label lane is
   // tuned for), larger in large-print mode, or the cached fit for this width.
-  osmd.zoom = cachedFitZoom(phoneScoreZoom());
+  osmd.zoom = cachedFitZoom(1);
+  const host = $("osmd");
+  // A long score takes seconds to engrave on a phone, and nothing shows until
+  // it is done. Draw the opening bars on their own first, so music is on the
+  // page at once while the whole score engraves. #osmd[data-partial] marks
+  // that preview; the full drawing replaces it.
+  const R = osmd.EngravingRules;
+  if ((osmd.Sheet?.SourceMeasures?.length || 0) > PREVIEW_BARS * 2) {
+    host.dataset.partial = "1";
+    R.MaxMeasureToDrawIndex = PREVIEW_BARS - 1;
+    R.MaxMeasureToDrawNumber = PREVIEW_BARS;
+    try {
+      osmd.render();
+      await new Promise((done) => requestAnimationFrame(() => setTimeout(done, 0)));
+    } catch {
+      /* the full drawing below is what counts */
+    }
+    R.MaxMeasureToDrawIndex = Number.MAX_VALUE;
+    R.MaxMeasureToDrawNumber = Number.MAX_VALUE;
+    if (state.osmd !== osmd) return;
+  }
   osmd.render();
+  delete host.dataset.partial;
   fitScoreToWidth(osmd);
   untangleScoreDirections($("osmd"));
   state.osmdRenderedWidth = Math.round($("osmd")?.clientWidth || 0);
@@ -4687,7 +4060,7 @@ async function refreshScoreAnnotations() {
     const want = state.scoreFingers ? "fingers" : state.scoreLetters ? "letters" : "off";
     const host = $("osmd");
     if (state.renderedLaneMode === "both" && state.osmd && host?.querySelector("svg")) {
-      fadeLaneMode(host); // already engraved: the labels cross-fade, nothing is redrawn
+      showLaneMode(host); // already engraved: nothing to redraw
       return;
     }
     if (want !== state.renderedLaneMode) {
@@ -4756,7 +4129,7 @@ function lettersBlock(d) {
         return `<span class="chip ${fingersFirst ? "finger-only" : "letter"} chord" title="Chord">${inner}</span>`;
       })
       .join("");
-  let html = `<h4 aria-level="3">Notes</h4>`;
+  let html = `<h4>Notes</h4>`;
   if (d.rh?.length) html += `<p class="hand-label">Right hand</p><div class="notes">${fmt(d.rh)}</div>`;
   if (d.lh?.length) html += `<p class="hand-label">Left hand</p><div class="notes">${fmt(d.lh)}</div>`;
   if (!d.rh?.length && !d.lh?.length) html += `<p class="dim">No pitched notes in this bar.</p>`;
@@ -4814,7 +4187,7 @@ function barSectionHtml(num, d) {
   }
   if (first) {
     const open = !!window._luneAdviceOpen;
-    html += `<h4 aria-level="3">How to practise it</h4><div class="coach-advice"><p>${escapeHtml(first)}</p>`;
+    html += `<h4>How to practise it</h4><div class="coach-advice"><p>${escapeHtml(first)}</p>`;
     if (extra.length) {
       html += `<button type="button" class="coach-more-btn" data-coach-more aria-expanded="${open ? "true" : "false"}">${open ? "Less on this bar" : "More on this bar"}</button>`;
       html += `<div class="coach-advice-more"${open ? "" : " hidden"}><ul class="focus-list">${extra
@@ -4891,7 +4264,7 @@ function lineSummaryHtml(bar) {
     }
   }
   const tip = hardest.d.advice?.[0] || "";
-  let html = `<section class="coach-line-block"><h4 aria-level="3">This line · bars ${line[0]}\u2013${line[line.length - 1]}</h4><ul class="line-summary">`;
+  let html = `<section class="coach-line-block"><h4>This line · bars ${line[0]}\u2013${line[line.length - 1]}</h4><ul class="line-summary">`;
   html += `<li><strong>Hardest bar:</strong> bar ${hardest.num}${
     hardest.d.headline ? ` (${escapeHtml(hardest.d.headline)})` : ""
   }.</li>`;
@@ -4988,7 +4361,7 @@ async function askPlan() {
   for (const num of bars) {
     html += lettersBlock(debriefFor(num) || { rh: [], lh: [] });
   }
-  html += `<h4 aria-level="3">Session</h4><ul>${(plan.steps || [])
+  html += `<h4>Session</h4><ul>${(plan.steps || [])
     .map((s) => `<li><strong>${escapeHtml(s.title)}</strong> (${s.minutes}m) — ${escapeHtml(s.detail)}</li>`)
     .join("")}</ul>`;
   $("help-body").innerHTML = html;
@@ -5097,7 +4470,10 @@ async function applyRoute() {
       }
       return;
     }
-    const open = state.sessions.find((x) => sessionRouteId(x) === r.id);
+    // older links use ids that now resolve to a renamed catalogue entry
+    // (debussy-clair-de-lune → claude-debussy-claire-de-lune): a session also answers
+    // to the id it was opened from, so changing panel doesn't open the piece again
+    const open = state.sessions.find((x) => pieceRouteId(x.piece) === r.id || x.routeAliases?.has(r.id));
     if (open) {
       if (open.id !== state.activeSessionId) await activateSession(open.id);
       else showView("studio");
@@ -5106,15 +4482,43 @@ async function applyRoute() {
       return;
     }
     // static site: exact catalogue id; local server: let it resolve the words
-    const piece = await withLoader("Finding the score", () =>
-      tryOpen(LUNE_ON_PAGES ? { query: r.id } : { query: r.id.replace(/-/g, " "), title: "" })
-    );
+    const askedFor = location.hash;
+    // A score fetched on open can take many seconds. If the pianist goes to another
+    // piece meanwhile, the loader (which blocks the page) goes at once, and this
+    // score must not take the screen back when it lands.
+    showLoader("Finding the score");
+    let released = false;
+    const release = () => {
+      if (released) return;
+      released = true;
+      window.removeEventListener("hashchange", release);
+      hideLoader();
+    };
+    window.addEventListener("hashchange", release);
+    let piece;
+    try {
+      piece = await tryOpen(LUNE_ON_PAGES ? { query: r.id } : { query: r.id.replace(/-/g, " "), title: "" });
+    } finally {
+      release();
+    }
+    if (location.hash !== askedFor) return;
     if (!piece || piece.kind !== "score") {
       goHome({ keepTabs: true });
       toast("That link points to a score Lune doesn’t have any more — search for it instead.");
       return;
     }
+    const already = state.sessions.find((x) => pieceRouteId(x.piece) && pieceRouteId(x.piece) === pieceRouteId(piece));
+    if (already) {
+      (already.routeAliases ||= new Set()).add(r.id);
+      if (already.id !== state.activeSessionId) await activateSession(already.id);
+      else showView("studio");
+      if (r.panel === "score") await switchToScorePanel();
+      else setStudioPanel(r.panel);
+      return;
+    }
     await openPieceSession(piece, { panel: r.panel === "score" ? "explain" : r.panel });
+    const opened = activeSession();
+    if (opened && pieceRouteId(opened.piece) !== r.id) (opened.routeAliases ||= new Set()).add(r.id);
     if (r.panel === "score") await switchToScorePanel();
   } finally {
     routeApplying = false;
@@ -5124,7 +4528,6 @@ async function applyRoute() {
 }
 
 function goHome({ keepTabs = false, forceApp = false } = {}) {
-  document.body.classList.remove("is-story");
   // Signed-in users always get the personal home — never bounce back into the gate.
   const signedIn = !!window.LuneOnboard?.signedIn?.();
   if (!forceApp && window.LuneOnboard && !LuneOnboard.unlocked() && !signedIn) {
@@ -5220,8 +4623,11 @@ function bind() {
       items[activeIdx].click();
     }
   });
-  // Prefetch the free-score index so the first keystroke is already local.
-  ensureSearchIndex();
+  // Prefetch the free-score index so the first keystroke is already local,
+  // once the first screen is drawn: it is ~100 KB compressed and not needed to paint.
+  const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1200));
+  if (document.readyState === "complete") idle(() => ensureSearchIndex());
+  else window.addEventListener("load", () => idle(() => ensureSearchIndex()), { once: true });
   on("btn-search", "click", () => {
     const next = !document.body.classList.contains("phone-search-open");
     document.body.classList.toggle("phone-search-open", next);
@@ -5231,7 +4637,7 @@ function bind() {
   document.addEventListener("click", (e) => {
     if (!e.target.closest(".top-search") && !e.target.closest(".results")) {
       closeSearchResults();
-      if (!e.target.closest(".piece-tab-add, .piece-tab-new, #st-add")) {
+      if (!e.target.closest(".piece-tab-add")) {
         document.body.classList.remove("studio-search-open");
       }
       if (!e.target.closest("#btn-search")) {
@@ -5264,10 +4670,7 @@ function bind() {
     if (e.key === "Escape") {
       if (document.querySelector(".lune-menu.is-open")) return;
       if (state.coachOpen) {
-        const inPanel = $("coach")?.contains(document.activeElement) || document.activeElement === document.body;
         closeCoach();
-        // keyboard users land back on the score, where the arrow keys pick the next bar
-        if (inPanel || document.activeElement === $("score-scroll")) $("score-scroll")?.focus({ preventScroll: true });
         e.preventDefault();
         return;
       }
@@ -5335,13 +4738,6 @@ function bind() {
   on("btn-stop", "click", (e) => {
     e.preventDefault();
     stopAll();
-  });
-  // phones: the tempo readout opens the slider above the player, and closes it again
-  on("bpm-readout-btn", "click", () => {
-    const tc = $("tempo-control");
-    const open = !tc.classList.contains("open");
-    tc.classList.toggle("open", open);
-    $("bpm-readout-btn").setAttribute("aria-expanded", open ? "true" : "false");
   });
   on("btn-toggle-kbd", "click", () => {
     // go by what is on screen, not a remembered flag that may be stale
@@ -5614,21 +5010,9 @@ window.openPieceSession = openPieceSession;
 window.toast = toast;
 window.showView = showView;
 
-// Lune decides where each view starts; the browser must not drop a reload mid-page
-try {
-  if ("scrollRestoration" in history) history.scrollRestoration = "manual";
-} catch {
-  /* older browsers */
-}
-
 try {
   bind();
   window.addEventListener("popstate", () => applyRoute().catch(() => {}));
-  // keep each tab's last panel for the next visit
-  window.addEventListener("pagehide", () => {
-    snapshotActiveSession();
-    saveTabs();
-  });
   // Repertoire / study / onboard modules load after this file.
   const boot = async () => {
     try {
@@ -5636,7 +5020,6 @@ try {
     } catch (e) {
       console.warn("[lune] store init", e);
     }
-    restoreTabs();
     window.LuneOnboard?.init?.();
     window.LuneImpact?.init?.();
     const gate = window.LuneOnboard?.route?.() || "app";
@@ -5654,8 +5037,11 @@ try {
       if (parseRoute()) applyRoute().catch(() => {});
     }
   };
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, { once: true });
-  else boot();
+  // Scripts are deferred: they run after parsing (readyState "interactive"), and
+  // practice.js, study.js and others load after this file. DOMContentLoaded fires
+  // once every deferred script has run, so boot waits for it.
+  if (document.readyState === "complete") boot();
+  else document.addEventListener("DOMContentLoaded", boot, { once: true });
 } catch (err) {
   console.error("Lune bind failed", err);
   const t = document.getElementById("toast");
@@ -5664,143 +5050,3 @@ try {
     t.textContent = "UI failed to start — hard-refresh the page.";
   }
 }
-
-/**
- * OSMD renumbers a short first bar to 0 even when the file calls it bar 1.
- * Playback, bar notes and ratings use the file's numbers, so give the
- * engraving the same ones; otherwise the highlight sits a bar away from the sound.
- */
-function alignOsmdBarNumbers(osmd, xml) {
-  try {
-    const doc = new DOMParser().parseFromString(xml, "application/xml");
-    const part = doc.querySelector("part");
-    if (!part) return;
-    const nums = [...part.children].filter((m) => m.tagName === "measure").map((m) => parseInt(m.getAttribute("number"), 10));
-    const list = osmd.Sheet?.SourceMeasures || [];
-    if (!list.length || nums.length !== list.length) return;
-    list.forEach((sm, i) => {
-      const n = nums[i];
-      if (!Number.isFinite(n) || sm.MeasureNumber === n) return;
-      try { sm.MeasureNumber = n; } catch { /* getter only */ }
-      sm.measureNumber = n;
-    });
-  } catch {
-    /* keep OSMD's numbers */
-  }
-}
-
-
-/**
- * Pedal marks under the score: the edition's own, or, where it has none, the
- * changes Lune's playback makes (at each bar and when the bass moves on).
- * "Ped." starts a line, each notch is a change, the line ends where the pedal lifts.
- */
-function pedalWanted() {
-  try { return localStorage.getItem("lune.pedal") === "1"; } catch { return false; }
-}
-function drawPedalMarks() {
-  const scroll = $("score-scroll");
-  const host = $("osmd");
-  let layer = $("pedal-layer");
-  const on = pedalWanted() && state.panel === "score" && state.osmd && host && !host.hidden;
-  $("btn-pedal")?.setAttribute("aria-pressed", on ? "true" : "false");
-  $("btn-pedal")?.classList.toggle("on", !!on);
-  if (!on) { if (layer) layer.innerHTML = ""; return; }
-  // the whole piece's plan (a played snippet would leave only its own bars)
-  try { pieceNotes(); } catch { /* no notes yet */ }
-  const plan = state.pedalPlan;
-  if (!layer) {
-    layer = document.createElement("div");
-    layer.id = "pedal-layer";
-    layer.className = "pedal-layer";
-    layer.setAttribute("aria-hidden", "true");
-    scroll.appendChild(layer);
-  }
-  layer.innerHTML = "";
-  if (!plan || !plan.list.length) {
-    layer.innerHTML = `<p class="pedal-none">No pedal: music of this style is usually played without it.</p>`;
-    return;
-  }
-  const byBar = new Map();
-  for (const c of plan.list) {
-    if (!byBar.has(c.bar)) byBar.set(c.bar, []);
-    byBar.get(c.bar).push(c);
-  }
-  const bars = [...new Set(LunePiano.barMarkers?.().map((m) => m.bar) || [...byBar.keys()])];
-  // the lowest ink in each bar (notes below the staff, note names): the line goes under it
-  const sr = scroll.getBoundingClientRect();
-  const inks = [...host.querySelectorAll(".vf-notehead, .lane-letter, .vf-stem")].map((el) => {
-    const r = el.getBoundingClientRect();
-    return { x: r.left + r.width / 2 - sr.left + scroll.scrollLeft, top: r.top - sr.top + scroll.scrollTop, bottom: r.bottom - sr.top + scroll.scrollTop };
-  });
-  // one height per line of music, under its lowest ink, so the pedal line runs straight
-  const boxes = new Map();
-  const rowLow = new Map();
-  for (const bar of bars) {
-    const box = LuneAnnotate.measureBoundsInHost?.(state.osmd, host, bar);
-    if (!box) continue;
-    boxes.set(bar, box);
-    let low = box.top + box.height;
-    for (const k of inks) if (k.x >= box.left && k.x <= box.left + box.width && k.top >= box.top - 4 && k.top <= box.top + box.height + 60 && k.bottom <= box.top + box.height + 100) low = Math.max(low, k.bottom);
-    const row = Math.round(box.top);
-    rowLow.set(row, Math.max(rowLow.get(row) || 0, low));
-  }
-  let down = false;
-  let prevRow = null;
-  const frag = document.createDocumentFragment();
-  for (const bar of bars) {
-    const box = boxes.get(bar);
-    if (!box) continue;
-    const len = Math.max(0.25, barLengthQuarters(bar, null) || signatureBarQuarters() || 4);
-    const anchors = (LuneAnnotate.playheadAnchorsInHost?.(state.osmd, host, bar) || []).sort((a, c) => a.q - c.q);
-    const xAt = (off) => {
-      if (anchors.length) {
-        let a = anchors[0];
-        for (const n of anchors) if (n.q <= off + 0.001) a = n;
-        const nxt = anchors.find((n) => n.q > off + 0.001);
-        if (Math.abs(a.q - off) < 0.01 || !nxt) return a.x + (nxt ? 0 : Math.max(0, (off - a.q) / len) * box.width);
-        return a.x + ((off - a.q) / (nxt.q - a.q)) * (nxt.x - a.x);
-      }
-      return box.left + 8 + (off / len) * (box.width - 16);
-    };
-    const row = Math.round(box.top);
-    const y = (rowLow.get(row) || box.top + box.height) + 8;
-    if (prevRow !== null && row !== prevRow && down) {
-      // a new system: the line carries on, with a fresh "Ped." for the eye
-      frag.appendChild(pedalBit("ped", box.left + 2, y));
-    }
-    prevRow = row;
-    let x0 = box.left;
-    const marks = (byBar.get(bar) || []).sort((a, c) => a.off - c.off);
-    for (const m of marks) {
-      const x = xAt(m.off);
-      if (down && x > x0 + 2) frag.appendChild(pedalBit("line", x0, y, x - x0));
-      if (m.down) {
-        frag.appendChild(pedalBit(down ? "notch" : "ped", down ? x - 5 : x, y));
-        x0 = down ? x + 5 : Math.min(x + 30, box.left + box.width);
-        down = true;
-      } else if (down) {
-        frag.appendChild(pedalBit("end", x - 1, y));
-        down = false;
-        x0 = x;
-      }
-    }
-    if (down) frag.appendChild(pedalBit("line", x0, y, box.left + box.width - x0));
-  }
-  layer.appendChild(frag);
-  layer.dataset.marked = plan.marked ? "1" : "0";
-}
-function pedalBit(kind, x, y, w) {
-  const el = document.createElement("span");
-  el.className = `pedal-${kind}`;
-  el.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
-  if (kind === "ped") el.textContent = "Ped.";
-  if (w != null) el.style.width = `${Math.max(0, Math.round(w))}px`;
-  return el;
-}
-document.addEventListener("click", (e) => {
-  if (!e.target.closest?.("#btn-pedal")) return;
-  const next = !pedalWanted();
-  try { localStorage.setItem("lune.pedal", next ? "1" : "0"); } catch { /* this device only */ }
-  drawPedalMarks();
-});

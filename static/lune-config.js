@@ -16,10 +16,6 @@ window.LUNE_CONFIG = {
   /** Form-to-email relay for the Feedback form: answers are posted to
    *  <relay><feedbackEmail> and arrive as an email. Empty string turns it off. */
   feedbackRelay: "https://formsubmit.co/ajax/",
-  /** Lune AI for account holders: the address of the Cloudflare Worker in
-   *  workers/lune-ai. scripts/deploy_lune_ai.sh fills it in. Empty = off. */
-  aiServer: "https://lune-ai.verushkapatel4.workers.dev",
-  aiModelName: "Llama 3.3 70B Instruct",
   /** Auth / OTP sender identity (Supabase SMTP From). */
   authEmail: "login@lune.page",
 };

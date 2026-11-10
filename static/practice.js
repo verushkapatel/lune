@@ -12,13 +12,11 @@ window.LunePractice = (function () {
     ["polishing", "Polishing"],
     ["ready", "Ready"],
   ];
-  // weakest to strongest; store.js schedules each one (Strong was called Easy until lune04)
   const GRADES = [
-    ["again", "Again", "Still falling apart. Bring it back in 10 minutes."],
-    ["hard", "Hard", "Got through it, with real effort."],
-    ["okay", "Okay", "Mostly there, with a slip or two."],
-    ["good", "Good", "Solid at this tempo."],
-    ["strong", "Strong", "Secure. Leave it for a while."],
+    ["again", "Again", "Still falling apart — bring it back in 10 minutes"],
+    ["hard", "Hard", "Got through it, with effort"],
+    ["good", "Good", "Solid at this tempo"],
+    ["easy", "Easy", "Effortless — leave it for a while"],
   ];
 
   let notesCache = { key: "", rows: [] };
@@ -191,7 +189,6 @@ window.LunePractice = (function () {
     if (/\b(hard|tricky|difficult|messy|again)\b/i.test(body)) await store.queueBar(key, bar);
     await notesFor(key, { fresh: true });
     paintScoreMarks();
-    window.LunePlans?.noteActivity?.("note", { key, title: titleFor(piece) });
     return row;
   }
 
@@ -201,8 +198,7 @@ window.LunePractice = (function () {
   let activeRec = null;
   let _voiceSecureToasted = false;
   function canListenForWords() {
-    // Lune AI's Whisper (signed in) or the browser's own recognition
-    return !!window.isSecureContext && (!!Recognition || !!window.LuneAsk?.voice?.available?.());
+    return !!Recognition && !!window.isSecureContext;
   }
   /** Open coach note field for the current/selected bar (type fallback). */
   function focusTypeNote(bar, text = "") {
@@ -227,131 +223,7 @@ window.LunePractice = (function () {
     }, 40);
   }
   /** One spoken phrase → text. onPartial gets interim words while speaking. */
-  /*
-   * Listening, signed in: record the phrase and let Lune AI's Whisper write it
-   * down with punctuation. It stops after a moment of silence, after 45
-   * seconds, or when the microphone is tapped again.
-   */
-  let activeRecorder = null;
-  async function recordPhrase({ onPartial, onLevel } = {}) {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
-    const type = ["audio/webm;codecs=opus", "audio/mp4", "audio/webm"].find((t) => MediaRecorder.isTypeSupported?.(t)) || "";
-    const rec = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
-    const chunks = [];
-    rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    // iPhones start an audio context paused; a paused meter reads silence, so it must not decide anything
-    await ctx.resume().catch(() => {});
-    const meterLive = ctx.state === "running";
-    const analyser = ctx.createAnalyser();
-    analyser.fftSize = 1024;
-    ctx.createMediaStreamSource(stream).connect(analyser);
-    const buf = new Float32Array(analyser.fftSize);
-    let heardVoice = false;
-    let quietSince = 0;
-    // voice is sustained sound well above the room's own noise, not one click or bump
-    let floor = 0.006;
-    let voicedMs = 0;
-    let last = performance.now();
-    const started = last;
-    const done = new Promise((resolve) => (rec.onstop = resolve));
-    activeRecorder = rec;
-    rec.start(250);
-    onPartial?.("Listening… tap again when you are done");
-    const watch = () => {
-      if (rec.state !== "recording") return;
-      analyser.getFloatTimeDomainData(buf);
-      const rms = Math.sqrt(buf.reduce((a, v) => a + v * v, 0) / buf.length);
-      onLevel?.(Math.min(1, rms * 9));
-      const now = performance.now();
-      const dt = Math.min(100, now - last);
-      last = now;
-      // the floor follows the quietest moments, slowly
-      floor = rms < floor ? floor * 0.9 + rms * 0.1 : floor * 0.999 + rms * 0.001;
-      if (rms > Math.max(0.018, floor * 3.2)) {
-        voicedMs += dt;
-        if (voicedMs > 220) heardVoice = true;
-        quietSince = 0;
-      } else if (heardVoice) quietSince ||= now;
-      // a little over a second of quiet ends the phrase: long enough for a breath, short enough to feel quick
-      if ((meterLive && heardVoice && quietSince && now - quietSince > 1100) || now - started > 45000) rec.stop();
-      else requestAnimationFrame(watch);
-    };
-    requestAnimationFrame(watch);
-    await done;
-    activeRecorder = null;
-    stream.getTracks().forEach((t) => t.stop());
-    const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
-    // only a working meter that heard nothing at all may drop the recording
-    if ((meterLive && !heardVoice) || blob.size < 800) {
-      ctx.close().catch(() => {});
-      return "";
-    }
-    onPartial?.("Writing it down…");
-    let audio = blob;
-    try {
-      audio = await toWav16k(ctx, blob);
-    } catch {
-      /* send the recording as it is */
-    }
-    ctx.close().catch(() => {});
-    const text = await window.LuneAsk.voice.transcribe(audio);
-    // what Whisper says over noise, if the server let any through
-    if (/^\s*(thank you\.?|thanks for watching!?|you\.?|bye\.?)\s*$/i.test(text || "")) return "";
-    return tidySpoken(text);
-  }
-
-  /** Any recording → 16 kHz mono WAV, the form Whisper is tested with (about 32 KB a second). */
-  async function toWav16k(ctx, blob) {
-    const decoded = await ctx.decodeAudioData(await blob.arrayBuffer());
-    const rate = 16000;
-    const off = new OfflineAudioContext(1, Math.ceil(decoded.duration * rate), rate);
-    const src = off.createBufferSource();
-    src.buffer = decoded;
-    src.connect(off.destination);
-    src.start();
-    const pcm = (await off.startRendering()).getChannelData(0);
-    const out = new DataView(new ArrayBuffer(44 + pcm.length * 2));
-    const str = (o, t) => [...t].forEach((c, i) => out.setUint8(o + i, c.charCodeAt(0)));
-    str(0, "RIFF");
-    out.setUint32(4, 36 + pcm.length * 2, true);
-    str(8, "WAVEfmt ");
-    out.setUint32(16, 16, true);
-    out.setUint16(20, 1, true);
-    out.setUint16(22, 1, true);
-    out.setUint32(24, rate, true);
-    out.setUint32(28, rate * 2, true);
-    out.setUint16(32, 2, true);
-    out.setUint16(34, 16, true);
-    str(36, "data");
-    out.setUint32(40, pcm.length * 2, true);
-    for (let i = 0; i < pcm.length; i++) out.setInt16(44 + i * 2, Math.max(-1, Math.min(1, pcm[i])) * 0x7fff, true);
-    return new Blob([out], { type: "audio/wav" });
-  }
-
-  function hearPhrase({ onPartial, onLevel, fast = false } = {}) {
-    // voice chat wants speed: the browser's own recognition writes words as you speak, with nothing to upload;
-    // Lune AI's ear (Whisper) is the fallback when the browser has none or it fails
-    if (fast && Recognition && window.isSecureContext) {
-      return browserPhrase({ onPartial, startWithin: 2500 }).catch(() =>
-        window.LuneAsk?.voice?.available?.() ? recordPhrase({ onPartial, onLevel }) : ""
-      );
-    }
-    if (window.LuneAsk?.voice?.available?.() && window.isSecureContext) {
-      // Lune AI's ear; the browser's own recognition if that fails
-      return recordPhrase({ onPartial, onLevel }).catch((err) => {
-        if (/denied|not allowed|permission/i.test(err?.message || "")) {
-          throw new Error("Lune needs the microphone for voice notes. Allow it in the address bar, or type the note.");
-        }
-        // the browser's own recognition if it has one; otherwise say what went wrong
-        if (!Recognition) throw new Error(err?.message || "Lune AI could not hear that. Try again, or type.");
-        return browserPhrase({ onPartial });
-      });
-    }
-    return browserPhrase({ onPartial });
-  }
-
-  function browserPhrase({ onPartial, startWithin = 0 } = {}) {
+  function hearPhrase({ onPartial } = {}) {
     return new Promise((resolve, reject) => {
       if (!window.isSecureContext) {
         reject(new Error("Voice needs a secure connection (HTTPS) — type your note instead."));
@@ -374,32 +246,6 @@ window.LunePractice = (function () {
       rec.maxAlternatives = 1;
       rec.continuous = false;
       let finalText = "";
-      // some browsers list speech recognition but never start it: give up quickly so Whisper can listen instead
-      let watchdog = 0;
-      if (startWithin) {
-        watchdog = setTimeout(() => {
-          try {
-            rec.abort();
-          } catch {
-            /* ignore */
-          }
-          activeRec = null;
-          reject(new Error("recognition did not start"));
-        }, startWithin);
-        rec.onaudiostart = () => clearTimeout(watchdog);
-      }
-      // Safari on iPhone can keep listening without ever marking a result final:
-      // after a pause in speech, finish with what was heard
-      let heard = "";
-      let quiet = 0;
-      const finishSoon = () => {
-        clearTimeout(quiet);
-        quiet = setTimeout(() => {
-          try { rec.stop(); } catch { /* already ending */ }
-          setTimeout(() => { if (activeRec === rec) { try { rec.abort(); } catch { /* gone */ } activeRec = null; resolve(tidySpoken(finalText || heard)); } }, 700);
-        }, 1300);
-      };
-      const longest = setTimeout(() => { try { rec.stop(); } catch { /* gone */ } }, 15000);
       rec.onresult = (e) => {
         let interim = "";
         for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -407,18 +253,13 @@ window.LunePractice = (function () {
           if (e.results[i].isFinal) finalText += t;
           else interim += t;
         }
-        heard = (finalText + " " + interim).trim();
-        onPartial?.(heard);
-        if (heard) finishSoon();
+        onPartial?.((finalText + " " + interim).trim());
       };
       rec.onerror = (e) => {
-        clearTimeout(watchdog);
         activeRec = null;
         // stopping it yourself is not a failure: keep whatever was heard
-        clearTimeout(quiet);
-        clearTimeout(longest);
-        if (e.error === "aborted" || (e.error === "no-speech" && heard)) {
-          resolve(tidySpoken(finalText || heard));
+        if (e.error === "aborted") {
+          resolve(finalText.trim());
           return;
         }
         const why =
@@ -434,11 +275,8 @@ window.LunePractice = (function () {
         reject(new Error(why));
       };
       rec.onend = () => {
-        clearTimeout(watchdog);
-        clearTimeout(quiet);
-        clearTimeout(longest);
         activeRec = null;
-        resolve(tidySpoken(finalText || heard));
+        resolve(tidySpoken(finalText));
       };
       try {
         rec.start();
@@ -448,83 +286,10 @@ window.LunePractice = (function () {
       }
     });
   }
-  /*
-   * Speech recognisers mishear piece and composer names. Common mishearings are
-   * mapped back, and words close to the open piece's title are corrected to it.
-   */
-  const HEARD = [
-    [/\b(lieb(e|a|i)?s?(t|d)?\s?(r|w)aum|leave(s)?\s?a?\s?straw(m|n)?|lee\s?best\s?(room|raum|rom)|lead\s?bus\s?(dream|tram)|lieber\s?straum|liebes\s?(dream|trom|traum))\b/gi, "Liebestraum"],
-    [/\b(clear|clare|clara|claire|clair)\s+(de|the|duh|da)\s+(loon|lune|lewn|loan|moon)\b/gi, "Clair de lune"],
-    [/\b(for|fur|fir|four)\s+(elise|a lease|elisa|eliza|at least|ali's|elease)\b/gi, "Für Elise"],
-    [/\b(gym\s?no\s?pe+d(i|ee|ie|y)|jim\s?no\s?pe+d(i|ee|y)|gymnopedie)\b/gi, "Gymnopédie"],
-    [/\b(show\s?pan|shopin|chopping|chopan|shopan)\b/gi, "Chopin"],
-    [/\b(de\s?bussy|the\s?bussy|debu\s?see|deb\s?you\s?see)\b/gi, "Debussy"],
-    [/\bfranz\s+(list|lists|lest)\b/gi, "Franz Liszt"],
-    [/\b(rock\s?man\s?in\s?off|rachmaninov|rock\s?mana\s?nov)\b/gi, "Rachmaninoff"],
-    [/\b(nock\s?turn|knock\s?turn|noc\s?turn)\b/gi, "nocturne"],
-    [/\b(sat\s?tea|saw\s?tee|sa\s?tea)\b/gi, "Satie"],
-    [/\b(pathetic)\s+(sonata)\b/gi, "Pathétique Sonata"],
-    [/\b(maz\s?urka|mazerka|mazurca)\b/gi, "mazurka"],
-  ];
-  function fixHeardNames(t) {
-    let out = String(t || "");
-    for (const [re, to] of HEARD) out = out.replace(re, to);
-    // a word close to the open piece's title becomes that title word
-    const title = String(window.state?.piece?.title || (typeof state !== "undefined" ? state.piece?.title : "") || "");
-    const words = [...new Set(title.split(/[\s,.()–-]+/).filter((w) => w.length >= 6))];
-    if (!words.length) return out;
-    const near = (a, b) => {
-      a = a.toLowerCase(); b = b.toLowerCase();
-      const m = a.length, n = b.length;
-      if (Math.abs(m - n) > 2) return false;
-      const d = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)]);
-      for (let j = 1; j <= n; j++) d[0][j] = j;
-      for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
-      return d[m][n] <= Math.max(1, Math.floor(n / 4));
-    };
-    return out.replace(/[A-Za-zÀ-ÿ]{5,}/g, (w) => words.find((tw) => tw.toLowerCase() !== w.toLowerCase() && near(w, tw)) || w);
-  }
-  /* Spoken aloud, names are respelled so the voice says them as musicians do. */
-  const SAY = [
-    [/\bLiebestr[äa]um(e)?\b/gi, "Leebe-strowm"], [/\bF[üu]r Elise\b/gi, "Fur Eh-leeza"],
-    [/\bLiszt\b/g, "List"],
-    [/\bRachmaninoff?\b/g, "Rock-mah-nin-off"], [/\bSchumann\b/g, "Shoo-mahn"], [/\bSchubert\b/g, "Shoo-bert"],
-    [/\bBach\b/g, "Bahk"], [/\bnocturnes?\b/gi, (m) => (m.endsWith("s") ? "nock-turns" : "nock-turn")], 
-    [/\bOp\.\s?/g, "Opus "], [/\bNo\.\s?(?=\d)/g, "Number "], [/\bBWV\s?/g, "B W V "],
-    [/♭/g, " flat"], [/♯/g, " sharp"], [/♮/g, " natural"], [/\bLune\b/g, "Loon"],
-  ];
-  /* French names and terms are given to a French voice, so they sound as they should. */
-  const FRENCH = /\b(Suite bergamasque|Clair de lune|Pavane pour une infante d[ée]funte|Jeux d['’]eau|R[êe]verie|Arabesques?|Gymnop[ée]dies?|Gnossiennes?|Claude Debussy|Debussy|Erik Satie|Satie|Maurice Ravel|Ravel|Gabriel Faur[ée]|Faur[ée]|Fr[ée]d[ée]ric Chopin|Chopin|Path[ée]tique|[ÉE]tudes?(?= (?:in|no|op|en)\b)|[ée]tudes?|Pr[ée]ludes?(?= (?:de|pour)\b)|Berceuse|Barcarolle|Valse|C[ée]dez|Retenu|Au mouvement|En dehors|Tr[èe]s doux|Doux|Un peu|Mouvement)\b/gi;
-  function splitLanguages(text) {
-    const out = [];
-    let at = 0;
-    for (const m of String(text).matchAll(FRENCH)) {
-      if (m.index > at) out.push({ t: text.slice(at, m.index), lang: "en" });
-      out.push({ t: m[0], lang: "fr" });
-      at = m.index + m[0].length;
-    }
-    if (at < text.length) out.push({ t: text.slice(at), lang: "en" });
-    // tiny joins ("by ", ", ") ride with their neighbour so the voice does not stutter
-    return out.filter((x) => x.t.trim()).reduce((acc, x) => {
-      const last = acc[acc.length - 1];
-      if (last && last.lang === x.lang) last.t += x.t;
-      else if (last && x.lang === "en" && !/[a-z]{3}/i.test(x.t)) last.t += x.t;
-      else acc.push({ ...x });
-      return acc;
-    }, []);
-  }
-  function forSpeech(text) {
-    let out = String(text || "");
-    for (const [re, to] of SAY) out = out.replace(re, to);
-    return out;
-  }
   /** Browsers return bare lower-case words: add the punctuation a person would. */
   function tidySpoken(text) {
     let t = String(text || "").replace(/\s+/g, " ").trim();
     if (!t) return "";
-    // the app's own name: speech recognisers hear "Lune" as "Loon", "Loun" or "Lun"
-    t = t.replace(/\b(loons?|louns?|lunn|lune|lewn)\b/gi, "Lune");
-    t = fixHeardNames(t);
     t = t
       .replace(/\s*\b(comma)\b\s*/gi, ", ")
       .replace(/\s*\b(full stop|period)\b\s*/gi, ". ")
@@ -542,17 +307,12 @@ window.LunePractice = (function () {
     } catch {
       /* ignore */
     }
-    try {
-      if (activeRecorder?.state === "recording") activeRecorder.stop();
-    } catch {
-      /* ignore */
-    }
   }
 
   /** "Tell Lune" button on the score: speak a note for any bar, hands free.
    * Always falls back to the type-note field when speech isn’t available. */
   async function tellLune(btn) {
-    if (activeRec || activeRecorder) {
+    if (activeRec) {
       stopHearing();
       return;
     }
@@ -645,274 +405,8 @@ window.LunePractice = (function () {
     if (tip) s += ` Tip: ${String(tip).replace(/[—–]/g, ",")}`;
     return s;
   }
-  /*
-   * Reading aloud: signed in, Lune AI's natural voice; otherwise (or if it
-   * fails) the most natural voice this device has.
-   */
-  let currentAudio = null;
-  const voiceCache = new Map();
-  // iPhones only play sound started by a tap: one element and one audio context,
-  // unlocked on the first tap, carry every reply after that
-  const SILENT_WAV = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=";
-  let voiceEl = null;
-  let voiceAC = null;
-  let voiceAn = null;
-  let voiceUnlocked = false;
-  function voiceElement() {
-    if (!voiceEl) {
-      voiceEl = new Audio();
-      voiceEl.preload = "auto";
-      voiceEl.setAttribute("playsinline", "");
-    }
-    return voiceEl;
-  }
-  function unlockVoice() {
-    const el = voiceElement();
-    try {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (AC && !voiceAC) {
-        voiceAC = new AC();
-        const src = voiceAC.createMediaElementSource(el);
-        voiceAn = voiceAC.createAnalyser();
-        voiceAn.fftSize = 512;
-        src.connect(voiceAn);
-        voiceAn.connect(voiceAC.destination);
-      }
-      if (voiceAC && voiceAC.state !== "running") voiceAC.resume().catch(() => {});
-    } catch {
-      voiceAC = null;
-    }
-    if (voiceUnlocked || !el.paused) return;
-    try {
-      el.src = SILENT_WAV;
-      el.play().then(() => { voiceUnlocked = true; }).catch(() => {});
-    } catch { /* not yet */ }
-    try {
-      if ("speechSynthesis" in window) {
-        const u = new SpeechSynthesisUtterance(" ");
-        u.volume = 0;
-        speechSynthesis.speak(u);
-      }
-    } catch { /* no device voice */ }
-  }
-  // only touch devices hold sound back until a tap; a computer allows it after any click
-  const onTouch = (e) => {
-    if (e.type === "pointerdown" && e.pointerType !== "touch") return;
-    unlockVoice();
-    if (voiceUnlocked && voiceAC?.state === "running") {
-      document.removeEventListener("pointerdown", onTouch, true);
-      document.removeEventListener("touchend", onTouch, true);
-    }
-  };
-  document.addEventListener("pointerdown", onTouch, { passive: true, capture: true });
-  document.addEventListener("touchend", onTouch, { passive: true, capture: true });
-  function stopAudio() {
-    if (currentAudio) {
-      currentAudio.pause();
-      currentAudio = null;
-    }
-  }
-  async function speak(text) {
-    text = forSpeech(text);
-    lastSpoken = text;
-    stopAudio();
-    try {
-      speechSynthesis?.cancel();
-    } catch {
-      /* no speech synthesis */
-    }
-    const V = window.LuneAsk?.voice;
-    // a natural voice on the device (Siri, Edge's and Google's natural voices) sounds warmest of all
-    if (V?.available?.() && !premiumVoice()) {
-      try {
-        let blob = voiceCache.get(text);
-        if (!blob) {
-          listenBar(true, "Getting Lune’s voice…");
-          blob = await V.speak(text);
-          voiceCache.set(text, blob);
-        }
-        if (lastSpoken !== text) return; // something newer was asked for meanwhile
-        const audio = new Audio(URL.createObjectURL(blob));
-        audio.playbackRate = Number(store.prefs().speechRate) || 1;
-        currentAudio = audio;
-        audio.onended = () => {
-          if (currentAudio === audio) {
-            currentAudio = null;
-            listenBar(false);
-          }
-        };
-        await audio.play();
-        listenBar(true);
-        return;
-      } catch {
-        stopAudio(); // the device voice reads it instead
-      }
-    }
-    speakOnDevice(text);
-  }
-  /** Say something and resolve when it has been said; onLevel gets 0-1 while it plays. */
-  async function speakAndWait(text, { onLevel, onProgress } = {}) {
-    // spoken without the marks that only make sense on screen
-    text = forSpeech(String(text || "").replace(/\*\*/g, "").replace(/^#+\s*/gm, ""));
-    lastSpoken = text;
-    stopAudio();
-    try {
-      speechSynthesis?.cancel();
-    } catch {
-      /* no speech synthesis */
-    }
-    const V = window.LuneAsk?.voice;
-    if (V?.available?.() && !premiumVoice()) {
-      /*
-       * Sentence by sentence: the first is spoken as soon as its audio arrives, and
-       * the next is fetched while it plays, so Lune starts talking in about a second
-       * instead of after the whole answer has been voiced.
-       */
-      const gen = ++speakGen;
-      const parts = [];
-      for (const sentence of text.match(/[^.!?]+[.!?]+["”’)]*\s*|[^.!?]+$/g) || [text]) {
-        const last = parts[parts.length - 1];
-        if (last && last.length < 40) parts[parts.length - 1] = last + sentence;
-        else parts.push(sentence);
-      }
-      const voiceOf = (t, lang = "en") => {
-        const key = `${lang}|${t}`;
-        const hit = voiceCache.get(key);
-        if (hit) return Promise.resolve(hit);
-        return V.speak(t, lang).then((b) => {
-          voiceCache.set(key, b);
-          return b;
-        });
-      };
-      // each sentence, split where French names begin and end
-      const segs = parts.flatMap((p) => splitLanguages(p).map((x) => ({ ...x, n: x.t.length })));
-      const total = segs.reduce((n, x) => n + x.n, 0) || 1;
-      let done = 0;
-      try {
-        let next = voiceOf(segs[0].t.trim(), segs[0].lang);
-        for (let i = 0; i < segs.length; i++) {
-          const blob = await next;
-          if (gen !== speakGen) return; // stopped, or something newer is being said
-          if (i + 1 < segs.length) next = voiceOf(segs[i + 1].t.trim(), segs[i + 1].lang);
-          await playVoice(blob, {
-            onLevel,
-            onFrac: (f) => onProgress?.(Math.min(1, (done + f * segs[i].n) / total)),
-          });
-          done += segs[i].n;
-          if (gen !== speakGen) return;
-        }
-        onProgress?.(1);
-        return;
-      } catch {
-        if (gen !== speakGen) return;
-        stopAudio(); // the device voice says it instead
-      }
-    }
-    if (!("speechSynthesis" in window)) return;
-    await new Promise((resolve) => {
-      // one utterance per language: French names in a French voice when the device has one
-      const fr = (speechSynthesis.getVoices?.() || []).filter((v) => /^fr(-|_|$)/i.test(v.lang));
-      const frVoice = fr.find((v) => /natural|premium|enhanced|amélie|thomas|google/i.test(v.name)) || fr[0] || null;
-      const en = bestVoice();
-      const segs = splitLanguages(text);
-      const rate = Number(store.prefs().speechRate) || 1;
-      let pulse = 0;
-      let spoken = 0;
-      const iv = setInterval(() => {
-        pulse *= 0.82;
-        onLevel?.(0.25 + pulse * 0.6);
-      }, 60);
-      let over = false;
-      const stop = () => {
-        if (over) return;
-        over = true;
-        clearInterval(iv);
-        clearTimeout(cap);
-        onLevel?.(0);
-        resolve();
-      };
-      // some phones never report the end of an utterance
-      const cap = setTimeout(stop, Math.max(4000, text.length * 95 / rate) + 3000);
-      segs.forEach((seg, i) => {
-        const u = new SpeechSynthesisUtterance(seg.t);
-        const voice = seg.lang === "fr" ? frVoice : en;
-        if (voice) {
-          u.voice = voice;
-          u.lang = voice.lang;
-        } else u.lang = seg.lang === "fr" ? "fr-FR" : "en-GB";
-        u.rate = rate;
-        u.pitch = 1.04; // a touch warmer than flat
-        const base = spoken;
-        u.onboundary = (ev) => {
-          pulse = 0.8;
-          if (ev?.charIndex != null) onProgress?.(Math.min(1, (base + ev.charIndex + (ev.charLength || 1)) / Math.max(1, text.length)));
-        };
-        spoken += seg.t.length;
-        if (i === segs.length - 1) u.onend = u.onerror = stop;
-        else u.onerror = stop;
-        speechSynthesis.speak(u);
-      });
-      if (!segs.length) stop();
-    });
-  }
-  /** Play one stretch of Lune's voice; onLevel follows its loudness, onFrac its progress. */
-  function playVoice(blob, { onLevel, onFrac } = {}) {
-    const audio = voiceElement();
-    const url = URL.createObjectURL(blob);
-    audio.src = url;
-    audio.playbackRate = Number(store.prefs().speechRate) || 1;
-    currentAudio = audio;
-    const an = voiceAC && voiceAC.state === "running" ? voiceAn : null;
-    const buf = an ? new Float32Array(an.fftSize) : null;
-    return new Promise((resolve, reject) => {
-      let raf = 0;
-      let done = false;
-      let guard = setTimeout(() => finish(new Error("the voice stalled")), 30000);
-      function finish(err) {
-        if (done) return;
-        done = true;
-        cancelAnimationFrame(raf);
-        clearTimeout(guard);
-        onLevel?.(0);
-        audio.onended = audio.onpause = audio.onerror = audio.onloadedmetadata = null;
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-        if (currentAudio === audio) currentAudio = null;
-        if (err) reject(err);
-        else resolve();
-      }
-      const loop = () => {
-        if (an) {
-          an.getFloatTimeDomainData(buf);
-          onLevel?.(Math.min(1, Math.sqrt(buf.reduce((a, v) => a + v * v, 0) / buf.length) * 6));
-        } else onLevel?.(0.32 + 0.22 * Math.abs(Math.sin(performance.now() / 140)));
-        if (audio.duration > 0) onFrac?.(Math.min(1, audio.currentTime / audio.duration));
-        raf = requestAnimationFrame(loop);
-      };
-      audio.onended = audio.onpause = () => finish();
-      audio.onerror = () => finish(new Error("the voice could not play"));
-      audio.onloadedmetadata = () => {
-        if (audio.duration > 0 && Number.isFinite(audio.duration)) {
-          clearTimeout(guard);
-          guard = setTimeout(() => finish(), (audio.duration / (audio.playbackRate || 1)) * 1000 + 2500);
-        }
-      };
-      audio.play().then(() => (raf = requestAnimationFrame(loop)), (e) => finish(e));
-    });
-  }
-  let speakGen = 0;
-  function stopSpeaking() {
-    speakGen += 1;
-    stopAudio();
-    try {
-      speechSynthesis?.cancel();
-    } catch {
-      /* nothing to stop */
-    }
-  }
-
-  function speakOnDevice(text) {
+  function speak(text) {
     if (!("speechSynthesis" in window)) {
-      listenBar(false);
       toast("This browser can’t read aloud.");
       return;
     }
@@ -926,7 +420,7 @@ window.LunePractice = (function () {
       u.lang = "en-GB"; // never the device's own language: the text is English
     }
     u.rate = Number(store.prefs().speechRate) || 1;
-    u.pitch = 1.04; // a touch warmer than flat
+    u.pitch = 1;
     lastSpoken = text;
     u.onend = u.onerror = () => {
       // a newer utterance may already be speaking (Replay)
@@ -937,7 +431,7 @@ window.LunePractice = (function () {
   }
   let lastSpoken = "";
   /** Pause, Stop and Replay for whatever Lune is reading aloud. */
-  function listenBar(on, label = "Reading aloud") {
+  function listenBar(on) {
     let bar = $("listen-bar");
     if (!on) {
       if (bar) bar.hidden = true;
@@ -959,19 +453,10 @@ window.LunePractice = (function () {
         if (!b) return;
         const act = b.dataset.listen;
         if (act === "stop") {
-          stopAudio();
           speechSynthesis.cancel();
           listenBar(false);
         } else if (act === "replay") {
           if (lastSpoken) speak(lastSpoken);
-        } else if (currentAudio) {
-          if (currentAudio.paused) {
-            currentAudio.play();
-            b.textContent = "Pause";
-          } else {
-            currentAudio.pause();
-            b.textContent = "Play";
-          }
         } else if (speechSynthesis.paused) {
           speechSynthesis.resume();
           b.textContent = "Pause";
@@ -982,7 +467,6 @@ window.LunePractice = (function () {
       });
     }
     bar.querySelector('[data-listen="pause"]').textContent = "Pause";
-    bar.querySelector(".listen-bar-label").textContent = label;
     bar.hidden = false;
   }
   /**
@@ -990,15 +474,6 @@ window.LunePractice = (function () {
    * often the oldest, most robotic one, and a non-English default reads
    * English text as gibberish.
    */
-  /** A device voice good enough to prefer over the server's: a neural or premium one. */
-  function premiumVoice() {
-    try {
-      const v = bestVoice();
-      return v && /natural|neural|premium|enhanced|siri/i.test(v.name) ? v : null;
-    } catch {
-      return null;
-    }
-  }
   function bestVoice() {
     const voices = (speechSynthesis.getVoices?.() || []).filter((v) => /^en[-_]/i.test(v.lang));
     if (!voices.length) return null;
@@ -1040,45 +515,14 @@ window.LunePractice = (function () {
     const primary = bars[0];
     const wrap = document.createElement("section");
     wrap.className = "lp-coach";
-    // Short labels for the Lune AI actions, as suggestion chips
-    const SHORT = { explainBar: "Explain", whyHard: "Why it’s hard", suggestPractice: "How to practise", explainFingering: "Fingering" };
-    const many = bars.length > 1;
     wrap.innerHTML = `
       <div class="lp-teacher" hidden></div>
-      <div class="lp-askbar">
-        <span class="lp-askbar-orb" aria-hidden="true"></span>
-        <label class="visually-hidden" for="lp-ask-input">Ask Lune about bar ${primary}</label>
-        <input id="lp-ask-input" type="text" maxlength="600" placeholder="Ask Lune about bar ${primary}…" enterkeyhint="send">
-        <button type="button" class="lc-tool lp-ask-mic" data-lp="ask-mic" aria-label="Ask by voice: dictate a question"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
-        <button type="button" class="lc-round lp-ask-talk" data-lp="ask-talk" aria-label="Voice chat with Lune about bar ${primary}"><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
-        <button type="button" class="lc-round lp-ask-go" data-lp="ask" hidden aria-label="Ask Lune about bar ${primary}"><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      </div>
-      ${
-        window.LuneAsk?.modelConnected?.()
-          ? `<div class="lp-ai-row" role="group" aria-label="Lune AI on bar ${primary}">${Object.entries(window.LuneAsk.MODEL_ACTIONS)
-              .filter(([, a]) => a.bar)
-              .map(([task, a]) => `<button type="button" data-lp-task="${task}" title="${esc(a.label)}">${esc(SHORT[task] || a.label)}</button>`)
-              .join("")}</div>`
-          : ""
-      }
-      <div class="lp-tools" role="group" aria-label="Bar ${primary}">
-        <button type="button" data-lp="plan"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 12l4 4 10-10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Add to plan</span></button>
-        <button type="button" data-lp="upto" title="Mark how far through the piece you are"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 19V5M5 5h11l-2 4 2 4H5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg><span>Up to here</span></button>
-        <button type="button" data-lp="share" title="A link that opens this piece at ${many ? "these bars" : "this bar"} with your instructions"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4M5 13v6h14v-6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Share</span></button>
-      </div>
-      <div class="lp-rate">
-        <h3 class="lp-h">How did it go?</h3>
-        <div class="lp-grades" role="group" aria-label="Rate this practice">
-          ${GRADES.map(([g, label, hint]) => `<button type="button" class="lp-grade lp-${g}" data-grade="${g}" title="${esc(hint)}">${label}</button>`).join("")}
-        </div>
-        <p class="lp-due dim"></p>
-      </div>
-      <h3 class="lp-h lp-h-remarks" hidden>Remarks</h3>
+      <h4 class="lp-h lp-h-remarks" hidden>Remarks</h4>
       <ul class="lp-notes" aria-live="polite" hidden></ul>
       <form class="lp-note-form" autocomplete="off">
         <label class="visually-hidden" for="lp-note-input">Note for bar ${primary}</label>
         <div class="lp-note-grow">
-          <textarea id="lp-note-input" rows="1" maxlength="500" placeholder="Add a note, or say it"></textarea>
+          <textarea id="lp-note-input" rows="1" maxlength="500" placeholder="Note for bar ${primary}, or say it"></textarea>
           <button type="button" class="icon-btn lp-mic" data-lp="mic" aria-label="${canListenForWords() ? "Speak a note" : "Focus note field"}" aria-pressed="false" title="${canListenForWords() ? "Speak a note" : "Type a note for this bar"}">
             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
             <span class="visually-hidden">${canListenForWords() ? "Speak" : "Type"}</span>
@@ -1086,7 +530,17 @@ window.LunePractice = (function () {
         </div>
         <button type="submit" class="lp-save primary">Save</button>
       </form>
-      <div class="lp-asked" hidden></div>`;
+      <div class="lp-asked" hidden></div>
+      <div class="lp-ask-row">
+        <button type="button" class="quiet ink" data-lp="ask">Ask Lune about bar ${primary}</button>
+        <button type="button" class="quiet ink" data-lp="plan">Add to my plan</button>
+        <button type="button" class="quiet ink" data-lp="share" title="A link that opens this piece at these bars with your instructions">Share ${bars.length > 1 ? "these bars" : "this bar"}</button>
+      </div>
+      <h4 class="lp-h">Practice · how did it go?</h4>
+      <div class="lp-grades" role="group" aria-label="Rate this practice">
+        ${GRADES.map(([g, label, hint]) => `<button type="button" class="lp-grade lp-${g}" data-grade="${g}" title="${esc(hint)}">${label}</button>`).join("")}
+      </div>
+      <p class="lp-due dim"></p>`;
     body.appendChild(wrap);
 
     const list = wrap.querySelector(".lp-notes");
@@ -1115,7 +569,7 @@ window.LunePractice = (function () {
         const cards = (await store.listCards(key)).filter((c) => bars.includes(c.bar));
         if (token !== coachToken) return;
         if (!cards.length) {
-          dueEl.textContent = "";
+          dueEl.textContent = "Rate it after you practise. Lune brings it back at the right time.";
           return;
         }
         const c = cards.sort((a, b) => a.due_at.localeCompare(b.due_at))[0];
@@ -1124,23 +578,6 @@ window.LunePractice = (function () {
         dueEl.textContent = "";
       }
     };
-    // as in ChatGPT: the round button is voice mode while the box is empty, and Send once you type
-    const syncAskButtons = () => {
-      const has = !!wrap.querySelector("#lp-ask-input")?.value.trim();
-      const go = wrap.querySelector('[data-lp="ask"]');
-      const talk = wrap.querySelector('[data-lp="ask-talk"]');
-      if (go) go.hidden = !has;
-      if (talk) talk.hidden = has;
-    };
-    wrap.querySelector("#lp-ask-input")?.addEventListener("input", syncAskButtons);
-    wrap.querySelector("#lp-ask-input")?.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.isComposing) {
-        e.preventDefault();
-        wrap.querySelector('[data-lp="ask"]')?.click();
-      }
-    });
-    const orbHost = wrap.querySelector(".lp-askbar-orb");
-    if (orbHost && window.LuneFX) window.LuneFX.orb(orbHost)?.setMode("idle");
     renderNotes();
     renderDue();
     // what was asked about this bar before, so the answers are not lost
@@ -1148,7 +585,7 @@ window.LunePractice = (function () {
     const askedEl = wrap.querySelector(".lp-asked");
     if (asked.length && askedEl) {
       askedEl.hidden = false;
-      askedEl.innerHTML = `<h3 class="lp-h">Questions</h3>${asked
+      askedEl.innerHTML = `<h4 class="lp-h">Questions</h4>${asked
         .map((h) => `<p class="lp-asked-q">${esc(h.q)}</p><p class="lp-asked-a">${esc(h.a)}</p>`)
         .join("")}`;
     }
@@ -1166,59 +603,9 @@ window.LunePractice = (function () {
     wrap.addEventListener("click", async (e) => {
       const btn = e.target.closest("button");
       if (!btn) return;
-      if (btn.dataset.lpTask) window.LuneAsk?.runTask?.(btn.dataset.lpTask, primary);
-      else if (btn.dataset.lp === "aloud") readSelectedAloud();
-      else if (btn.dataset.lp === "ask-talk") {
-        // voice mode, about this bar: Lune listens, answers aloud, listens again
-        window.LuneAsk?.open?.({ bar: primary });
-        window.LuneAsk?.openTalk?.({ title: `Lune AI · bar ${primary}`, answer: async (said) => (await window.LuneAsk.ask(said)) || "" });
-      }
-      else if (btn.dataset.lp === "ask-mic") {
-        const q = wrap.querySelector("#lp-ask-input");
-        if (!canListenForWords()) {
-          toast("Voice isn’t available in this browser. Type your question.");
-          q?.focus();
-          return;
-        }
-        btn.classList.add("on");
-        btn.setAttribute("aria-pressed", "true");
-        q.placeholder = "Listening…";
-        try {
-          const said = await hearPhrase({ fast: true, onPartial: (t) => !/^Listening|^Writing/.test(t) && (q.value = t) });
-          if (!said) {
-            toast("Lune didn’t catch that. Try again, or type.");
-            return;
-          }
-          // sent as soon as you stop speaking
-          q.value = said;
-          wrap.querySelector('[data-lp="ask"]')?.click();
-        } catch (err) {
-          toast(err.message || "Type your question instead.");
-        } finally {
-          btn.classList.remove("on");
-          btn.setAttribute("aria-pressed", "false");
-          q.placeholder = `Ask Lune about bar ${primary}…`;
-          syncAskButtons();
-        }
-      }
-      else if (btn.dataset.lp === "ask") {
-        const q = wrap.querySelector("#lp-ask-input");
-        const text = (q?.value || "").trim();
-        window.LuneAsk?.open?.({ bar: primary });
-        if (text) {
-          q.value = "";
-          syncAskButtons();
-          window.LuneAsk?.ask?.(text);
-        }
-      }
+      if (btn.dataset.lp === "aloud") readSelectedAloud();
+      else if (btn.dataset.lp === "ask") window.LuneAsk?.open?.({ bar: primary });
       else if (btn.dataset.lp === "share") openAssignDialog(bars);
-      else if (btn.dataset.lp === "upto") {
-        const key = keyFor(state.piece);
-        const of = Object.keys(state.piece?.debriefs || {}).map(Number).filter((n) => n > 0).reduce((m, n) => Math.max(m, n), 0) || null;
-        if (!repertoireKeys.has(key)) addCurrentToRepertoire({ quiet: true });
-        window.LunePlans?.setProgress?.(key, { upTo: Math.max(...bars), of });
-        toast(`Saved: up to bar ${Math.max(...bars)}${of ? ` of ${of}` : ""}`);
-      }
       else if (btn.dataset.lp === "plan" && window.LuneAsk) {
         // the plan is written from this bar's analysis and your remarks on it
         window.LuneAsk.open({ bar: primary });
@@ -1278,20 +665,6 @@ window.LunePractice = (function () {
           toast(`${barsText(bars)[0].toUpperCase() + barsText(bars).slice(1)} — next review ${untilText(last.due_at)}`);
           renderDue();
           refreshBadge();
-          // Again or Hard, with Lune AI on: one concrete thing to try, from this bar's notes and your remarks
-          if ((g === "again" || g === "hard") && window.LuneAsk?.modelConnected?.()) {
-            let tip = wrap.querySelector(".lp-ai-tip");
-            if (!tip) {
-              tip = document.createElement("p");
-              tip.className = "lp-ai-tip";
-              tip.setAttribute("role", "status");
-              wrap.querySelector(".lp-due")?.after(tip);
-            }
-            tip.textContent = "Lune AI is thinking about what to try…";
-            window.LuneAIProvider.explainPracticeProblem(primary, `I just rated bar ${primary} ${g === "again" ? "Again: it fell apart" : "Hard: I got through it with effort"}.`)
-              .then((t) => (tip.textContent = t ? `Lune AI: ${t}` : ""))
-              .catch(() => tip.remove());
-          }
         } catch (err) {
           toast(err.message);
         }
@@ -1408,9 +781,8 @@ window.LunePractice = (function () {
       b.title = label;
       const el = b.querySelector(".lp-add-label");
       if (el) {
-        // the visible word stays short; the full sentence is the button's name
-        el.textContent = inRep ? "Saved" : "Save";
-        el.dataset.short = inRep ? "Saved" : "Save";
+        el.textContent = label;
+        el.dataset.short = inRep ? "In your Repertoire" : "Add to Repertoire";
       }
     }
   }
@@ -1521,27 +893,22 @@ window.LunePractice = (function () {
     main.innerHTML = `
       <div class="rep-inner">
         <header class="rep-hero">
+          <p class="eyebrow">Your practice</p>
           <h1>Repertoire</h1>
+          <p class="rep-lead">Your pieces, your notes, and practice plans you set yourself — bars you chose, summarised by Lune.</p>
           <div class="rep-account" id="rep-account"></div>
         </header>
         <section class="rep-section" id="rep-add-section" aria-labelledby="rep-add-h">
-          <h2 id="rep-add-h" class="visually-hidden">Add a piece</h2>
+          <h2 id="rep-add-h">Add a piece</h2>
           <form class="rep-add" id="rep-add" autocomplete="off">
-            <input id="rep-add-q" type="search" placeholder="Add a piece…" aria-label="Piece you’re learning">
+            <input id="rep-add-q" type="search" placeholder="Type a piece — e.g. Für Elise, Gymnopédie, Chopin nocturne" aria-label="Piece you’re learning">
             <button type="submit" class="quiet">Add</button>
           </form>
           <ul class="rep-suggest" id="rep-suggest" role="listbox" aria-label="Pieces Lune has"></ul>
         </section>
-        <section class="rep-section rep-week" aria-labelledby="rep-week-h">
-          <div class="rep-today-head">
-            <h2 id="rep-week-h">This week</h2>
-            <button type="button" class="quiet rep-plan-week" data-wp-open><span aria-hidden="true">＋</span> Plan my week</button>
-          </div>
-          <div id="rep-week-plan"></div>
-        </section>
         <section class="rep-section" aria-labelledby="rep-plan-h">
           <div class="rep-today-head">
-            <h2 id="rep-plan-h">Tasks</h2>
+            <h2 id="rep-plan-h">Your plan</h2>
             <button type="button" class="quiet" id="rep-new-task">New task</button>
           </div>
           <div id="rep-today" class="rep-today rep-plan"></div>
@@ -1725,7 +1092,7 @@ window.LunePractice = (function () {
         toast("Select bars or write a note first");
         return;
       }
-      const plan = { source: "self", ...summarisePlan({ title: title || titleFor(state.piece), bars: rawBars, notes: noteBody }) };
+      const plan = summarisePlan({ title: title || titleFor(state.piece), bars: rawBars, notes: noteBody });
       const row = store.addTask({
         piece_key: pieceKey || keyFor(state.piece),
         title: title || titleFor(state.piece),
@@ -1754,21 +1121,6 @@ window.LunePractice = (function () {
     renderAccountChip();
     const listEl = $("rep-list");
     const todayEl = $("rep-today");
-    await window.LunePlans?.flushSummary?.().catch?.(() => null);
-    const wp = window.LunePlans?.currentPlan?.();
-    const weekHost = $("rep-week-plan");
-    if (weekHost) {
-      const bar = window.LuneImpact?.weekBarHtml ? `<div class="wk">${window.LuneImpact.weekBarHtml()}</div>` : "";
-      const mode = window.LunePlans?.planMode?.();
-      weekHost.innerHTML = mode === "free"
-        ? `<div class="rep-empty wk-choose-row"><p>No schedule. Practise whenever it suits you.</p><span class="wk-opts"><button type="button" class="quiet" data-wp-choose="plan">Plan my week instead</button></span></div>`
-        : wp
-          ? bar + window.LunePlans.planHtml(wp)
-          : mode === "plan"
-            ? `<p class="rep-empty">Lune is making this week’s plan from your goal…</p>`
-            : `<div class="rep-empty wk-choose-row"><p>Lune can plan your week around your goal, or you can play whenever it suits you.</p><span class="wk-opts"><button type="button" class="quiet wk-go" data-wp-choose="plan">Plan my week</button><button type="button" class="quiet" data-wp-choose="free">No schedule</button></span></div>`;
-      if (!wp && mode === "plan") window.LunePlans?.ensureWeekPlan?.().then((made) => made && renderRepertoire()).catch(() => {});
-    }
     let pieces = [];
     let counts = {};
     try {
@@ -1784,40 +1136,33 @@ window.LunePractice = (function () {
     todayEl.innerHTML = tasks.length
       ? tasks
           .map((t) => {
-            const steps = t.plan?.ai ? "" : (t.plan?.steps || []).map((s) => `<li><strong>${esc(s.title)}</strong> ${esc(s.detail || "")}</li>`).join("");
+            const steps = (t.plan?.steps || []).map((s) => `<li><strong>${esc(s.title)}</strong> ${esc(s.detail || "")}</li>`).join("");
             return `<article class="rep-plan-card" data-task="${esc(t.id)}">
               <div class="rep-plan-top">
                 <h3>${esc(t.title)}</h3>
-                <p class="rep-card-meta"><span class="task-origin task-origin-${taskOrigin(t).who}">${taskOrigin(t).label}</span> · ${t.bars?.length ? esc(barsText(t.bars)) : "Notes only"}${t.composer ? ` · ${esc(t.composer)}` : ""}</p>
+                <p class="rep-card-meta"><span class="task-origin task-origin-${t.plan?.source ? "lune" : "you"}">${t.plan?.source ? "Suggested by Lune" : "Written by you"}</span> · ${t.bars?.length ? esc(barsText(t.bars)) : "Notes only"}${t.composer ? ` · ${esc(t.composer)}` : ""}</p>
               </div>
               <p class="rep-plan-summary">${esc(t.plan?.summary || t.notes || "")}</p>
               ${steps ? `<ol class="rep-plan-steps">${steps}</ol>` : ""}
-              ${t.plan?.ai ? `<p class="rep-plan-ai">${esc(t.plan.ai)}</p>` : ""}
               <div class="rep-plan-actions">
-                <button type="button" class="primary" data-open="${esc(t.piece_key)}" ${t.bars?.[0] ? `data-bar="${t.bars[0]}"` : ""}>${t.bars?.length ? `Practise ${esc(barsText(t.bars).toLowerCase())}` : "Open"}</button>
-                <button type="button" class="quiet" data-task-done="${esc(t.id)}" aria-label="Mark ${esc(t.title)} done">Mark done</button>
-                <button type="button" class="link-btn rep-task-remove" data-task-remove="${esc(t.id)}" aria-label="Remove ${esc(t.title)} from your plan">Remove</button>
+                <button type="button" class="primary" data-open="${esc(t.piece_key)}" ${t.bars?.[0] ? `data-bar="${t.bars[0]}"` : ""}>Open</button>
+                <button type="button" class="quiet" data-task-done="${esc(t.id)}">Done</button>
+                <button type="button" class="quiet" data-task-remove="${esc(t.id)}">Remove</button>
               </div>
             </article>`;
           })
           .join("")
-      : `<p class="rep-empty">No tasks yet. Tap a bar on a score, then Add to my plan.</p>`;
+      : `<p class="rep-empty">No tasks yet. On a score, select bars and tap <em>Add to plan</em> — or speak a note and let Lune summarise it.</p>`;
 
     const listHtml = pieces.length
       ? pieces
           .map((p) => {
             const n = counts[p.piece_key] || 0;
-            const prog = window.LunePlans?.progressOf?.(p.piece_key);
-            const sum = window.LunePlans?.summaryOf?.(p.piece_key);
-            return `<article class="rep-card fx-spot" data-key="${esc(p.piece_key)}">
+            return `<article class="rep-card" data-key="${esc(p.piece_key)}">
               <div class="rep-card-main">
                 <h3>${esc(p.title)}</h3>
-                <p class="rep-card-by">${esc(p.composer || (p.source === "upload" ? "Your score" : ""))}${levelFor(p.piece_key) ? ` · ${esc(levelFor(p.piece_key))}` : ""}</p>
-                <div class="rp-row">
-                  <div class="rp-bar" role="progressbar" aria-label="How much of ${esc(p.title)} you can play" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${prog?.pct ?? 0}"><i style="width:${prog?.pct ?? 0}%"></i></div>
-                  <button type="button" class="link-btn rp-set" data-progress="${esc(p.piece_key)}">${prog ? esc(window.LunePlans.progressLabel(prog)) : "Mark progress"}</button>
-                </div>
-                ${sum ? `<p class="rep-sum"><span class="rep-sum-k">${sum.via === "model" ? "Lune AI" : "Last session"}</span> ${esc(sum.text)}</p>` : `<p class="rep-card-meta">Practised ${esc(ago(p.last_practised_at))}${n ? ` · ${n} note${n === 1 ? "" : "s"}` : ""}</p>`}
+                <p class="rep-card-by">${esc(p.composer || (p.source === "upload" ? "Your score" : ""))}</p>
+                <p class="rep-card-meta">${levelFor(p.piece_key) ? `<span title="Lune’s estimate from the score’s hardest bars. Not an exam grade.">Level: ${esc(levelFor(p.piece_key))} (Lune’s estimate)</span> · ` : ""}Last practised ${esc(ago(p.last_practised_at))}${n ? ` · ${n} note${n === 1 ? "" : "s"}` : ""}</p>
               </div>
               <div class="rep-card-actions">
                 <label class="visually-hidden" for="st-${esc(p.piece_key)}">Status</label>
@@ -1825,9 +1170,7 @@ window.LunePractice = (function () {
                   ${STATUS.map(([v, l]) => `<option value="${v}" ${p.status === v ? "selected" : ""}>${l}</option>`).join("")}
                 </select>
                 <button type="button" class="primary" data-open="${esc(p.piece_key)}">Open</button>
-                <button type="button" class="quiet" data-work="${esc(p.piece_key)}" title="See what needs work in this piece and add it to your plan">Work on it</button>
-                <button type="button" class="quiet" data-ask-piece="${esc(p.title)}"${prog ? ` data-ask-progress="${esc(window.LunePlans.progressLabel(prog))}"` : ""}>Ask Lune</button>
-                <button type="button" class="quiet" data-share-progress="${esc(p.piece_key)}" data-title="${esc(p.title)}">Share</button>
+                <button type="button" class="quiet" data-work="${esc(p.piece_key)}" title="See what needs work in this piece and add it to your plan">Work on this piece</button>
                 <button type="button" class="quiet rep-remove" hidden data-remove="${esc(p.piece_key)}" aria-label="Remove ${esc(p.title)}">Remove</button>
               </div>
             </article>`;
@@ -1854,13 +1197,6 @@ window.LunePractice = (function () {
       }
     }
     if (!listChanged) return;
-    // Lune AI about this piece, on its page, with what Lune knows of the pianist's progress
-    listEl.querySelectorAll("[data-ask-piece]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const where = btn.dataset.askProgress ? ` I'm at: ${btn.dataset.askProgress}.` : "";
-        window.LuneAsk?.askOnPage?.(`How should I practise ${btn.dataset.askPiece} this week?${where}`);
-      });
-    });
     listEl.querySelectorAll("[data-work]").forEach((btn) => {
       btn.addEventListener("click", () => openWorkOn(btn.dataset.work).catch((err) => toast(err.message)));
     });
@@ -1896,16 +1232,6 @@ window.LunePractice = (function () {
     if (!b) return;
     if (b.hasAttribute("data-lp-account")) return openAccountDialog();
     if (b.hasAttribute("data-lp-access")) return openAccessDialog();
-    if (b.dataset.progress) {
-      const row = await store.getPiece(b.dataset.progress);
-      if (await window.LunePlans?.editProgress?.(b.dataset.progress, row?.title || "this piece")) renderRepertoire();
-      return;
-    }
-    if (b.dataset.shareProgress) {
-      await window.LunePlans?.shareProgress?.(b.dataset.shareProgress, b.dataset.title || "This piece", window.LunePlans.progressOf(b.dataset.shareProgress)?.of || 0);
-      renderRepertoire();
-      return;
-    }
     if (b.dataset.taskDone) {
       store.updateTask(b.dataset.taskDone, { done: true });
       toast("Marked done");
@@ -2094,15 +1420,15 @@ window.LunePractice = (function () {
   function zoomBoost() {
     return store.prefs().largePrint ? 1.4 : 1;
   }
-  async function loadBrailleIndex() {
-    if (brailleIndex) return brailleIndex;
-    try {
-      const r = await fetch(luneUrl("/static/braille/index.json"), { cache: "force-cache" });
-      brailleIndex = r.ok ? await r.json() : {};
-    } catch {
-      brailleIndex = {};
-    }
-    return brailleIndex;
+  let brailleLoading = null;
+  function loadBrailleIndex() {
+    if (brailleIndex) return Promise.resolve(brailleIndex);
+    // one request however many chips ask at once
+    brailleLoading ||= fetch(luneUrl("/static/braille/index.json"), { cache: "force-cache" })
+      .then((r) => (r.ok ? r.json() : {}))
+      .catch(() => ({}))
+      .then((idx) => (brailleIndex = idx));
+    return brailleLoading;
   }
   function openAccessDialog() {
     const d = dialog("access-dialog");
@@ -2110,14 +1436,14 @@ window.LunePractice = (function () {
     const row = (k, label, hint) => `<label class="lp-switch"><input type="checkbox" data-pref="${k}" ${p[k] ? "checked" : ""}>
       <span><strong>${label}</strong><small>${hint}</small></span></label>`;
     d.innerHTML = `${closeRow}<h2>Reading &amp; access</h2>
-      ${row("largePrint", "Large print", "Bigger notes, letters and buttons")}
-      ${row("readableFont", "Easy read letters", "A typeface where every letter shape is distinct")}
-      ${row("highContrast", "High contrast", "Black on white for the score")}
-      ${row("autoRead", "Read bars aloud", "Each bar you select is described")}
+      ${row("largePrint", "Large print", "Bigger notes, letters and buttons — fewer bars on each line.")}
+      ${row("readableFont", "Easy read letters", "Atkinson Hyperlegible — every letter shape distinct. Clearer under the staff for anyone who prefers it.")}
+      ${row("highContrast", "High contrast", "Pure black on white for the score panel and letter names.")}
+      ${row("autoRead", "Read bars aloud", "Every bar you select is described out loud: notes, chords, fingers and a tip.")}
       <h3>Keyboard shortcuts</h3>
-      <p class="dim">← → bars · R read aloud · N note · Space play · Esc close</p>
+      <p class="dim">Select a bar, then ← → move bar to bar · R read it aloud · N write a note on it · Space play · Esc close.</p>
       <h3>Braille</h3>
-      <p class="dim">Use the Braille chip on Overview or Score (.brf).</p>`;
+      <p class="dim">When a library piece has a braille file, use the Braille chip on Overview or Score — .brf for an embosser or refreshable display.</p>`;
     d.onchange = (e) => {
       const k = e.target.dataset.pref;
       if (!k) return;
@@ -2203,6 +1529,7 @@ window.LunePractice = (function () {
       a.href = href;
       a.download = br.file;
       a.title = br.note || "Braille music (.brf)";
+      a.textContent = id.includes("explain") ? "Download braille music" : "Braille";
       a.setAttribute("aria-label", "Download braille music file (.brf)");
     });
     // On the Overview, say so plainly when there is no file, so the option is never a mystery.
@@ -2250,22 +1577,15 @@ window.LunePractice = (function () {
     const bar = document.createElement("div");
     bar.className = "lp-tools-bar";
     bar.innerHTML = `
-      <button type="button" class="quiet lp-tool lp-more-tools" id="btn-tools-more" aria-expanded="false" aria-controls="score-toggles" title="More score tools: letters, braille, piano, pedal">
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="6" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="18" cy="12" r="1.6" fill="currentColor"/></svg>
-        <span class="lp-tool-label">More</span></button>
+      <button type="button" class="quiet lp-tool" id="btn-listen" title="Hear the selected bar described: its notes, fingers and a tip (R)">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 10v4h3l4 3.5v-11L8 10H5zM15.5 9a4 4 0 0 1 0 6M17.8 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="lp-tool-label">Listen</span></button>
       <button type="button" class="quiet lp-tool" id="btn-tell" title="Ask about a bar, leave a remark, or add to your plan — type or speak">
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
         <span class="lp-tool-label">Ask Lune</span></button>`;
     head.appendChild(bar);
     bar.querySelector("#btn-tell")?.addEventListener("click", () => window.LuneAsk?.open?.());
-    // the extra tools stay folded away until asked for
-    const more = bar.querySelector("#btn-tools-more");
-    more?.addEventListener("click", () => {
-      const open = !head.classList.contains("tools-open");
-      head.classList.toggle("tools-open", open);
-      more.setAttribute("aria-expanded", open ? "true" : "false");
-      more.querySelector(".lp-tool-label").textContent = open ? "Less" : "More";
-    });
+    bar.querySelector("#btn-listen")?.addEventListener("click", () => readSelectedAloud());
   }
 
   function ensureHeaderButton() {
@@ -2287,9 +1607,14 @@ window.LunePractice = (function () {
     });
     $("btn-share")?.addEventListener("click", () => openShare());
     // The bar panel's third button says what it does instead of hiding it behind dots.
-    // the bar panel's spoken description was unclear: it is left out
     const listen = $("btn-coach-more");
-    if (listen) listen.hidden = true;
+    if (listen) {
+      listen.className = "quiet ink coach-listen";
+      listen.textContent = "Listen";
+      listen.title = "Hear this bar described: notes, fingers and a tip";
+      listen.setAttribute("aria-label", "Listen: hear this bar described");
+      listen.addEventListener("click", () => readSelectedAloud());
+    }
   }
 
   /* ---------------- repertoire: what to work on ---------------- */
@@ -2395,98 +1720,74 @@ window.LunePractice = (function () {
       `<button type="button" class="settings-row" data-set="${act}"><strong>${title}</strong><span>${text}</span></button>`;
     const sw = (k, label, hint) => `<label class="lp-switch"><input type="checkbox" data-pref="${k}" ${p[k] ? "checked" : ""}>
       <span><strong>${label}</strong><small>${hint}</small></span></label>`;
-    const install = window.LuneInstall?.installed?.()
-      ? `<p class="settings-note">Lune is installed on this device.</p>`
-      : `<button type="button" class="settings-row" data-install id="set-install"><strong>Install Lune</strong><span>${
-          window.LuneInstall?.available?.()
-            ? "Its own window, works offline"
-            : "Steps for this browser"
-        }</span></button>`;
-    d.innerHTML = `
-      <header class="settings-top">
-        <h2>Settings</h2>
-        <form method="dialog"><button type="submit" class="quiet settings-done">Done</button></form>
-      </header>
-      <section class="settings-sec settings-account" aria-labelledby="set-h-account">
-        <h3 id="set-h-account" class="visually-hidden">Account</h3>
-        ${signedIn ? row("account", esc(store.status().email || "Your account"), "Data and sign out") : row("signin", "Sign in", "Free · sync and Lune AI")}
-      </section>
-      <section class="settings-sec" aria-labelledby="set-h-ai">
-        ${accountAISettingsHtml().replace('<h4 class="settings-sub">Lune AI</h4>', '<h3 id="set-h-ai">Lune AI</h3>') || '<h3 id="set-h-ai">Lune AI</h3><p class="settings-note">Sign in to turn it on.</p>'}
-        ${row("chat", "Chat with Lune", "Ask anything about piano")}
-      </section>
-      <section class="settings-sec" aria-labelledby="set-h-week">
-        <h3 id="set-h-week">Practice</h3>
-        <div class="settings-goal">
-          <label for="set-days">Days a week</label>
-          <select id="set-days">${[1, 2, 3, 4, 5, 6, 7].map((n) => `<option ${n === days ? "selected" : ""}>${n}</option>`).join("")}</select>
-          <label for="set-mins">Minutes a session</label>
-          <select id="set-mins" aria-describedby="set-mins-note">${[10, 15, 20, 30, 45, 60, 90].map((n) => `<option ${n === mins ? "selected" : ""}>${n}</option>`).join("")}</select>
+    const install = window.LuneInstall?.available?.()
+      ? row("install", "Install Lune", "Put Lune on this device as an app. It opens in its own window and works offline for pieces you have opened.")
+      : `<p class="settings-note"><strong>Install Lune</strong> On iPhone or iPad: Share, then Add to Home Screen. On a laptop in Chrome or Edge: the install icon at the end of the address bar. If you already installed it, you are set.</p>`;
+    const privacy = document.querySelector("#credits-privacy + ul")?.outerHTML || "";
+    d.innerHTML = `${closeRow}
+      <p class="auth-kicker">Settings</p>
+      <h2>Settings</h2>
+      <h3>Account</h3>
+      ${signedIn ? row("account", "Your account", `${esc(store.status().email || "Signed in")} — export or delete your data, sign out.`) : row("signin", "Sign in or create an account", "Keeps your Repertoire, remarks and plans on every device. Free.")}
+      <h3>Appearance</h3>
+      <div class="settings-theme" role="group" aria-label="Appearance">
+        ${[["dark", "Dark"], ["light", "Light"]]
+          .map(([v, l]) => `<button type="button" data-theme-set="${v}" aria-pressed="${(document.documentElement.dataset.theme || "dark") === v}">${l}</button>`)
+          .join("")}
+      </div>
+      <p class="settings-note">The score follows: a dark page with light notes at night, a white page in the light.</p>
+      <h3>Reading and access</h3>
+      ${sw("readableFont", "Easy read letters", "A typeface where every letter shape is distinct.")}
+      ${sw("largePrint", "Large print", "Bigger notes, letters and buttons.")}
+      ${sw("highContrast", "High contrast", "Pure black on white for the score.")}
+      ${sw("autoRead", "Read bars aloud", "Each bar you select is described out loud.")}
+      <p class="settings-note">Lune works with the screen reader built into your device (VoiceOver on iPhone and Mac, TalkBack on Android, Narrator on Windows). Braille music files are on each piece’s Overview when available.</p>
+      <h3>Your week</h3>
+      <p class="settings-note">A day counts when you rate a bar, finish a plan task or open a piece to practise. “This week” compares those days with your goal.</p>
+      <div class="settings-goal">
+        <label for="set-days">Days a week</label>
+        <select id="set-days">${[1, 2, 3, 4, 5, 6, 7].map((n) => `<option ${n === days ? "selected" : ""}>${n}</option>`).join("")}</select>
+        <label for="set-mins">Minutes a day</label>
+        <select id="set-mins">${[10, 15, 20, 30, 45, 60, 90].map((n) => `<option ${n === mins ? "selected" : ""}>${n}</option>`).join("")}</select>
+      </div>
+      ${signedIn ? row("week", "See this week", "Days practised against your goal, bars that improved, bars that still trip you.") : ""}
+      ${row("example-week", "See an example week", "A made-up week, so you can see what This week, Share and Invite look like before you have one of your own.")}
+      <h3>App</h3>
+      ${install}
+      ${row("upload", "Upload a score", "MusicXML, PDF or a photo. It stays on this device unless you add it to your Repertoire while signed in.")}
+      ${row("feedback", "Send feedback", "Tell Verushka what changed or what is missing. It goes straight to her.")}
+      <h3>Ask Lune</h3>
+      <p class="settings-note">Lune AI can run locally on your computer using an open-weight model. No paid API is required, there is no key, and what you ask stays on your machine.</p>
+      <p class="settings-note" id="set-ai-status" role="status"><strong>${window.LuneAIProvider?.connected?.() ? "Local model set" : "Local model not connected"}</strong>${window.LuneAIProvider?.connected?.() ? `Ask Lune sends questions to ${esc(window.LuneAsk.aiSettings().model)} at the address below. Press Test to check it is running.` : "Ask Lune is using its built-in answers, worked out from the score and your remarks. They are not from a language model."}</p>
+      <ol class="settings-steps">
+        <li>Install Ollama from ollama.com (free) and open it.</li>
+        <li>In Terminal, fetch a model: <code>ollama pull llama3.2</code> (about 2 GB; <code>qwen2.5:7b</code> is slower and more careful).</li>
+        <li>Allow this site to reach it: quit Ollama, then run <code>OLLAMA_ORIGINS=${esc(location.origin)} ollama serve</code>.</li>
+        <li>Press “Use Ollama on this computer”, then Test.</li>
+      </ol>
+      <div class="settings-ai">
+        <button type="button" class="quiet" data-ai="ollama">Use Ollama on this computer</button>
+        <label for="set-ai-url">Model address</label>
+        <input id="set-ai-url" type="url" inputmode="url" placeholder="http://localhost:11434/v1/chat/completions" value="${esc(window.LuneAsk?.aiSettings?.().endpoint || "")}">
+        <label for="set-ai-model">Model name</label>
+        <input id="set-ai-model" type="text" placeholder="llama3.2" value="${esc((() => { try { return localStorage.getItem("lune.ai.model") || ""; } catch { return ""; } })())}">
+        <div class="settings-ai-actions">
+          <button type="button" class="quiet" data-ai="save">Save</button>
+          <button type="button" class="quiet" data-ai="test">Test</button>
+          <button type="button" class="quiet" data-ai="off">Disconnect</button>
         </div>
-        <p class="settings-note" id="set-mins-note">Plans fit this. Lune never times you.</p>
-        ${window.LunePlans?.planMode?.() === "free" ? row("plan-week", "Plan my week", "Turn on a weekly plan") : row("plan-week", "Change my week’s plan", "Days, minutes and goal")}
-        ${window.LunePlans?.planMode?.() === "free" ? "" : row("plan-free", "No schedule", "Play whenever it suits you")}
-        ${signedIn ? row("week", "This week", "Your progress") : ""}
-        ${row("example-week", "How This week works", "A quick example")}
-      </section>
-      <section class="settings-sec" aria-labelledby="set-h-look">
-        <h3 id="set-h-look">Look and access</h3>
-        <div class="settings-theme" role="group" aria-label="Light or dark">
-          ${[["dark", "Dark"], ["light", "Light"]]
-            .map(([v, l]) => `<button type="button" data-theme-set="${v}" aria-pressed="${(document.documentElement.dataset.theme || "dark") === v}">${l}</button>`)
-            .join("")}
-        </div>
-        ${sw("readableFont", "Easy-read letters", "A typeface where every letter shape is distinct")}
-        ${sw("largePrint", "Large print", "Bigger notes, letters and buttons")}
-        ${sw("highContrast", "High contrast", "Black on white for the score")}
-        ${sw("autoRead", "Read bars aloud", "Each bar you select is described")}
-        <p class="settings-note">Braille music is on each piece’s Overview.</p>
-      </section>
-      <section class="settings-sec settings-more" aria-labelledby="set-h-app">
-        <h3 id="set-h-app">More</h3>
-        ${install}
-        ${row("feedback", "Send feedback", "To the maker")}
-        ${row("privacy", "Privacy", "What Lune keeps")}
-        ${row("credits", "Credits and licences", "Scores, sounds, models")}
-        <p class="settings-note">Free, no ads. Made by Verushka Patel.</p>
-      </section>
-      <details class="settings-advanced">
-        <summary>Advanced</summary>
-        <h4 class="settings-sub">Lune AI on this device</h4>
-        <div class="settings-device-ai" id="set-device-ai"></div>
-        <h4 class="settings-sub">Your own model with Ollama</h4>
-        <p class="settings-note">A free model on your own computer.</p>
-        <p class="settings-note" id="set-ai-status" role="status"><strong>${window.LuneAsk?.aiSettings?.().endpoint ? `Using ${esc((() => { try { return localStorage.getItem("lune.ai.model") || "your model"; } catch { return "your model"; } })())}` : "Not connected"}</strong></p>
-        <div class="settings-ai-picks" id="set-ai-picks"></div>
-        <details class="settings-ai-how">
-          <summary>How to set up Ollama</summary>
-          <ol class="settings-steps">
-            <li>Install Ollama from ollama.com (free).</li>
-            <li>Get a model: <code>ollama pull llama3.2</code> (2 GB), or OpenAI’s open model <code>ollama pull gpt-oss:20b</code> (14 GB).</li>
-            <li>Start it for Lune: <code>OLLAMA_ORIGINS=${esc(location.origin)} ollama serve</code></li>
-            <li>Press Find Ollama.</li>
-          </ol>
-        </details>
-        <div class="settings-ai">
-          <button type="button" class="quiet" data-ai="ollama">Find Ollama</button>
-          <label for="set-ai-url">Model address</label>
-          <input id="set-ai-url" type="url" inputmode="url" placeholder="http://localhost:11434/v1/chat/completions" value="${esc(window.LuneAsk?.aiSettings?.().endpoint || "")}">
-          <label for="set-ai-model">Model name</label>
-          <input id="set-ai-model" type="text" placeholder="llama3.2" value="${esc((() => { try { return localStorage.getItem("lune.ai.model") || ""; } catch { return ""; } })())}">
-          <div class="settings-ai-actions">
-            <button type="button" class="quiet" data-ai="save">Save</button>
-            <button type="button" class="quiet" data-ai="test">Test</button>
-            <button type="button" class="quiet" data-ai="off">Disconnect</button>
-          </div>
-          <p class="settings-note" id="set-ai-msg" role="status" aria-live="polite"></p>
-        </div>
-      </details>
+        <p class="settings-note" id="set-ai-msg" role="status" aria-live="polite"></p>
+      </div>
+      <h3>Privacy</h3>
+      <div class="settings-privacy">${privacy}</div>
+      <h3>About Lune</h3>
+      <p class="settings-note">Lune is a free piano practice studio made by Verushka Patel. No ads, no payments. It installs from the browser; it is not an App Store or Play Store app.</p>
+      ${row("credits", "Credits and licences", "The scores, sounds and software Lune is built on.")}
       ${
         store.isOwner?.()
           ? `<h3>Owner</h3>${row("owner-stats", "Owner stats", "Signed-up users.")}${row("owner-impact", "Impact", "Anonymous totals and the public snapshot.")}${row("owner-feedback", "Feedback received", "What pianists and teachers have written.")}`
           : ""
       }`;
-    paintDeviceAISettings(d.querySelector("#set-device-ai"));
     d.onchange = (e) => {
       const k = e.target.dataset?.pref;
       if (k) {
@@ -2526,13 +1827,6 @@ window.LunePractice = (function () {
         d.querySelectorAll("[data-theme-set]").forEach((x) => x.setAttribute("aria-pressed", String(x === th)));
         return;
       }
-      const dev = e.target.closest("[data-device-ai]");
-      if (dev) {
-        const box = d.querySelector("#set-device-ai");
-        if (dev.dataset.deviceAi === "on") window.LuneAsk.turnOnDeviceAI(box, { onDone: () => setTimeout(() => paintDeviceAISettings(box), 1500) });
-        else window.LuneDeviceAI.turnOff().then(() => paintDeviceAISettings(box, "Lune AI is off and its download was deleted from this browser."));
-        return;
-      }
       const ai = e.target.closest("[data-ai]");
       if (ai) {
         const msg = d.querySelector("#set-ai-msg");
@@ -2546,40 +1840,12 @@ window.LunePractice = (function () {
             /* private mode */
           }
         };
-        if (ai.dataset.ai === "pick") {
-          d.querySelector("#set-ai-url").value = "http://localhost:11434/v1/chat/completions";
-          d.querySelector("#set-ai-model").value = ai.dataset.model;
-          put("lune.ai.endpoint", d.querySelector("#set-ai-url").value);
-          put("lune.ai.model", ai.dataset.model);
-          d.querySelectorAll('[data-ai="pick"]').forEach((x) => x.setAttribute("aria-pressed", String(x === ai)));
-          const st = d.querySelector("#set-ai-status");
-          if (st) st.innerHTML = `<strong>Using ${esc(ai.dataset.model)}</strong>`;
-          msg.textContent = `Ask Lune and Chat now use ${ai.dataset.model} on this computer.`;
-          return;
-        }
         if (ai.dataset.ai === "ollama") {
-          // ask Ollama which models it has, and offer them by name
-          const picks = d.querySelector("#set-ai-picks");
-          msg.textContent = "Looking for Ollama on this computer…";
-          fetch("http://localhost:11434/api/tags")
-            .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
-            .then((j) => {
-              const names = (j.models || []).map((m) => m.name).filter(Boolean);
-              const now = d.querySelector("#set-ai-model").value.trim();
-              if (!names.length) {
-                msg.textContent = "Ollama is running but has no models yet. Run: ollama pull llama3.2";
-                return;
-              }
-              picks.innerHTML = names
-                .map((n) => `<button type="button" class="quiet" data-ai="pick" data-model="${esc(n)}" aria-pressed="${n === now}">${esc(n)}${/gpt-oss/i.test(n) ? " · OpenAI open model" : /llama/i.test(n) ? " · Meta" : ""}</button>`)
-                .join("");
-              msg.textContent = names.length === 1 ? "Found one model. Tap it to use it." : `Found ${names.length} models. Tap one to use it.`;
-            })
-            .catch(() => {
-              msg.textContent = "Ollama isn’t answering. Open “How to set up Ollama” above, then try again.";
-              const how = d.querySelector(".settings-ai-how");
-              if (how) how.open = true;
-            });
+          d.querySelector("#set-ai-url").value = "http://localhost:11434/v1/chat/completions";
+          if (!d.querySelector("#set-ai-model").value.trim()) d.querySelector("#set-ai-model").value = "llama3.2";
+          put("lune.ai.endpoint", d.querySelector("#set-ai-url").value);
+          put("lune.ai.model", d.querySelector("#set-ai-model").value.trim());
+          msg.textContent = "Set to Ollama’s address on this computer. Press Test to check it is running.";
           return;
         }
         if (ai.dataset.ai === "off") {
@@ -2618,67 +1884,15 @@ window.LunePractice = (function () {
       else if (act === "signin") window.LuneOnboard?.openCreateAccount?.();
       else if (act === "week") window.LuneImpact?.openWeeklyReview?.();
       else if (act === "example-week") openExampleWeek();
-      else if (act === "chat") window.LuneAsk?.goAiPage?.();
-      else if (act === "plan-week") window.LunePlans?.openWizard?.();
-      else if (act === "plan-free") { window.LunePlans?.setPlanMode?.("free"); d.close?.(); }
+      else if (act === "install") window.LuneInstall?.install?.();
       else if (act === "upload") $("file")?.click();
       else if (act === "feedback") window.LuneFeedback?.open?.();
       else if (act === "credits") document.querySelector("[data-open-credits]")?.click();
-      else if (act === "privacy") openPrivacy();
       else if (act === "owner-stats") openOwnerStats();
       else if (act === "owner-impact") window.LuneImpact?.openOwnerImpact?.();
       else if (act === "owner-feedback") window.LuneFeedback?.openOwner?.();
     };
     if (!d.open) d.showModal();
-  }
-
-  /** The privacy statement on a page of its own (the same text as in Credits). */
-  function openPrivacy() {
-    const d = dialog("privacy-dialog");
-    const list = document.querySelector("#credits-privacy + ul")?.outerHTML || "";
-    d.innerHTML = `${closeRow}<h2>Privacy</h2>${list}<p class="settings-note">Questions about your data: <a href="mailto:info@lune.page">info@lune.page</a>.</p>`;
-    if (!d.open) d.showModal();
-  }
-
-  /** Lune AI for account holders: on when signed in, with where questions go said plainly. */
-  function accountAISettingsHtml() {
-    const server = String(window.LUNE_CONFIG?.aiServer || "");
-    if (!server) return "";
-    const st = store.status();
-    const name = esc(window.LUNE_CONFIG?.aiModelName || "an open-weight model");
-    const where = ` ${name.replace(/ Instruct$/, "")}. It can be wrong.`;
-    if (st.mode === "cloud") {
-      return `<h4 class="settings-sub">Lune AI</h4><p class="settings-note" id="set-account-ai" role="status"><strong>Lune AI is on</strong>${where}</p>`;
-    }
-    return `<h4 class="settings-sub">Lune AI</h4>
-      <p class="settings-note" id="set-account-ai"><strong>Free with an account</strong>${where}</p>`;
-  }
-
-  /** Lune AI in Settings: what it is, its size before anything downloads, and how to turn it off. */
-  async function paintDeviceAISettings(box, message = "") {
-    const D = window.LuneDeviceAI;
-    if (!box || !D) return;
-    const plan = await D.plan();
-    if (!D.offered()) {
-      // not offered until a real model has passed its test (ai-device.js)
-      box.previousElementSibling?.remove();
-      box.remove();
-      return;
-    }
-    if (!plan.supported) {
-      box.innerHTML = `<p class="settings-note">This browser cannot run Lune AI. Ask Lune uses its built-in answers.</p>`;
-      return;
-    }
-    if (D.enabled() || D.status() === "ready") {
-      box.innerHTML = `<p class="settings-note" role="status"><strong>Lune AI is on</strong>${esc(plan.name)} (${esc(plan.licence)}) runs in this browser on ${
-        plan.device === "webgpu" ? "the graphics card (WebGPU)" : "the processor (WebAssembly)"
-      }. It answers Ask Lune from the score and your remarks. Nothing you ask leaves this device.</p>
-        <button type="button" class="quiet" data-device-ai="off">Turn off and delete the download</button>
-        ${message ? `<p class="settings-note">${esc(message)}</p>` : ""}`;
-      return;
-    }
-    box.innerHTML = `${window.LuneAsk.deviceOfferHtml(plan).replace("data-ai-on", 'data-device-ai="on"')}
-      ${message ? `<p class="settings-note" role="status">${esc(message)}</p>` : ""}`;
   }
 
   /** A walk through This week → Share → Invite with invented numbers, labelled as an example throughout. */
@@ -2698,7 +1912,7 @@ window.LunePractice = (function () {
             <div><span class="impact-num">5</span><span class="dim">bars rated Good or Easy</span></div>
             <div><span class="impact-num">2</span><span class="dim">bars still Hard</span></div>
             <div><span class="impact-num">1</span><span class="dim">task finished</span></div>
-          </div><p class="settings-note">A day counts when you rate a bar or finish a task. Opening a piece does not count. Again and Hard bars come back sooner.</p>`),
+          </div><p class="settings-note">A day counts when you rate a bar, finish a task or open a piece to practise. Again and Hard bars come back sooner.</p>`),
       ex(6, "Share the week", "What a teacher or parent sees", `<div class="example-share"><p class="auth-kicker">A Lune pianist · this week</p><p><strong>3 days practised</strong>, goal ${days}</p><p>Clair de lune · Für Elise</p><p class="dim">No email. No remark text. Hard bar numbers only if you tick the box.</p></div><p class="settings-note">Share, then This week, makes a read-only page with its own link. You pick the name and the pieces and can switch the link off whenever you like. It needs an account so you can switch it off later.</p>`),
       ex(7, "Invite another person", "Bring someone with you", `<p class="settings-note">Invite sends the same week page with one extra line: “Invited by a pianist on Lune”. If they make an account they start with their own empty studio. There are no points, no leaderboards and no friend lists.</p>`),
     ];
@@ -2771,7 +1985,7 @@ window.LunePractice = (function () {
     if (!pieces.length) return "";
     const label = Object.fromEntries(STATUS);
     return `My repertoire on Lune (lune.page)\n\n${pieces
-      .map((p) => `• ${p.title}${p.composer ? `, ${p.composer}` : ""} · ${label[p.status] || "Learning"}${levelFor(p.piece_key) ? ` · level ${levelFor(p.piece_key)} (Lune’s estimate)` : ""}${p.last_practised_at ? ` · last practised ${ago(p.last_practised_at)}` : ""}`)
+      .map((p) => `• ${p.title}${p.composer ? ` — ${p.composer}` : ""} · ${label[p.status] || "Learning"}${p.last_practised_at ? ` · last practised ${ago(p.last_practised_at)}` : ""}`)
       .join("\n")}`;
   }
 
@@ -2797,31 +2011,20 @@ window.LunePractice = (function () {
 
   function openShare() {
     const d = dialog("share-dialog");
-    d.classList.add("share-dialog");
+    d.classList.add("settings-dialog");
     const inStudio = !!state.piece && document.body.classList.contains("is-studio");
-    const inRepertoire = state.mode === "repertoire";
     const signedIn = store.status().signedIn;
     const bars = inStudio ? selectedBarsSorted() : [];
     const row = (act, title, text, off) =>
       `<button type="button" class="settings-row" data-share="${act}" ${off ? "disabled" : ""}><strong>${title}</strong><span>${text}</span></button>`;
-    const rows = {
-      bars: row("bars", "Annotated bars, as a link", inStudio ? (bars.length ? `A link that opens this piece at bar ${bars.join(", ")} with your instructions and remarks. For a teacher or a student.` : "Select bars on the score first, then come back here.") : "Open a piece and select bars first.", !bars.length),
-      piece: row("piece", inStudio ? `Progress on ${esc(titleFor(state.piece))}` : "Progress on a piece", inStudio ? "Its status, the bars you are reviewing and your remarks, as text you can paste anywhere." : "Open a piece first, then come back here.", !inStudio),
-      repertoire: row("repertoire", "My repertoire", "The pieces you are learning, their level and where each one stands, as text you can paste anywhere."),
-      week: row("week", "My week", signedIn ? "A read-only page of your practice week for a teacher or parent: what was planned, what is done. No email, no remark text. You can switch it off." : "Sign in first: the week page needs an account so you can switch it off later.", !signedIn),
-      invite: row("invite", "Invite someone to Lune", signedIn ? "A link to your week that also invites them to try Lune." : "Sends a link to lune.page."),
-    };
-    // what fits where you are comes first
-    const order = inStudio
-      ? bars.length ? ["bars", "piece", "repertoire", "week", "invite"] : ["piece", "bars", "repertoire", "week", "invite"]
-      : inRepertoire ? ["repertoire", "week", "piece", "bars", "invite"] : ["week", "repertoire", "invite", "piece", "bars"];
     d.innerHTML = `${closeRow}
       <p class="auth-kicker">Share</p>
       <h2>What would you like to share?</h2>
-      <p class="settings-note">Nothing is shared until you choose. Each one shows exactly what will be sent first.</p>
-      ${rows[order[0]]}
-      <h3 class="share-more">Something else</h3>
-      ${order.slice(1).map((k) => rows[k]).join("")}`;
+      ${row("repertoire", "My repertoire", "The list of pieces you’re learning and where each one stands. Sent as text you can paste anywhere.")}
+      ${row("piece", inStudio ? `Progress on ${esc(titleFor(state.piece))}` : "Progress on a piece", inStudio ? "Its status, the bars you’re reviewing and your remarks, as text." : "Open a piece first, then come back here.", !inStudio)}
+      ${row("bars", "Annotated bars, as a link", inStudio ? (bars.length ? `A link that opens this piece at bar ${bars.join(", ")} with your instructions. For a teacher or a student.` : "Select the bars on the score first, then come back here.") : "Open a piece and select bars first.", !bars.length)}
+      ${row("week", "This week", signedIn ? "A read-only page of your practice week for a teacher or parent. No email, no remark text. You can switch it off at any time." : "Sign in first: the week page needs an account so you can switch it off later.", !signedIn)}
+      ${row("invite", "Invite someone to Lune", signedIn ? "A link to your week that also invites them to try Lune." : "Sends a link to lune.page.")}`;
     d.onclick = async (e) => {
       const b = e.target.closest("[data-share]");
       if (!b || b.disabled) return;
@@ -2882,7 +2085,7 @@ window.LunePractice = (function () {
     }
     items.push({ label: "Reading & access", action: () => openAccessDialog() });
     items.push({ label: "Feedback", action: () => window.LuneFeedback?.open?.() });
-    if (window.LuneInstall && !window.LuneInstall.installed()) items.push({ label: "Install Lune", action: () => window.LuneInstall.install() });
+    if (window.LuneInstall?.available?.()) items.push({ label: "Install Lune", action: () => window.LuneInstall.install() });
     items.push({ label: "Credits & licenses", action: () => document.querySelector("[data-open-credits]")?.click() });
     if (!studio) items.push({ label: "Privacy", action: () => openCreditsPrivacy() });
     return items;
@@ -3136,10 +2339,6 @@ window.LunePractice = (function () {
       openAssignment(m[1]);
       return true;
     }
-    if (hash === "#/ai") {
-      window.LuneAsk?.openChatPage?.();
-      return true;
-    }
     if (hash === "#/study") {
       window.LuneStudy?.show();
       return true;
@@ -3203,37 +2402,17 @@ window.LunePractice = (function () {
     document.addEventListener(
       "keydown",
       (e) => {
-        if (!["ArrowLeft", "ArrowRight", "Home", "End", "Enter"].includes(e.key)) return;
+        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
         if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest?.("input, textarea, select, [contenteditable], dialog")) return;
         if (state.panel !== "score" || $("studio")?.hidden || LunePiano.isPlaying?.()) return;
-        const onScore = e.target === $("score-scroll");
         const sel = selectedBarsSorted();
-        if (!state.piece?.debriefs) return;
-        // with nothing selected, the keys work once the score itself has focus (Tab to it)
-        if (!sel.length && !onScore) return;
-        if (e.key === "Enter" && !onScore) return;
-        // bar 0 (a pickup) cannot be selected, so the keys skip it as the mouse does
-        const bars = Object.keys(state.piece.debriefs).map(Number).filter((n) => Number.isFinite(n) && n > 0).sort((a, b) => a - b);
-        if (!bars.length) return;
-        let next;
-        if (e.key === "Home") next = bars[0];
-        else if (e.key === "End") next = bars[bars.length - 1];
-        else if (!sel.length) next = bars[0];
-        else if (e.key === "Enter") next = sel[0];
-        else {
-          const i = bars.indexOf(e.key === "ArrowRight" ? sel[sel.length - 1] : sel[0]);
-          next = bars[Math.max(0, Math.min(bars.length - 1, i + (e.key === "ArrowRight" ? 1 : -1)))];
-        }
+        if (!sel.length || !state.piece?.debriefs) return;
+        const bars = Object.keys(state.piece.debriefs).map(Number).filter((n) => Number.isFinite(n)).sort((a, b) => a - b);
+        const i = bars.indexOf(e.key === "ArrowRight" ? sel[sel.length - 1] : sel[0]);
+        const next = bars[Math.max(0, Math.min(bars.length - 1, i + (e.key === "ArrowRight" ? 1 : -1)))];
         if (next == null) return;
-        e.preventDefault();
-        e.stopPropagation(); // the playback position stays where it is
         setBarSelection([next], { open: true });
         scrollToBar(next);
-        const live = $("score-live");
-        if (live) {
-          const d = debriefFor(next);
-          live.textContent = `Bar ${next} of ${bars[bars.length - 1]}${d?.difficulty?.isHard ? ", one of the harder bars" : ""}.`;
-        }
       },
       true
     );
@@ -3281,143 +2460,8 @@ window.LunePractice = (function () {
     setInterval(refreshBadge, 5 * 60000);
   }
 
-  /*
-   * The one next step on the signed-in home, from real data only, in this order:
-   * 1. a piece left open in the last 12 hours, 2. an open task in the plan,
-   * 3. a bar that is due again, 4. a piece marked Learning, or the dream piece,
-   * 5. finding a first score. Each says why it is there.
-   */
-  /** Who made a task: the learner, Lune's built-in rules, or Lune AI. Shown wherever a task is. */
-  function taskOrigin(t) {
-    const src = t?.plan?.source || "self";
-    if (t?.plan?.ai) return { who: "lune", label: "Planned with Lune AI", why: "Lune AI planned this when you asked. Check it against the score." };
-    if (src === "self") return { who: "you", label: "Written by you", why: "You added this to your plan." };
-    if (src === "repertoire") return { who: "lune", label: "Your bars, Lune’s steps", why: "You chose these bars; Lune’s built-in rules wrote the steps." };
-    return { who: "lune", label: "Suggested by Lune", why: "Lune’s built-in rules suggested this when you asked for a plan." };
-  }
-  const shortDate = (iso) => {
-    try {
-      return new Date(iso).toLocaleDateString(undefined, { weekday: "long" });
-    } catch {
-      return "";
-    }
-  };
-  async function nextAction() {
-    let saved = null;
-    try {
-      saved = JSON.parse(localStorage.getItem("lune.tabs") || "null");
-    } catch {
-      saved = null;
-    }
-    const active = saved?.tabs?.find((t) => t.id === saved.active);
-    if (active && saved.at && Date.now() - Number(saved.at) < 12 * 3600e3) {
-      return { kind: "resume", title: active.title, why: "Still open from earlier today.", label: "Continue", open: { id: active.id, panel: active.panel === "piano" ? "piano" : "score" } };
-    }
-    const pieces = await store.listPieces().catch(() => []);
-    const titleOf = (key) => pieces.find((p) => p.piece_key === key)?.title || "";
-    const open = store
-      .listTasks()
-      .filter((t) => !t.done)
-      .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
-    if (open.length) {
-      const t = open[0];
-      const bars = (t.bars || []).filter((n) => n > 0);
-      return {
-        kind: "task",
-        title: t.title || titleOf(t.piece_key) || "Your plan",
-        detail: bars.length ? `Bar${bars.length === 1 ? "" : "s"} ${bars.join(", ")}` : "",
-        why: taskOrigin(t).why + (open.length > 1 ? ` ${open.length - 1} more in your plan.` : ""),
-        label: bars.length ? `Practise bar${bars.length === 1 ? "" : "s"} ${bars.slice(0, 3).join(", ")}${bars.length > 3 ? "…" : ""}` : "Open",
-        key: t.piece_key,
-        bars,
-      };
-    }
-    const due = (await store.dueCards(20).catch(() => [])).sort((a, b) => String(a.due_at).localeCompare(String(b.due_at)));
-    if (due.length) {
-      const c = due[0];
-      const g0 = store.normGrade ? store.normGrade(c.last_grade) : String(c.last_grade || "");
-      const grade = g0 ? g0[0].toUpperCase() + g0.slice(1) : "";
-      return {
-        kind: "review",
-        title: titleOf(c.piece_key) || "A piece in your Repertoire",
-        detail: `Bar ${c.bar}`,
-        why: `You rated it ${grade || "earlier"}${c.updated_at ? ` on ${shortDate(c.updated_at)}` : ""}, so it is due again.${due.length > 1 ? ` ${due.length - 1} more bar${due.length === 2 ? "" : "s"} due.` : ""}`,
-        label: `Review bar ${c.bar}`,
-        key: c.piece_key,
-        bar: c.bar,
-      };
-    }
-    const learning = pieces
-      .filter((p) => (p.status || "learning") === "learning")
-      .sort((a, b) => String(b.last_practised_at || b.created_at || "").localeCompare(String(a.last_practised_at || a.created_at || "")))[0];
-    if (learning) {
-      return { kind: "learning", title: learning.title, why: "In your Repertoire as Learning. Tap a bar that feels unsure and rate it after you play it.", label: "Open the score", key: learning.piece_key };
-    }
-    const dream = store.prefs()?.dreamPiece;
-    if (dream?.title) {
-      return { kind: "dream", title: dream.title, detail: dream.composer || "", why: "The piece you said you are working toward.", label: "Find the score", query: dream.title };
-    }
-    return { kind: "new", title: "Choose a piece to practise", why: "Search the catalogue or open a score of your own. Lune names the notes, suggests fingering and plays it at your tempo.", label: "Find a score" };
-  }
-
-  async function renderNextCard() {
-    const host = $("member-next");
-    if (!host) return;
-    const hour = new Date().getHours();
-    const name = store.prefs()?.displayName;
-    const g = $("member-greeting");
-    if (g) g.textContent = `${hour < 5 || hour >= 18 ? "Good evening" : hour < 12 ? "Good morning" : "Good afternoon"}${name ? `, ${name}` : ""}.`;
-    const today = $("member-today");
-    if (today) today.textContent = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
-    let n;
-    try {
-      n = await nextAction();
-    } catch {
-      // never leave the placeholder showing: fall back to the plainest next step
-      n = { kind: "new", title: "Choose a piece to practise", why: "Search the catalogue or open a score of your own.", label: "Find a score" };
-    }
-    const html = `<p class="member-next-k">Next</p>
-      <h2 id="member-next-h">${esc(n.title)}</h2>
-      ${n.detail ? `<p class="member-next-detail">${esc(n.detail)}</p>` : ""}
-      <p class="member-next-why">${esc(n.why)}</p>
-      <div class="member-next-actions"><button type="button" class="primary" data-next-go>${esc(n.label)}</button>${
-        n.kind === "new" ? `<button type="button" class="quiet" data-open-piece="debussy-clair-de-lune" data-open-panel="score">Try Clair de lune</button>` : ""
-      }</div>`;
-    host.dataset.kind = n.kind;
-    if (host.dataset.painted !== html) {
-      host.dataset.painted = html;
-      host.innerHTML = html;
-    }
-    host.onclick = async (e) => {
-      const b = e.target.closest("[data-next-go]");
-      if (!b || b.disabled) return;
-      b.disabled = true;
-      try {
-        if (n.open) location.hash = `#/${n.open.id}/${n.open.panel}`;
-        else if (n.key) await openFromRepertoire(n.key, { bar: n.bar ?? null, bars: n.bars?.length ? n.bars : null });
-        else if (n.query) {
-          const q = $("q");
-          if (q) {
-            q.value = n.query;
-            q.form?.requestSubmit?.();
-          }
-        } else $("btn-member-search")?.click();
-      } catch (err) {
-        toast(err?.message || "That didn’t open. Try it from Repertoire.");
-      } finally {
-        b.disabled = false;
-      }
-    };
-  }
-
   async function renderContinueCard() {
     const signedIn = !!(window.LuneOnboard?.signedIn?.() || store.status?.()?.signedIn);
-    if (signedIn) {
-      // the signed-in home has one next step instead of a Continue card
-      const old = $("member-continue");
-      if (old) old.hidden = true;
-      return renderNextCard();
-    }
     const host = signedIn ? $("member-continue") || $("home-continue") : $("home-continue");
     if (!host) return;
     // Don't paint continue onto the guest marketing hero while signed in.
@@ -3468,12 +2512,6 @@ window.LunePractice = (function () {
 
   return {
     init,
-    speakAndWait,
-    stopSpeaking,
-    tidySpoken,
-    nextAction,
-    renderNextCard,
-    openExampleWeek,
     stopHearing,
     hearPhrase,
     canListenForWords,
@@ -3503,4 +2541,3 @@ window.LunePractice = (function () {
     __test: { wordsToNumber, barsText },
   };
 })();
-document.addEventListener("lune:plan-mode", () => { if (document.body.classList.contains("is-repertoire")) window.LunePractice?.showRepertoire?.(); });

@@ -8,12 +8,6 @@
  * Answers come from a provider (LuneAIProvider):
  *   - "rules"    built in, always available: a rule-based assistant that
  *                runs in the browser and sends nothing anywhere.
- *   - "account"  Lune AI for anyone signed in: an open-weight model on
- *                Lune's Cloudflare Worker (workers/lune-ai), free, no key in
- *                this code. The Worker checks the account and holds the prompt.
- *   - "device"   optional: Lune AI, an open-weight model that runs inside
- *                this browser (ai-device.js). Nothing is downloaded until
- *                the pianist turns it on, and the size is shown first.
  *   - "endpoint" optional: a language model behind an OpenAI-compatible
  *                chat endpoint the person sets in Settings (for example
  *                Ollama on their own computer, or their own serverless
@@ -108,30 +102,14 @@ window.LuneAsk = (function () {
   const SYSTEM_PROMPT = `You are Lune, a piano practice and score-analysis assistant inside the Lune app.
 You are given CONTEXT as JSON: facts Lune has read from the score (notes, fingering, difficulty, dynamics, harmony), the pianist's own remarks, their earlier questions, their practice history and their goal.
 Rules:
-- Use only the score facts in CONTEXT. Never invent bars, notes, rhythms, fingerings, dynamics, tempo marks, opus numbers or movement names. If something is not in CONTEXT, do not dwell on it: help with what you do know, or give general piano advice and say it is general.
+- Use only the score facts in CONTEXT. Never invent bars, notes, rhythms, fingerings, dynamics, tempo marks, opus numbers or movement names. If CONTEXT does not contain something, say Lune does not have it.
 - Keep facts and suggestions apart: say what the score shows, then what you suggest.
-- Answer about the bar in CONTEXT.bar. Bring in CONTEXT.neighbouringBars only when the question asks about them or a phrase crosses into them.
-- Piano finger numbers: 1 thumb, 2 index, 3 middle, 4 ring, 5 little finger. Use the numbers from CONTEXT; name a finger only with this mapping.
-- When giving fingering, go note by note in the order of CONTEXT and give each note its own finger number from CONTEXT. Never group notes under one finger, and never give fingering for a hand that has no notes.
 - The pianist's remarks are their own words; treat them as information from the user, not as score facts.
 - You have not heard the pianist play. Never claim to have listened to a recording or a performance.
-- Be kind, patient and encouraging, like a favourite piano teacher who believes in the pianist. Never be curt, sarcastic, dismissive, preachy or scolding, never blame the pianist, and never refuse bluntly: if you cannot do something, say so gently in a few words and offer what you can do instead.
-- Sound like a warm, expert piano teacher: specific, encouraging and practical, never vague. When suggesting practice, use proven methods (slow practice with a metronome, hands separately, one or two bars at a time, the leap practised silently first, rhythm variations, blocking chord shapes, starting from the end of a passage) and say which bar each step is for.
-- Open with the answer itself in one clear sentence. Never open with filler such as "Great question", "Sure" or "Certainly", and never repeat the question.
-- Answer a simple question in one or two sentences. For analysis, cover what each hand does, what makes it hard, and exactly how to practise it: one short sentence of what the score shows, then at most four numbered steps, each on its own line, each one concrete action.
-- Keep answers under 120 words unless the pianist asks for more. Every sentence must be useful at the piano.
-- You cannot hear the pianist. If asked how their playing sounded, say plainly that you cannot hear them play, then say what to listen for in that bar.
-- A greeting, thanks or small talk is welcome: reply warmly in one sentence and ask what they are working on at the piano.
-- Only if a question has nothing to do with music or the piano, answer warmly in one sentence that you are here for their piano playing, and offer one related thing you would be glad to help with. Questions about the pianist's own playing, practice or progress are always piano questions.
-- Speak naturally to the pianist. Never mention CONTEXT, JSON, data or "the information provided"; if the score data lacks something, simply answer from general piano knowledge and say it is general advice.
-- If CONTEXT.replyStyle is "spoken", the answer will be read aloud: reply in two or three short, warm, conversational sentences, with no lists, numbers as words where natural, and no symbols.
+- Answer a simple question in one or two sentences. Give detail only when asked for analysis.
 - When asked for a practice plan, give short numbered steps tied to bar numbers from CONTEXT, sized to the minutes available, and keep the pianist's stated goal.
-- CONTEXT.conversation, when present, holds the last turns of this chat; answer the newest question in that light.
-- For a general piano question (technique, practice habits, musical terms) that does not depend on a score, answer from general piano teaching and say it is general advice. Never present general advice as a fact about the pianist's score.
-- Name a bar number only if that bar is in CONTEXT. With no score open (CONTEXT.openPiece is null), never mention bar numbers.
 - Say plainly when you are unsure.
-- Write piece and composer names correctly and in full (Liebestraum No. 3, Clair de lune, Für Elise, Gymnopédie No. 1, Chopin, Debussy, Liszt, Rachmaninoff). If the pianist's spelling of a name looks like a mishearing, read it as the closest real piece, preferring CONTEXT.piece.
-- Format: short paragraphs. Use a numbered list for steps, one step per line, and **bold** only for a bar number or the one thing that matters most. No headings, no tables, no emoji.`;
+- Plain text only. No markdown, no headings.`;
 
   function aiSettings() {
     let endpoint = "";
@@ -146,10 +124,6 @@ Rules:
     model = model || window.LUNE_CONFIG?.aiModel || "llama3.2";
     return { endpoint: endpoint.trim(), model: model.trim() };
   }
-
-  /** Lune computes fingering; it does not read the edition's. Every model is told so in its context. */
-  const FINGERING_NOTE =
-    "Finger numbers here are Lune's suggested fingering, worked out from the notes by Lune. They are not printed in the pianist's edition. Call them suggested fingering.";
 
   /** Everything Lune knows that is relevant to this question, as plain data. */
   async function buildContext(bar) {
@@ -183,7 +157,6 @@ Rules:
         .map((c) => ({ bar: c.bar, timesReviewed: c.reps ?? null, lastRating: c.last_grade || c.grade || null, nextReview: c.due_at })),
       plans: tasks.map((t) => ({ bars: t.bars, summary: t.plan?.summary || t.notes, done: !!t.done })),
       earlierQuestions: (bar ? historyFor(bar) : history()).slice(-4).map((h) => ({ question: h.q, answer: h.a })),
-      fingeringNote: FINGERING_NOTE,
     };
     // bars the pianist keeps finding hard (from their own ratings)
     const struggling = cards.filter((c) => (c.lapses || 0) >= 2 || /again|hard/i.test(String(c.last_grade || ""))).map((c) => c.bar);
@@ -219,8 +192,6 @@ Rules:
   const TASKS = {
     answerQuestion: (q) => q,
     explainBar: () => "Explain what happens in this bar and what makes it easy or hard, using only CONTEXT.",
-    whyHard: () =>
-      "Say why this bar is hard, or that it is not, using only CONTEXT.bar.difficulty, CONTEXT.bar.technicalFeatures and the notes in CONTEXT.bar. Then suggest one thing to try.",
     explainPracticeProblem: (q) => `The pianist says: "${q}". Using CONTEXT (their ratings, remarks and the bar's difficulty), say what is most likely going wrong and one thing to try.`,
     suggestPractice: () => "Suggest how to practise this bar or passage in three short steps, each tied to something in CONTEXT.",
     generatePracticePlan: (bars, mins) => `Write a practice plan of ${mins} minutes for bars ${bars.join(", ")}. Numbered steps with minutes for each, hands-separate or slow-tempo work only where CONTEXT supports it, and keep the pianist's goal.`,
@@ -230,80 +201,14 @@ Rules:
     explainMusicalTerms: (q) => `Explain this musical term plainly for a piano student: ${q}`,
   };
 
-  const D = () => window.LuneDeviceAI;
-  const aiServer = () => String(window.LUNE_CONFIG?.aiServer || "").replace(/\/+$/, "");
-  const aiName = () => window.LUNE_CONFIG?.aiModelName || "an open-weight model";
-  /** Signed in with a real account (not only on this device), so the server can check it. */
-  const cloudAccount = () => store()?.status?.().mode === "cloud";
-  /** In voice chat the answer is heard, not read: ask for a short, spoken reply. */
-  function spokenCtx(ctx) {
-    return talking ? { ...(ctx || {}), replyStyle: "spoken" } : ctx;
-  }
   const providers = {
-    /** Lune AI for account holders: Lune's own server, which checks the account first. */
-    account: {
-      available: () => !!aiServer() && cloudAccount(),
-      label: () => "Lune AI",
-      async answer(question, ctx, { signal } = {}) {
-        ctx = spokenCtx(ctx);
-        const token = await store().accessToken();
-        if (!token) throw new Error("Sign in again to use Lune AI.");
-        const ctl = new AbortController();
-        const timer = setTimeout(() => ctl.abort(), 45000);
-        signal?.addEventListener("abort", () => ctl.abort(), { once: true });
-        try {
-          const res = await fetch(`${aiServer()}/ask`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ question, context: ctx }),
-            signal: ctl.signal,
-          });
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok || !data.answer) {
-            const err = new Error(data.error || `Lune AI returned ${res.status}`);
-            err.userMessage = data.error;
-            throw err;
-          }
-          return String(data.answer).slice(0, 4000);
-        } finally {
-          clearTimeout(timer);
-        }
-      },
-    },
-    /** Lune AI: an open-weight model running in this browser. */
-    device: {
-      available: () => !!D()?.enabled() || D()?.status() === "ready",
-      label: () => `Lune AI on this device (${D()?.MODEL.name})`,
-      async answer(question, ctx, { onToken } = {}) {
-        const res = await D().chat(
-          [
-            { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content: `CONTEXT:\n${JSON.stringify(ctx)}\n\nQUESTION: ${question}` },
-          ],
-          { onToken },
-        );
-        if (!res?.text) throw new Error("model sent no answer");
-        return res.text.slice(0, 4000);
-      },
-    },
     /** A language model behind an OpenAI-compatible chat endpoint. */
     endpoint: {
       available: () => !!aiSettings().endpoint,
-      async answer(question, ctx, { signal, onToken } = {}) {
-        ctx = spokenCtx(ctx);
+      async answer(question, ctx) {
         const { endpoint, model } = aiSettings();
         const ctl = new AbortController();
-        // a local model can take a while to load the first time; give up only when it goes quiet
-        let timer = 0;
-        const quiet = () => {
-          clearTimeout(timer);
-          timer = setTimeout(() => ctl.abort(), 90000);
-        };
-        quiet();
-        signal?.addEventListener("abort", () => ctl.abort(), { once: true });
-        // earlier turns go as real turns, so a follow-up ("and the left hand?") reads naturally
-        const turns = (ctx?.conversation || []).slice(-8).map((m) => ({ role: m.from === "pianist" ? "user" : "assistant", content: String(m.text || "") }));
-        const facts = ctx && ctx.conversation ? { ...ctx, conversation: undefined } : ctx;
+        const timer = setTimeout(() => ctl.abort(), 45000);
         try {
           const res = await fetch(endpoint, {
             method: "POST",
@@ -311,151 +216,25 @@ Rules:
             signal: ctl.signal,
             body: JSON.stringify({
               model,
-              stream: !!onToken,
-              temperature: 0.4,
+              stream: false,
+              temperature: 0.3,
               messages: [
                 { role: "system", content: SYSTEM_PROMPT },
-                ...turns,
-                { role: "user", content: `CONTEXT:\n${JSON.stringify(facts)}\n\nQUESTION: ${question}` },
+                { role: "user", content: `CONTEXT:\n${JSON.stringify(ctx)}\n\nQUESTION: ${question}` },
               ],
             }),
           });
           if (!res.ok) throw new Error(`model returned ${res.status}`);
-          if (onToken && res.body && /event-stream|ndjson/i.test(res.headers.get("content-type") || "")) {
-            const reader = res.body.getReader();
-            const dec = new TextDecoder();
-            let buf = "";
-            let text = "";
-            for (;;) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              quiet();
-              buf += dec.decode(value, { stream: true });
-              let nl;
-              while ((nl = buf.indexOf("\n")) >= 0) {
-                const row = buf.slice(0, nl).trim();
-                buf = buf.slice(nl + 1);
-                const data = row.startsWith("data:") ? row.slice(5).trim() : row;
-                if (!data || data === "[DONE]") continue;
-                try {
-                  const j = JSON.parse(data);
-                  const t = j?.choices?.[0]?.delta?.content ?? j?.message?.content ?? "";
-                  if (t) {
-                    text += t;
-                    onToken(t);
-                  }
-                } catch {
-                  /* a keep-alive or partial line */
-                }
-              }
-            }
-            if (!text.trim()) throw new Error("model sent no answer");
-            return text.trim().slice(0, 6000);
-          }
           const data = await res.json();
           const text = data?.choices?.[0]?.message?.content ?? data?.message?.content ?? data?.answer;
           if (!text || typeof text !== "string") throw new Error("model sent no answer");
-          return text.trim().slice(0, 6000);
+          return text.trim().slice(0, 4000);
         } finally {
           clearTimeout(timer);
         }
       },
-      label: () => `your local model (${aiSettings().model})`,
     },
   };
-  /*
-   * Lune AI's voice, for account holders: Whisper writes down what was said
-   * (with punctuation) and a natural voice reads answers. Everyone else, and
-   * anyone whose request fails, gets the browser's own speech.
-   */
-  const voice = {
-    available: () => providers.account.available() && typeof MediaRecorder !== "undefined" && !!navigator.mediaDevices?.getUserMedia,
-    async transcribe(blob) {
-      const token = await store().accessToken();
-      const res = await fetch(`${aiServer()}/transcribe`, {
-        method: "POST",
-        headers: { "Content-Type": blob.type || "audio/webm", Authorization: `Bearer ${token}` },
-        body: blob,
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Lune AI could not hear that.");
-      return String(data.text || "");
-    },
-    async speak(text, lang = "en") {
-      if (!providers.account.available()) throw new Error("no account");
-      const token = await store().accessToken();
-      const res = await fetch(`${aiServer()}/speak`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ text: String(text).slice(0, 900), lang }),
-      });
-      if (!res.ok) throw new Error("voice unavailable");
-      return res.blob();
-    },
-  };
-
-  /** A model the pianist set up themselves comes first, then Lune AI (account), then Lune AI on this device. */
-  const active = () =>
-    providers.endpoint.available()
-      ? providers.endpoint
-      : providers.account.available()
-        ? providers.account
-        : providers.device.available()
-          ? providers.device
-          : null;
-  const fallbackNote = (err) =>
-    err?.userMessage ? `${err.userMessage} This is Lune’s built-in reply.` : "The model didn’t answer, so this is Lune’s built-in reply.";
-  /** The model that is really answering, named plainly for the header. */
-  function whoAnswers() {
-    const m = active();
-    if (m === providers.endpoint) return `${aiSettings().model.replace(/:latest$/, "")} · local`;
-    if (m === providers.account) return aiName().replace(/ Instruct$/, "");
-    if (m === providers.device) return `${D()?.MODEL.name || "Lune AI"} · in this browser`;
-    return "";
-  }
-  function privacyLine() {
-    const m = active();
-    if (m === providers.endpoint) return `Answers come from ${aiSettings().model.replace(/:latest$/, "")} on your own computer and can be wrong. Nothing leaves it.`;
-    if (m === providers.device) return "Answers are written in this browser and can be wrong. Nothing leaves this device.";
-    return "Lune AI can be wrong. Lune’s server stores none of it; this chat stays in this browser.";
-  }
-
-  /*
-   * Ollama on this computer: ask it which models it has and use the strongest
-   * one a laptop can run (the most parameters, up to 35B), skipping embedding
-   * models. Returns the model chosen, or throws with a message to show.
-   */
-  async function findOllama() {
-    const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), 3000);
-    let tags;
-    try {
-      const r = await fetch("http://localhost:11434/api/tags", { signal: ctl.signal });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      tags = await r.json();
-    } catch {
-      throw new Error(
-        `Lune couldn’t reach Ollama on this computer. Start it with: OLLAMA_ORIGINS=${location.origin} ollama serve — and if your browser asks to let this site use apps on your device, choose Allow.`
-      );
-    } finally {
-      clearTimeout(timer);
-    }
-    const size = (m) => {
-      const p = String(m.details?.parameter_size || m.name.match(/:(\d+(?:\.\d+)?)b/i)?.[1] || "").match(/(\d+(?:\.\d+)?)\s*([BM])?/i);
-      return p ? Number(p[1]) / (/m/i.test(p[2] || "") ? 1000 : 1) : 0;
-    };
-    const usable = (tags.models || []).filter((m) => m?.name && !/embed|bge|minilm|nomic/i.test(m.name) && size(m) <= 35);
-    if (!usable.length) throw new Error("Ollama is running but has no chat model yet. In Terminal: ollama pull qwen2.5:7b");
-    usable.sort((a, b) => size(b) - size(a));
-    const name = usable[0].name;
-    try {
-      localStorage.setItem("lune.ai.endpoint", "http://localhost:11434/v1/chat/completions");
-      localStorage.setItem("lune.ai.model", name);
-    } catch {
-      /* private mode: lasts for this visit only through aiSettings' fallbacks */
-    }
-    return name;
-  }
 
   /* ---------- actions ---------- */
 
@@ -498,7 +277,7 @@ Rules:
       goal ? `, on the way to ${goal}` : ""
     }.`;
     await P()?.addCurrentToRepertoire?.({ quiet: true }).catch(() => {});
-    const task = store().addTask({
+    store().addTask({
       piece_key: key,
       title: piece?.overview?.title || piece?.title || "Practice",
       composer: piece?.overview?.composer || piece?.composer || "",
@@ -508,20 +287,13 @@ Rules:
     });
     P()?.refreshBadge?.();
     let out = `Plan saved to your Repertoire. ${summary}\n${steps.map((s, i) => `${i + 1}. ${s.title} — ${s.detail}`).join("\n")}`;
-    // With a model connected, Lune AI writes the plan from the pianist's goal and their
-    // remarks on these bars, and that plan is saved in Repertoire with a one-line summary.
+    // With a local model connected, it writes the minute-by-minute version from the same context.
     if (LuneAIProvider.connected()) {
       try {
         const note = await LuneAIProvider.generatePracticePlan(picked[0], picked, mins);
-        if (note) {
-          out = `Plan saved to your Repertoire, written by ${LuneAIProvider.label()} from your goal and your remarks.\n${note}`;
-          const first = String(note).split("\n").map((l) => l.replace(/^\s*\d+[.)]\s*/, "").trim()).find(Boolean) || summary;
-          store().updateTask(task.id, {
-            plan: { ...task.plan, ai: String(note).slice(0, 2000), aiBy: LuneAIProvider.label(), summary: `${summary} ${first}`.slice(0, 300) },
-          });
-        }
+        if (note) out += `\n\nFrom your local model (${LuneAIProvider.model()}):\n${note}`;
       } catch {
-        out += "\n\nLune AI didn’t answer, so this plan is Lune’s built-in one.";
+        out += "\n\nYour local model didn’t answer, so this plan is Lune’s built-in one.";
       }
     }
     return out;
@@ -532,7 +304,7 @@ Rules:
     await P()?.addCurrentToRepertoire?.({ quiet: true }).catch(() => {});
     for (const b of bars) await store().reviewBar(key, b, grade);
     P()?.refreshBadge?.();
-    const word = { again: "to do again soon", hard: "as hard", okay: "as okay", good: "as good", strong: "as strong" }[grade];
+    const word = { again: "to do again tomorrow", hard: "as hard", good: "as good", easy: "as easy" }[grade];
     return `Logged bar${bars.length === 1 ? "" : "s"} ${bars.join(", ")} ${word}. Lune will bring ${bars.length === 1 ? "it" : "them"} back at the right time.`;
   }
 
@@ -558,24 +330,13 @@ Rules:
       ? "again"
       : /\b(hard|tricky|difficult|struggl)/.test(t)
         ? "hard"
-        : /\b(strong|easy|effortless|secure|no problem)\b/.test(t)
-          ? "strong"
-          : /\b(okay|ok|so-so|mostly|alright)\b/.test(t)
-            ? "okay"
-            : /\b(good|fine|better|clean|went well|solid)\b/.test(t)
-              ? "good"
-              : null;
-    // "bar 2 is hard, how should I practise it?" is a rating and a question; "is bar 2 hard?" is only a question
-    const ratingStatement = !isQuestion || !/^(is|are|was|were|did|does|do|why|how|which|what|where|when|who|can|could|should|would|will|explain|tell|show)\b/.test(t.trim());
-    if (grade && ratingStatement && bars.length && /\b(was|went|felt|is|that|it)\b/.test(t)) {
-      const logged = await rate(bars, grade);
-      // a hard bar, or a "how do I…", deserves real help, not only a receipt
-      const wantsHelp = grade === "again" || grade === "hard" || /\b(how|help|practi[sc]e|fix|should|what (do|can|should) i)\b/.test(t);
-      if (wantsHelp) {
-        const help = await reply(`How do I practise bar ${bars[0]}?`).catch(() => null);
-        return { bar: bars[0], a: help?.a || logged, saved: "review", question: true, note: logged };
-      }
-      return { bar: bars[0], a: logged, saved: "review" };
+        : /\b(easy|effortless|no problem)\b/.test(t)
+          ? "easy"
+          : /\b(good|fine|better|okay|ok|clean|went well)\b/.test(t)
+            ? "good"
+            : null;
+    if (grade && !isQuestion && bars.length && /\b(was|went|felt|is|that|it)\b/.test(t)) {
+      return { bar: bars[0], a: await rate(bars, grade), saved: "review" };
     }
     // a remark to keep on the bar
     const remarkLead = /^(note|remark|remember|write|log|mark|flag)\b[:,]?\s*/i;
@@ -589,9 +350,8 @@ Rules:
 
     // questions about the whole piece
     const p = state.piece;
-    // "which bars are hardest?" is about the piece, even with a bar selected
-    if (!d || /\b(which bars|hardest bars|whole piece|the piece)\b/.test(t)) {
-      if (/\b(hard(er|est)?|difficult|trick(y|ier|iest)|worst|practi[sc]e|work on|focus)\b/.test(t)) {
+    if (!d) {
+      if (/\b(hard|difficult|tricky|worst|practi[sc]e|work on|focus)\b/.test(t)) {
         const h = hardest(4);
         return {
           question: true,
@@ -619,8 +379,7 @@ Rules:
     // questions about one bar
     const lines = [];
     if (/\bfinger/.test(t)) {
-      lines.push(fingerLine(d.rh, "Suggested fingering, right hand"), fingerLine(d.lh, "Suggested fingering, left hand"));
-      if (lines.filter(Boolean).length) lines.push("Lune works this fingering out from the notes. Your edition may print different fingers.");
+      lines.push(fingerLine(d.rh, "Right hand"), fingerLine(d.lh, "Left hand"));
       const why = [...(d.rh || []), ...(d.lh || [])].map((n) => n.fingeringNote).filter(Boolean)[0];
       if (why) lines.push(`Why: ${why}.`);
       if (!lines.filter(Boolean).length) lines.push("No fingering is suggested for this bar.");
@@ -638,625 +397,10 @@ Rules:
       lines.push(...first(d.advice, 2));
       if (d.split?.needed && d.split.practiceNotes?.[0]) lines.push(d.split.practiceNotes[0]);
     }
-    if (!lines.filter(Boolean).length) {
-      // nothing stored for this bar: steps built from its own notes
-      const rh = handLine(d.rh, "Right hand").replace(/(\S)\s{2,}(?=\S)/g, "$1, ");
-      const lh = handLine(d.lh, "Left hand").replace(/(\S)\s{2,}(?=\S)/g, "$1, ");
-      lines.push(`Bar ${bar}, step by step:`);
-      if (rh) lines.push(`1. Right hand alone, slowly (about 60 on the metronome), saying the notes as you play. ${rh}`);
-      if (lh) lines.push(`${rh ? 2 : 1}. Left hand alone the same way. ${lh}`);
-      lines.push(`${(rh ? 1 : 0) + (lh ? 1 : 0) + 1}. Hands together at that slow tempo. When it is clean three times in a row, raise the metronome by four.`);
-    }
-    return { bar, question: true, a: lines.filter(Boolean).join("\n") };
+    return { bar, question: true, a: lines.filter(Boolean).join("\n") || "I don't have more on this bar." };
   }
-
-  /*
-   * The model-only actions. Each has a fixed place: these chips in Ask Lune
-   * and the Lune AI row in the bar panel (practice.js). They are shown only
-   * while a model is connected; the built-in rules have their own chips.
-   */
-  const MODEL_ACTIONS = {
-    explainBar: { label: "Explain this bar", bar: true, fallback: "How do I practise this bar?" },
-    whyHard: { label: "Why is this hard?", bar: true, fallback: "Why is this bar hard?" },
-    suggestPractice: { label: "Suggest practice", bar: true, fallback: "How do I practise this bar?" },
-    explainFingering: { label: "Explain the fingering", bar: true, fallback: "What is the fingering?" },
-    summarizePractice: { label: "Summarise my practice", bar: false, fallback: null },
-  };
-
-  /** Run one model action on a bar (or the piece) and show it in the panel. */
-  async function runTask(task, bar = null) {
-    const act = MODEL_ACTIONS[task];
-    if (!act) return;
-    open({ bar });
-    line("you", act.label);
-    const model = active();
-    const forBar = act.bar ? bar || selectedBarsSorted()[0] || null : null;
-    let a = null;
-    let failure = null;
-    let said = null;
-    if (model) {
-      said = line("lune", "", { src: "model" });
-      const res = await streamAnswer(said, async ({ signal, onToken }) => model.answer(TASKS[task](), await buildContext(forBar), { signal, onToken }));
-      if (res.stopped) return stoppedAt(said, res.text, { q: act.label, bar: forBar });
-      a = res.text || null;
-      failure = res.error;
-    }
-    let note = "";
-    if (!a) {
-      note = fallbackNote(failure);
-      a = act.fallback ? (await reply(act.fallback)).a : "Lune’s built-in answers can’t summarise practice. This week shows the days, bars and ratings instead.";
-      if (said) {
-        richText(said, a);
-        setSrc(said, "rules");
-      } else said = line("lune", a, { src: "rules" });
-    } else said.dataset.via = "model";
-    if (state.piece) window.LunePlans?.noteActivity?.("question", { key: keyFor(), title: state.piece?.overview?.title || state.piece?.title || "" });
-    remember({ bar: forBar, q: act.label, a, note: note || undefined, via: note ? undefined : "model", t: Date.now() });
-    addActions(said);
-    if (note) {
-      sayIfVoice(a);
-      line("lune", note).classList.add("ask-note");
-    } else voiceAfter(a);
-  }
-  /** Where an answer came from, said under it; changed when a model fails and the built-in answer stands in. */
-  function setSrc(el, src) {
-    const s = el.parentElement?.querySelector(".ask-src");
-    if (!s) return;
-    s.className = `ask-src ask-src-${src === "model" ? "ai" : "rules"}`;
-    s.textContent = src === "model" ? "Lune AI · can be wrong" : "Built-in answer, read from the score";
-  }
-  /** Stop pressed: keep what was written, say it was stopped, and keep it in this bar's history. */
-  function stoppedAt(el, text, { q, bar }) {
-    if (!text) {
-      el.closest(".ask-row")?.remove();
-      line("lune", "Stopped.").classList.add("ask-note");
-      return "";
-    }
-    el.dataset.via = "model";
-    addActions(el);
-    remember({ bar, q, a: text, via: "model", t: Date.now() });
-    return text;
-  }
-
-  /* ---------- "Now superpowered with Lune AI" (landing page and signed-in home) ---------- */
-
-  /**
-   * Shown once Lune AI's server is set (LUNE_CONFIG.aiServer). It says, on the
-   * same card, where answers come from and that an account is all it needs.
-   */
-  function paintNews() {
-    const boxes = document.querySelectorAll("[data-ai-news]");
-    const on = !!aiServer();
-    document.querySelectorAll("[data-ai-credit], [data-ai-news-badge]").forEach((el) => (el.hidden = !on));
-    const st = store()?.status?.() || {};
-    for (const box of boxes) {
-      box.hidden = !on;
-      if (!on) continue;
-      const fine = box.querySelector("[data-ai-news-fine]");
-      if (fine) {
-        fine.textContent = `Free with a Lune account, with nothing to download. Answers come from ${aiName()}, an open-weight model, on Lune’s server. Lune’s server passes it the score facts and your question to write the answer and stores neither. Built with Llama.`;
-      }
-      const btn = box.querySelector("[data-ai-news-open]");
-      if (btn) btn.textContent = st.mode === "cloud" ? "Try it on Clair de lune" : st.signedIn ? "Confirm your account" : "Create a free account";
-    }
-  }
-  document.addEventListener("click", (e) => {
-    if (e.target.closest?.("[data-ai-news-badge]")) {
-      const card = document.querySelector("#home-guest [data-ai-news]") || document.querySelector("[data-ai-news]");
-      card?.scrollIntoView({ behavior: "smooth", block: "center" });
-      card?.querySelector("[data-ai-news-open]")?.focus({ preventScroll: true });
-      return;
-    }
-    if (!e.target.closest?.("[data-ai-news-open]")) return;
-    if (store()?.status?.().mode === "cloud") {
-      // the piece opens on its score; Ask Lune is the button beside the score
-      location.hash = "#/debussy-clair-de-lune/score";
-    } else window.LuneOnboard?.openCreateAccount?.();
-  });
-  const paintNewsSoon = () => setTimeout(paintNews, 0);
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", paintNewsSoon, { once: true });
-  else paintNewsSoon();
-  setTimeout(() => store()?.onChange?.(paintNews), 0);
 
   /* ---------- the panel ---------- */
-
-  const ICON = {
-    mute: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 10v4h3l4 3.5v-11L8 10H5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M16 10l4 4M20 10l-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
-    menu: '<svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
-    add: '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>',
-    mic: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
-    talk: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
-    send: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    close: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
-    speak: '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 10v4h3l4 3.5v-11L8 10H5zM15.5 9a4 4 0 0 1 0 6M17.8 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    copy: '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 15V6a1 1 0 0 1 1-1h9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
-    check: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    stop: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor"/></svg>',
-    retry: '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3M4.5 4.5v4h4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    info: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 11v5M12 8v.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
-  };
-
-  /** A composer like Claude's or ChatGPT's: a growing text box, then dictate, talk and send. */
-  function composerHtml(prefix, placeholder) {
-    // one pill, as in ChatGPT: the words, the microphone, and a round button that is
-    // voice chat while the box is empty and Send once there is something to send
-    return `<div class="lc-composer" id="${prefix}-composer">
-        <label class="visually-hidden" for="${prefix}-input">Message Lune</label>
-        <textarea id="${prefix}-input" rows="1" maxlength="600" placeholder="${esc(placeholder)}"></textarea>
-        <button type="button" class="lc-tool lc-mic" id="${prefix}-mic" aria-pressed="false" aria-label="Dictate">${ICON.mic}</button>
-        <button type="button" class="lc-round lc-talk" id="${prefix}-talk" aria-label="Voice chat with Lune">${ICON.talk}</button>
-        <button type="submit" class="lc-round lc-send ${prefix}-send" aria-label="Send" hidden>${ICON.send}</button>
-        <button type="button" class="lc-round lc-stop" aria-label="Stop writing">${ICON.stop}</button>
-      </div>
-      <div class="lc-listen" id="${prefix}-listen" hidden>
-        <button type="button" class="lc-tool" data-listen="cancel" aria-label="Cancel dictation">${ICON.close}</button>
-        <canvas class="lc-wave" width="600" height="60" aria-hidden="true"></canvas>
-        <span class="lc-timer" aria-live="off">0:00</span>
-        <button type="button" class="lc-send lc-done" data-listen="done" aria-label="Done">${ICON.check}</button>
-      </div>`;
-  }
-
-  /**
-   * An answer laid out as ChatGPT lays one out: paragraphs with air between
-   * them, numbered steps as a real list, **bold** kept as bold. Text only, so
-   * nothing the model writes can become markup.
-   */
-  function richText(el, text, { live = false } = {}) {
-    if (!el) return;
-    const esc2 = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-    // "bar 12", "bars 26–30": a link to those bars when they are in the open score
-    const barLinks = (html) =>
-      state.piece
-        ? html.replace(/\b(bars?)\s+(\d{1,4})(?:\s*(?:–|-|to)\s*(\d{1,4}))?\b/gi, (m, w, a, b) => {
-            const from = Number(a);
-            const to = b ? Number(b) : from;
-            if (to < from || to - from > 64 || !debriefFor(from) || !debriefFor(to)) return m;
-            return `<button type="button" class="la-bar" data-bars="${from}-${to}">${m}</button>`;
-          })
-        : html;
-    const inline = (t) =>
-      barLinks(
-        esc2(t)
-          .replace(/`([^`]+)`/g, "$1")
-          .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-          .replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s.,;:!?)]|$)/g, "$1<em>$2</em>")
-      );
-    // the server's range answers start lines with "@Bar 12"; shown as a bold lead-in
-    const lead = (t) => t.replace(/^@((?:bars?)\s+\d+(?:\s*(?:[–,-]|and|to)\s*\d+)*)[\s:.,—–-]*/i, (m, label) => `**${label[0].toUpperCase()}${label.slice(1)}** · `);
-    let html = "";
-    let list = null;
-    const closeList = () => {
-      if (list) html += `</${list}>`;
-      list = null;
-    };
-    for (const raw of String(text || "").replace(/\r/g, "").split("\n")) {
-      const t = raw.trim();
-      if (!t) {
-        closeList();
-        continue;
-      }
-      const num = t.match(/^(\d+)[.)]\s+(.*)$/);
-      const dot = t.match(/^[-•*]\s+(.*)$/);
-      if (num || dot) {
-        const kind = num ? "ol" : "ul";
-        if (list !== kind) {
-          closeList();
-          html += num && Number(num[1]) > 1 ? `<ol start="${Number(num[1])}">` : `<${kind}>`;
-          list = kind;
-        }
-        html += `<li>${inline(lead(num ? num[2] : dot[1]))}</li>`;
-        continue;
-      }
-      closeList();
-      const head = t.match(/^#{1,6}\s+(.*)$/);
-      const sum = t.match(/^(?:in\s+)?summary\s*[:,]\s*(.*)$/i);
-      if (head) html += `<p class="la-h">${inline(head[1])}</p>`;
-      else if (sum) html += `<p class="la-sum"><strong>Summary</strong> · ${inline(sum[1])}</p>`;
-      else html += `<p>${inline(lead(t))}</p>`;
-    }
-    closeList();
-    // the caret sits at the end of the last line while words are still arriving
-    if (live) html = html.replace(/(<\/(?:p|li)>)((?:<\/[ou]l>)?)$/, '<span class="la-caret" aria-hidden="true"></span>$1$2') || '<span class="la-caret" aria-hidden="true"></span>';
-    el.innerHTML = html;
-    el.raw = String(text || "");
-    el.classList.add("rich", "la2");
-    el.classList.remove("la");
-  }
-
-  /* ---------- an answer being written: thinking, then words as they arrive, then Stop/Retry ---------- */
-
-  let writing = null;
-  function setWriting(on) {
-    document.querySelectorAll(".lc-composer").forEach((c) => c.classList.toggle("is-writing", on));
-  }
-  const nearBottom = (log) => !log || log.scrollHeight - log.scrollTop - log.clientHeight < 120;
-  function thinkingHtml() {
-    const where = state.piece ? `<span class="la-think-where">${esc(readingLine())}</span>` : "";
-    return `<span class="la-think" aria-hidden="true"><i></i><i></i><i></i></span>${where}<span class="visually-hidden">Lune is thinking</span>`;
-  }
-  /** A whole answer that arrived at once is shown at reading pace, already formatted. */
-  async function paceIn(full, onToken, signal) {
-    if (window.LuneFX?.reduced?.()) return onToken(full);
-    const parts = String(full).match(/\s*\S+/g) || [String(full)];
-    const per = Math.max(1, Math.ceil(parts.length / 40));
-    for (let i = 0; i < parts.length && !signal.aborted; i += per) {
-      onToken(parts.slice(i, i + per).join(""));
-      await new Promise((r) => requestAnimationFrame(r));
-    }
-  }
-  /**
-   * Write a model's answer into `el` as it arrives. `run({signal, onToken})`
-   * calls the model. Resolves to { text, stopped, error }.
-   */
-  async function streamAnswer(el, run) {
-    writing?.abort();
-    const ctl = new AbortController();
-    writing = ctl;
-    setWriting(true);
-    const log = el.closest(".chat-log, .ask-log");
-    el.classList.add("la-thinking");
-    el.setAttribute("aria-busy", "true");
-    el.innerHTML = thinkingHtml();
-    let text = "";
-    let raf = 0;
-    let error = null;
-    const paint = () => {
-      raf = 0;
-      if (!el.isConnected) return;
-      const stick = nearBottom(log);
-      el.classList.remove("la-thinking");
-      richText(el, text, { live: true });
-      if (stick && log) log.scrollTop = log.scrollHeight;
-    };
-    const onToken = (t) => {
-      if (ctl.signal.aborted) return;
-      text += t;
-      if (!raf) raf = requestAnimationFrame(paint);
-    };
-    const stopped = new Promise((_, reject) => ctl.signal.addEventListener("abort", () => reject(Object.assign(new Error("Stopped"), { name: "AbortError" })), { once: true }));
-    try {
-      const final = await Promise.race([run({ signal: ctl.signal, onToken }), stopped]);
-      if (final && !text) await paceIn(final, onToken, ctl.signal);
-      if (final && !ctl.signal.aborted) text = String(final);
-    } catch (err) {
-      if (!ctl.signal.aborted) error = err;
-    }
-    cancelAnimationFrame(raf);
-    const wasStopped = ctl.signal.aborted && !error;
-    if (writing === ctl) {
-      writing = null;
-      setWriting(false);
-    }
-    text = text.trim();
-    el.classList.remove("la-thinking");
-    el.removeAttribute("aria-busy");
-    if (text) richText(el, text);
-    else el.innerHTML = "";
-    return { text, stopped: wasStopped, error };
-  }
-  document.addEventListener("click", (e) => {
-    if (e.target.closest?.(".lc-stop")) {
-      e.preventDefault();
-      writing?.abort();
-      return;
-    }
-    const b = e.target.closest?.(".la-bar");
-    if (!b) return;
-    const [from, to] = b.dataset.bars.split("-").map(Number);
-    const bars = [];
-    for (let n = from; n <= to; n++) bars.push(n);
-    const chat = $("lune-chat");
-    if (chat?.open) chat.close();
-    try {
-      setBarSelection(bars, { open: false, primary: from });
-    } catch {
-      /* the score isn't on screen */
-    }
-  });
-  /** "Reading Für Elise · 3/8 · A minor", and the bars in question. */
-  let readingBars = null;
-  function readingLine() {
-    const p = state.piece;
-    if (!p) return "Lune AI";
-    const title = p.overview?.title || p.title || "this piece";
-    const bits = [title, p.timeSignature || p.overview?.timeSignature, p.notatedKey || p.overview?.key].filter(Boolean);
-    const bars = readingBars || selectedBarsSorted?.() || [];
-    if (bars.length) bits.push(bars.length > 1 ? `bars ${bars[0]}–${bars[bars.length - 1]}` : `bar ${bars[0]}`);
-    return `Reading ${bits.join(" · ")}`;
-  }
-
-  /** Grow the text box with what is typed, send on Enter, and only enable Send when there is text. */
-  function wireComposer(prefix, onSend) {
-    const input = $(`${prefix}-input`);
-    const send = document.querySelector(`#${prefix}-composer .lc-send`);
-    const talk = $(`${prefix}-talk`);
-    const fit = () => {
-      input.style.height = "auto";
-      input.style.height = `${Math.min(140, input.scrollHeight)}px`;
-      const has = !!input.value.trim();
-      send.hidden = !has;
-      send.disabled = !has;
-      if (talk) talk.hidden = has;
-    };
-    input.addEventListener("input", fit);
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
-        e.preventDefault();
-        // while Lune is still writing, the words wait in the box
-        if (input.value.trim() && !writing) onSend();
-      }
-    });
-    return fit;
-  }
-
-  /*
-   * Dictation, drawn as a live waveform: the bars move with your voice, the
-   * timer counts, and Done keeps the words in the box to check before sending.
-   */
-  async function dictate(prefix) {
-    const input = $(`${prefix}-input`);
-    const composer = $(`${prefix}-composer`);
-    const ui = $(`${prefix}-listen`);
-    if (!P()?.canListenForWords?.()) {
-      toast(cloudAccount() ? "Voice isn’t available in this browser. Type instead." : "This browser has no voice input of its own. Sign in (free) and Lune AI listens for you, or type.");
-      input.focus();
-      return;
-    }
-    const canvas = ui.querySelector(".lc-wave");
-    const timer = ui.querySelector(".lc-timer");
-    const ctx = canvas.getContext("2d");
-    const bars = new Array(40).fill(0.03);
-    let lastPush = 0;
-    const fit = () => {
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
-      canvas.width = Math.max(60, canvas.clientWidth * dpr);
-      canvas.height = Math.max(20, canvas.clientHeight * dpr);
-    };
-    let level = 0;
-    let fake = true;
-    let cancelled = false;
-    const started = performance.now();
-    let raf = 0;
-    const draw = () => {
-      const now = performance.now();
-      // without a level from the microphone (the browser's own recognition), the wave breathes
-      const v = fake ? 0.1 + 0.08 * Math.abs(Math.sin(now / 260)) : level;
-      // a new bar every 60 ms scrolls in from the right, like a voice memo
-      if (now - lastPush > 60) {
-        lastPush = now;
-        bars.push(Math.max(0.03, Math.min(1, v * 1.4)));
-        bars.shift();
-      }
-      const w = canvas.width;
-      const h = canvas.height;
-      ctx.clearRect(0, 0, w, h);
-      const step = w / bars.length;
-      const bw = Math.max(2, step * 0.42);
-      ctx.fillStyle = getComputedStyle(canvas).color || "#fff";
-      bars.forEach((b, i) => {
-        const bh = Math.max(bw, b * h * 0.92);
-        ctx.globalAlpha = 0.3 + 0.7 * (i / bars.length);
-        const x = i * step + (step - bw) / 2;
-        const y = (h - bh) / 2;
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(x, y, bw, bh, bw / 2);
-        else ctx.rect(x, y, bw, bh);
-        ctx.fill();
-      });
-      const sec = Math.floor((now - started) / 1000);
-      timer.textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
-      raf = requestAnimationFrame(draw);
-    };
-    composer.hidden = true;
-    ui.hidden = false;
-    fit();
-    raf = requestAnimationFrame(draw);
-    const finish = (e) => {
-      const act = e.target.closest?.("[data-listen]")?.dataset.listen;
-      if (!act) return;
-      if (act === "cancel") cancelled = true;
-      P()?.stopHearing?.();
-    };
-    ui.addEventListener("click", finish);
-    let heard = "";
-    try {
-      const said = await P().hearPhrase({
-        fast: true,
-        onPartial: (t) => {
-          if (!/^Listening|^Writing/.test(t)) input.value = t;
-        },
-        onLevel: (v) => {
-          fake = false;
-          level = v;
-        },
-      });
-      if (!cancelled) input.value = said || input.value;
-      if (!cancelled && !said) toast("Lune didn’t catch that. Try again, or type.");
-      if (!cancelled && said) heard = said;
-    } catch (err) {
-      toast(err.message || "Type instead.");
-    } finally {
-      cancelAnimationFrame(raf);
-      ui.removeEventListener("click", finish);
-      ui.hidden = true;
-      composer.hidden = false;
-      input.dispatchEvent(new Event("input"));
-      input.focus();
-    }
-    // once you stop speaking, it is sent, as in ChatGPT's voice input
-    if (heard) $(`${prefix}-form`)?.requestSubmit();
-  }
-
-  document.addEventListener("click", (e) => {
-    if (e.target.closest?.(".lc-voice-toggle")) toggleVoiceReplies();
-  });
-  /* Voice replies: when on, Lune reads every answer aloud (a choice kept in this browser). */
-  const voiceReplies = () => {
-    try {
-      return localStorage.getItem("lune.voiceReplies") === "1";
-    } catch {
-      return false;
-    }
-  };
-  function voiceToggleHtml(id) {
-    const on = voiceReplies();
-    return `<button type="button" class="lc-tool lc-voice-toggle" id="${id}" aria-pressed="${on}" aria-label="Voice replies" title="Voice replies: Lune reads its answers aloud">${on ? ICON.speak : ICON.mute}</button>`;
-  }
-  function toggleVoiceReplies() {
-    const on = !voiceReplies();
-    try {
-      localStorage.setItem("lune.voiceReplies", on ? "1" : "0");
-    } catch {
-      /* private mode */
-    }
-    document.querySelectorAll(".lc-voice-toggle").forEach((b) => {
-      b.setAttribute("aria-pressed", String(on));
-      b.innerHTML = on ? ICON.speak : ICON.mute;
-    });
-    toast(on ? "Voice replies on: Lune reads its answers aloud" : "Voice replies off");
-    if (!on) P()?.stopSpeaking?.();
-  }
-  /** After an answer was streamed in: read it aloud too, when voice replies are on. */
-  function voiceAfter(text) {
-    if (text && voiceReplies() && !talking) P()?.speak?.(String(text).replace(/\*\*/g, ""));
-  }
-  function sayIfVoice(text) {
-    // voice chat speaks for itself; this is for typed questions
-    if (text && voiceReplies() && !talking) P()?.speak?.(text);
-  }
-
-  /*
-   * Talk with Lune: a voice conversation. Lune listens, answers out loud, then
-   * listens again, with the orb showing which it is doing. The words also land
-   * in the conversation, so nothing said is lost.
-   */
-  let talking = null;
-  async function openTalk({ answer, title = "Lune AI" }) {
-    if (!P()?.canListenForWords?.()) {
-      toast(cloudAccount() ? "Voice isn’t available in this browser." : "This browser has no voice input of its own. Sign in (free) to talk with Lune AI.");
-      return;
-    }
-    let d = $("lune-talk");
-    if (!d) {
-      d = document.createElement("dialog");
-      d.id = "lune-talk";
-      d.className = "lune-talk";
-      d.setAttribute("aria-label", "Talk with Lune");
-      // as in ChatGPT's voice mode: the orb, a line of caption, and two round buttons
-      d.innerHTML = `<div class="lt-top"><span class="fx-shiny lt-title"></span></div>
-        <div class="lt-orb" id="lt-orb"></div>
-        <p class="lt-state" id="lt-state" aria-live="polite">Listening</p>
-        <span class="lw-bar lt-bar" aria-hidden="true"><i></i></span>
-        <p class="lt-caption" id="lt-caption"></p>
-        <div class="lt-actions">
-          <button type="button" class="lt-round" data-talk="tap" aria-pressed="false" aria-label="Pause listening">${ICON.mic}</button>
-          <button type="button" class="lt-round lt-end" data-talk="end" aria-label="End voice chat">${ICON.close}</button>
-        </div>`;
-      document.body.appendChild(d);
-    }
-    d.querySelector(".lt-title").textContent = title;
-    if (!d.open) d.showModal();
-    const orbHost = d.querySelector("#lt-orb");
-    orbHost.innerHTML = "";
-    const orb = window.LuneFX.orb(orbHost);
-    const stateEl = d.querySelector("#lt-state");
-    const cap = d.querySelector("#lt-caption");
-    const tapBtn = d.querySelector('[data-talk="tap"]');
-    const run = { live: true };
-    talking = run;
-    const setState = (m, label) => {
-      orb.setMode(m);
-      stateEl.textContent = label;
-      // the mic button pauses listening, or starts it again
-      const paused = m === "idle";
-      tapBtn.setAttribute("aria-pressed", String(paused));
-      tapBtn.setAttribute("aria-label", paused ? "Start listening" : "Pause listening");
-      tapBtn.classList.toggle("off", paused);
-    };
-    const end = () => {
-      run.live = false;
-      try { P()?.stopHearing?.(); } catch { /* already stopped */ }
-      try { P()?.stopSpeaking?.(); } catch { /* already quiet */ }
-      try { orb.destroy(); } catch { /* gone */ }
-      d.classList.remove("is-thinking");
-      if (d.open) d.close();
-      talking = null;
-    };
-    d.onclick = (e) => {
-      const a = e.target.closest?.("[data-talk]")?.dataset.talk;
-      if (a === "end") end();
-      if (a === "tap") {
-        if (orbHost.dataset.mode === "idle") {
-          run.live = true;
-          loop();
-        } else {
-          run.live = false;
-          P()?.stopHearing?.();
-          P()?.stopSpeaking?.();
-          setState("idle", "Paused · tap the microphone to talk");
-        }
-      }
-      // tapping the orb while Lune speaks lets you cut in
-      if (e.target.closest?.("#lt-orb") && orbHost.dataset.mode === "speaking") P()?.stopSpeaking?.();
-    };
-    d.oncancel = (e) => {
-      e.preventDefault();
-      end();
-    };
-    let misses = 0;
-    async function loop() {
-      while (run.live) {
-        setState("listening", "Listening");
-        let said = "";
-        try {
-          said = await P().hearPhrase({ fast: true, onLevel: (v) => orb.setLevel(v), onPartial: (t) => !/^Listening|^Writing/.test(t) && (cap.textContent = t) });
-        } catch (err) {
-          setState("idle", err.message || "Lune couldn’t hear that.");
-          return;
-        }
-        orb.setLevel(0);
-        if (!run.live) return;
-        if (!said) {
-          // honest about silence: nothing is sent, and Lune says so
-          cap.textContent = "Lune didn’t catch that.";
-          if (++misses >= 2) {
-            run.live = false;
-            return setState("idle", "Tap the microphone when you’re ready");
-          }
-          continue;
-        }
-        misses = 0;
-        cap.textContent = said;
-        setState("thinking", "Thinking");
-        d.classList.add("is-thinking");
-        let text = "";
-        try {
-          // never wait forever on a slow model
-          text = await Promise.race([answer(said), new Promise((_, rej) => setTimeout(() => rej(new Error("slow")), 25000))]);
-        } catch {
-          text = "That took too long. Ask me again in a moment.";
-        }
-        d.classList.remove("is-thinking");
-        if (!run.live) return;
-        // the words appear as Lune says them, like live captions
-        const words = String(text).replace(/\*\*/g, "").split(/(\s+)/);
-        cap.textContent = "";
-        cap.classList.add("live");
-        setState("speaking", "Speaking · tap the orb to cut in");
-        await P().speakAndWait(text, {
-          onLevel: (v) => orb.setLevel(v),
-          onProgress: (f) => {
-            cap.textContent = words.slice(0, Math.ceil(f * words.length)).join("");
-            cap.scrollTop = cap.scrollHeight; // the newest words stay in view, as live captions do
-          },
-        });
-        cap.textContent = words.join("");
-        cap.classList.remove("live");
-        orb.setLevel(0);
-      }
-    }
-    loop();
-  }
 
   function ensurePanel() {
     let p = $("ask-lune");
@@ -1268,230 +412,83 @@ Rules:
     p.setAttribute("aria-label", "Ask Lune");
     p.innerHTML = `
       <header class="ask-head">
-        <button type="button" class="lc-tool" id="ask-close" aria-label="Close Ask Lune">${ICON.close}</button>
-        <div class="ask-id">
-          <p class="ask-title"><span class="fx-shiny">Lune AI</span></p>
+        <div>
+          <p class="ask-title">Ask Lune</p>
           <p class="ask-where" id="ask-where"></p>
         </div>
-        <span class="ask-head-end">${voiceToggleHtml("ask-voice")}<button type="button" class="lc-tool" id="ask-info" aria-expanded="false" aria-controls="ask-fine" aria-label="About these answers">${ICON.info}</button></span>
+        <button type="button" class="icon-btn" id="ask-close" aria-label="Close Ask Lune">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </button>
       </header>
-      <p class="ask-fine" id="ask-fine" hidden></p>
       <div class="ask-log" id="ask-log" role="log" aria-live="polite"></div>
       <div class="ask-chips" id="ask-chips"></div>
-      <div class="ask-ai-offer" id="ask-ai-offer" hidden></div>
-      <form class="ask-form" id="ask-form" autocomplete="off">${composerHtml("ask", "Ask about this bar…")}</form>`;
+      <form class="ask-form" id="ask-form" autocomplete="off">
+        <button type="button" class="icon-btn ask-mic" id="ask-mic" aria-pressed="false" aria-label="Speak">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </button>
+        <label class="visually-hidden" for="ask-input">Ask about a bar, or leave a remark</label>
+        <input id="ask-input" type="text" maxlength="400" placeholder="Ask, or say “bar 12, keep the thumb light”">
+        <button type="submit" class="primary ask-send">Send</button>
+      </form>
+      <p class="ask-fine" id="ask-fine"></p>`;
     document.body.appendChild(p);
     p.querySelector("#ask-close").addEventListener("click", close);
-    p.querySelector("#ask-info").addEventListener("click", (e) => {
-      const f = $("ask-fine");
-      f.hidden = !f.hidden;
-      e.currentTarget.setAttribute("aria-expanded", f.hidden ? "false" : "true");
-    });
-    const send = () => {
-      const input = $("ask-input");
-      const text = input.value.trim();
-      if (!text || writing) return;
-      input.value = "";
-      fitAsk();
-      ask(text);
-    };
-    const fitAsk = wireComposer("ask", send);
     p.querySelector("#ask-form").addEventListener("submit", (e) => {
       e.preventDefault();
-      send();
+      const input = $("ask-input");
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = "";
+      ask(text);
     });
     p.querySelector("#ask-mic").addEventListener("click", speakInto);
-    p.querySelector("#ask-talk").addEventListener("click", () =>
-      openTalk({ title: "Lune AI", answer: async (said) => (await ask(said)) || "" })
-    );
-    p.querySelector("#ask-ai-offer").addEventListener("click", (e) => {
-      if (e.target.closest("[data-ai-on]")) turnOnDeviceAI(p.querySelector("#ask-ai-offer"));
-      if (e.target.closest("[data-ai-account]")) {
-        close();
-        window.LuneOnboard?.openCreateAccount?.();
-      }
-    });
     p.querySelector("#ask-chips").addEventListener("click", (e) => {
-      const t = e.target.closest("button[data-task]");
-      if (t) return runTask(t.dataset.task, selectedBarsSorted()[0] || null);
       const b = e.target.closest("button[data-q]");
       if (b) ask(b.dataset.q);
     });
-    p.querySelector("#ask-log").addEventListener("click", (e) => {
-      const b = e.target.closest("[data-msg-act]");
-      if (!b) return;
-      const msg = b.closest(".ask-row")?.querySelector(".ask-msg");
-      const text = String(msg?.raw || msg?.textContent || "").replace(/\*\*/g, "");
-      if (b.dataset.msgAct === "speak") P()?.speak?.(text);
-      if (b.dataset.msgAct === "copy") {
-        navigator.clipboard?.writeText(text).then(() => toast("Copied"), () => toast("Couldn’t copy"));
-      }
-    });
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && !p.hidden && !$("lune-talk")?.open) close();
+      if (e.key === "Escape" && !p.hidden) close();
     });
     return p;
   }
 
-  /** One message. Yours sit on the right; Lune's read like a page, with Listen and Copy under them. */
-  function line(who, text, { src = "" } = {}) {
+  function line(who, text) {
     const log = $("ask-log");
-    $("ask-empty")?.remove();
-    const chipsEl = $("ask-chips");
-    if (chipsEl) chipsEl.hidden = true;
-    const row = document.createElement("div");
-    row.className = `ask-row ask-row-${who}`;
-    // Lune's answers are formatted (paragraphs, numbered steps), so they need a block, not a paragraph
-    const el = document.createElement(who === "lune" ? "div" : "p");
+    const el = document.createElement("p");
     el.className = `ask-msg ask-from-${who}`;
-    if (who === "lune" && text && !/^Thinking/.test(text)) richText(el, text);
-    else el.textContent = text;
-    if (who === "lune") {
-      const body = document.createElement("div");
-      body.className = "ask-body";
-      body.appendChild(el);
-      // where it came from, said quietly under the answer, beside its actions
-      if (src) {
-        const s = document.createElement("p");
-        s.className = `ask-src ask-src-${src === "model" ? "ai" : "rules"}`;
-        s.textContent = src === "model" ? "Lune AI · can be wrong" : src === "rules" ? "Built-in answer, read from the score" : "Lune";
-        body.appendChild(s);
-      }
-      row.appendChild(body);
-    } else row.appendChild(el);
-    log.appendChild(row);
-    requestAnimationFrame(() => row.classList.add("in"));
+    el.textContent = text;
+    log.appendChild(el);
     log.scrollTop = log.scrollHeight;
     return el;
   }
-  function addActions(el) {
-    const bar = document.createElement("div");
-    bar.className = "ask-actions";
-    bar.innerHTML = `<button type="button" class="lc-mini" data-msg-act="speak" aria-label="Read this answer aloud">${ICON.speak}</button><button type="button" class="lc-mini" data-msg-act="copy" aria-label="Copy this answer">${ICON.copy}</button>`;
-    const src = el.parentElement.querySelector(".ask-src");
-    if (src) bar.appendChild(src);
-    el.parentElement.appendChild(bar);
-  }
+
   function paintContext() {
     const fine = $("ask-fine");
     if (fine) {
-      // the short version; the ⓘ button shows it
       fine.textContent = providers.endpoint.available()
-        ? `Your own model (${aiSettings().model}), with this bar’s facts and your remarks.`
-        : providers.account.available()
-          ? `Lune AI is on: ${aiName().replace(/ Instruct$/, "")}. Lune’s server stores none of it; chats are saved only in this browser.`
-          : providers.device.available()
-          ? `Lune AI is on, in this browser. Nothing leaves this device.`
-          : "Built-in answers from the score, not from a language model. Sign in for Lune AI.";
+        ? `Local model connected (${aiSettings().model}). Questions go to it with this bar’s score facts and your remarks.`
+        : "Local model not connected. These are Lune’s built-in answers from its reading of the score and your remarks. Nothing is sent anywhere. Connect a model in Settings.";
     }
-    paintDeviceOffer();
     const sel = selectedBarsSorted();
     const where = $("ask-where");
     const title = state.piece?.overview?.title || state.piece?.title || "";
-    const who = providers.endpoint.available() ? aiSettings().model : providers.account.available() ? aiName().replace(/ Instruct$/, "") : providers.device.available() ? "on this device" : "built-in answers";
-    where.textContent = `${sel.length ? `Bar ${sel.join(", ")}` : title || "This piece"} · ${who}`;
-    // suggestions only start a conversation, as in Claude or ChatGPT; with Lune AI on, its actions replace the built-in ones
-    const fresh = !(sel.length ? historyFor(sel[0]) : history().filter((h) => !h.bar)).length;
-    const builtIn = sel.length
+    where.textContent = sel.length ? `${title} · bar ${sel.join(", ")}` : `${title} · tap a bar to ask about it`;
+    const chips = sel.length
       ? [
           ["How do I practise this bar?", "How to practise"],
           ["What is the fingering?", "Fingering"],
+          ["What notes are in this bar?", "Notes"],
           ["Make a plan", "Add to my plan"],
         ]
       : [
           ["Which bars are hardest?", "Hardest bars"],
           ["Make a plan", "Make a plan"],
+          ["What key and tempo?", "Key and tempo"],
         ];
-    const modelChips = active()
-      ? Object.entries(MODEL_ACTIONS)
-          .filter(([, a]) => a.bar === !!sel.length)
-          .map(([task, a]) => `<button type="button" class="ask-chip-ai" data-task="${task}">${esc(a.label)}</button>`)
-          .join("")
-      : "";
-    const chips = active() ? builtIn.filter(([q]) => q === "Make a plan") : builtIn;
-    $("ask-chips").hidden = !fresh;
     $("ask-chips").innerHTML =
-      modelChips +
-      chips.map(([q, label]) => `<button type="button" data-q="${esc(q)}">${esc(label)}</button>`).join("");
-  }
-
-  /* ---------- turning Lune AI on (ask first, show the size, then download) ---------- */
-
-  /** Offer Lune AI in the panel when no model is connected. Nothing downloads until the button is pressed. */
-  async function paintDeviceOffer() {
-    const box = $("ask-ai-offer");
-    if (!box || box.dataset.busy) return;
-    if (active()) {
-      box.hidden = true;
-      return;
-    }
-    // Lune AI comes with an account: guests are invited to make one, no download
-    if (aiServer()) {
-      const st = store()?.status?.() || {};
-      box.innerHTML = st.signedIn
-        ? `<p><strong>Lune AI</strong> needs your account to be confirmed. Sign in with the code Lune emails you, and it turns on.</p>
-           <button type="button" class="quiet" data-ai-account="signin">Sign in</button>`
-        : `<p><strong>Lune AI</strong> answers with a language model when you have a Lune account. The account is free, and nothing is downloaded.</p>
-           <button type="button" class="quiet" data-ai-account="create">Create a free account</button>`;
-      box.hidden = false;
-      return;
-    }
-    if (!D()) {
-      box.hidden = true;
-      return;
-    }
-    const plan = await D().plan();
-    if (!plan.supported) {
-      box.hidden = true;
-      return;
-    }
-    box.innerHTML = deviceOfferHtml(plan);
-    box.hidden = false;
-  }
-
-  function deviceOfferHtml(plan) {
-    const size = esc(D().sizeText(plan.bytes));
-    const slow =
-      plan.device === "wasm" ? " This browser has no WebGPU, so it runs on the processor and each answer takes noticeably longer." : "";
-    return `<p><strong>Lune AI</strong> answers with a language model that runs in this browser. It downloads ${size} once.</p>
-      <details class="ask-ai-more"><summary>What this means</summary>
-        <p>The model is ${esc(plan.name)} (${esc(plan.licence)} licence), fetched from Hugging Face and kept in this browser.
-        After that it works offline and nothing you ask leaves this device. It answers from Lune’s reading of the score and your remarks.${slow}
-        It is a general model, not one trained for Lune, and it can be wrong.</p></details>
-      <button type="button" class="quiet" data-ai-on>Download ${size} and turn on</button>`;
-  }
-
-  /** Download the model with a progress bar; used by Ask Lune and Settings. */
-  async function turnOnDeviceAI(box, { onDone } = {}) {
-    if (!D()) return;
-    box.dataset.busy = "1";
-    box.innerHTML = `<p class="ask-ai-progress-label" role="status">Downloading Lune AI…</p>
-      <progress max="1" value="0" aria-label="Lune AI download"></progress>`;
-    const bar = box.querySelector("progress");
-    const label = box.querySelector(".ask-ai-progress-label");
-    let lastPct = -1;
-    const stop = D().on((ev) => {
-      if (ev.type !== "progress" || !ev.total) return;
-      bar.value = ev.loaded / ev.total;
-      const pct = Math.floor((100 * ev.loaded) / ev.total);
-      // update the spoken status in tens so a screen reader is not flooded
-      if (Math.floor(pct / 10) !== Math.floor(lastPct / 10)) label.textContent = `Downloading Lune AI: ${pct}% of ${D().sizeText(ev.total)}`;
-      lastPct = pct;
-    });
-    try {
-      await D().load();
-      label.textContent = "Lune AI is on. Ask anything about the piece or a bar.";
-      bar.remove();
-      paintContext();
-      onDone?.(true);
-    } catch (err) {
-      label.textContent = `Lune AI could not start here (${err.message || "unknown error"}). Ask Lune keeps using its built-in answers.`;
-      bar.remove();
-      onDone?.(false);
-    } finally {
-      stop();
-      delete box.dataset.busy;
-    }
+      chips.map(([q, label]) => `<button type="button" data-q="${esc(q)}">${esc(label)}</button>`).join("") +
+      // the coach's full step-by-step notes for the selected bars, written into the bar panel
+      (sel.length ? `<button type="button" id="btn-plan">Step-by-step notes</button>` : "");
   }
 
   function paintHistory() {
@@ -1500,186 +497,77 @@ Rules:
     const sel = selectedBarsSorted();
     const rows = (sel.length ? historyFor(sel[0]) : history().filter((h) => !h.bar)).slice(-6);
     if (!rows.length) {
-      const empty = document.createElement("div");
-      empty.className = "ask-empty";
-      empty.id = "ask-empty";
-      empty.innerHTML = `<div class="ask-empty-orb"></div><p class="ask-empty-h">${sel.length ? `What about bar ${sel[0]}?` : "Ask about this piece"}</p><p class="ask-empty-sub">${sel.length ? "Ask, leave a remark, or say how it went." : "Or tap a bar first."}</p>`;
-      log.appendChild(empty);
-      const orb = window.LuneFX?.orb(empty.querySelector(".ask-empty-orb"));
-      orb?.setMode("idle");
+      line("lune", sel.length ? `Bar ${sel[0]}. Ask me anything about it, leave a remark, or tell me how it went.` : "Ask about this piece, or tap a bar first.");
       return;
     }
     for (const h of rows) {
       line("you", h.q);
-      const a = line("lune", h.a, { src: h.via === "model" ? "model" : "" });
-      if (h.via === "model") {
-        a.dataset.via = "model";
-        richText(a, h.a);
-      }
-      addActions(a);
-      if (h.note) line("lune", h.note).classList.add("ask-note");
+      line("lune", h.a);
     }
-  }
-
-  /** Bars named in a question: "bars 1 to 4", "the first four bars", "the last 2 bars", "the first line". */
-  const WORDNUM = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, twelve: 12 };
-  function barsInQuestion(text) {
-    const t = String(text || "").toLowerCase();
-    const all = Object.keys(state.piece?.debriefs || {}).map(Number).filter((n) => n > 0).sort((a, b) => a - b);
-    if (!all.length) return [];
-    const span = (a, b) => all.filter((n) => n >= Math.min(a, b) && n <= Math.max(a, b)).slice(0, 12);
-    let m = t.match(/\bbars?\s+(\d+)\s*(?:-|–|to|through|until)\s*(?:bar\s*)?(\d+)/);
-    if (m) return span(+m[1], +m[2]);
-    m = t.match(/\b(first|opening|last|final)\s+(\d+|two|three|four|five|six|seven|eight|nine|ten|twelve)\s+bars?\b/);
-    if (m) {
-      const n = Math.min(12, Number(m[2]) || WORDNUM[m[2]] || 0);
-      return /first|opening/.test(m[1]) ? all.slice(0, n) : all.slice(-n);
-    }
-    m = t.match(/\b(first|second|third|top|opening|last)\s+(line|system|row)\b/);
-    if (m) {
-      try {
-        const rows = new Map();
-        state.osmd.GraphicSheet.MeasureList.forEach((col) => {
-          const gm = col.find(Boolean);
-          const num = gm?.parentSourceMeasure?.MeasureNumber;
-          const y = Math.round(gm?.ParentStaffLine?.PositionAndShape?.AbsolutePosition?.y ?? gm?.PositionAndShape?.AbsolutePosition?.y ?? 0);
-          if (num == null || num < 1) return;
-          if (!rows.has(y)) rows.set(y, []);
-          rows.get(y).push(num);
-        });
-        const lines = [...rows.entries()].sort((a, b) => a[0] - b[0]).map(([, l]) => l);
-        const pick = { first: 0, top: 0, opening: 0, second: 1, third: 2, last: lines.length - 1 }[m[1]];
-        return (lines[pick] || []).slice(0, 12);
-      } catch {
-        return all.slice(0, 4);
-      }
-    }
-    m = t.match(/\bbars\s+(\d+(?:\s*(?:,|and)\s*\d+)+)/);
-    if (m) return [...new Set(m[1].split(/\s*(?:,|and)\s*/).map(Number))].filter((n) => all.includes(n)).slice(0, 12);
-    return [];
-  }
-  /** Built from the score alone: one line a bar, then what to do first. */
-  function rangeReply(bars) {
-    const lines = [`One at a time, from bar ${bars[0]} to bar ${bars[bars.length - 1]}.`];
-    const scored = [];
-    for (const b of bars) {
-      const d = debriefFor(b) || {};
-      const why = (d.difficulty?.reasons || []).slice(0, 2).join(", ");
-      const tip = Array.isArray(d.advice) ? d.advice[0] : d.advice;
-      const what = why || d.headline || (d.rh?.length || d.lh?.length ? "steady, nothing unusual" : "rests");
-      lines.push(`@Bar ${b} ${what}${tip ? ` · ${String(tip).replace(/\.$/, "")}` : ""}`);
-      scored.push([b, Number(d.difficulty?.score) || 0]);
-    }
-    const hard = scored.filter(([, x]) => x > 0).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([b]) => b);
-    lines.push(`Summary: ${hard.length ? `Start with bar${hard.length > 1 ? "s" : ""} ${hard.join(" and ")}, hands separately and slowly, then` : "Play them"} as one phrase at 60, adding four on the metronome each time it is clean.`);
-    return lines.join("\n");
-  }
-  async function rangeContext(bars) {
-    const ctx = await buildContext(bars[0]);
-    const slim = (list) => (list || []).map((n) => ({ note: n.letter || n.pitch, beat: n.offset, finger: n.fingering ?? null }));
-    ctx.barsInQuestion = bars.map((b) => {
-      const d = debriefFor(b) || {};
-      return { number: b, rightHand: slim(d.rh).slice(0, 14), leftHand: slim(d.lh).slice(0, 14), difficulty: d.difficulty?.reasons || [], advice: [].concat(d.advice || []).slice(0, 2) };
-    });
-    delete ctx.neighbouringBars;
-    return ctx;
   }
 
   async function ask(text) {
     ensurePanel();
     line("you", text);
     let out;
-    const span = barsInQuestion(text);
-    readingBars = span.length > 1 ? span : null;
     try {
-      out = span.length > 1 ? { question: true, bar: span[0], a: rangeReply(span), range: span } : await reply(text);
+      out = await reply(text);
     } catch (err) {
-      out = { a: err?.message || "That didn't work. Try again." };
+      out = { a: err?.message || "That didn't work — try again." };
     }
     // A question may go to the connected model; the built-in answer is the fallback.
-    const model = out.question ? active() : null;
-    // counted before it is saved, so the session that starts here includes it
-    if (out.question) window.LunePlans?.noteActivity?.("question", { key: keyFor(), title: state.piece?.overview?.title || state.piece?.title || "" });
-    let said;
-    if (model) {
-      // the answer's own row appears at once, thinks, then fills in as the words arrive
-      said = line("lune", "", { src: "model" });
-      // a bar just rated hard: ask for what to do about it, not a summary of the bar
-      const asked = out.range
-        ? `${text}\n\nAnswer bar by bar for bars ${out.range.join(", ")} (CONTEXT.barsInQuestion). One line per bar, each starting "@Bar N", saying what is hard in that bar and one concrete way to practise it. Then one line starting "Summary:" with two sentences: what ties these bars together and the order to practise them in. No other text.`
-        : out.saved === "review" ? `${text}\n\nI find this bar hard. Give me concrete steps to practise it, tied to what is in it.` : text;
-      const forBar = out.bar || selectedBarsSorted()[0] || null;
-      const res = await streamAnswer(said, async ({ signal, onToken }) =>
-        model.answer(asked, out.range ? await rangeContext(out.range) : await buildContext(forBar), { signal, onToken })
-      );
-      if (res.stopped) return stoppedAt(said, res.text, { q: text, bar: out.bar || null });
-      if (res.text) {
-        out.a = res.text;
+    if (out.question && providers.endpoint.available()) {
+      const waiting = line("lune", "Thinking…");
+      try {
+        out.a = await providers.endpoint.answer(text, await buildContext(out.bar || selectedBarsSorted()[0] || null));
         out.via = "model";
-        said.dataset.via = "model";
-      } else {
-        out.note = [out.note, fallbackNote(res.error)].filter(Boolean).join(" ");
-        richText(said, out.a);
-        setSrc(said, "rules");
+      } catch {
+        out.note = "The model didn’t answer, so this is Lune’s built-in reply.";
       }
-    } else {
-      // every answer says where it came from: the score through Lune's rules, or a language model
-      said = line("lune", out.a, { src: out.question ? "rules" : "lune" });
+      waiting.remove();
     }
-    remember({ bar: out.bar || null, q: text, a: out.a, note: out.note, via: out.via, t: Date.now() });
-    addActions(said);
-    if (out.via === "model") voiceAfter(out.a);
-    else sayIfVoice(out.a);
+    line("lune", out.a);
     if (out.note) line("lune", out.note).classList.add("ask-note");
-    $("ask-log").scrollTop = $("ask-log").scrollHeight;
+    remember({ bar: out.bar || null, q: text, a: out.a, t: Date.now() });
     if (out.saved) {
       P()?.paintScoreMarks?.();
       if (state.coachOpen) openBarCoach();
     }
-    return out.a;
-  }
-
-  /** A marking tapped on the score: the glossary's answer at once, then Lune AI's, in this piece's context. */
-  async function explainMarking({ label, gloss, question }) {
-    open({});
-    line("you", `What is ${label}?`);
-    const model = active();
-    if (gloss) {
-      const g = line("lune", gloss, { src: "rules" });
-      addActions(g);
-    }
-    if (!model) {
-      if (!gloss) line("lune", "Lune’s glossary doesn’t have that one yet. Sign in and Lune AI explains any marking.", { src: "lune" });
-      return;
-    }
-    const said = line("lune", "", { src: "model" });
-    const res = await streamAnswer(said, async ({ signal, onToken }) => model.answer(question, await buildContext(selectedBarsSorted()[0] || null), { signal, onToken }));
-    if (res.stopped) return stoppedAt(said, res.text, { q: question, bar: null });
-    if (res.text) {
-      said.dataset.via = "model";
-      addActions(said);
-      remember({ bar: null, q: question, a: res.text, via: "model", t: Date.now() });
-      voiceAfter(res.text);
-    } else {
-      said.closest(".ask-row")?.remove();
-      if (!gloss) line("lune", fallbackNote(res.error) || "Lune AI didn’t answer just now.").classList.add("ask-note");
-    }
   }
 
   async function speakInto() {
+    const btn = $("ask-mic");
+    const input = $("ask-input");
     if (listening) return P()?.stopHearing?.();
+    if (!P()?.canListenForWords?.()) {
+      toast("Voice isn’t available in this browser — type instead.");
+      input.focus();
+      return;
+    }
     listening = true;
+    btn.classList.add("on");
+    btn.setAttribute("aria-pressed", "true");
+    input.placeholder = "Listening…";
     try {
-      await dictate("ask");
+      const said = await P().hearPhrase({ onPartial: (t) => (input.value = t) });
+      // The words stay in the box to be corrected before they are sent.
+      input.value = said || "";
+      if (said) {
+        input.focus();
+        toast("Check the words, then press Send");
+      } else toast("Didn’t catch that — try again, or type.");
+    } catch (err) {
+      toast(err.message || "Type instead.");
+      input.focus();
     } finally {
       listening = false;
+      btn.classList.remove("on");
+      btn.setAttribute("aria-pressed", "false");
+      input.placeholder = "Ask, or say “bar 12, keep the thumb light”";
     }
   }
 
-  let opener = null;
   function open({ bar = null } = {}) {
-    const from = document.activeElement;
-    if (from && from !== document.body && !$("ask-lune")?.contains(from)) opener = from;
     if (!state.piece) {
       toast("Open a score first — then ask Lune about any bar.");
       return;
@@ -1701,13 +589,9 @@ Rules:
 
   function close() {
     const p = $("ask-lune");
-    const had = p && !p.hidden && p.contains(document.activeElement);
     if (p) p.hidden = true;
     document.body.classList.remove("ask-open");
     P()?.stopHearing?.();
-    // focus goes back to what opened the panel
-    if (had && opener?.isConnected) opener.focus({ preventScroll: true });
-    opener = null;
   }
 
   /** Keep the panel pointed at the bar that is selected while it is open. */
@@ -1718,478 +602,6 @@ Rules:
     paintHistory();
   }
 
-
-  /* ---------- Chat with Lune: practice in general, not one bar ---------- */
-
-  const CHAT_KEY = "lune.chat.v1";
-  const CHAT_STARTERS = [
-    "What should I practise today?",
-    "Summarise my week",
-    "Make me a 20 minute plan",
-    "How do I stop rushing fast notes?",
-    "How do I practise a trill?",
-  ];
-  /*
-   * Chat history, as in ChatGPT: many conversations, each with its own title,
-   * kept only in this browser (lune.chats.v2). The old single chat (v1) becomes
-   * the first conversation.
-   */
-  const CHATS_KEY = "lune.chats.v2";
-  function chatStore() {
-    let st = null;
-    try {
-      st = JSON.parse(localStorage.getItem(CHATS_KEY) || "null");
-    } catch {
-      st = null;
-    }
-    if (!st || !Array.isArray(st.convs)) {
-      st = { cur: null, convs: [] };
-      try {
-        const old = JSON.parse(localStorage.getItem(CHAT_KEY) || "[]");
-        if (old.length) {
-          const id = `c${Date.now().toString(36)}`;
-          st = { cur: id, convs: [{ id, title: chatTitle(old), t: old[old.length - 1]?.t || Date.now(), msgs: old.slice(-40) }] };
-        }
-      } catch {
-        /* nothing to bring over */
-      }
-    }
-    return st;
-  }
-  function putChats(st) {
-    try {
-      localStorage.setItem(CHATS_KEY, JSON.stringify({ cur: st.cur, convs: st.convs.slice(0, 50) }));
-      localStorage.removeItem(CHAT_KEY);
-    } catch {
-      /* private mode: the chats last for this visit */
-    }
-  }
-  function chatTitle(msgs) {
-    const first = String(msgs.find((m) => m.who === "you")?.text || "New chat").replace(/\s+/g, " ").trim();
-    return first.length > 42 ? `${first.slice(0, 40)}…` : first;
-  }
-  function chatLog() {
-    const st = chatStore();
-    return (st.convs.find((c) => c.id === st.cur)?.msgs || []).slice(-40);
-  }
-  function saveChat(log) {
-    const st = chatStore();
-    if (!log.length) {
-      // an empty log is a new chat; the old one stays in history
-      st.cur = null;
-      return putChats(st);
-    }
-    let c = st.convs.find((x) => x.id === st.cur);
-    if (!c) {
-      c = { id: `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, title: "", t: Date.now(), msgs: [] };
-      st.convs.unshift(c);
-      st.cur = c.id;
-    }
-    c.msgs = log.slice(-40);
-    c.title = chatTitle(c.msgs);
-    c.t = Date.now();
-    // the most recent conversation first
-    st.convs.sort((x, y) => y.t - x.t);
-    putChats(st);
-  }
-  function openConv(id) {
-    const st = chatStore();
-    st.cur = id;
-    putChats(st);
-    paintChat();
-  }
-  function deleteConv(id) {
-    const st = chatStore();
-    st.convs = st.convs.filter((c) => c.id !== id);
-    if (st.cur === id) st.cur = null;
-    putChats(st);
-    paintChat();
-  }
-  function paintHistoryList() {
-    const box = $("chat-hist-list");
-    if (!box) return;
-    const st = chatStore();
-    box.innerHTML = st.convs.length
-      ? st.convs
-          .map(
-            (c) => `<div class="ch-item${c.id === st.cur ? " on" : ""}"><button type="button" data-conv="${esc(c.id)}">${esc(c.title || "New chat")}</button><button type="button" class="ch-del" data-conv-del="${esc(c.id)}" aria-label="Delete “${esc(c.title)}”">${ICON.close}</button></div>`
-          )
-          .join("")
-      : `<p class="ch-empty">Your chats will show here.</p>`;
-  }
-
-  /** What Chat with Lune knows: the pianist's Repertoire, plans, week and goal, and the open piece. */
-  async function buildChatContext(log) {
-    const prefs = store().prefs?.() || {};
-    const pieces = await store().listPieces?.().catch(() => []) || [];
-    const tasks = (store().listTasks?.() || []).slice(0, 12);
-    const week = store().weekSnapshot?.() || null;
-    const cards = await store().listCards?.().catch(() => []) || [];
-    const hardNow = cards
-      .filter((c) => /again|hard/i.test(String(c.last_grade || c.grade || "")))
-      .slice(0, 12)
-      .map((c) => ({ piece: c.piece_key, bar: c.bar, lastRating: c.last_grade || c.grade, nextReview: c.due_at }));
-    const ctx = {
-      repertoire: pieces.slice(0, 30).map((x) => ({ title: x.title, composer: x.composer || null, status: x.status || null, level: x.level || x.grade || null })),
-      plans: tasks.map((t) => ({ piece: t.piece_title || t.piece_key, bars: t.bars, summary: t.plan?.summary || t.notes || null, done: !!t.done })),
-      thisWeek: week ? { daysPractised: week.days, goalDays: week.goalDays, minutes: week.mins, barsRatedGoodOrStrong: week.good, barsRatedHardOrAgain: week.hard, barsWorked: week.barsWorked } : null,
-      barsStillHard: hardNow,
-      goal: { daysPerWeek: prefs.practiceDays || null, minutesPerSession: prefs.practiceMins || null, workingToward: prefs.dreamPiece?.title || null, level: prefs.grade ?? null },
-      fingeringNote: FINGERING_NOTE,
-      conversation: log.slice(-6).map((m) => ({ from: m.who === "you" ? "pianist" : "lune", text: String(m.text).slice(0, 600) })),
-    };
-    if (state.piece) {
-      const p = state.piece;
-      ctx.openPiece = { title: p.overview?.title || p.title || null, composer: p.overview?.composer || p.composer || null, hardestBars: hardest(5) };
-    } else {
-      ctx.openPiece = null;
-      ctx.noScoreOpen = "No score is open, so there are no bar numbers to refer to. Answer as general piano teaching and do not name any bar.";
-    }
-    return ctx;
-  }
-
-  function chatLine(who, text, { via } = {}) {
-    const log = $("chat-log");
-    const row = document.createElement("div");
-    row.className = `chat-row chat-from-${who}`;
-    // Lune's answers are formatted (paragraphs, lists), so they need a block, not a paragraph
-    const bubble = document.createElement(who === "lune" ? "div" : "p");
-    bubble.className = "chat-bubble";
-    bubble.textContent = text;
-    row.appendChild(bubble);
-    if (who === "lune" && via === "model") chatActions(bubble);
-    log.appendChild(row);
-    requestAnimationFrame(() => row.classList.add("in"));
-    log.scrollTop = log.scrollHeight;
-    return bubble;
-  }
-  /** Read aloud, copy and (for the newest answer) try again, as under a ChatGPT answer. */
-  function chatActions(bubble, { retry, note = false } = {}) {
-    const row = bubble.parentElement;
-    row.querySelector(".ask-actions")?.remove();
-    const bar = document.createElement("div");
-    bar.className = "ask-actions";
-    // a note ("Stopped.", an error) only offers to try again
-    bar.innerHTML = `${
-      note ? "" : `<button type="button" class="lc-mini chat-say" aria-label="Read this answer aloud">${ICON.speak}</button><button type="button" class="lc-mini chat-copy" aria-label="Copy this answer">${ICON.copy}</button>`
-    }${retry ? `<button type="button" class="lc-mini chat-retry" aria-label="Try again">${ICON.retry}</button>` : ""}`;
-    if (!bar.innerHTML) return;
-    const words = () => String(bubble.raw || bubble.textContent).replace(/\*\*/g, "");
-    bar.querySelector(".chat-say")?.addEventListener("click", () => P()?.speak?.(words()));
-    bar.querySelector(".chat-copy")?.addEventListener("click", () => navigator.clipboard?.writeText(words()).then(() => toast("Copied")).catch(() => toast("Couldn’t copy")));
-    bar.querySelector(".chat-retry")?.addEventListener("click", retry);
-    row.appendChild(bar);
-  }
-
-  function ensureChat() {
-    let d = $("lune-chat");
-    if (d) return d;
-    d = document.createElement("dialog");
-    d.id = "lune-chat";
-    d.className = "lune-chat";
-    d.setAttribute("aria-labelledby", "chat-h");
-    d.innerHTML = `
-      <aside class="chat-hist" id="chat-hist" aria-label="Your chats">
-        <div class="ch-top"><p class="ch-h">Chats</p><button type="button" class="lc-tool ch-close" data-hist-close aria-label="Hide chats">${ICON.close}</button></div>
-        <button type="button" class="ch-new" data-chat-new>${ICON.add}<span>New chat</span></button>
-        <div class="ch-list" id="chat-hist-list"></div>
-        <p class="ch-foot">Saved only in this browser.</p>
-      </aside>
-      <div class="chat-main">
-      <header class="chat-head">
-        <span class="chat-lead"><button type="button" class="lc-tool" id="chat-close" aria-label="Close the chat">${ICON.close}</button><button type="button" class="lc-tool" id="chat-hist-btn" aria-label="Your chats" aria-expanded="false" aria-controls="chat-hist">${ICON.menu}</button></span>
-        <div class="chat-id">
-          <h2 id="chat-h"><span class="fx-shiny">Lune AI</span></h2>
-          <p class="chat-sub" id="chat-sub"></p>
-        </div>
-        <span class="ask-head-end">${voiceToggleHtml("chat-voice")}<button type="button" class="lc-tool chat-clear" id="chat-clear" aria-label="New chat"><svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><path d="M12 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6M17.5 3.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span>
-      </header>
-      <div class="chat-log" id="chat-log" role="log" aria-live="polite"></div>
-      <div class="chat-starters" id="chat-starters"></div>
-      <div class="chat-locked" id="chat-locked" hidden>
-        <p class="chat-locked-h">Lune AI is free with a Lune account.</p>
-        <p>It reads the score you have open, knows your Repertoire and your week, and answers like a patient teacher.</p>
-        <div class="chat-locked-actions">
-          <button type="button" class="primary" data-chat-signin>Sign in to chat</button>
-          <button type="button" class="link-btn" data-chat-ollama>Use Ollama on this computer</button>
-        </div>
-        <p class="chat-locked-msg" id="chat-locked-msg" role="status" aria-live="polite"></p>
-      </div>
-      <form class="chat-form ask-form" id="chat-form" autocomplete="off">${composerHtml("chat", "Ask anything about piano…")}</form>
-      <p class="chat-fine" id="chat-fine"></p>
-      </div>`;
-    document.body.appendChild(d);
-    d.querySelector("#chat-close").addEventListener("click", () => d.close());
-    // leaving the Lune AI page goes back to where the pianist was
-    d.addEventListener("close", () => {
-      d.classList.remove("is-page", "hist-open");
-      // the page underneath never changed; only the address goes back to it
-      if (location.hash === "#/ai") window.history.replaceState(null, "", `${location.pathname}${location.search}${aiReturn || ""}`);
-      aiReturn = null;
-    });
-    const hist = (open) => {
-      d.classList.toggle("hist-open", open);
-      d.querySelector("#chat-hist-btn").setAttribute("aria-expanded", String(open));
-      if (open) paintHistoryList();
-    };
-    d.querySelector("#chat-hist-btn").addEventListener("click", () => hist(!d.classList.contains("hist-open")));
-    d.querySelector("#chat-clear").addEventListener("click", () => {
-      saveChat([]);
-      paintChat();
-    });
-    d.addEventListener("click", (e) => {
-      if (e.target === d) d.close();
-      const conv = e.target.closest?.("[data-conv]");
-      if (conv) {
-        openConv(conv.dataset.conv);
-        if (!wide()) hist(false);
-        return;
-      }
-      const del = e.target.closest?.("[data-conv-del]");
-      if (del) {
-        deleteConv(del.dataset.convDel);
-        paintHistoryList();
-        return;
-      }
-      if (e.target.closest?.("[data-chat-new]")) {
-        saveChat([]);
-        paintChat();
-        if (!wide()) hist(false);
-        setTimeout(() => $("chat-input")?.focus(), 30);
-        return;
-      }
-      if (e.target.closest?.("[data-hist-close]")) return hist(false);
-      const st = e.target.closest?.("[data-starter]");
-      if (st) chatAsk(st.dataset.starter);
-      if (e.target.closest?.("[data-chat-signin]")) {
-        d.close();
-        window.LuneOnboard?.openCreateAccount?.();
-      }
-      if (e.target.closest?.("[data-chat-ollama]")) {
-        const msg = $("chat-locked-msg");
-        msg.textContent = "Looking for Ollama on this computer…";
-        findOllama()
-          .then((name) => {
-            msg.textContent = "";
-            toast(`Lune AI is using ${name.replace(/:latest$/, "")} on this computer`);
-            paintChat();
-            setTimeout(() => $("chat-input")?.focus(), 30);
-          })
-          .catch((err) => (msg.textContent = err.message));
-      }
-    });
-    const sendChat = () => {
-      const input = $("chat-input");
-      const text = input.value.trim();
-      if (!text || writing) return;
-      input.value = "";
-      fitChat();
-      chatAsk(text);
-    };
-    const fitChat = wireComposer("chat", sendChat);
-    d.querySelector("#chat-form").addEventListener("submit", (e) => {
-      e.preventDefault();
-      sendChat();
-    });
-    d.querySelector("#chat-mic").addEventListener("click", () => dictate("chat"));
-    d.querySelector("#chat-talk").addEventListener("click", () => openTalk({ title: "Lune AI", answer: (said) => chatAsk(said) }));
-    return d;
-  }
-
-  const wide = () => window.matchMedia("(min-width: 900px)").matches;
-  function paintChat() {
-    const model = active();
-    const log = chatLog();
-    paintHistoryList();
-    $("lune-chat")?.classList.toggle("is-empty", !!model && !log.length);
-    $("chat-log").innerHTML = "";
-    for (const m of log) {
-      const el = chatLine(m.who, m.text, { via: m.via });
-      if (m.who === "lune" && m.via === "model") richText(el, m.text);
-    }
-    $("chat-locked").hidden = !!model;
-    $("chat-form").hidden = !model;
-    $("chat-clear").hidden = !log.length;
-    $("chat-starters").innerHTML = model && !log.length ? CHAT_STARTERS.map((q) => `<button type="button" data-starter="${esc(q)}">${esc(q)}</button>`).join("") : "";
-    $("chat-sub").textContent = model ? whoAnswers() : "Needs a free Lune account";
-    $("chat-fine").textContent = model ? privacyLine() : "";
-    if (model && !log.length) {
-      const empty = document.createElement("div");
-      empty.className = "ask-empty";
-      empty.innerHTML = `<div class="ask-empty-orb"></div><p class="ask-empty-h">What are we practising today?</p>`;
-      $("chat-log").appendChild(empty);
-      window.LuneFX?.orb(empty.querySelector(".ask-empty-orb"))?.setMode("idle");
-    }
-  }
-
-  async function chatAsk(text) {
-    const model = active();
-    if (!model) return paintChat();
-    if (writing) return "";
-    const log = chatLog();
-    log.push({ who: "you", text, t: Date.now() });
-    saveChat(log);
-    $("chat-starters").innerHTML = "";
-    $("chat-clear").hidden = false;
-    $("lune-chat")?.classList.remove("is-empty");
-    $("chat-log").querySelector(".ask-empty")?.remove();
-    const mine = chatLine("you", text);
-    // the answer's own row appears at once, thinks, then fills in as the words arrive
-    const shown = chatLine("lune", "");
-    const res = await streamAnswer(shown, async ({ signal, onToken }) => model.answer(text, await buildChatContext(log.slice(0, -1)), { signal, onToken }));
-    let answer = res.text;
-    let via = "model";
-    if (!answer && res.stopped) {
-      answer = "Stopped.";
-      via = "note";
-    } else if (!answer) {
-      via = "note";
-      answer = res.error?.userMessage || "Lune AI didn’t answer just now. Try again in a moment.";
-    }
-    if (via === "note") {
-      shown.textContent = answer;
-      shown.classList.add("chat-note");
-    }
-    log.push({ who: "lune", text: answer, via, t: Date.now() });
-    saveChat(log);
-    paintHistoryList();
-    // the newest answer can be asked again: both turns go, and the question is sent fresh
-    chatActions(shown, {
-      note: via === "note",
-      retry: () => {
-        if (writing) return;
-        // rewritten in place: an empty log through saveChat would start a different chat
-        const st = chatStore();
-        const conv = st.convs.find((c) => c.id === st.cur);
-        if (conv) {
-          if (conv.msgs[conv.msgs.length - 1]?.who === "lune") conv.msgs.pop();
-          if (conv.msgs[conv.msgs.length - 1]?.who === "you") conv.msgs.pop();
-          putChats(st);
-        }
-        shown.parentElement.remove();
-        mine.parentElement.remove();
-        chatAsk(text);
-      },
-    });
-    if (via === "model") voiceAfter(answer);
-    return answer;
-  }
-
-  /** Ask a question on the Lune AI page, in a new chat. */
-  async function askOnPage(text) {
-    goAiPage();
-    if (!active()) return; // no account: the page explains and offers sign-in
-    await new Promise((r) => setTimeout(r, 60));
-    saveChat([]);
-    paintChat();
-    return chatAsk(text);
-  }
-
-  /*
-   * The Ask bar on Home: a question goes to the Lune AI page and is asked
-   * there; the microphone and voice chat start there too.
-   */
-  function wireHomeAsk() {
-    const form = $("home-ask");
-    if (!form || form.dataset.wired) return;
-    form.dataset.wired = "1";
-    const input = $("home-ask-input");
-    const send = form.querySelector('[data-home-ask="send"]');
-    const talk = form.querySelector('[data-home-ask="talk"]');
-    const fit = () => {
-      const has = !!input.value.trim();
-      send.hidden = !has;
-      talk.hidden = has;
-    };
-    input.addEventListener("input", fit);
-    const go = askOnPage;
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const text = input.value.trim();
-      if (!text) return;
-      input.value = "";
-      fit();
-      go(text);
-    });
-    form.addEventListener("click", (e) => {
-      const a = e.target.closest?.("[data-home-ask]")?.dataset.homeAsk;
-      if (a === "talk") {
-        goAiPage();
-        setTimeout(() => active() && $("chat-talk")?.click(), 120);
-      }
-      if (a === "mic") {
-        goAiPage();
-        setTimeout(() => active() && $("chat-mic")?.click(), 120);
-      }
-    });
-    $("home-ask-chips")?.addEventListener("click", (e) => {
-      const q = e.target.closest?.("[data-home-q]")?.dataset.homeQ;
-      if (q) go(q);
-    });
-    const orb = form.querySelector(".home-ask-orb");
-    if (orb && window.LuneFX && !orb.firstChild) window.LuneFX.orb(orb)?.setMode("idle");
-  }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", wireHomeAsk, { once: true });
-  else setTimeout(wireHomeAsk, 0);
-
-  /** Go to the Lune AI page: its own address, so it can be bookmarked and Back leaves it. */
-  let aiReturn = null;
-  function goAiPage() {
-    if (location.hash === "#/ai") openChatPage();
-    else {
-      aiReturn = location.hash || "";
-      location.hash = "#/ai";
-    }
-  }
-  /** The Lune AI page (#/ai): the same chat, full screen, with its history at the side. */
-  function openChatPage() {
-    const d = ensureChat();
-    d.classList.add("is-page");
-    if (wide()) d.classList.add("hist-open");
-    openChat();
-  }
-  function openChat() {
-    const d = ensureChat();
-    paintChat();
-    if (!d.open) d.showModal();
-    setTimeout(() => (active() ? $("chat-input") : d.querySelector("[data-chat-signin]"))?.focus(), 40);
-  }
-
-  /** The Lune AI section on Home: what it does, plainly, and the way in. */
-  function paintAiHome() {
-    const on = !!aiServer() || !!active();
-    const ready = !!active();
-    for (const box of document.querySelectorAll("[data-ai-home]")) {
-      box.hidden = !on;
-      if (!on) continue;
-      box.innerHTML = `
-        <p class="about-kicker">Lune AI</p>
-        <h2>What Lune AI does for you</h2>
-        <ul class="ai-home-list">
-          <li><strong>Explains any bar.</strong> <span>Tap a bar, then Ask Lune: “What’s hard in bar 12?”</span></li>
-          <li><strong>Plans your practice.</strong> <span>“I have 20 minutes.” You get steps tied to bar numbers, saved to Repertoire.</span></li>
-          <li><strong>Helps when a bar falls apart.</strong> <span>Rate a bar Hard and get one thing to try.</span></li>
-          <li><strong>Writes down what you say.</strong> <span>Speak a remark mid-practice and it is flagged on the bar.</span></li>
-          <li><strong>Chats about practice.</strong> <span>Your week, your goal, or any piano question.</span></li>
-        </ul>
-        <div class="ai-home-actions">
-          ${ready ? `<button type="button" class="primary" data-open-chat>Chat with Lune</button>` : `<button type="button" class="primary" data-lp-signin-only>Sign in to use Lune AI</button>`}
-          <button type="button" class="link-btn" data-show-ai>See examples</button>
-        </div>
-        <p class="ai-home-fine">${ready ? `Answers come from ${esc(aiName())}, an open-weight model, using what Lune reads in your score. They can be wrong.` : "Free with a Lune account. Ask Lune’s built-in answers work without one."}</p>`;
-    }
-  }
-  document.addEventListener("click", (e) => {
-    if (e.target.closest?.("[data-open-chat]")) {
-      e.preventDefault();
-      goAiPage();
-    }
-  });
-  const paintAiHomeSoon = () => setTimeout(paintAiHome, 0);
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", paintAiHomeSoon, { once: true });
-  else paintAiHomeSoon();
-  setTimeout(() => store()?.onChange?.(paintAiHome), 0);
-
   /**
    * LuneAIProvider: the one interface the rest of Lune uses. `connected()` is
    * true only when a local model address is set; every method returns null
@@ -2197,17 +609,15 @@ Rules:
    * present a rule-based answer as a model's.
    */
   const LuneAIProvider = {
-    connected: () => !!active(),
-    model: () => (providers.endpoint.available() ? aiSettings().model : D()?.MODEL.name || ""),
-    label: () => active()?.label() || "",
+    connected: () => providers.endpoint.available(),
+    model: () => aiSettings().model,
     async run(task, bar, ...args) {
-      const m = active();
-      if (!m || !TASKS[task]) return null;
-      return m.answer(TASKS[task](...args), await buildContext(bar));
+      if (!providers.endpoint.available() || !TASKS[task]) return null;
+      return providers.endpoint.answer(TASKS[task](...args), await buildContext(bar));
     },
   };
   for (const task of Object.keys(TASKS)) LuneAIProvider[task] = (bar, ...args) => LuneAIProvider.run(task, bar, ...args);
   window.LuneAIProvider = LuneAIProvider;
 
-  return { explainMarking, openTalk, openChatPage, goAiPage, askOnPage, chatStore, askModel: async (q, ctx) => { const m = active(); return m ? m.answer(q, ctx) : null; }, openChat, paintAiHome, buildChatContext, open, close, ask, historyFor, onSelection, buildContext, aiSettings, SYSTEM_PROMPT, TASKS, MODEL_ACTIONS, runTask, paintNews, voice, modelConnected: () => !!active(), deviceOfferHtml, turnOnDeviceAI, testModel: () => providers.endpoint.answer("Reply with the single word: ready", { test: true }) };
+  return { open, close, ask, historyFor, onSelection, buildContext, aiSettings, SYSTEM_PROMPT, testModel: () => providers.endpoint.answer("Reply with the single word: ready", { test: true }) };
 })();
