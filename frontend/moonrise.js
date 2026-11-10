@@ -119,36 +119,89 @@
     return { x: r.left - host.left, w: r.width };
   }
 
-  /* touch a key and it plays, with the studio's own piano */
+  /* touch a key and it plays. The landing loads its own light piano: eight Salamander
+     samples (one every six semitones over these keys, ~0.5 MB) instead of the studio's
+     thirty, so it is ready within a second or two even on a phone. Until then a soft
+     tone answers, so no touch is ever silent. */
   let sampler = null;
-  let loading = null;
-  function piano() {
-    if (sampler) return Promise.resolve(sampler);
-    if (!loading) {
-      loading = (window.LunePiano?.ensure?.() || Promise.reject(new Error("no piano")))
-        .then((s) => (sampler = s))
-        .catch(() => {
-          loading = null;
-          return null;
-        });
+  let lite = null;
+  const SAMPLES = (() => {
+    try {
+      return new URL("vendor/salamander/", document.querySelector('script[src*="moonrise.js"]')?.src || location.href).href;
+    } catch {
+      return "static/vendor/salamander/";
     }
-    return loading;
+  })();
+  function loadLite() {
+    if (sampler || lite || !window.Tone) return lite;
+    lite = new Promise((done) => {
+      try {
+        const s = new Tone.Sampler({
+          urls: { C3: "C3.mp3", "F#3": "Fs3.mp3", C4: "C4.mp3", "F#4": "Fs4.mp3", C5: "C5.mp3", "F#5": "Fs5.mp3", C6: "C6.mp3", "F#6": "Fs6.mp3" },
+          baseUrl: SAMPLES,
+          attack: 0.02,
+          release: 1.2,
+          onload: () => {
+            sampler = s;
+            hero.dataset.piano = "ready";
+            done(s);
+          },
+          onerror: () => {
+            lite = null;
+            done(null);
+          },
+        }).toDestination();
+        s.volume.value = -4;
+      } catch {
+        lite = null;
+        done(null);
+      }
+    });
+    return lite;
+  }
+
+  let stand = null;
+  function standIn(m, vel) {
+    try {
+      if (!stand) {
+        stand = new Tone.PolySynth(Tone.Synth, {
+          oscillator: { type: "triangle" },
+          envelope: { attack: 0.005, decay: 0.9, sustain: 0.05, release: 1.2 },
+        }).toDestination();
+        stand.volume.value = -14;
+      }
+      stand.triggerAttackRelease(noteName(m), 0.9, undefined, vel);
+    } catch {}
   }
 
   function strike(m, vel = 0.55) {
     const el = keyEls.get(m);
     if (!el) return;
+    // audio must be started inside the tap itself (iPhone, Safari, Chrome)
+    try {
+      window.Tone?.start?.();
+    } catch {}
     el.classList.remove("is-hit");
     void el.offsetWidth;
     el.classList.add("is-hit");
     ripple(m);
     hero.classList.add("has-played");
-    piano().then((s) => {
-      try {
-        s?.triggerAttackRelease(noteName(m), 1.6, undefined, vel);
-      } catch {}
-    });
+    if (!window.Tone) return;
+    loadLite();
+    try {
+      if (sampler) sampler.triggerAttackRelease(noteName(m), 1.6, undefined, vel);
+      else standIn(m, vel);
+    } catch {}
   }
+
+  /* fetch the light piano as soon as someone is here: a move, a touch, a scroll or a key */
+  const warm = () => {
+    ["pointermove", "touchstart", "keydown"].forEach((t) => window.removeEventListener(t, warm, true));
+    home?.removeEventListener?.("scroll", warm);
+    loadLite();
+  };
+  ["pointermove", "touchstart", "keydown"].forEach((t) => window.addEventListener(t, warm, { capture: true, passive: true }));
+  home?.addEventListener?.("scroll", warm, { passive: true });
 
   function ripple(m) {
     const b = keyBox(m);

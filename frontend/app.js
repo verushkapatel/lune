@@ -2006,6 +2006,8 @@ async function openPieceSession(piece, { panel = "explain" } = {}) {
   try {
     // Audio may only start after a user gesture; searching counts as one.
     if (navigator.userActivation?.hasBeenActive !== false) LunePiano.ensure()?.catch?.(() => {});
+    // no tap yet (a shared link): fetch the samples anyway; Play unlocks the sound
+    else LunePiano.preload?.();
   } catch {
     /* samples load lazily on first play */
   }
