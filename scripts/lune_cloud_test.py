@@ -597,7 +597,7 @@ def section_account(browser):
     hero = pg.evaluate("() => [...document.querySelectorAll('#hero button')].filter(b => b.offsetParent && !b.closest('.hero-demo')).map(b => b.textContent.trim()).filter(t => t && !/scroll/i.test(t))")
     check("landing: the opening screen offers the piece and Make Lune yours, nothing else", hero == ["Open Clair de lune", "Make Lune yours"], hero)
     nav = pg.evaluate("() => [...document.querySelectorAll('#lp-nav a, #lp-nav button')].filter(b => b.offsetParent).map(b => b.textContent.trim())")
-    check("landing: the top bar has the section links and Make Lune yours", nav == ["Tour", "Lune AI", "Who it’s for", "Get Lune", "Make Lune yours"], nav)
+    check("landing: the top bar has the section links and Make Lune yours", nav == ["Tour", "Lune AI", "Who it’s for", "Get Lune"], nav)
     order = pg.evaluate("""() => { const ids = [...document.querySelectorAll('#home-guest > section, #home-guest > div')].map(e => e.id).filter(Boolean);
       return [ids.indexOf('features'), ids.indexOf('ai'), ids.indexOf('for'), ids.indexOf('get-lune')]; }""")
     check("landing: the live studio, Lune AI and Who it's for come before Get Lune", order[0] >= 0 and order[0] < order[1] < order[2] < order[3], order)
@@ -1648,7 +1648,7 @@ def section_moon(browser):
         p_ = pg.evaluate("() => +getComputedStyle(document.getElementById('hero')).getPropertyValue('--mr-p')")
         check(f"moon ({w}px): scrolling waxes the moon towards full", p_ > 0.9, p_)
         pg.evaluate("() => document.getElementById('idea').scrollIntoView({block: 'center', behavior: 'instant'})"); pg.evaluate("() => document.getElementById('home').dispatchEvent(new Event('scroll'))"); pg.wait_for_timeout(300)
-        on = pg.evaluate("() => { const w = document.querySelectorAll('[data-mr-read] > span[aria-hidden]'); return [w.length, [...w].filter(x => x.classList.contains('on')).length, document.querySelector('[data-mr-read] .visually-hidden')?.textContent.startsWith('You sit down')]; }")
+        on = pg.evaluate("() => { const w = document.querySelectorAll('[data-mr-read] > span[aria-hidden]'); return [w.length, [...w].filter(x => x.classList.contains('on')).length, document.querySelector('[data-mr-read] .visually-hidden')?.textContent.startsWith('The score is already open')]; }")
         check(f"moon ({w}px): the idea lights up word by word, and screen readers get the whole sentence", on[0] > 20 and 0 < on[1] <= on[0] and on[2], on)
         check(f"moon ({w}px): no page errors", not pg.errors, pg.errors)
         ctx.close()

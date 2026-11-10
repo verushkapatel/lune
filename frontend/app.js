@@ -19,7 +19,8 @@ function luneUrl(path) {
   return `${LUNE_ROOT}${path}`;
 }
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = luneUrl("/static/vendor/pdf.worker.min.js");
+// PDF.js is not loaded in the browser (PDFs go to the desktop server); configure it only if present
+if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = luneUrl("/static/vendor/pdf.worker.min.js");
 
 const COMPOSER_FACE_FILES = {
   chopin: "chopin.jpg",
@@ -464,10 +465,10 @@ function ensureSearchIndex() {
   if (!searchIndexPromise) {
     const t0 = performance.now();
     // Static JSON only — zero Python work on the request path.
-    searchIndexPromise = fetch(SEARCH_INDEX_URL)
-      .then((res) => {
-        if (!res.ok) throw new Error("index");
-        return res.json();
+    searchIndexPromise = (window.luneSearchIndexJson ? window.luneSearchIndexJson() : fetch(SEARCH_INDEX_URL).then((res) => (res.ok ? res.json() : null)))
+      .then((data) => {
+        if (!data) throw new Error("index");
+        return data;
       })
       .then((data) => {
         const items = Array.isArray(data.items) ? data.items : [];

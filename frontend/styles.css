@@ -12027,3 +12027,29 @@ html[data-theme="light"] .lp-proof dt { color: #111; }
 html[data-theme="light"] .lp-proof dd { color: #4a4a4a; }
 html[data-theme="light"] #home-guest #about .about-columns p { color: #3d3d3d; }
 html[data-theme="light"] #home-guest #about .about-columns strong, html[data-theme="light"] #home-guest #about .about-columns em { color: #111; }
+
+/* Lune AI on a laptop: all six examples at once, three across, nothing cut by the edge.
+   Phones and small tablets keep the swipe. */
+@media (min-width: 1024px) {
+  body.is-home .ai-chapter .ai-scenes {
+    grid-auto-flow: row !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; grid-auto-columns: auto !important;
+    overflow: visible !important; scroll-snap-type: none !important;
+    max-width: 1180px !important; margin: 0 auto !important; padding: 4px clamp(16px, 3vw, 32px) 8px !important;
+    -webkit-mask-image: none !important; mask-image: none !important;
+  }
+  body.is-home .ai-chapter .ai-scene { padding: 24px 22px 20px; }
+  body.is-home .ai-chapter .ai-scene h3 { font-size: 20px; margin-bottom: 16px; }
+  body.is-home .ai-chapter .ai-bubble { font-size: 14px; }
+  body.is-home #ai-dots { display: none; }
+}
+
+/* the opening arrives sooner: the same rise and blur, on a shorter chain */
+.mr-moon { animation-delay: 0.05s !important; animation-duration: 1.4s !important; }
+.mr-h .mr-l1 { animation-delay: 0.12s !important; animation-duration: 0.95s !important; }
+.mr-h .mr-l2 { animation-delay: 0.3s !important; animation-duration: 0.95s !important; }
+#home #hero .mr-sub { animation-delay: 0.5s; animation-duration: 0.9s; }
+#home #hero .mr-inner .hero-cta { animation-delay: 0.65s !important; animation-duration: 0.9s !important; }
+.mr-stage { animation-delay: 0.8s !important; animation-duration: 1s !important; }
+/* the numbers lead straight into the idea */
+#home .lp-proof { padding-bottom: clamp(8px, 2vh, 24px); }
+#home .mr-idea { padding-top: clamp(40px, 7vh, 80px) !important; }
