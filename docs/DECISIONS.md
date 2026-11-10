@@ -48,6 +48,7 @@
 - Opening a piece by link that has to be fetched (remote scores can take 30–40 s): if the address changes before it lands, its loader goes at once and the score doesn't take the screen back. Before, the loader blocked every click until the abandoned download finished, then the old piece replaced the one asked for.
 - Engraving a score: the opening 8 bars are drawn on their own first (`#osmd[data-partial]`), so music is on the page in about half a second while a long score engraves; the full drawing replaces it. Tests wait for `#osmd:not([data-partial])`.
 - Fitting a score to the page re-engraves smaller only on a phone (under 720 px), where notes pushed past their barline mean the letter lane is cramped; on a wide page that never cured the overhang and only shrank the score, so there only music off the screen counts. The size that fitted is kept per piece and width in `localStorage` (`lune.fitZoom.v1`), so a piece opened before engraves once. The letter lane is laid out once per drawing (three settling passes in one go) instead of again by every callback that follows a render.
+- Non-commercial scores (ASAP, CC BY-NC-SA) are listed on the free site. `LUNE_COMMERCIAL=1 scripts/build_site.sh` (or `scripts/commercial_catalog.py <site>`) removes them for a paid build.
 - CI (`.github/workflows/site.yml`) takes the published gh-pages site as the score library, copies this branch's frontend over it, and runs the browser suites. Accounts are off or stubbed in every suite.
 
 ## Visible buttons (before → after)
@@ -62,17 +63,17 @@
 
 ## Test results
 
-```
-python3 scripts/claude_pages_test.py
-25/25 passed
+Run against a served build (see the top of each script):
 
-python3 scripts/claude_practice_test.py
-32/32 passed
+| Suite | Result |
+| --- | --- |
+| `lune_flow_test.py` | 86/86 |
+| `claude_pages_test.py` | 29/29 |
+| `claude_practice_test.py` | 33/33 |
+| `contrast_audit.py` | 0 under 3:1, both themes |
+| `a11y_audit.py` | 0 serious or critical, 8 screens × 2 themes |
+| `loading_test.py` | 9/9 |
+| `offline_test.py` | 8/8 |
+| `claude_lane_sweep.py --sample 40` | 10 label/ink touches in ~90,000 labels; 40 unlabelled keys |
 
-python3 scripts/claude_follow_test.py
-7/7 passed
-
-python3 scripts/claude_lane_sweep.py
-ll is 0 for every piece at 390 and 1280
-(label-count / li warnings unchanged from before; engraving pipeline not touched)
-```
+`claude_follow_test.py` covers Play along, which has no interface, and is obsolete.

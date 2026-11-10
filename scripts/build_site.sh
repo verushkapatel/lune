@@ -10,6 +10,7 @@
 # 5. app files copied in; service worker and manifest placed at the root
 # 6. braille music for every piece the translator can handle
 # 7. verification: no blocked (in-copyright) piece anywhere
+# 8. LUNE_COMMERCIAL=1 only: drop non-commercial-licence scores (ASAP)
 # Every step that lists or downloads scores uses scripts/blocked.py.
 # It does not publish. Run scripts/publish_pages.sh for that.
 set -euo pipefail
@@ -50,4 +51,8 @@ fi
 
 echo "== 7/7 verification"
 "$PY" scripts/verify_no_blocked.py "$SITE"
+if [ "${LUNE_COMMERCIAL:-0}" = "1" ]; then
+  echo "== 8 commercial catalogue"
+  "$PY" scripts/commercial_catalog.py "$SITE"
+fi
 echo "built: $SITE"
