@@ -420,7 +420,7 @@ window.LuneOnboard = (function () {
     const negated = /\b(no|not|don't|do not|without|neither|nor|isn't|aren't)\b/.test(x);
     x = x.replace(/\b(no|not|don't|do not|without|neither|nor)\b(\s+\w+){0,3}?\s+(visual\w*|vision|sight|blind\w*|dyslexi\w*)/g, " ");
     const vis = /\b(visual\w*|vision|blind\w*|low vision|sight|see)\b/.test(x);
-    const dys = /\b(dyslexi\w*|reading|letters?)\b/.test(x);
+    const dys = /\b(dyslexi\w*|easy|reading|letters?)\b/.test(x);
     if (vis && dys) return "both";
     if (vis) return "vision";
     if (dys) return "dyslexia";
@@ -442,7 +442,7 @@ window.LuneOnboard = (function () {
         setTimeout(resolve, 15000); // never wait forever on a silent device
       });
     // one question, the options read out, answered by name (or V, D, B, N on the keyboard)
-    const KEYS = { v: "vision", d: "dyslexia", b: "both", n: "none" };
+    const KEYS = { v: "vision", d: "dyslexia", e: "dyslexia", b: "both", n: "none" };
     const parse = parseAccessAnswer;
     const hear = () =>
       new Promise((resolve) => {
@@ -476,11 +476,11 @@ window.LuneOnboard = (function () {
       }
     };
     await say(
-      "Do you need accessibility support? There are four answers. Visual, for blind or low vision: large print, high contrast, and every bar read aloud. Dyslexia: easy-read letters. Both. Or neither. Say one, or press V, D, B or N."
+      "Do you need accessibility support? There are four answers. Visual, for blind or low vision: large print, high contrast, and every bar read aloud. Easy read: letters that are easier to tell apart. Both. Or neither. Say one, or press V, E, B or N."
     );
     let answer = await hear();
     if (!answer) {
-      await say("I didn't catch that. Say visual, dyslexia, both, or neither.");
+      await say("I didn't catch that. Say visual, easy read, both, or neither.");
       answer = await hear();
     }
     if (answer) {
@@ -1610,25 +1610,9 @@ window.LuneOnboard = (function () {
     requestAnimationFrame(() => requestAnimationFrame(top));
   }
 
+  // Guests sign in from the top bar (or the menu on a phone); no extra row above the score.
   function paintKeepBanner() {
-    let bar = $("keep-account-banner");
-    if (signedIn()) {
-      if (bar) bar.remove();
-      return;
-    }
-    if (!onboarded()) return;
-    if (!bar) {
-      bar = document.createElement("div");
-      bar.id = "keep-account-banner";
-      bar.className = "keep-account-banner";
-      bar.innerHTML = `
-        <p>Exploring on this device. <strong>Make Lune yours</strong>, free.</p>
-        <button type="button" class="primary" data-lp-personalise>Begin</button>`;
-      const app = $("app");
-      const header = app?.querySelector?.("header.bar");
-      if (header) header.after(bar);
-      else app?.prepend?.(bar);
-    }
+    $("keep-account-banner")?.remove();
   }
 
   function paintHomeRecs() {

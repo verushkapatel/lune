@@ -115,6 +115,7 @@ window.LuneStudioUI = (function () {
       if (act === "ask") window.LuneAsk?.open?.();
       if (act === "ai") window.LuneAsk?.goAiPage?.();
       if (act === "home") press("btn-home");
+      if (act === "signin") press("btn-bar-auth");
       if (keepOpen) setTimeout(paint, 60);
       else closeMenu();
     });
@@ -161,13 +162,14 @@ window.LuneStudioUI = (function () {
         ${braille && !braille.hidden ? `<a class="sm-link" href="${esc(braille.getAttribute("href"))}" download>Braille music</a>` : ""}
       </div>
       <div class="sm-actions">
-        <button type="button" data-m="ask"><span class="lune-orb-sm" aria-hidden="true"></span>Ask about this bar</button>
+        <button type="button" data-m="ask"><span class="lune-orb-sm" aria-hidden="true"></span>Ask Lune</button>
         <button type="button" data-m="ai">Lune AI chat</button>
         <button type="button" data-m="save">${saved ? "Saved" : "Save"}</button>
         <button type="button" data-m="share">Share</button>
         <button type="button" data-m="settings">Settings</button>
         <button type="button" data-m="home">Home</button>
-      </div>`;
+      </div>
+      ${document.body.classList.contains("is-signed-in") ? "" : `<button type="button" class="sm-signin" data-m="signin">Sign in or Create account</button>`}`;
   }
 
   function openMenu() {
@@ -208,8 +210,8 @@ window.LuneStudioUI = (function () {
     rail.className = "st-rail";
     rail.id = "st-rail";
     rail.innerHTML = `
-      <button type="button" class="st-rail-handle" id="st-rail-handle" aria-expanded="false" aria-controls="st-rail-tools" aria-label="Playback tools">
-        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M14.5 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <button type="button" class="st-rail-handle" id="st-rail-handle" aria-expanded="false" aria-controls="st-rail-tools" aria-label="Tempo and metronome">
+        <span class="st-rail-tag" aria-hidden="true"><b id="st-rail-tag-bpm">72</b><small>bpm</small></span>
       </button>
       <div class="st-rail-tools" id="st-rail-tools" role="group" aria-label="Playback tools">
         <button type="button" class="st-rail-btn" data-rail="metro" aria-pressed="false" aria-label="Metronome">
@@ -232,7 +234,7 @@ window.LuneStudioUI = (function () {
     const set = (open) => {
       rail.classList.toggle("open", open);
       handle.setAttribute("aria-expanded", open ? "true" : "false");
-      handle.setAttribute("aria-label", open ? "Hide playback tools" : "Playback tools");
+      handle.setAttribute("aria-label", open ? "Hide tempo and metronome" : "Tempo and metronome");
     };
     handle.addEventListener("click", () => set(!rail.classList.contains("open")));
     const slider = $("bpm-slider");
@@ -244,6 +246,7 @@ window.LuneStudioUI = (function () {
       b.classList.toggle("on", on);
       const v = slider?.value || $("bpm-readout")?.textContent || "";
       rail.querySelector("#st-rail-bpm b").textContent = v;
+      rail.querySelector("#st-rail-tag-bpm").textContent = v;
     };
     const nudge = (d) => {
       if (!slider) return;
