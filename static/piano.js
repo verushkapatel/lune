@@ -186,10 +186,24 @@ window.LunePiano = (function () {
       await unlockAudio();
       return sampler;
     }
-    if (loading) return loading;
     if (typeof Tone === "undefined") throw new Error("Tone.js missing");
-    loading = (async () => {
+    if (loading) {
+      // a preload is already fetching the samples: unlock now, inside the tap
       await unlockAudio();
+      return loading;
+    }
+    return load(true);
+  }
+
+  /** Fetch and decode the piano samples without starting audio (no tap needed). */
+  function preload() {
+    if ((sampler && sampler.loaded) || loading || typeof Tone === "undefined") return loading || Promise.resolve(sampler);
+    return load(false).catch(() => null);
+  }
+
+  function load(unlock) {
+    loading = (async () => {
+      if (unlock) await unlockAudio();
       buildChain();
       let lastErr = null;
       for (const base of SAMPLE_BASES) {
@@ -1046,6 +1060,7 @@ window.LunePiano = (function () {
 
   return {
     ensure,
+    preload,
     play,
     arm,
     pause,

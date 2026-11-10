@@ -199,8 +199,18 @@ window.LuneStore = (function () {
       return session?.access_token || "";
     }
   }
+  /* The account service could not be reached at all (offline, blocked, or the project is down). */
+  const UNREACHABLE = /failed to fetch|load failed|networkerror|network request failed|fetch failed|err_name_not_resolved/i;
+  function unreachable() {
+    const e = new Error("Lune’s account service can’t be reached right now, so no code was sent. Everything else works without an account: your practice stays on this device. Please try signing in again later.");
+    e.code = "cloud-unreachable";
+    return e;
+  }
   function check(res) {
-    if (res?.error) throw new Error(res.error.message || "Could not reach your Repertoire");
+    if (res?.error) {
+      if (UNREACHABLE.test(res.error.message || "") || res.error.status === 0 || res.error.name === "AuthRetryableFetchError") throw unreachable();
+      throw new Error(res.error.message || "Could not reach your Repertoire");
+    }
     return res?.data;
   }
 
@@ -429,16 +439,21 @@ window.LuneStore = (function () {
     // gate + onboarding work before mail is set up.
     // Email must use the OTP template with {{ .Token }} (see docs/ACCOUNTS.md).
     if (configured() && client) {
-      check(
-        await client.auth.signInWithOtp({
+      let sent;
+      try {
+        sent = await client.auth.signInWithOtp({
           email: clean,
           options: {
             shouldCreateUser: true,
             // Omit emailRedirectTo so the mailer prefers the OTP code path
             // when the Magic Link / Confirm signup templates use {{ .Token }}.
           },
-        })
-      );
+        });
+      } catch (err) {
+        if (UNREACHABLE.test(err?.message || "")) throw unreachable();
+        throw err;
+      }
+      check(sent);
       mutateLocal((d) => {
         d.localAccount = {
           email: clean,

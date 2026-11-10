@@ -369,6 +369,8 @@ window.LuneLanding = (function () {
                 if (!en.isIntersecting) continue;
                 io.unobserve(en.target);
                 engrave(en.target).catch(() => {});
+                // the Play demo is near: fetch the studio piano now, so Play answers at once
+                if (en.target.closest(".home-feat-device")?.querySelector("[data-play]")) window.LunePiano?.preload?.();
               }
             },
             { root: document.getElementById("home"), rootMargin: "400px 0px" }

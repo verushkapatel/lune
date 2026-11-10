@@ -19,7 +19,8 @@ function luneUrl(path) {
   return `${LUNE_ROOT}${path}`;
 }
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = luneUrl("/static/vendor/pdf.worker.min.js");
+// PDF.js is not loaded in the browser (PDFs go to the desktop server); configure it only if present
+if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = luneUrl("/static/vendor/pdf.worker.min.js");
 
 const COMPOSER_FACE_FILES = {
   chopin: "chopin.jpg",
@@ -464,10 +465,10 @@ function ensureSearchIndex() {
   if (!searchIndexPromise) {
     const t0 = performance.now();
     // Static JSON only — zero Python work on the request path.
-    searchIndexPromise = fetch(SEARCH_INDEX_URL)
-      .then((res) => {
-        if (!res.ok) throw new Error("index");
-        return res.json();
+    searchIndexPromise = (window.luneSearchIndexJson ? window.luneSearchIndexJson() : fetch(SEARCH_INDEX_URL).then((res) => (res.ok ? res.json() : null)))
+      .then((data) => {
+        if (!data) throw new Error("index");
+        return data;
       })
       .then((data) => {
         const items = Array.isArray(data.items) ? data.items : [];
@@ -2005,6 +2006,8 @@ async function openPieceSession(piece, { panel = "explain" } = {}) {
   try {
     // Audio may only start after a user gesture; searching counts as one.
     if (navigator.userActivation?.hasBeenActive !== false) LunePiano.ensure()?.catch?.(() => {});
+    // no tap yet (a shared link): fetch the samples anyway; Play unlocks the sound
+    else LunePiano.preload?.();
   } catch {
     /* samples load lazily on first play */
   }
@@ -3969,9 +3972,30 @@ function centreLaneLabels(host) {
   }
 }
 
+/* OSMD draws a staff's word marking once per voice (Clair de lune: "con sordina",
+   "un poco mosso" and "Calmato" twice). Keep the first of the same words drawn at
+   nearly the same place; the letter lane (g.lyrics) is never touched. */
+function dedupeWordMarks(host) {
+  const seen = [];
+  for (const t of host.querySelectorAll("svg text")) {
+    if (t.closest("g.lyrics")) continue;
+    const word = (t.textContent || "").trim();
+    if (word.length < 3 || !/[a-z]/i.test(word)) continue;
+    const r = t.getBoundingClientRect();
+    if (!r.width) continue;
+    if (seen.some((o) => o.word === word && Math.abs(o.x - r.left) < 40 && Math.abs(o.y - r.top) < 60)) t.remove();
+    else seen.push({ word, x: r.left, y: r.top });
+  }
+}
+
 function applyScoreOverlays() {
   const host = $("osmd");
   if (!host || !state.osmd) return;
+  try {
+    dedupeWordMarks(host);
+  } catch {
+    /* a marking drawn twice is better than none */
+  }
   requestAnimationFrame(drawPedalMarks);
   if (LUNE_LYRIC_LANE) {
     // Labels are part of the engraving; just style them and drop any overlay.

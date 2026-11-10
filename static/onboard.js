@@ -279,7 +279,7 @@ window.LuneOnboard = (function () {
       const name = String(c || "").trim();
       if (name) set.add(name);
     }
-    const index = await loadJson("/static/search-index.json");
+    const index = window.luneSearchIndexJson ? await window.luneSearchIndexJson() : await loadJson("/static/search-index.json");
     for (const it of index?.items || []) {
       const c = String(it.composer || "").trim();
       if (c && c.toLowerCase() !== "traditional") set.add(c);
@@ -669,6 +669,7 @@ window.LuneOnboard = (function () {
   }
 
   function resetAuthForm({ focus = false } = {}) {
+    $("auth-continue-device")?.remove();
     authPendingEmail = "";
     const emailStep = $("auth-step-email");
     const codeStep = $("auth-step-code");
@@ -741,6 +742,7 @@ window.LuneOnboard = (function () {
     }
 
     const email = $("create-email")?.value || "";
+    $("auth-continue-device")?.remove();
     if (msg) msg.textContent = "Sending a code…";
     try {
       const res = await store().signIn(email);
@@ -753,6 +755,18 @@ window.LuneOnboard = (function () {
       afterAuth();
     } catch (err) {
       if (msg) msg.textContent = err.message || String(err);
+      if (err?.code === "cloud-unreachable" && msg && !$("auth-continue-device")) {
+        const go = document.createElement("button");
+        go.type = "button";
+        go.className = "quiet auth-continue-device";
+        go.id = "auth-continue-device";
+        go.textContent = "Continue without an account";
+        go.addEventListener("click", () => {
+          $("create-account-dialog")?.close();
+          resetAuthForm();
+        });
+        msg.after(go);
+      }
     }
   }
 
@@ -2110,10 +2124,9 @@ window.LuneOnboard = (function () {
       if (step === 0 && !$("onboard")?.hidden) paintOnboard();
     });
     // Expose search-index items for dream-piece filtering when app.js loads them.
-    fetch(
+    (window.luneSearchIndexJson ? window.luneSearchIndexJson() : fetch(
       typeof window.luneUrl === "function" ? window.luneUrl("/static/search-index.json") : "static/search-index.json"
-    )
-      .then((r) => (r.ok ? r.json() : null))
+    ).then((r) => (r.ok ? r.json() : null)))
       .then((data) => {
         if (data?.items) window.__LUNE_SEARCH_ITEMS__ = data.items;
       })

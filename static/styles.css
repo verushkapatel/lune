@@ -11971,3 +11971,94 @@ body.studio-compact.is-studio header.bar #st-play { margin-left: auto !important
 }
 .sm-signin:active { transform: scale(0.98); }
 .sm-signin:focus-visible { outline: 2px solid #9db4ff; outline-offset: 2px; }
+
+/* ===================== Investor landing (Nov 2026): one line of purpose, proof, who it is for, the maker ===================== */
+#home #hero .mr-sub {
+  margin: clamp(14px, 2.4vh, 22px) auto 0; max-width: 34em; text-wrap: balance;
+  font-family: var(--ui); font-size: clamp(17px, 1.6vw, 21px); line-height: 1.5; color: rgba(255,255,255,0.72);
+  animation: mr-up 1.2s 1.25s both;
+}
+/* the invitation to play sits centred over the keys, not off to one side */
+.mr-stage > .mr-fall { order: 1; }
+.mr-stage > .mr-keys { order: 3; }
+.mr-stage > .mr-hint { order: 2; position: relative; top: auto; left: auto; right: auto !important; transform: none; margin: 8px 0 10px; text-align: center; white-space: nowrap; }
+
+/* proof: four facts, read at a glance */
+#home .lp-proof { background: #000; padding: clamp(40px, 7vh, 72px) clamp(16px, 5vw, 64px); }
+.lp-proof dl {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin: 0 auto; max-width: 1120px;
+  border-block: 1px solid rgba(255,255,255,0.14);
+}
+.lp-proof dl > div { padding: clamp(22px, 3.4vh, 34px) clamp(14px, 2vw, 28px); }
+.lp-proof dl > div + div { border-left: 1px solid rgba(255,255,255,0.14); }
+.lp-proof dt { margin: 0; font-family: var(--ui); font-weight: 400; font-size: clamp(34px, 3.8vw, 54px); line-height: 1; letter-spacing: -0.03em; color: #fff; }
+.lp-proof dd { margin: 10px 0 0; font-size: 15px; line-height: 1.45; color: rgba(255,255,255,0.62); max-width: 18em; }
+@media (max-width: 760px) {
+  .lp-proof dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lp-proof dl > div:nth-child(3) { border-left: 0; }
+  .lp-proof dl > div:nth-child(n+3) { border-top: 1px solid rgba(255,255,255,0.14); }
+}
+
+/* the idea: one sentence, so it reads in a breath */
+#home .mr-idea { padding-top: clamp(64px, 11vh, 120px); padding-bottom: clamp(40px, 7vh, 80px); }
+#home .mr-read { max-width: 22em; }
+
+/* who it is for and the maker are back on the guest landing */
+#home-guest.home-guest > #for, #home-guest.home-guest > #about { display: block !important; }
+
+@media (max-width: 760px) {
+  #home .mr-idea { padding-top: 48px; }
+  #home .lp-proof { padding-top: 28px; padding-bottom: 8px; }
+}
+
+/* the maker: one clear headline beside the story, no decorative card */
+#home-guest #about .about-maker-visual { display: none; }
+#home-guest #about .about-maker-inner { display: block; max-width: 1120px; margin: 0 auto; }
+#home-guest #about h2 { max-width: 14em; font-size: clamp(38px, 5vw, 68px); line-height: 1.04; text-wrap: balance; }
+#home-guest #about.about-maker-cinema { min-height: 0 !important; padding-top: clamp(64px, 10vh, 112px); padding-bottom: clamp(48px, 8vh, 96px); }
+#home-guest #about .about-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(20px, 4vw, 56px); max-width: none; }
+#home-guest #about .about-columns p { margin: 0; font-size: 17px; line-height: 1.65; color: rgba(255,255,255,0.72); max-width: 34em; }
+@media (max-width: 760px) { #home-guest #about .about-columns { grid-template-columns: 1fr; } }
+
+/* light theme: the new landing parts in ink on paper */
+html[data-theme="light"] #home .lp-proof { background: transparent; }
+html[data-theme="light"] .lp-proof dl, html[data-theme="light"] .lp-proof dl > div { border-color: rgba(0,0,0,0.14) !important; }
+html[data-theme="light"] .lp-proof dt { color: #111; }
+html[data-theme="light"] .lp-proof dd { color: #4a4a4a; }
+html[data-theme="light"] #home-guest #about .about-columns p { color: #3d3d3d; }
+html[data-theme="light"] #home-guest #about .about-columns strong, html[data-theme="light"] #home-guest #about .about-columns em { color: #111; }
+
+/* Lune AI on a laptop: all six examples at once, three across, nothing cut by the edge.
+   Phones and small tablets keep the swipe. */
+@media (min-width: 1024px) {
+  body.is-home .ai-chapter .ai-scenes {
+    grid-auto-flow: row !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; grid-auto-columns: auto !important;
+    overflow: visible !important; scroll-snap-type: none !important;
+    max-width: 1180px !important; margin: 0 auto !important; padding: 4px clamp(16px, 3vw, 32px) 8px !important;
+    -webkit-mask-image: none !important; mask-image: none !important;
+  }
+  body.is-home .ai-chapter .ai-scene { padding: 24px 22px 20px; }
+  body.is-home .ai-chapter .ai-scene h3 { font-size: 20px; margin-bottom: 16px; }
+  body.is-home .ai-chapter .ai-bubble { font-size: 14px; }
+  body.is-home #ai-dots { display: none; }
+}
+
+/* the opening arrives sooner: the same rise and blur, on a shorter chain */
+.mr-moon { animation-delay: 0.05s !important; animation-duration: 1.4s !important; }
+.mr-h .mr-l1 { animation-delay: 0.12s !important; animation-duration: 0.95s !important; }
+.mr-h .mr-l2 { animation-delay: 0.3s !important; animation-duration: 0.95s !important; }
+#home #hero .mr-sub { animation-delay: 0.5s; animation-duration: 0.9s; }
+#home #hero .mr-inner .hero-cta { animation-delay: 0.65s !important; animation-duration: 0.9s !important; }
+.mr-stage { animation-delay: 0.8s !important; animation-duration: 1s !important; }
+/* the numbers lead straight into the idea */
+#home .lp-proof { padding-bottom: clamp(8px, 2vh, 24px); }
+#home .mr-idea { padding-top: clamp(40px, 7vh, 80px) !important; }
+
+/* sign-in: when accounts can't be reached, carrying on is a clear, full button */
+#create-account-dialog .auth-continue-device {
+  display: block; width: 100%; height: 48px; margin: 12px 0 4px; border-radius: 999px; cursor: pointer;
+  font: inherit; font-size: 16px; color: #fff !important; opacity: 1 !important;
+  background: rgba(255,255,255,0.06) !important; border: 1px solid rgba(255,255,255,0.4) !important;
+}
+#create-account-dialog .auth-continue-device:hover { border-color: rgba(255,255,255,0.8) !important; }
+html[data-theme="light"] #create-account-dialog .auth-continue-device { color: #111 !important; background: #fff !important; border-color: rgba(0,0,0,0.35) !important; }
