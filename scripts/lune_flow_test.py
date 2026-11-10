@@ -364,6 +364,9 @@ with sync_playwright() as p:
       return { notes: ev.length, checked, wrongPitch, ties: idx.stops.size, restruck, sorted, chords, pedalMarks: idx.pedal.length, sustained: ev.filter(e => e.sound > e.dur + 0.05).length, minDur: Math.min(...ev.map(e => e.dur)), tempo, barErr: Math.round(barErr * 1000) / 1000, dyn: new Set(ev.map(e => Math.round(e.dyn * 10))).size };
     }"""
     for label, pid in (("slow, tied, pedalled (Clair de lune)", "debussy-clair-de-lune"), ("marked pedal (Für Elise)", "ludwig-van-beethoven-fur-elise"), ("no pedal, even semiquavers (Bach Prelude in C)", "bach-prelude-c"), ("polyphonic, fetched on open (Bach Fugue BWV 846)", "asap-bach-fugue-bwv-846"), ("fast and chord-heavy (Chopin Etude Op. 10 no. 12, fetched)", "asap-chopin-etudes-op-10-12")):
+        # a hash change keeps the page, so the previous piece's drawing would satisfy the
+        # wait below; clear it so only the new piece's full drawing counts
+        pg.evaluate("() => document.getElementById('osmd')?.replaceChildren()")
         pg.goto(BASE + f"#/{pid}/score", wait_until="networkidle")
         try:
             pg.wait_for_selector("#osmd:not([data-partial]) g.vf-notehead", timeout=90000)
