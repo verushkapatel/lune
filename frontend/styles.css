@@ -616,7 +616,8 @@ body.is-home .top-search .search-go:hover {
 .result:hover,
 .result.is-active {
   background: #1d1d1d;
-  padding-left: 22px;
+  /* an accent bar instead of extra padding: the text never moves */
+  box-shadow: inset 2px 0 0 #8a8a8a;
 }
 .result.is-active {
   box-shadow: inset 2px 0 0 #f0f0f0;
@@ -9177,3 +9178,28 @@ body.is-home .piece-tabs:not([hidden]) { display: flex; }
 .settings-steps code { font-size: 13px; color: var(--text); word-break: break-all; }
 /* sliders get the same focus ring as everything else */
 input[type="range"]:focus-visible { outline: 2px solid var(--text); outline-offset: 4px; border-radius: 4px; }
+
+/* Touch: controls on a phone get a 44 px hit area (WCAG 2.5.5) where the layout
+   allows; the header tools grow in height only, so the row fits at 390 px. */
+@media (max-width: 760px), (pointer: coarse) {
+  #btn-home {
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+  }
+  /* header tools: taller only, so the row still fits a 390 px phone */
+  .bar .bar-tool,
+  #btn-repertoire,
+  #btn-share,
+  #btn-settings {
+    min-height: 44px;
+  }
+  #btn-dyslexia-score,
+  #btn-stop {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  #q {
+    min-height: 44px;
+  }
+}

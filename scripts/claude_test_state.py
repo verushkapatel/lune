@@ -32,4 +32,11 @@ def sign_in_locally(pg):
     pg.reload(wait_until="networkidle")
     pg.click("#btn-hello-enter")
     pg.wait_for_selector("#home:not([hidden])")
+    show_search(pg)
+
+
+def show_search(pg):
+    """On a phone the search field sits behind the header's search icon."""
+    if not pg.is_visible("#q") and pg.is_visible("#btn-search"):
+        pg.click("#btn-search")
     pg.wait_for_selector("#q", state="visible")

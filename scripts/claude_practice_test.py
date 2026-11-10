@@ -243,3 +243,4 @@ w = max(len(n) for _, n, _ in out)
 for s, n, d in out:
     print(f"{s}  {n.ljust(w)}  {d if s == 'FAIL' else ''}")
 print(f"\n{sum(s == 'PASS' for s, _, _ in out)}/{len(out)} passed")
+sys.exit(0 if out and all(s == "PASS" for s, _, _ in out) else 1)

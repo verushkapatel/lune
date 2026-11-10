@@ -1,8 +1,13 @@
-"""Letter-lane sweep: every catalogue piece, phone + desktop.
-Checks one label per sounding note, no label/label or label/ink overlap."""
+"""Letter-lane sweep: every catalogue piece (or every Nth with --sample N), phone + desktop.
+Checks one label per sounding note, no label/label or label/ink overlap.
+
+    .venv/bin/python scripts/claude_lane_sweep.py [base-url] [--sample N]
+"""
 import json, sys, time
 from playwright.sync_api import sync_playwright
-BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8100/lune/"
+ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
+BASE = ARGS[0] if ARGS else "http://127.0.0.1:8137/lune/"
+SAMPLE = int(sys.argv[sys.argv.index("--sample") + 1]) if "--sample" in sys.argv else 0
 CHECK = r"""
 (mode) => {
   const svg = document.querySelector('#osmd svg');
@@ -30,14 +35,16 @@ with sync_playwright() as p:
     pg = b.new_page()
     pg.goto(BASE, wait_until="networkidle")
     opens = pg.evaluate("() => fetch('static/opens.json').then(r => r.json())")
-    bad = []
+    if SAMPLE:
+        opens = opens[:: max(1, len(opens) // SAMPLE)][:SAMPLE]
+    bad, results = [], []
     for w in (390, 1280):
         pg.set_viewport_size({"width": w, "height": 900})
         for row in opens:
             pg.goto(f"{BASE}?w={w}&n={time.time_ns()}#/{row['id']}/score", wait_until="networkidle")
             t0 = time.time()
             try:
-                pg.wait_for_function("(id) => state.piece && state.piece.id === id && state.renderedLaneMode === 'letters' && document.querySelectorAll('#osmd g.lyrics text').length > 0", arg=row['id'], timeout=150000)
+                pg.wait_for_function("(id) => state.piece && state.piece.id === id && state.renderedLaneMode === 'both' && document.querySelectorAll('#osmd g.lyrics text').length > 0", arg=row['id'], timeout=150000)
                 pg.wait_for_timeout(400)
             except Exception:
                 bad.append((w, row['id'], 'no labels')); print(w, row['id'], 'NO LABELS', flush=True); continue
@@ -46,7 +53,9 @@ with sync_playwright() as p:
             ok = res['labels'] == res['expected'] and res['ll'] == 0
             print(w, row['id'][:28].ljust(28), res, f"{dt:.1f}s", "" if ok else "<<", flush=True)
             res['secs'] = round(dt, 1)
+            results.append(res)
             if not ok: bad.append((w, row['id'], res))
     print("\nproblems:", len(bad))
+    print("label/ink overlaps in total:", sum(r.get('li', 0) for r in results))
     for x in bad: print(" ", x)
     b.close()

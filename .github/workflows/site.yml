@@ -1,0 +1,78 @@
+# Browser checks for the static site, on every push and pull request.
+#
+# The score library is the one already published (the gh-pages branch); this
+# branch's frontend/ is copied over it, exactly as scripts/sync_pages_dev.sh
+# does locally, and served under /lune/ like GitHub Pages. Accounts are
+# switched off or stubbed in every suite, so nothing reaches Supabase.
+name: site
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: site-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Published site as the base (scores, catalogue, braille)
+        run: |
+          git fetch --depth 1 origin gh-pages
+          mkdir pages-site
+          git --work-tree=pages-site checkout origin/gh-pages -- .
+          git reset -q
+          scripts/sync_pages_dev.sh
+          mkdir -p serve && ln -s "$PWD/pages-site" serve/lune
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Test tools
+        run: |
+          python -m pip install --quiet playwright==1.60.0
+          python -m playwright install --with-deps chromium
+          npm install --no-save --silent axe-core@4
+          python scripts/make_upload_fixtures.py /tmp/up
+
+      - name: No in-copyright piece is listed or shipped
+        run: python scripts/verify_no_blocked.py pages-site
+
+      - name: Serve under /lune/
+        run: |
+          python -m http.server 8137 --bind 127.0.0.1 --directory serve > /tmp/server.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8137/lune/ >/dev/null && exit 0; sleep 1; done
+          exit 1
+
+      - name: Run the suites
+        env:
+          BASE: http://127.0.0.1:8137/lune/
+          AXE_JS: node_modules/axe-core/axe.min.js
+        run: |
+          mkdir -p results
+          status=0
+          for t in lune_flow_test claude_pages_test claude_practice_test contrast_audit a11y_audit loading_test offline_test; do
+            echo "::group::$t"
+            if python scripts/$t.py "$BASE" > results/$t.txt 2>&1; then echo "$t passed"; else echo "::error::$t failed"; status=1; fi
+            tail -40 results/$t.txt
+            echo "::endgroup::"
+          done
+          exit $status
+
+      - name: Keep the results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-results
+          path: results/

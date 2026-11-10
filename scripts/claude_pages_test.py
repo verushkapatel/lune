@@ -58,6 +58,18 @@ with sync_playwright() as p:
     rows = search_rows(pg, "op 10")
     check("search: 'op 10' only op. 10", all("10" in r for r in rows) and rows, rows[:3])
 
+    # --- the work itself comes first, before arrangements and unlabelled copies ---
+    first = {
+        "fur elise": ("Für Elise", "Beethoven"),
+        "clair de lune": ("Clair de lune", "Debussy"),
+        "canon in d": ("Canon in D", "Pachelbel"),
+        "the entertainer": ("The Entertainer", "Joplin"),
+        "moonlight sonata": ("Moonlight", "Beethoven"),
+    }
+    tops = {q: pg.evaluate("(q) => { const r = filterSearchIndex(q, 1)[0]; return r ? [r.title, r.composer] : null; }", q) for q in first}
+    wrong = {q: t for q, t in tops.items() if not t or first[q][0].lower() not in t[0].lower() or first[q][1] not in t[1]}
+    check("search: famous pieces lead with the work by its composer", not wrong, wrong)
+
     # --- every catalogue entry opens the piece it names ---
     opens = pg.evaluate("() => fetch('static/opens.json').then(r => r.json())")
     idx = pg.evaluate("() => fetch('static/search-index.json').then(r => r.json())")
@@ -104,6 +116,34 @@ with sync_playwright() as p:
         check("practice notes build without a server", "Name the notes" in body, body[:120])
     else:
         check("practice notes button present", False, "hidden")
+
+    # --- a chord's letters read top note first, on a phone too ---
+    order = {}
+    for w in (390, 1280):
+        pg.set_viewport_size({"width": w, "height": 860})
+        pg.goto(BASE + f"?w={w}#/debussy-clair-de-lune/score", wait_until="networkidle")
+        pg.wait_for_function("() => document.querySelectorAll('#osmd .lane-letter').length > 100", timeout=60000)
+        pg.wait_for_timeout(400)
+        # bar 1, right hand, first chord: F and A♭ (DOM order), A♭ is the upper note
+        order[w] = pg.evaluate(
+            """() => [...document.querySelectorAll('#osmd text.lane-letter')].slice(0, 2).map(t =>
+                 [t.textContent.replace(/[\u200b-\u200d\u2060]/g, ''), t.getBoundingClientRect().top])"""
+        )
+    pg.set_viewport_size({"width": 1280, "height": 860})
+    check(
+        "lane: Clair de lune's first chord reads A♭ over F at 390 and 1280",
+        all([t for t, _ in order[w]] == ["F", "A♭"] and order[w][1][1] < order[w][0][1] for w in order),
+        order,
+    )
+
+    # --- an older link keeps one tab while moving between panels ---
+    pg.goto(BASE + "?tabs=1#/debussy-clair-de-lune/score", wait_until="networkidle")
+    pg.wait_for_function("() => document.querySelectorAll('#osmd .lane-letter').length > 100", timeout=60000)
+    for panel in ("piano", "explain", "score"):
+        pg.goto(BASE + f"?tabs=1#/debussy-clair-de-lune/{panel}", wait_until="networkidle")
+        pg.wait_for_timeout(800)
+    n = pg.evaluate("() => state.sessions.length")
+    check("tabs: an older link opens the piece once across panels", n == 1, n)
 
     # --- routing / back ---
     pg.goto(BASE, wait_until="networkidle")
@@ -155,3 +195,4 @@ w = max(len(n) for _, n, _ in out)
 for s, n, d in out:
     print(f"{s}  {n.ljust(w)}  {d if s == 'FAIL' else ''}")
 print(f"\n{sum(s == 'PASS' for s, _, _ in out)}/{len(out)} passed")
+sys.exit(0 if out and all(s == "PASS" for s, _, _ in out) else 1)

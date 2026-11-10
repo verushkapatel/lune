@@ -583,7 +583,31 @@ function scoreIndexEntry(q, entry, tokens) {
   const group = entry.group || "";
   if (group.startsWith("Featured") || group.startsWith("Open MusicXML")) score += 1.5;
   else if (group.startsWith("Bach chorales") || group.startsWith("music21")) score -= 1;
+  // The work itself before its arrangements and copies: typing "fur elise" should
+  // open Beethoven's Für Elise, not a file called "Fur Elise - Beethoven" by
+  // "for beginner piano". Everything still appears; only the order changes.
+  if (title === q) score += 5;
+  const composer = String(entry.composer || "").trim();
+  if (!composer || /^unknown$/i.test(composer) || /\b(piano|easy|beginners?|arr\.?|version)\b/i.test(composer)) score -= 3;
+  if (/\b(easy|beginners?|fingered|simplified|version \d|musicxml|mxl)\b|\s[-—]\s.*\b(1[6-9]\d\d|20\d\d)\b|\s[-—]\s[A-Z][a-z]+$/i.test(entry.title || "")) score -= 2;
+  // near-ties go to the better-known composer (Debussy's Clair de lune before
+  // Jaëll's): how many of their pieces the catalogue holds, capped small
+  score += Math.min(1, Math.log10(1 + (composerCounts().get(normSearch(composer)) || 0)) / 2);
   return score;
+}
+
+let composerCountCache = { index: null, counts: new Map() };
+function composerCounts() {
+  const index = activeSearchIndex();
+  if (composerCountCache.index !== index) {
+    const counts = new Map();
+    for (const e of index) {
+      const k = normSearch(e.composer || "");
+      if (k) counts.set(k, (counts.get(k) || 0) + 1);
+    }
+    composerCountCache = { index, counts };
+  }
+  return composerCountCache.counts;
 }
 
 function filterSearchIndex(query, limit = SEARCH_LIMIT, index = activeSearchIndex()) {
@@ -3601,12 +3625,65 @@ function staggerLaneLabels(host) {
     if (!rows.has(key)) rows.set(key, []);
     rows.get(key).push({ el, b });
   }
+  // A chord's letters read top note first. Dropping the upper label of a stack
+  // onto the spare line would put it under the notes below it (A♭ over F would
+  // read F, A♭), so only the bottom label of a stack may drop.
+  const boxes = labels.map((el) => ({ el, b: el.getBBox(), y: Number(el.getAttribute("y")) || 0 }));
+  // the labels under this one in its chord, nearest first: line by line, each
+  // directly under the last, so a stack never reaches into the next staff's lane
+  const stackBelow = (el, b) => {
+    const out = [];
+    let cur = { el, b, y: Number(el.getAttribute("y")) || b.y };
+    for (;;) {
+      const mid = cur.b.x + cur.b.width / 2;
+      const next = boxes
+        .filter(
+          (o) =>
+            o.el !== cur.el &&
+            o.y > cur.y + 0.5 &&
+            o.y - cur.y <= cur.b.height * 1.6 &&
+            Math.abs(o.b.x + o.b.width / 2 - mid) < Math.max(cur.b.width, o.b.width) * 0.6
+        )
+        .sort((p, q) => p.y - q.y)[0];
+      if (!next || out.includes(next)) return out;
+      out.push(next);
+      cur = next;
+    }
+  };
+  // slurs and ties: a whole chord moved down must not land on one
+  const curves = [];
+  for (const g of svg.querySelectorAll("g.vf-curve")) {
+    try {
+      const r = g.getBBox();
+      if (r.width || r.height) curves.push(r);
+    } catch {
+      /* not drawn */
+    }
+  }
+  // every label of the chord, one line lower, lands on free paper: no other label
+  // on that line within a gap, and no notation under it
+  const stackFits = (el, b, below, sp, gap) => {
+    const stack = [{ el, b }, ...below];
+    const targets = stack.slice(1).map((o) => Number(o.el.getAttribute("y"))).concat(sp.cy);
+    const members = new Set(stack.map((o) => o.el));
+    const overlaps = (a, r, pad) =>
+      a.x < r.x + r.width + pad && a.x + a.width + pad > r.x && a.y + a.height * 0.15 < r.y + r.height && a.y + a.height * 0.85 > r.y;
+    return stack.every((o, i) => {
+      const dy = targets[i] - (Number(o.el.getAttribute("y")) || 0);
+      const nb = { x: o.b.x, y: o.b.y + dy, width: o.b.width, height: o.b.height };
+      if (touchesInk(nb) || curves.some((r) => overlaps(nb, r, 0.8))) return false;
+      // any other label whose box it would meet, on whatever line
+      return !labels.some((other) => !members.has(other) && overlaps(nb, other.getBBox(), gap));
+    });
+  };
+  const shifted = new Set(); // labels already moved down with their stack
   const dropped = new Map(); // spare-line y → right edge used so far
   let moved = 0;
   for (const row of rows.values()) {
     row.sort((p, q) => p.b.x - q.b.x);
     let lastRight = -Infinity;
     for (const { el, b } of row) {
+      if (shifted.has(el)) continue;
       // labels for different notes need a visible gap, not just no overlap,
       // or "E G♯" reads as one word
       const gap = Math.max(2.5, b.height * 0.3);
@@ -3614,12 +3691,29 @@ function staggerLaneLabels(host) {
         lastRight = b.x + b.width;
         continue;
       }
-      const sp = spareBelow(b);
+      const below = stackBelow(el, b);
+      const bottom = below.length ? below[below.length - 1] : { el, b };
+      const sp = spareBelow(bottom.b);
       const key = sp ? Math.round(sp.y) : null;
       const used = key != null ? dropped.get(key) ?? -Infinity : Infinity;
-      if (sp && b.x >= used + gap) {
-        el.setAttribute("y", String(sp.cy));
-        dropped.set(key, b.x + b.width);
+      if (sp && below.length && bottom.b.x >= used + gap && stackFits(el, b, below, sp, gap)) {
+        // move the whole chord down a line, so its top note still reads first
+        const stack = [el, ...below.map((o) => o.el)];
+        const ys = stack.map((n) => n.getAttribute("y"));
+        ys.push(String(sp.cy));
+        stack.forEach((n, i) => n.setAttribute("y", ys[i + 1]));
+        for (const o of below) shifted.add(o.el);
+        dropped.set(key, Math.max(b.x + b.width, bottom.b.x + bottom.b.width));
+        moved++;
+        continue;
+      }
+      // no room to move the chord as one: the single label drops (as before)
+      const own = below.length ? spareBelow(b) : sp;
+      const ownKey = own ? Math.round(own.y) : null;
+      const ownUsed = ownKey != null ? dropped.get(ownKey) ?? -Infinity : Infinity;
+      if (own && b.x >= ownUsed + gap) {
+        el.setAttribute("y", String(own.cy));
+        dropped.set(ownKey, b.x + b.width);
         moved++;
         continue;
       }
@@ -4286,7 +4380,10 @@ async function applyRoute() {
       }
       return;
     }
-    const open = state.sessions.find((x) => pieceRouteId(x.piece) === r.id);
+    // older links use ids that now resolve to a renamed catalogue entry
+    // (debussy-clair-de-lune → claude-debussy-claire-de-lune): a session also answers
+    // to the id it was opened from, so changing panel doesn't open the piece again
+    const open = state.sessions.find((x) => pieceRouteId(x.piece) === r.id || x.routeAliases?.has(r.id));
     if (open) {
       if (open.id !== state.activeSessionId) await activateSession(open.id);
       else showView("studio");
@@ -4295,15 +4392,43 @@ async function applyRoute() {
       return;
     }
     // static site: exact catalogue id; local server: let it resolve the words
-    const piece = await withLoader("Finding the score", () =>
-      tryOpen(LUNE_ON_PAGES ? { query: r.id } : { query: r.id.replace(/-/g, " "), title: "" })
-    );
+    const askedFor = location.hash;
+    // A score fetched on open can take many seconds. If the pianist goes to another
+    // piece meanwhile, the loader (which blocks the page) goes at once, and this
+    // score must not take the screen back when it lands.
+    showLoader("Finding the score");
+    let released = false;
+    const release = () => {
+      if (released) return;
+      released = true;
+      window.removeEventListener("hashchange", release);
+      hideLoader();
+    };
+    window.addEventListener("hashchange", release);
+    let piece;
+    try {
+      piece = await tryOpen(LUNE_ON_PAGES ? { query: r.id } : { query: r.id.replace(/-/g, " "), title: "" });
+    } finally {
+      release();
+    }
+    if (location.hash !== askedFor) return;
     if (!piece || piece.kind !== "score") {
       goHome({ keepTabs: true });
       toast("That link points to a score Lune doesn’t have any more — search for it instead.");
       return;
     }
+    const already = state.sessions.find((x) => pieceRouteId(x.piece) && pieceRouteId(x.piece) === pieceRouteId(piece));
+    if (already) {
+      (already.routeAliases ||= new Set()).add(r.id);
+      if (already.id !== state.activeSessionId) await activateSession(already.id);
+      else showView("studio");
+      if (r.panel === "score") await switchToScorePanel();
+      else setStudioPanel(r.panel);
+      return;
+    }
     await openPieceSession(piece, { panel: r.panel === "score" ? "explain" : r.panel });
+    const opened = activeSession();
+    if (opened && pieceRouteId(opened.piece) !== r.id) (opened.routeAliases ||= new Set()).add(r.id);
     if (r.panel === "score") await switchToScorePanel();
   } finally {
     routeApplying = false;

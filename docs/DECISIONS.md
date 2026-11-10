@@ -27,7 +27,7 @@
 - Dark mode shows the score page and bar panel dark (a flip filter on those two surfaces only); light mode shows them as white paper.
 - `scripts/build_site.sh` is the one clean build. `scripts/blocked.py` is the single block list; `verify_no_blocked.py` gates both the build and publishing.
 - Catalogue titles: `normalize_titles.py` replaces opus-only titles with the kind of piece and number the source states; `dedupe_index.py` removes repeated ids and remote copies of bundled works. Arrangements with different titles stay separate entries.
-- Tests: `lune_flow_test.py` (flows, AI provider and fallback, music measurements, accessibility, reduced motion, phone), `contrast_audit.py` (both themes), plus the older `claude_pages_test.py` and `claude_practice_test.py`. `claude_follow_test.py` covered Play along and is obsolete.
+- Tests: `lune_flow_test.py` (flows, AI provider and fallback, music measurements, accessibility, reduced motion, phone), `contrast_audit.py` (both themes), plus the older `claude_pages_test.py` and `claude_practice_test.py`. `claude_follow_test.py` covered Play along and is obsolete. Also `a11y_audit.py` (axe-core, both themes, keyboard), `loading_test.py`, `offline_test.py`; `make_upload_fixtures.py` writes the upload files the suites need.
 - Feedback is a form, not a mail link: answers go to the `feedback` table with an explicit quote permission, and the owner view never copies private answers. If the table is unreachable the form offers an email draft.
 - Auth email is OTP (`{{ .Token }}`); Magic Link / Confirm signup templates must not lead with “Confirm your email”.
 - Home keeps a single search field in the header (compact); the duplicate hero search was removed so results stay wired to `#q`.
@@ -40,6 +40,13 @@
 - Sound starts from the tap: a capture listener resumes the audio context on every pointerdown/keydown/click, before handlers run. Before this, a warm-up started without a tap (opening a score by link) could leave the first Play waiting forever behind “Warming up the piano” (seen 1 in 6 tries). The first tap that needs Tone opens a plain AudioContext synchronously and Tone adopts it (iOS only allows sound started inside the tap).
 - The service worker also keeps Tone.js, `search-index.json` and `opens.json`, which index.html no longer names, so a piece opened once still reads, searches and plays offline.
 - Open pieces are a navigation list with `aria-current`, not a tablist (a tab can't contain its own close button). A skip link comes first in tab order and moves focus into the visible view. Toasts are mirrored to an always-present live region.
+- A chord's letters read top note first. When the lane is crowded, a chord moves down a line as a whole if every label lands on free paper (no label, notation or slur); otherwise the single label drops as before. Before, the top label of a stack could drop under the others (Clair de lune bar 1 read F, A♭ on a phone).
+- Older links whose ids now resolve to a renamed catalogue entry (`debussy-clair-de-lune` → `claude-debussy-claire-de-lune`) are remembered by the session, so moving between Score, Explain and Piano doesn't open the piece again in a new tab.
+- Search puts the work before its copies: an exact title wins; titles that are arrangements or file names ("easy", "fingered", "(MusicXML)", "- Composer - 1902") and entries with no real composer rank lower; near-ties go to the composer with more pieces in the catalogue. Nothing is hidden.
+- Search results show hover with an inset bar, not extra padding, so the text doesn't move.
+- On a phone, controls get a 44 px hit area where the layout allows. Header tools grow in height only so the header fits at 390 px; sliders keep their drawn size.
+- Opening a piece by link that has to be fetched (remote scores can take 30–40 s): if the address changes before it lands, its loader goes at once and the score doesn't take the screen back. Before, the loader blocked every click until the abandoned download finished, then the old piece replaced the one asked for.
+- CI (`.github/workflows/site.yml`) takes the published gh-pages site as the score library, copies this branch's frontend over it, and runs the browser suites. Accounts are off or stubbed in every suite.
 
 ## Visible buttons (before → after)
 
