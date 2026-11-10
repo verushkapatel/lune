@@ -3972,9 +3972,30 @@ function centreLaneLabels(host) {
   }
 }
 
+/* OSMD draws a staff's word marking once per voice (Clair de lune: "con sordina",
+   "un poco mosso" and "Calmato" twice). Keep the first of the same words drawn at
+   nearly the same place; the letter lane (g.lyrics) is never touched. */
+function dedupeWordMarks(host) {
+  const seen = [];
+  for (const t of host.querySelectorAll("svg text")) {
+    if (t.closest("g.lyrics")) continue;
+    const word = (t.textContent || "").trim();
+    if (word.length < 3 || !/[a-z]/i.test(word)) continue;
+    const r = t.getBoundingClientRect();
+    if (!r.width) continue;
+    if (seen.some((o) => o.word === word && Math.abs(o.x - r.left) < 40 && Math.abs(o.y - r.top) < 60)) t.remove();
+    else seen.push({ word, x: r.left, y: r.top });
+  }
+}
+
 function applyScoreOverlays() {
   const host = $("osmd");
   if (!host || !state.osmd) return;
+  try {
+    dedupeWordMarks(host);
+  } catch {
+    /* a marking drawn twice is better than none */
+  }
   requestAnimationFrame(drawPedalMarks);
   if (LUNE_LYRIC_LANE) {
     // Labels are part of the engraving; just style them and drop any overlay.

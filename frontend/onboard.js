@@ -669,6 +669,7 @@ window.LuneOnboard = (function () {
   }
 
   function resetAuthForm({ focus = false } = {}) {
+    $("auth-continue-device")?.remove();
     authPendingEmail = "";
     const emailStep = $("auth-step-email");
     const codeStep = $("auth-step-code");
@@ -741,6 +742,7 @@ window.LuneOnboard = (function () {
     }
 
     const email = $("create-email")?.value || "";
+    $("auth-continue-device")?.remove();
     if (msg) msg.textContent = "Sending a code…";
     try {
       const res = await store().signIn(email);
@@ -753,6 +755,18 @@ window.LuneOnboard = (function () {
       afterAuth();
     } catch (err) {
       if (msg) msg.textContent = err.message || String(err);
+      if (err?.code === "cloud-unreachable" && msg && !$("auth-continue-device")) {
+        const go = document.createElement("button");
+        go.type = "button";
+        go.className = "quiet auth-continue-device";
+        go.id = "auth-continue-device";
+        go.textContent = "Continue without an account";
+        go.addEventListener("click", () => {
+          $("create-account-dialog")?.close();
+          resetAuthForm();
+        });
+        msg.after(go);
+      }
     }
   }
 

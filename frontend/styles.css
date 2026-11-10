@@ -12053,3 +12053,12 @@ html[data-theme="light"] #home-guest #about .about-columns strong, html[data-the
 /* the numbers lead straight into the idea */
 #home .lp-proof { padding-bottom: clamp(8px, 2vh, 24px); }
 #home .mr-idea { padding-top: clamp(40px, 7vh, 80px) !important; }
+
+/* sign-in: when accounts can't be reached, carrying on is a clear, full button */
+#create-account-dialog .auth-continue-device {
+  display: block; width: 100%; height: 48px; margin: 12px 0 4px; border-radius: 999px; cursor: pointer;
+  font: inherit; font-size: 16px; color: #fff !important; opacity: 1 !important;
+  background: rgba(255,255,255,0.06) !important; border: 1px solid rgba(255,255,255,0.4) !important;
+}
+#create-account-dialog .auth-continue-device:hover { border-color: rgba(255,255,255,0.8) !important; }
+html[data-theme="light"] #create-account-dialog .auth-continue-device { color: #111 !important; background: #fff !important; border-color: rgba(0,0,0,0.35) !important; }
