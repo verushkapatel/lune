@@ -16,7 +16,7 @@
  * - Offline with nothing cached: the request fails and the browser shows its
  *   own offline page.
  */
-const CACHE = "lune-shell-v1";
+const CACHE = "lune-shell-v2";
 const ROOT = self.registration.scope; // e.g. https://lune.page/
 
 async function put(cache, key, response) {
@@ -38,9 +38,6 @@ async function precache() {
   await cache.put(ROOT, page);
 
   const urls = new Set([new URL("manifest.webmanifest", ROOT).href]);
-  // Not named in index.html but needed offline: the piano engine (loaded on first Play,
-  // see piano.js) and the two catalogue files every search and piece open reads.
-  for (const extra of ["static/vendor/Tone.js", "static/search-index.json", "static/opens.json"]) urls.add(new URL(extra, ROOT).href);
   for (const m of html.matchAll(/\s(?:src|href)="(static\/[^"#]+)"/g)) urls.add(new URL(m[1], ROOT).href);
 
   // fonts are named in the stylesheet, not the page
@@ -83,12 +80,14 @@ self.addEventListener("fetch", (event) => {
   if (!req.url.startsWith(ROOT)) return; // other origins: untouched
   if (req.headers.has("authorization") || req.headers.has("range")) return;
   if (req.url.startsWith(ROOT + "api/")) return; // local Python server: always live
+  if (req.url.includes("deploy-stamp.txt")) return; // the update check must see the server
   const key = req.mode === "navigate" ? ROOT : req.url;
 
   event.respondWith(
     (async () => {
       try {
-        const res = await fetch(req);
+        // a page load always asks the server, never the browser's own copy, so a new publish shows at once
+        const res = await (req.mode === "navigate" ? fetch(req.url, { cache: "no-cache", credentials: "same-origin" }) : fetch(req));
         if (res.status === 200 && res.type === "basic" && !res.redirected) {
           const copy = res.clone();
           event.waitUntil(caches.open(CACHE).then((cache) => put(cache, key, copy)).catch(() => {}));

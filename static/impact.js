@@ -4,7 +4,7 @@ window.LuneImpact = (function () {
   const store = () => window.LuneStore;
   const $ = (id) => document.getElementById(id);
   const INVITE_KEY = "lune.invite";
-  const MARK = `<svg class="lune-mark impact-mark" viewBox="0 0 40 40" width="40" height="40" aria-hidden="true" focusable="false"><path fill="currentColor" d="M26.2 7.2c-5.9.9-10.4 6-10.4 12.1 0 6.1 4.5 11.2 10.4 12.1A12.2 12.2 0 0 1 14 19.3c0-6.6 5.2-12 11.8-12.2.1 0 .3 0 .4 0z"/></svg>`;
+  const MARK = `<svg class="lune-mark impact-mark" viewBox="0 0 40 40" width="40" height="40" aria-hidden="true" focusable="false"><path fill="currentColor" d="M17.61 4.58A12 12 0 1 0 27.70 24.77A11.4 11.4 0 1 1 17.61 4.58Z"/></svg>`;
 
   const esc = (s) =>
     String(s ?? "")
@@ -69,10 +69,46 @@ window.LuneImpact = (function () {
     if (!snap.days) return "The week is still open. One quiet session is enough to begin.";
     if (snap.days >= snap.goalDays) return "You met the rhythm you set. That is how pieces settle.";
     if (snap.good > snap.hard) return "More bars moving toward Good than Hard — keep the light on.";
-    if (snap.sessions >= 1) return "Hard bars are information, not failure. Meet them again tonight.";
+    if (snap.hard >= 1) return "Hard bars are information, not failure. Meet them again tonight.";
     return "Show up once more this week. Small sessions still count.";
   }
 
+  /** No schedule: the pieces in progress, with where each stands and Lune AI's last summary. */
+  async function piecesOverviewHtml() {
+    const s = store();
+    const pieces = ((await s?.listPieces?.().catch?.(() => [])) || []).filter((p) => (p.status || "learning") !== "ready").slice(0, 4);
+    if (!pieces.length) return `<span class="wk-k">Your pieces</span><span class="wk-q">Open any score and press Save to keep it here.</span>`;
+    const label = { learning: "Learning", polishing: "Polishing", ready: "Ready", paused: "Paused" };
+    return `<span class="wk-k">Your pieces</span><span class="po">${pieces
+      .map((p) => {
+        const sum = window.LunePlans?.summaryOf?.(p.piece_key);
+        const prog = window.LunePlans?.progressOf?.(p.piece_key);
+        return `<button type="button" class="po-piece" data-open="${esc(p.piece_key)}">
+          <span class="po-top"><span class="po-title">${esc(p.title)}</span><span class="po-st">${esc(label[p.status] || "Learning")}</span></span>
+          <span class="po-bar"><i style="width:${prog?.pct ?? 0}%"></i></span>
+          ${sum ? `<span class="po-sum"><span class="la-tag">${sum.via === "model" ? "@Lune AI" : "@Last session"}</span> ${esc(sum.text)}</span>` : `<span class="po-sum po-dim">No session summary yet. It appears after you practise.</span>`}
+        </button>`;
+      })
+      .join("")}</span>`;
+  }
+  document.addEventListener("lune:plan-mode", () => paintHomeImpact().catch?.(() => {}));
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest?.(".po-piece[data-open]");
+    if (b) window.LunePractice?.openFromRepertoire?.(b.dataset.open);
+  });
+  /** This week as a bar: days practised (or ticked off in the plan) out of the goal. */
+  function weekBarHtml() {
+    const s = store();
+    const snap = s?.weekSnapshot?.() || { days: 0, goalDays: 4 };
+    const plan = window.LunePlans?.currentPlan?.();
+    const ticked = plan ? Object.values(plan.done || {}).filter(Boolean).length : 0;
+    const goal = Math.max(1, plan?.days?.length || snap.goalDays || 4);
+    const done = Math.min(goal, Math.max(snap.days || 0, ticked));
+    const pct = Math.round((done / goal) * 100);
+    return `<span class="wk-top"><span class="wk-k">This week</span><span class="wk-n">${done} of ${goal} day${goal === 1 ? "" : "s"}</span></span>
+      <span class="wk-bar" role="progressbar" aria-label="Practice days this week" aria-valuemin="0" aria-valuemax="${goal}" aria-valuenow="${done}"><i style="width:${pct}%"></i></span>
+      <span class="wk-days" aria-hidden="true">${Array.from({ length: goal }, (_, i) => `<b class="${i < done ? "on" : ""}"></b>`).join("")}</span>`;
+  }
   function streakLine() {
     const s = store();
     if (!s?.weekSnapshot) return "";
@@ -231,8 +267,22 @@ window.LuneImpact = (function () {
 
   async function paintHomeImpact() {
     if (!window.LuneOnboard?.signedIn?.()) return;
+    window.LuneMoon?.paintMember?.();
     const streak = $("member-streak");
-    if (streak) streak.textContent = streakLine();
+    if (streak) {
+      const mode = window.LunePlans?.planMode?.();
+      if (mode === "plan") {
+        streak.innerHTML = weekBarHtml() + `<button type="button" class="link-btn wk-change" data-wp-new>Change plan</button>`;
+        // a week without a plan gets one, made from the goal set at the start
+        window.LunePlans?.ensureWeekPlan?.().then((made) => { if (made) streak.innerHTML = weekBarHtml() + `<button type="button" class="link-btn wk-change" data-wp-new>Change plan</button>`; }).catch(() => {});
+      } else if (mode === "free") {
+        streak.innerHTML = await piecesOverviewHtml();
+      } else {
+        streak.innerHTML = `<span class="wk-choose"><span class="wk-k">Your week</span>
+          <span class="wk-q">Should Lune plan your week around your goal, or would you rather play whenever it suits you?</span>
+          <span class="wk-opts"><button type="button" class="quiet wk-go" data-wp-choose="plan">Plan my week</button><button type="button" class="quiet" data-wp-choose="free">No schedule</button></span></span>`;
+      }
+    }
 
     const tonight = $("member-tonight");
     const tonightBody = $("member-tonight-body");
@@ -288,24 +338,132 @@ window.LuneImpact = (function () {
     s.syncPrefs?.();
   }
 
+  /* ---------- the week's plan: what it holds, what is done, what is left, and why ---------- */
+
+  const RATING = { again: "Again", hard: "Hard", okay: "Okay", good: "Good", strong: "Strong", easy: "Strong" };
+  const shortDate = (iso) => {
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  };
+  const barsLabel = (bars) => {
+    const b = (bars || []).map(Number).filter((n) => n > 0);
+    if (!b.length) return "";
+    const runs = [];
+    for (const n of b) {
+      const last = runs[runs.length - 1];
+      if (last && n === last[1] + 1) last[1] = n;
+      else runs.push([n, n]);
+    }
+    const text = runs.map(([a, z]) => (a === z ? `${a}` : `${a}–${z}`)).join(", ");
+    return b.length === 1 ? `bar ${text}` : `bars ${text}`;
+  };
+
+  function weekBounds(week) {
+    const start = new Date(`${week}T00:00:00`);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 7);
+    return { startIso: start.toISOString(), endIso: end.toISOString() };
+  }
+
+  /** Why a plan task is on the list, in the pianist's terms. */
+  function taskWhy(t, startIso) {
+    const when = shortDate(t.created_at);
+    const src = t.plan?.source;
+    let why;
+    if (src === "ask") why = `You asked Lune for a plan on ${when}`;
+    else if (src === "tonight") why = `Tonight’s plan from ${when}, made from the bars you found hardest`;
+    else if (src === "repertoire") why = `You added it from Work on this piece on ${when}`;
+    else if (src === "teacher") why = `From your teacher’s link, saved on ${when}`;
+    else why = `You set it yourself on ${when}`;
+    if (t.plan?.summary) why += `: ${String(t.plan.summary).replace(/\.$/, "")}`;
+    if (t.created_at < startIso && !t.done) why += ". Carried over from an earlier week";
+    return `${why}.`;
+  }
+
+  /**
+   * Everything this week asks for: plan tasks (open ones, and those made or
+   * finished this week) and bars due for review before the week ends (or
+   * reviewed during it). Each item says whether it is done and why it exists.
+   */
+  async function weekPlan(week) {
+    const s = store();
+    const { startIso, endIso } = weekBounds(week);
+    const pieces = (await s.listPieces?.().catch?.(() => [])) || [];
+    const titleOf = (key) => pieces.find((p) => p.piece_key === key)?.title || "A piece";
+    const items = [];
+    for (const t of s.listTasks?.() || []) {
+      const thisWeek = t.created_at >= startIso || (t.done && (t.done_at || "") >= startIso);
+      if (t.done && !thisWeek) continue;
+      if (!t.done && t.created_at >= endIso) continue;
+      items.push({ kind: "task", piece_key: t.piece_key, title: t.title || titleOf(t.piece_key), bars: t.bars || [], done: !!t.done, why: taskWhy(t, startIso), id: t.id });
+    }
+    const cards = (await s.listCards?.().catch?.(() => [])) || [];
+    for (const c of cards) {
+      const ratedThisWeek = (c.updated_at || "") >= startIso && !!c.last_grade;
+      const dueThisWeek = c.due_at < endIso;
+      if (!ratedThisWeek && !dueThisWeek) continue;
+      const done = !dueThisWeek;
+      const rating = RATING[c.last_grade] || "";
+      const why = rating
+        ? done
+          ? `You rated it ${rating} on ${shortDate(c.updated_at)}. Lune brings it back ${shortDate(c.due_at)}.`
+          : `You rated it ${rating} on ${shortDate(c.updated_at)}, so it is due again ${c.due_at <= new Date().toISOString() ? "now" : shortDate(c.due_at)}.`
+        : "Queued for review: rate it after you play it.";
+      items.push({ kind: "review", piece_key: c.piece_key, title: titleOf(c.piece_key), bars: [c.bar], done, why });
+    }
+    // what is left comes first, then what is done
+    items.sort((a, b) => Number(a.done) - Number(b.done) || (a.kind === b.kind ? 0 : a.kind === "task" ? -1 : 1));
+    return { items, done: items.filter((x) => x.done).length, left: items.filter((x) => !x.done).length };
+  }
+
+  /** Bars rated Again or Hard this week (and any older stumble records). */
+  async function weekHardBars(week, limit = 6) {
+    const s = store();
+    const pieces = (await s.listPieces?.().catch?.(() => [])) || [];
+    const titleOf = (key) => pieces.find((p) => p.piece_key === key)?.title || "A piece";
+    const tally = new Map();
+    for (const r of s.listActivity?.({ week }) || []) {
+      const g = s.normGrade ? s.normGrade(r.grade) : r.grade;
+      if (r.kind !== "review" || !(g === "again" || g === "hard") || !(r.bar > 0)) continue;
+      const k = `${r.piece_key}:${r.bar}`;
+      const row = tally.get(k) || { piece_key: r.piece_key, title: titleOf(r.piece_key), bar: Number(r.bar), times: 0 };
+      row.times += 1;
+      tally.set(k, row);
+    }
+    const rated = [...tally.values()].sort((a, b) => b.times - a.times);
+    const stumbled = (await topStumbles(limit)).flat.filter((x) => !tally.has(`${x.piece_key}:${x.bar}`));
+    return [...rated, ...stumbled].slice(0, limit);
+  }
+
+  const itemLine = (x) => `${x.title}${x.bars?.length ? `, ${barsLabel(x.bars)}` : ""}${x.kind === "review" ? " (review)" : ""}`;
+
   async function openWeeklyReview() {
     const s = store();
     const snap = s.weekSnapshot();
-    const stumbles = await topStumbles(5);
+    const plan = await weekPlan(snap.week);
+    const hardBars = await weekHardBars(snap.week, 5);
     const d = dialog("weekly-review-dialog", "impact-chapter");
     const range = weekRangeLabel(snap.week);
-    const stumbleHtml = stumbles.flat.length
-      ? `<ul class="impact-list">${stumbles.flat
-          .map((x) => `<li><span>${esc(x.title)}</span><em>bar ${x.bar}</em></li>`)
+    const shown = plan.items.slice(0, 14);
+    const itemsHtml = plan.items.length
+      ? `<p class="week-progress" id="week-progress">${plan.done} of ${plan.items.length} done · ${plan.left} left</p>
+        <ul class="week-items" aria-describedby="week-progress">${shown
+          .map(
+            (x) => `<li class="week-item ${x.done ? "is-done" : "is-left"}">
+              <span class="week-status">${x.done ? "Done" : "To do"}</span>
+              <span class="week-what">${esc(x.title)}${x.bars?.length ? ` · ${esc(barsLabel(x.bars))}` : ""}${x.kind === "review" ? ` <em>review</em>` : ""}</span>
+              <span class="week-why">${esc(x.why)}</span>
+            </li>`
+          )
+          .join("")}</ul>${plan.items.length > shown.length ? `<p class="dim">And ${plan.items.length - shown.length} more.</p>` : ""}`
+      : `<p class="impact-empty">Nothing is planned for this week yet. Make tonight’s plan from your home page, add bars to your plan from a score, or rate a bar after you practise it so Lune can bring it back.</p>`;
+    const hardHtml = hardBars.length
+      ? `<ul class="impact-list">${hardBars
+          .map((x) => `<li><span>${esc(x.title)}</span><em>bar ${x.bar}${x.times ? ` · rated Again or Hard ${x.times === 1 ? "once" : `${x.times} times`}` : ""}</em></li>`)
           .join("")}</ul>`
-      : `<p class="impact-empty">No hard bars logged this fortnight. Rate bars after you practise and they appear here.</p>`;
+      : `<p class="impact-empty">No bars rated Again or Hard this week.</p>`;
 
-    const minsLine =
-      snap.mins > 0
-        ? `About ${snap.mins} minutes logged — best effort when the clock is known.`
-        : snap.barsWorked > 0
-          ? `${snap.sessions} session marker${snap.sessions === 1 ? "" : "s"} · ${snap.barsWorked} bar${snap.barsWorked === 1 ? "" : "s"} worked (exact minutes aren’t always known).`
-          : `${snap.sessions} session marker${snap.sessions === 1 ? "" : "s"} — honest practice signals, not a stopwatch.`;
+    const minsLine = "A practice day is a day you rated a bar or finished a task in Lune, on any of your devices. Opening a piece or pressing Play does not count, and Lune does not time your practice.";
 
     d.innerHTML = `
       ${closeRow}
@@ -318,15 +476,18 @@ window.LuneImpact = (function () {
           <p class="impact-voice">${esc(encouragement(snap))}</p>
         </header>
         <div class="impact-stats impact-stats-chapter" role="list">
-          <div role="listitem"><span class="impact-num">${snap.days}</span><span class="dim">days · goal ${snap.goalDays}</span></div>
-          <div role="listitem"><span class="impact-num">${snap.sessions}</span><span class="dim">sessions</span></div>
-          <div role="listitem"><span class="impact-num">${snap.good}</span><span class="dim">Good / Easy</span></div>
-          <div role="listitem"><span class="impact-num">${snap.hard}</span><span class="dim">Again / Hard</span></div>
+          <div role="listitem"><span class="impact-num">${snap.days}</span><span class="dim">practice days · goal ${snap.goalDays}</span></div>
+          <div role="listitem"><span class="impact-num">${snap.ratings}</span><span class="dim">bar${snap.ratings === 1 ? "" : "s"} rated${snap.ratings ? ` · ${snap.good} Good or Strong, ${snap.hard} Again or Hard` : ""}</span></div>
+          <div role="listitem"><span class="impact-num">${snap.tasksDone}</span><span class="dim">task${snap.tasksDone === 1 ? "" : "s"} finished</span></div>
         </div>
         <p class="dim impact-mins">${esc(minsLine)}</p>
-        <section class="impact-chapter-block">
-          <h3 class="impact-h3">Bars that asked for you</h3>
-          ${stumbleHtml}
+        <section class="impact-chapter-block" aria-labelledby="week-plan-h">
+          <h3 class="impact-h3" id="week-plan-h">What this week holds</h3>
+          ${itemsHtml}
+        </section>
+        <section class="impact-chapter-block" aria-labelledby="week-hard-h">
+          <h3 class="impact-h3" id="week-hard-h">Bars that asked for you</h3>
+          ${hardHtml}
         </section>
         <div class="onboard-nav auth-keep-nav impact-chapter-nav">
           <button type="button" class="quiet" data-impact-share>Share this week</button>
@@ -340,6 +501,27 @@ window.LuneImpact = (function () {
       openShareWeek();
     });
     persistWeekSnap(snap);
+  }
+
+  /** The plain-text summary for Copy summary: readable on its own in a message or email. */
+  function summaryText(p) {
+    const lines = [`${p.displayName}: practice week ${p.weekLabel || `of ${p.week}`}`];
+    lines.push(
+      p.ratings != null
+        ? `Practised on ${p.days} of the ${p.goalDays} days planned. ${p.ratings} bar${p.ratings === 1 ? "" : "s"} rated, ${p.tasksDone || 0} task${p.tasksDone === 1 ? "" : "s"} finished.`
+        : `Practised on ${p.days} of the ${p.goalDays} days planned, ${p.sessions} session${p.sessions === 1 ? "" : "s"}.`
+    );
+    if (p.items?.length) {
+      const done = p.items.filter((x) => x.done);
+      const left = p.items.filter((x) => !x.done);
+      lines.push(`${done.length} of ${p.items.length} planned things done.`);
+      if (done.length) lines.push(`Done: ${done.map(itemLine).join("; ")}.`);
+      if (left.length) lines.push(`Still to do: ${left.map(itemLine).join("; ")}.`);
+    }
+    if (p.pieces?.length) lines.push(`Pieces: ${p.pieces.map((x) => x.title).join(", ")}.`);
+    if (p.hardBars?.length) lines.push(`Hard bars: ${p.hardBars.map((x) => `${x.title}, bar ${x.bar}`).join("; ")}.`);
+    lines.push("Made with Lune: lune.page");
+    return lines.join("\n");
   }
 
   async function openShareWeek() {
@@ -394,10 +576,14 @@ window.LuneImpact = (function () {
       s.setPref("displayName", display);
       const includeBars = !!$("share-include-bars")?.checked;
       let hardBars = [];
-      if (includeBars) {
-        const top = await topStumbles(6);
-        hardBars = top.flat.map((x) => ({ title: x.title, bar: x.bar }));
-      }
+      if (includeBars) hardBars = (await weekHardBars(snap.week, 6)).map((x) => ({ title: x.title, bar: x.bar }));
+      // titles, bars and done or not only: no note text leaves the device
+      const plan = await weekPlan(snap.week);
+      const picked = new Set(selected().map((x) => x.piece_key));
+      const items = plan.items
+        .filter((x) => !picked.size || picked.has(x.piece_key))
+        .slice(0, 20)
+        .map((x) => ({ title: x.title, bars: x.bars, done: x.done, kind: x.kind }));
       return {
         displayName: display,
         week: snap.week,
@@ -405,26 +591,20 @@ window.LuneImpact = (function () {
         days: snap.days,
         goalDays: snap.goalDays,
         sessions: snap.sessions,
-        mins: snap.mins,
+        ratings: snap.ratings,
+        tasksDone: snap.tasksDone,
         barsWorked: snap.barsWorked || 0,
         pieces: selected(),
         includeBars,
         hardBars,
+        items,
         madeWith: "Lune",
       };
     };
 
     d.querySelector("[data-share-copy]")?.addEventListener("click", async () => {
       const p = await payloadOf();
-      const text = [
-        `${p.displayName} · ${p.weekLabel || `week of ${p.week}`}`,
-        `${p.days}/${p.goalDays} days · ${p.sessions} sessions` + (p.mins ? ` · ~${p.mins} min` : ""),
-        p.pieces.length ? `Pieces: ${p.pieces.map((x) => x.title).join(", ")}` : "",
-        p.hardBars?.length ? `Hard bars: ${p.hardBars.map((x) => `${x.title} ${x.bar}`).join("; ")}` : "",
-        "Made with Lune — lune.page",
-      ]
-        .filter(Boolean)
-        .join("\n");
+      const text = summaryText(p);
       try {
         await navigator.clipboard.writeText(text);
         $("share-week-msg").textContent = "Summary copied.";
@@ -471,7 +651,8 @@ window.LuneImpact = (function () {
       days: snap.days,
       goalDays: snap.goalDays,
       sessions: snap.sessions,
-      mins: snap.mins,
+      ratings: snap.ratings,
+      tasksDone: snap.tasksDone,
       pieces: [],
       invite: true,
       madeWith: "Lune",
@@ -615,6 +796,8 @@ window.LuneImpact = (function () {
       return;
     }
     const p = row.payload;
+    // a shared week plan or a piece's progress has its own page
+    if (p.kind && window.LunePlans?.renderShare?.(page, p)) return;
     const invited = !!p.invite;
     if (invited) markInvite();
     const range = p.weekLabel || weekRangeLabel(p.week) || p.week || "";
@@ -631,9 +814,22 @@ window.LuneImpact = (function () {
         ${invited && range ? `<p class="dim share-range">${esc(range)}</p>` : ""}
         <div class="impact-stats">
           <div><span class="impact-num">${esc(String(p.days ?? 0))}</span><span class="dim">days · goal ${esc(String(p.goalDays ?? "—"))}</span></div>
-          <div><span class="impact-num">${esc(String(p.sessions ?? 0))}</span><span class="dim">sessions</span></div>
-          ${p.mins ? `<div><span class="impact-num">${esc(String(p.mins))}</span><span class="dim">minutes (approx.)</span></div>` : ""}
+          ${
+            p.ratings != null
+              ? `<div><span class="impact-num">${esc(String(p.ratings))}</span><span class="dim">bars rated</span></div>
+          <div><span class="impact-num">${esc(String(p.tasksDone ?? 0))}</span><span class="dim">tasks finished</span></div>`
+              : `<div><span class="impact-num">${esc(String(p.sessions ?? 0))}</span><span class="dim">sessions</span></div>`
+          }
         </div>
+        ${
+          p.items?.length
+            ? `<h2 class="impact-h3">This week’s plan: ${p.items.filter((x) => x.done).length} of ${p.items.length} done</h2><ul class="week-items">${p.items
+                .map(
+                  (x) => `<li class="week-item ${x.done ? "is-done" : "is-left"}"><span class="week-status">${x.done ? "Done" : "To do"}</span><span class="week-what">${esc(itemLine(x))}</span></li>`
+                )
+                .join("")}</ul>`
+            : ""
+        }
         ${
           p.pieces?.length
             ? `<h2 class="impact-h3">Pieces</h2><ul class="impact-list">${p.pieces
@@ -735,6 +931,7 @@ window.LuneImpact = (function () {
 
   function init() {
     $("btn-member-week")?.addEventListener("click", () => openWeeklyReview());
+    $("btn-member-week-example")?.addEventListener("click", () => window.LunePractice?.openExampleWeek?.());
     $("btn-footer-share")?.addEventListener("click", () => openShareWeek());
     $("btn-footer-invite")?.addEventListener("click", () => openInvite());
     window.addEventListener("hashchange", () => handleRoute());
@@ -747,10 +944,13 @@ window.LuneImpact = (function () {
   }
 
   return {
+    weekBarHtml,
     init,
     paintHomeImpact,
     openWeeklyReview,
     openShareWeek,
+    weekPlan,
+    summaryText,
     openInvite,
     openOwnerImpact,
     buildTonightPlan,

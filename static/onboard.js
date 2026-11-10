@@ -279,9 +279,8 @@ window.LuneOnboard = (function () {
       const name = String(c || "").trim();
       if (name) set.add(name);
     }
-    // same fetch as search (app.js), so the 900 KB index is downloaded once
-    const items = (await window.luneSearchIndex?.().catch?.(() => null)) || (await loadJson("/static/search-index.json"))?.items || [];
-    for (const it of items) {
+    const index = await loadJson("/static/search-index.json");
+    for (const it of index?.items || []) {
       const c = String(it.composer || "").trim();
       if (c && c.toLowerCase() !== "traditional") set.add(c);
     }
@@ -406,10 +405,28 @@ window.LuneOnboard = (function () {
   }
 
   /**
-   * The two reading questions, asked aloud. Lune reads each one and listens
-   * for yes or no; Y and N on the keyboard work too, and so does silence
-   * (no change). For someone who cannot see the buttons.
+   * The accessibility question, asked aloud: Lune reads the options and
+   * listens for one (visual, dyslexia, both, neither); V, D, B and N on the
+   * keyboard work too, and silence changes nothing. For someone who cannot
+   * see the buttons. Blind pianists' own screen readers (VoiceOver,
+   * TalkBack, Narrator) do the rest of the navigation, so Lune does not add
+   * a second one.
    */
+  /** The setup question's spoken answer: "vision", "dyslexia", "both", "none" or null. */
+  function parseAccessAnswer(t) {
+    let x = String(t || "").toLowerCase().replace(/[’']/g, "'");
+    if (/\bboth\b|\ball of (them|it)\b/.test(x)) return "both";
+    // "no visual impairment", "I'm not dyslexic": drop what is denied before looking
+    const negated = /\b(no|not|don't|do not|without|neither|nor|isn't|aren't)\b/.test(x);
+    x = x.replace(/\b(no|not|don't|do not|without|neither|nor)\b(\s+\w+){0,3}?\s+(visual\w*|vision|sight|blind\w*|dyslexi\w*)/g, " ");
+    const vis = /\b(visual\w*|vision|blind\w*|low vision|sight|see)\b/.test(x);
+    const dys = /\b(dyslexi\w*|easy|reading|letters?)\b/.test(x);
+    if (vis && dys) return "both";
+    if (vis) return "vision";
+    if (dys) return "dyslexia";
+    if (negated || /\b(none|nothing|skip|nope)\b/.test(x)) return "none";
+    return null;
+  }
   async function voiceSetup(stage) {
     const status = stage.querySelector("#onboard-voice-status");
     const P = window.LunePractice;
@@ -424,6 +441,9 @@ window.LuneOnboard = (function () {
         speechSynthesis.speak(u);
         setTimeout(resolve, 15000); // never wait forever on a silent device
       });
+    // one question, the options read out, answered by name (or V, D, B, N on the keyboard)
+    const KEYS = { v: "vision", d: "dyslexia", e: "dyslexia", b: "both", n: "none" };
+    const parse = parseAccessAnswer;
     const hear = () =>
       new Promise((resolve) => {
         let done = false;
@@ -435,32 +455,46 @@ window.LuneOnboard = (function () {
           resolve(v);
         };
         const onKey = (e) => {
-          if (/^y$/i.test(e.key)) finish(true);
-          else if (/^n$/i.test(e.key)) finish(false);
+          const k = KEYS[String(e.key).toLowerCase()];
+          if (k) finish(k);
         };
         document.addEventListener("keydown", onKey);
         if (P?.canListenForWords?.()) {
           P.hearPhrase()
-            .then((t) => finish(/\b(yes|yeah|yep|please|sure|ok|okay|i do|i am)\b/i.test(t) ? true : /\b(no|nope|skip|not)\b/i.test(t) ? false : null))
+            .then((t) => finish(parse(t)))
             .catch(() => {});
         }
-        setTimeout(() => finish(null), 12000);
+        setTimeout(() => finish(null), 15000);
       });
-    const questions = [
-      ["vision", "Are you blind, or do you have low vision? Say yes or no, or press Y or N.", "Large print, high contrast and spoken bars are on."],
-      ["dyslexia", "Do you have dyslexia? Say yes or no, or press Y or N.", "Easy read letters are on."],
-    ];
-    for (const [kind, question, confirm] of questions) {
-      await say(question);
-      const answer = await hear();
-      if (answer === true) {
-        setNeed(kind, true);
-        const b = stage.querySelector(`[data-need="${kind}"]`);
-        b?.setAttribute("aria-pressed", "true");
-        b?.classList.add("on");
-        await say(confirm);
-      } else await say(answer === false ? "Left off." : "No answer heard. Left as it is.");
+    const pick = (kind) => {
+      for (const k of ["vision", "dyslexia", "none"]) {
+        const on = kind === "both" ? k !== "none" : k === kind;
+        if (k !== "none") setNeed(k, on);
+        const b = stage.querySelector(`[data-need="${k}"]`);
+        b?.setAttribute("aria-pressed", String(on));
+        b?.classList.toggle("on", on);
+      }
+    };
+    await say(
+      "Do you need accessibility support? There are four answers. Visual, for blind or low vision: large print, high contrast, and every bar read aloud. Easy read: letters that are easier to tell apart. Both. Or neither. Say one, or press V, E, B or N."
+    );
+    let answer = await hear();
+    if (!answer) {
+      await say("I didn't catch that. Say visual, easy read, both, or neither.");
+      answer = await hear();
     }
+    if (answer) {
+      pick(answer);
+      await say(
+        answer === "vision"
+          ? "Visual support is on. Lune also works with VoiceOver, TalkBack and Narrator, the screen readers already on your device."
+          : answer === "dyslexia"
+            ? "Easy-read letters are on."
+            : answer === "both"
+              ? "Visual support and easy-read letters are on."
+              : "Nothing switched on. You can change this in Settings at any time."
+      );
+    } else await say("No answer heard. Nothing was changed.");
     await say("That is everything. Press Next to carry on.");
     stage.querySelector("[data-next]")?.focus();
   }
@@ -488,7 +522,7 @@ window.LuneOnboard = (function () {
         <div class="welcome-hero-inner">
           <div class="welcome-lockup">
             <svg class="lune-mark welcome-mark" viewBox="0 0 40 40" width="72" height="72" aria-hidden="true">
-              <path fill="currentColor" d="M26.2 7.2c-5.9.9-10.4 6-10.4 12.1 0 6.1 4.5 11.2 10.4 12.1A12.2 12.2 0 0 1 14 19.3c0-6.6 5.2-12 11.8-12.2.1 0 .3 0 .4 0z"/>
+              <path fill="currentColor" d="M17.61 4.58A12 12 0 1 0 27.70 24.77A11.4 11.4 0 1 1 17.61 4.58Z"/>
             </svg>
             <p class="welcome-brand">Lune</p>
           </div>
@@ -516,7 +550,7 @@ window.LuneOnboard = (function () {
         <div class="hello-hero-inner">
           <div class="hello-lockup">
             <svg class="lune-mark hello-mark" viewBox="0 0 40 40" width="64" height="64" aria-hidden="true">
-              <path fill="currentColor" d="M26.2 7.2c-5.9.9-10.4 6-10.4 12.1 0 6.1 4.5 11.2 10.4 12.1A12.2 12.2 0 0 1 14 19.3c0-6.6 5.2-12 11.8-12.2.1 0 .3 0 .4 0z"/>
+              <path fill="currentColor" d="M17.61 4.58A12 12 0 1 0 27.70 24.77A11.4 11.4 0 1 1 17.61 4.58Z"/>
             </svg>
             <p class="hello-brand">Lune</p>
           </div>
@@ -868,11 +902,6 @@ window.LuneOnboard = (function () {
   function showOnboard(n = 0) {
     ensureDom();
     loadDraft();
-    if (!libraryComposerNames.length) {
-      ensureLibraryComposers().then(() => {
-        if (step === 0 && !$("onboard")?.hidden) paintOnboard();
-      });
-    }
     store()?.setPref?.("seenWelcome", true);
     step = n;
     hideAllMains();
@@ -880,6 +909,7 @@ window.LuneOnboard = (function () {
     if (o) {
       o.hidden = false;
       o.scrollTop = 0;
+      window.LuneMoon?.stars?.(o);
     }
     document.body.classList.add("is-onboard");
     document.body.classList.remove("is-welcome", "is-hello", "is-home", "is-studio", "is-discover", "is-repertoire");
@@ -891,7 +921,7 @@ window.LuneOnboard = (function () {
     return `<ol class="onboard-progress" aria-label="Onboarding progress">
       ${STEP_LABELS.map(
         (label, i) =>
-          `<li class="${i === active ? "on" : i < active ? "done" : ""}"><span>${i + 1}</span><em>${label}</em></li>`
+          `<li class="${i === active ? "on" : i < active ? "done" : ""}"${i === active ? ' aria-current="step"' : ""}><span aria-hidden="true"></span><em>${label}</em><b class="visually-hidden">Step ${i + 1} of ${STEP_LABELS.length}${i === active ? "" : `: ${label}`}</b></li>`
       ).join("")}
     </ol>`;
   }
@@ -939,6 +969,12 @@ window.LuneOnboard = (function () {
     if (!stage) return;
     stage.className = "onboard-stage";
     if (step === 0) stage.classList.add("onboard-stage-wide");
+    // a new step arrives the way the landing's words do: up, out of a soft blur
+    if (stage.dataset.step !== String(step)) {
+      stage.dataset.step = String(step);
+      if (!window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches)
+        stage.animate?.([{ opacity: 0, transform: "translateY(18px)", filter: "blur(8px)" }, { opacity: 1, transform: "none", filter: "none" }], { duration: 650, easing: "cubic-bezier(0.22, 1, 0.36, 1)" });
+    }
 
     if (step === 0) {
       const visible = filteredComposers(composerQuery);
@@ -1563,27 +1599,20 @@ window.LuneOnboard = (function () {
     paintSignedHome();
     paintKeepBanner();
     applyGateChrome();
+    // the home page starts at its top, not where the welcome page was scrolled to
+    const top = () => {
+      window.scrollTo(0, 0);
+      document.scrollingElement && (document.scrollingElement.scrollTop = 0);
+      const home = $("home");
+      if (home) home.scrollTop = 0;
+    };
+    top();
+    requestAnimationFrame(() => requestAnimationFrame(top));
   }
 
+  // Guests sign in from the top bar (or the menu on a phone); no extra row above the score.
   function paintKeepBanner() {
-    let bar = $("keep-account-banner");
-    if (signedIn()) {
-      if (bar) bar.remove();
-      return;
-    }
-    if (!onboarded()) return;
-    if (!bar) {
-      bar = document.createElement("div");
-      bar.id = "keep-account-banner";
-      bar.className = "keep-account-banner";
-      bar.innerHTML = `
-        <p>Exploring on this device. <strong>Make Lune yours</strong> — a short questionnaire, then an email code.</p>
-        <button type="button" class="primary" data-lp-personalise>Begin</button>`;
-      const app = $("app");
-      const header = app?.querySelector?.("header.bar");
-      if (header) header.after(bar);
-      else app?.prepend?.(bar);
-    }
+    $("keep-account-banner")?.remove();
   }
 
   function paintHomeRecs() {
@@ -1594,8 +1623,11 @@ window.LuneOnboard = (function () {
     const authed = signedIn();
     const guest = $("home-guest");
     const member = $("home-member");
-    if (guest) guest.hidden = !!authed;
-    if (member) member.hidden = !authed;
+    window.LuneMoon?.paintMember?.();
+    // "See examples" from the signed-in home shows the story page in place until Home is pressed
+    const story = document.body.classList.contains("is-story");
+    if (guest) guest.hidden = !!authed && !story;
+    if (member) member.hidden = !authed || story;
     document.body.classList.toggle("is-signed-in", authed);
 
     if (!authed) {
@@ -1671,17 +1703,20 @@ window.LuneOnboard = (function () {
       }
       const recHtml = show
         .map((r, i) => {
-          const role = r.role || (i === 0 ? "Start tonight" : "For you");
+          // the Next card above is the one thing for today; these are only suggestions
+          const role = /tonight/i.test(r.role || "") || (!r.role && i === 0) ? "On your path" : r.role || "For you";
           const openAttrs = r.id
             ? `data-open-piece="${esc(r.id)}"`
             : `data-rec-q="${esc(r.query || r.title)}"`;
           return `<button type="button" class="member-rec${i === 0 ? " member-rec-featured" : ""}" ${openAttrs}>
-            <span class="member-rec-role">${esc(role)}</span>
+            ${i === 0 ? `<span class="member-rec-role">${esc(role)}</span>` : ""}
             <span class="member-rec-title">${esc(r.title)}</span>
             <span class="member-rec-by">${esc(r.composer || "")}</span>
           </button>`;
         })
         .join("");
+      const recsSection = $("member-recs");
+      if (recsSection) recsSection.hidden = !show.length;
       // Repainting identical buttons would swallow a click that is in progress.
       if (grid.dataset.painted !== recHtml) {
         grid.dataset.painted = recHtml;
@@ -1706,6 +1741,7 @@ window.LuneOnboard = (function () {
       guestCont.innerHTML = "";
     }
     window.LuneImpact?.paintHomeImpact?.();
+    window.LunePractice?.renderNextCard?.();
   }
 
   function applyGateChrome() {
@@ -1718,9 +1754,10 @@ window.LuneOnboard = (function () {
       const el = $(id);
       if (!el) return;
       if (id === "btn-search" || id === "top-search") {
-        el.hidden = !authed;
-        el.classList.toggle("gate-disabled", !authed);
-        if (id === "btn-search") el.disabled = !authed;
+        const may = authed || appMode();
+        el.hidden = !may;
+        el.classList.toggle("gate-disabled", !may);
+        if (id === "btn-search") el.disabled = !may;
         return;
       }
       if (id === "file") {
@@ -1735,7 +1772,8 @@ window.LuneOnboard = (function () {
       barAuth.hidden = !!authed;
       barAuth.setAttribute("aria-hidden", authed ? "true" : "false");
     }
-    if (!authed) {
+    paintAppMode();
+    if (!authed && !appMode() && !document.body.classList.contains("is-studio")) {
       document.body.classList.remove("phone-search-open", "studio-search-open");
       $("btn-search")?.setAttribute("aria-expanded", "false");
     }
@@ -1743,6 +1781,96 @@ window.LuneOnboard = (function () {
     // Keep guest/member home panes in sync whenever auth chrome updates.
     if ($("home") && !$("home").hidden) paintSignedHome();
   }
+
+
+  /* ---------- app mode: installed Lune, or "Use it in your browser" ----------
+     The landing page tells the story once. In the app, guests get a quiet home
+     with sign-in, search and a few pieces to start with. */
+  let storyView = false;
+  function appMode() {
+    let chosen = false;
+    try {
+      chosen = localStorage.getItem("lune.app") === "1";
+    } catch {
+      /* private mode */
+    }
+    return !!(window.LuneInstall?.installed?.() || chosen);
+  }
+  function paintAppMode() {
+    const on = appMode() && !signedIn() && !storyView;
+    document.body.classList.toggle("is-app", on);
+    const card = $("home-app-signin");
+    if (card) card.hidden = !!store()?.prefs?.()?.appSigninLater;
+  }
+  function scrollHomeTo(el) {
+    const home = $("home");
+    if (!el) {
+      if (home) home.scrollTop = 0;
+      window.scrollTo(0, 0);
+      return;
+    }
+    const behavior = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth";
+    el.scrollIntoView({ behavior, block: "start" });
+    // live demos above the target draw as they pass and push it down: land again once the scroll settles
+    let tries = 0;
+    const settle = () => {
+      const top = el.getBoundingClientRect().top;
+      const bar = document.querySelector("header.bar")?.getBoundingClientRect().bottom || 0;
+      if (Math.abs(top - bar) > 24 && tries++ < 3) {
+        el.scrollIntoView({ behavior, block: "start" });
+        setTimeout(settle, 700);
+      }
+    };
+    setTimeout(settle, 900);
+  }
+  document.addEventListener("click", (e) => {
+    const t = e.target.closest?.("[data-enter-app], [data-show-story], [data-show-ai], [data-show-compare], [data-app-later], #btn-app-search");
+    if (!t) return;
+    e.preventDefault();
+    if (t.matches("[data-enter-app]")) {
+      try {
+        localStorage.setItem("lune.app", "1");
+      } catch {
+        /* private mode: app mode lasts for this visit */
+        document.body.classList.add("is-app");
+      }
+      storyView = false;
+      if (typeof window.showView === "function" && $("home")?.hidden) window.showView("home");
+      paintAppMode();
+      applyGateChrome();
+      requestAnimationFrame(() => scrollHomeTo(null));
+      return;
+    }
+    if (t.matches("[data-show-story], [data-show-ai], [data-show-compare]")) {
+      document.querySelector("dialog[open]")?.close?.();
+      if (typeof window.showView === "function" && $("home")?.hidden) window.showView("home");
+      // go by which home is on screen: the personal home swaps to the story in place
+      const memberHome = signedIn() || ($("home-member") && !$("home-member").hidden) || document.body.classList.contains("is-signed-in");
+      if (!memberHome) {
+        storyView = true;
+        paintAppMode();
+        applyGateChrome();
+      } else {
+        // signed in: the story lives on the guest page, shown in place for a moment
+        $("home-guest").hidden = false;
+        $("home-member").hidden = true;
+        document.body.classList.add("is-story");
+      }
+      requestAnimationFrame(() => scrollHomeTo(t.matches("[data-show-ai]") ? $("ai") : t.matches("[data-show-compare]") ? $("compare") : null));
+      return;
+    }
+    if (t.matches("[data-app-later]")) {
+      store()?.setPref?.("appSigninLater", true);
+      paintAppMode();
+      return;
+    }
+    if (t.id === "btn-app-search") {
+      const q = $("q");
+      document.body.classList.add("phone-search-open", "studio-search-open");
+      $("btn-search")?.setAttribute("aria-expanded", "true");
+      q?.focus();
+    }
+  });
 
   function admitGuest() {
     if (onboarded()) return;
@@ -1978,15 +2106,18 @@ window.LuneOnboard = (function () {
     ensureDom();
     ensureTourDom();
     loadDraft();
-    // The full composer list is only for the setup picker: fetch it once the first screen is up.
-    const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1200));
-    const loadComposers = () =>
-      ensureLibraryComposers().then(() => {
-        if (step === 0 && !$("onboard")?.hidden) paintOnboard();
-      });
-    if (document.readyState === "complete") idle(loadComposers);
-    else window.addEventListener("load", () => idle(loadComposers), { once: true });
-    // Dream-piece filtering reads window.__LUNE_SEARCH_ITEMS__, filled by app.js's single index fetch.
+    ensureLibraryComposers().then(() => {
+      if (step === 0 && !$("onboard")?.hidden) paintOnboard();
+    });
+    // Expose search-index items for dream-piece filtering when app.js loads them.
+    fetch(
+      typeof window.luneUrl === "function" ? window.luneUrl("/static/search-index.json") : "static/search-index.json"
+    )
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.items) window.__LUNE_SEARCH_ITEMS__ = data.items;
+      })
+      .catch(() => {});
     // Cloud prefs are fetched once per sign-in, not on every store change
     // (the fetch itself reports a change, which used to start it again).
     let prefsPulled = false;
@@ -2055,6 +2186,9 @@ window.LuneOnboard = (function () {
   }
 
   return {
+    appMode,
+    paintAppMode,
+    parseAccessAnswer,
     init,
     route,
     requireUnlock,

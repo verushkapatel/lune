@@ -24,6 +24,11 @@ window.LunePiano = (function () {
   const KEY_ATTACK_WINDOW = 0.15;
   /** Bumped on stop/pause so look-ahead notes scheduled earlier are ignored. */
   let audioEpoch = 0;
+  /** Notes handed to Web Audio, sounding or still waiting to start. */
+  const liveSources = new Set();
+  /** One clock for a run of playback: the audio time at which musical time anchorAt sounds. */
+  let anchorAudio = null;
+  let anchorAt = 0;
   /** Event indices already queued for the current audioEpoch. */
   const scheduled = new Set();
   // Seconds per quarter note (fallback when the score has no tempo map).
@@ -38,8 +43,10 @@ window.LunePiano = (function () {
   let sourceNotes = [];
   /** Schedule a hair ahead of now so the first note never clicks against a cold bus. */
   const SCHEDULE_PAD = 0.055;
-  /** Musical-time look-ahead — keeps Stop able to silence (no long Tone queue). */
-  const LOOKAHEAD = 0.4;
+  /** Musical-time look-ahead: long enough that a busy moment (a page turn, a redraw)
+   *  never starves the music. Stop still silences at once: every queued note is
+   *  tracked in liveSources and cut. */
+  const LOOKAHEAD = 1.2;
   /** When the tab is hidden, frames stop and timers slow to about one a second. */
   const LOOKAHEAD_HIDDEN = 2.2;
 
@@ -88,7 +95,15 @@ window.LunePiano = (function () {
     C8: "C8.mp3",
   };
 
-  const SAMPLE_BASES = ["https://tonejs.github.io/audio/salamander/"];
+  // Salamander Grand Piano (Alexander Holm, CC BY 3.0), served with Lune so the first note does not wait on another site
+  const LOCAL_SAMPLES = (() => {
+    try {
+      return new URL("vendor/salamander/", document.currentScript?.src || location.href).href;
+    } catch {
+      return "static/vendor/salamander/";
+    }
+  })();
+  const SAMPLE_BASES = [LOCAL_SAMPLES, "https://tonejs.github.io/audio/salamander/"];
 
   function buildChain() {
     if (output) {
@@ -142,76 +157,8 @@ window.LunePiano = (function () {
     return s;
   }
 
-  /* Tone.js (~340 KB, and a long task to evaluate) stays off the page load: it is
-     fetched on the first Play. iOS only lets sound start inside the tap itself, so
-     the tap opens a plain AudioContext synchronously and Tone adopts it once loaded. */
-  let toneLoading = null;
-  let gestureCtx = null;
-  function loadTone() {
-    if (typeof Tone !== "undefined") return Promise.resolve();
-    if (!toneLoading) {
-      toneLoading = new Promise((resolve, reject) => {
-        const s = document.createElement("script");
-        s.src = typeof window.luneUrl === "function" ? window.luneUrl("/static/vendor/Tone.js") : "static/vendor/Tone.js";
-        s.onload = () => resolve();
-        s.onerror = () => {
-          toneLoading = null;
-          reject(new Error("Couldn’t load the piano sound — check your connection and press Play again."));
-        };
-        document.head.appendChild(s);
-      });
-    }
-    return toneLoading;
-  }
-  /**
-   * Browsers keep audio suspended until a tap, and only a call made inside the tap
-   * counts. Samples may start warming up before any tap (opening a score by link);
-   * that warm-up then waits on a suspended context, and a later Play used to wait
-   * on the same promise forever. So every tap or key press resumes whatever audio
-   * context exists, synchronously, before any handler runs.
-   */
-  function resumeInGesture() {
-    try {
-      if (typeof Tone !== "undefined") {
-        if (Tone.context.state !== "running") Tone.context.resume();
-      } else if (gestureCtx) {
-        if (gestureCtx.state !== "running") gestureCtx.resume();
-      } else if (toneLoading) {
-        openGestureContext();
-      }
-    } catch {
-      /* the next tap tries again */
-    }
-  }
-  for (const type of ["pointerdown", "keydown", "click"]) {
-    document.addEventListener(type, resumeInGesture, { capture: true, passive: true });
-  }
-
-  function openGestureContext() {
-    if (gestureCtx || typeof Tone !== "undefined") return;
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return;
-    try {
-      gestureCtx = new AC({ latencyHint: "interactive" });
-      gestureCtx.resume?.().catch?.(() => {});
-    } catch {
-      gestureCtx = null;
-    }
-  }
-
   async function unlockAudio() {
-    if (navigator.userActivation?.isActive !== false) openGestureContext(); // before any await: still inside the tap
-    resumeInGesture();
-    await loadTone();
     if (typeof Tone === "undefined") throw new Error("Tone.js missing");
-    if (gestureCtx && !unlockAudio.adopted) {
-      unlockAudio.adopted = true;
-      try {
-        Tone.setContext(gestureCtx);
-      } catch {
-        /* Tone keeps its own context; Tone.start() below resumes it */
-      }
-    }
     await Tone.start();
     try {
       if (Tone.context.state !== "running") await Tone.context.resume();
@@ -240,6 +187,7 @@ window.LunePiano = (function () {
       return sampler;
     }
     if (loading) return loading;
+    if (typeof Tone === "undefined") throw new Error("Tone.js missing");
     loading = (async () => {
       await unlockAudio();
       buildChain();
@@ -349,7 +297,8 @@ window.LunePiano = (function () {
           barStartQ,
           barStartT: secondsAtQuarter(barStartQ),
           midi: n.midi,
-          bar: n.bar || null,
+          bar: n.bar ?? null,
+          ornament: !!n.ornament,
           name: midiToNote(n.midi),
           // the score's own spelling (A♭, not G♯) for labels
           label: String(n.letter || n.pitch || "")
@@ -370,7 +319,7 @@ window.LunePiano = (function () {
       const key = Math.round(e.t * 40);
       // The score's dynamics and voicing, with the small unevenness of real fingers.
       const wobble = 1 + (((e.midi * 7919 + Math.round(e.t * 1000) * 31) % 100) / 100 - 0.5) * 0.07;
-      e.vel = Math.min(0.94, Math.max(0.2, velocityFor(e.midi, density.get(key) || 1) * e.dyn * wobble));
+      e.vel = Math.min(1, Math.max(0.12, velocityFor(e.midi, density.get(key) || 1) * e.dyn * wobble));
     }
     return raw;
   }
@@ -380,10 +329,25 @@ window.LunePiano = (function () {
     return Math.max(...events.map((e) => e.t + e.dur));
   }
 
+  /** The audio time being heard right now (output latency included), or null. */
+  function heardTime() {
+    try {
+      const ctx = Tone.getContext().rawContext;
+      if (!ctx || ctx.state !== "running") return null;
+      const ts = ctx.getOutputTimestamp?.();
+      if (ts && ts.performanceTime > 0) return ts.contextTime + (performance.now() - ts.performanceTime) / 1000;
+      return ctx.currentTime - (ctx.outputLatency || ctx.baseLatency || 0);
+    } catch {
+      return null;
+    }
+  }
+
   function progress() {
     if (!playing) return pauseAt;
-    const elapsed = Math.max(0, ((performance.now() - startMs) / 1000) * rate);
-    return Math.min(duration(), pauseAt + elapsed);
+    // Follow the sound itself, so keys and the playhead light with the note you hear
+    const heard = anchorAudio == null ? null : heardTime();
+    const elapsed = heard == null ? ((performance.now() - startMs) / 1000) * rate : (heard - anchorAudio) * rate;
+    return Math.min(duration(), anchorAudio == null ? pauseAt + Math.max(0, elapsed) : anchorAt + Math.max(0, elapsed));
   }
 
   function currentBar() {
@@ -393,7 +357,7 @@ window.LunePiano = (function () {
   function barAtTime(at) {
     const marks = barMarkers();
     if (!marks.length) {
-      let bar = events[0]?.bar || null;
+      let bar = events[0]?.bar ?? null;
       for (const e of events) {
         if (e.t <= at + 0.01) bar = e.bar;
         else break;
@@ -499,7 +463,8 @@ window.LunePiano = (function () {
     // Look-ahead is in musical time, so scale it by the rate to keep the same
     // wall-clock margin; hidden tabs get a long one because timers crawl there.
     const horizon = at + (document.hidden ? LOOKAHEAD_HIDDEN : LOOKAHEAD) * r;
-    const now = Tone.now() + SCHEDULE_PAD;
+    pumpMetro(horizon, r);
+    const soonest = Tone.now() + 0.01;
     while (pumpCursor < events.length) {
       const i = pumpCursor;
       const e = events[i];
@@ -509,17 +474,55 @@ window.LunePiano = (function () {
       if (!passesHand(e)) continue;
       if (scheduled.has(i)) continue;
       scheduled.add(i);
-      // Wall-clock delay scaled by playback rate (slow-mo stretches attacks)
-      const when = now + Math.max(0, (e.t - at) / r);
+      // Every note is placed on the one audio clock set when playback started, so
+      // the spacing between notes is exact whatever the page is doing meanwhile
+      const due = anchorAudio + (e.t - anchorAt) / r;
+      const when = Math.max(soonest, due);
       // Keep a short release tail in wall time so notes don't chop at any rate
-      const remain = Math.max(0.14, (e.sound - Math.max(0, at - e.t)) / r);
+      const remain = Math.max(0.14, e.sound / r - Math.max(0, when - due));
       const vel = e.vel ?? 0.58;
       try {
-        sampler.triggerAttackRelease(e.name, remain, when, vel);
+        playNote(e.name, remain, when, vel);
       } catch {
         /* ignore sample glitches */
       }
     }
+  }
+
+  /** Start a note and keep hold of it, so Stop can cut it even before it sounds. */
+  function playNote(name, dur, when, vel) {
+    sampler.triggerAttack(name, when, vel);
+    let src = null;
+    try {
+      const list = sampler._activeSources?.get(Math.round(Tone.Frequency(name).toMidi()));
+      src = list?.length ? list.pop() : null;
+    } catch {
+      src = null;
+    }
+    if (!src) {
+      sampler.triggerRelease(name, when + dur);
+      return;
+    }
+    src.stop(when + dur);
+    liveSources.add(src);
+    const done = src.onended;
+    src.onended = (x) => {
+      liveSources.delete(src);
+      if (typeof done === "function") done(x);
+    };
+  }
+
+  function cutLiveSources() {
+    const now = Tone.now();
+    for (const src of liveSources) {
+      try {
+        src.fadeOut = 0.03;
+        src.stop(now);
+      } catch {
+        /* already gone */
+      }
+    }
+    liveSources.clear();
   }
 
   function setHandFilter(mode) {
@@ -544,7 +547,14 @@ window.LunePiano = (function () {
   }
 
   function scheduleFrom(at) {
+    anchorAudio = null;
     if (!sampler) return;
+    cutLiveSources();
+    anchorAudio = Tone.now() + SCHEDULE_PAD;
+    anchorAt = at;
+    stopMetroTimer(); // the music's clock takes over the clicks
+    if (metroBus) metroBus.gain.value = 1;
+    seekMetro(at);
     // Kill anything that may have started while the bus was muted
     try {
       sampler.releaseAll();
@@ -575,12 +585,14 @@ window.LunePiano = (function () {
     pumpTimer = 0;
     audioEpoch += 1;
     scheduled.clear();
+    cutLiveSources();
     try {
       Tone.Transport.cancel();
       if (sampler) sampler.releaseAll();
       // Mute the bus so any look-ahead note that already crossed into Web Audio
       // cannot be heard — Stop / Pause must be instant.
       if (output) output.mute = true;
+      if (metroBus) metroBus.gain.value = 0; // playback clicks already queued are silenced too
     } catch {
       /* ignore */
     }
@@ -614,25 +626,32 @@ window.LunePiano = (function () {
 
   async function ensureMetroSounds() {
     await unlockAudio();
-    if (!metroClick) {
-      metroClick = new Tone.MembraneSynth({
-        pitchDecay: 0.008,
-        octaves: 2,
-        oscillator: { type: "sine" },
-        envelope: { attack: 0.001, decay: 0.08, sustain: 0, release: 0.04 },
+    // a short, bright click that phone and laptop speakers reproduce clearly (a low thud is lost on them)
+    const click = () =>
+      new Tone.Synth({
+        oscillator: { type: "triangle" },
+        envelope: { attack: 0.001, decay: 0.045, sustain: 0, release: 0.02 },
       }).toDestination();
-      metroClick.volume.value = -14;
+    if (!metroClick) {
+      metroClick = click();
+      metroClick.volume.value = 2;
     }
     if (!metroAccent) {
-      metroAccent = new Tone.MembraneSynth({
-        pitchDecay: 0.012,
-        octaves: 3,
-        oscillator: { type: "triangle" },
-        envelope: { attack: 0.001, decay: 0.12, sustain: 0, release: 0.06 },
-      }).toDestination();
-      metroAccent.volume.value = -10;
+      metroAccent = click();
+      metroAccent.volume.value = 5;
+    }
+    // the clicks that ride along with playback go through their own channel, muted the instant playback stops
+    if (!metroBus) {
+      metroBus = new Tone.Gain(1).toDestination();
+      metroPlayClick = new Tone.Synth({ oscillator: { type: "triangle" }, envelope: { attack: 0.001, decay: 0.045, sustain: 0, release: 0.02 } }).connect(metroBus);
+      metroPlayClick.volume.value = 2;
+      metroPlayAccent = new Tone.Synth({ oscillator: { type: "triangle" }, envelope: { attack: 0.001, decay: 0.045, sustain: 0, release: 0.02 } }).connect(metroBus);
+      metroPlayAccent.volume.value = 5;
     }
   }
+  let metroBus = null;
+  let metroPlayClick = null;
+  let metroPlayAccent = null;
 
   function stopMetroTimer() {
     if (metroTimer) {
@@ -646,17 +665,69 @@ window.LunePiano = (function () {
     const accent = metroBeat % Math.max(1, metroBeats) === 0;
     try {
       const now = Tone.now();
-      if (accent) metroAccent?.triggerAttackRelease("C3", "32n", now, 0.7);
-      else metroClick?.triggerAttackRelease("C2", "32n", now, 0.45);
+      if (accent) metroAccent?.triggerAttackRelease("A6", 0.04, now, 1);
+      else metroClick?.triggerAttackRelease("E6", 0.04, now, 0.85);
     } catch {
       /* ignore */
     }
     metroBeat += 1;
   }
 
+  /*
+   * While the piece plays, the metronome is part of the music: its clicks are
+   * placed on the same audio clock as the notes, on the beats of each bar as
+   * the timeline actually runs them (written tempo changes included). Compound
+   * metres (6/8, 9/8, 12/8, 6/4…) click the dotted beat.
+   */
+  let metroClicks = null;
+  let metroClicksFor = null;
+  let metroCursor = 0;
+  function beatsPerBar() {
+    const b = Math.max(1, metroBeats);
+    return b > 3 && b % 3 === 0 && metroUnit >= 4 ? b / 3 : b;
+  }
+  function clickTimes() {
+    if (metroClicks && metroClicksFor === events) return metroClicks;
+    const marks = barMarkers();
+    const out = [];
+    const per = beatsPerBar();
+    for (let i = 0; i < marks.length; i++) {
+      const t0 = marks[i].t;
+      const t1 = i + 1 < marks.length ? marks[i + 1].t : t0 + (i > 0 ? t0 - marks[i - 1].t : 0);
+      if (!(t1 > t0)) continue;
+      for (let k = 0; k < per; k++) out.push({ t: t0 + ((t1 - t0) * k) / per, accent: k === 0 });
+    }
+    metroClicks = out;
+    metroClicksFor = events;
+    return out;
+  }
+  function seekMetro(at) {
+    const list = clickTimes();
+    metroCursor = 0;
+    while (metroCursor < list.length && list[metroCursor].t < at - 0.001) metroCursor += 1;
+  }
+  function pumpMetro(horizon, r) {
+    if (!metroOn || anchorAudio == null || !metroPlayAccent) return;
+    const list = clickTimes();
+    const soonest = Tone.now() + 0.01;
+    while (metroCursor < list.length && list[metroCursor].t <= horizon) {
+      const c = list[metroCursor++];
+      const when = anchorAudio + (c.t - anchorAt) / r;
+      if (when < soonest - 0.02) continue;
+      try {
+        if (c.accent) metroPlayAccent.triggerAttackRelease("A6", 0.04, Math.max(soonest, when), 1);
+        else metroPlayClick.triggerAttackRelease("E6", 0.04, Math.max(soonest, when), 0.85);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
   function scheduleMetro() {
     stopMetroTimer();
     if (!metroOn) return;
+    // during playback the clicks ride the music's own clock (pumpMetro)
+    if (playing) return;
     fireMetroClick();
     const step = Math.max(0.12, metroInterval()) * 1000;
     metroTimer = setTimeout(scheduleMetro, step);
@@ -687,6 +758,8 @@ window.LunePiano = (function () {
     await ensureMetroSounds();
     metroBeat = 0;
     metroStartedAt = performance.now();
+    // switched on mid-piece: the next click falls on the next beat of the music
+    if (playing) seekMetro(progress());
     scheduleMetro();
     return true;
   }
@@ -748,7 +821,7 @@ window.LunePiano = (function () {
         continue;
       }
       // Bar-indexed maps are resolved against sourceNotes when arming.
-      byQ.push({ bar: Number(row.bar), bpm, q: null });
+      byQ.push({ bar: Number(row.bar), off: Math.max(0, Number(row.off) || 0), bpm, q: null });
     }
     tempoMapQ = byQ;
     if (Number.isFinite(Number(base)) && Number(base) > 0) {
@@ -779,8 +852,9 @@ window.LunePiano = (function () {
         resolved.push({ q: row.q, bpm: row.bpm });
         continue;
       }
+      // a change written partway through a bar starts there, not at the barline
       if (row.bar != null && barStart.has(row.bar)) {
-        resolved.push({ q: barStart.get(row.bar), bpm: row.bpm });
+        resolved.push({ q: barStart.get(row.bar) + (row.off || 0), bpm: row.bpm });
       }
     }
     resolved.sort((a, b) => a.q - b.q);
@@ -873,6 +947,7 @@ window.LunePiano = (function () {
     pauseAt = progress();
     playing = false;
     clearAudio();
+    if (metroOn) scheduleMetro(); // paused: the metronome keeps the beat on its own
     if (onTick) onTick({ progress: pauseAt, total: duration(), bar: currentBar() });
     emitKeys(pauseAt);
     return pauseAt;
@@ -982,6 +1057,7 @@ window.LunePiano = (function () {
     progress,
     duration,
     currentBar,
+    metronomeClicks: () => clickTimes().map((c) => ({ t: c.t, accent: c.accent })),
     barMarkers,
     isPlaying,
     hasTimeline,
@@ -1202,14 +1278,14 @@ window.LuneTutorial = (function () {
 
     if (!events.length) {
       ctx.fillStyle = COLORS.idle;
-      ctx.font = "15px Fraunces, Georgia, serif";
+      ctx.font = "15px Manrope, system-ui, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText("Press Play — the notes fall onto the keys.", w / 2, rollH / 2);
     }
 
     // bar lines travel down with the music
-    ctx.font = "11px Fraunces, Georgia, serif";
+    ctx.font = "11px Manrope, system-ui, sans-serif";
     ctx.textAlign = "left";
     ctx.textBaseline = "bottom";
     for (const b of bars) {
@@ -1266,11 +1342,11 @@ window.LuneTutorial = (function () {
         const cx = x + bw / 2;
         const size = Math.max(9, Math.min(13, bw * 0.5));
         if (e.label && bh >= size + 6) {
-          ctx.font = `600 ${size}px Fraunces, Georgia, serif`;
+          ctx.font = `600 ${size}px Manrope, system-ui, sans-serif`;
           ctx.fillText(e.label, cx, bottom - 5);
         }
         if (e.finger && bh >= size * 2 + 12) {
-          ctx.font = `${size - 1}px Fraunces, Georgia, serif`;
+          ctx.font = `${size - 1}px Manrope, system-ui, sans-serif`;
           ctx.globalAlpha = 0.7;
           ctx.fillText(String(e.finger), cx, bottom - 8 - size);
           ctx.globalAlpha = 1;
@@ -1303,11 +1379,11 @@ window.LuneTutorial = (function () {
       ctx.textBaseline = "alphabetic";
       if (hit?.finger && k.w >= 12) {
         ctx.fillStyle = tone.ink;
-        ctx.font = `600 ${Math.min(14, k.w * 0.55)}px Fraunces, Georgia, serif`;
+        ctx.font = `600 ${Math.min(14, k.w * 0.55)}px Manrope, system-ui, sans-serif`;
         ctx.fillText(String(hit.finger), k.x + k.w / 2, ky + kbH - 10);
       } else if (m % 12 === 0 && k.w >= 14) {
         ctx.fillStyle = "#8d887c";
-        ctx.font = "9px Fraunces, Georgia, serif";
+        ctx.font = "9px Manrope, system-ui, sans-serif";
         ctx.fillText(`C${m / 12 - 1}`, k.x + k.w / 2, ky + kbH - 8);
       }
     }
@@ -1325,7 +1401,7 @@ window.LuneTutorial = (function () {
         ctx.fillRect(k.x + 1.5, ky + 3, k.w - 3, blackH - 8);
       } else if (hit.finger && k.w >= 11) {
         ctx.fillStyle = "#fafafa";
-        ctx.font = `600 ${Math.min(12, k.w * 0.7)}px Fraunces, Georgia, serif`;
+        ctx.font = `600 ${Math.min(12, k.w * 0.7)}px Manrope, system-ui, sans-serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "alphabetic";
         ctx.fillText(String(hit.finger), k.x + k.w / 2, ky + blackH - 6);
@@ -1405,7 +1481,9 @@ window.LuneKeyboard = (function () {
     host.classList.add("lune-kbd");
     const track = document.createElement("div");
     track.className = "lune-kbd-track";
-    track.setAttribute("role", "img");
+    track.setAttribute("role", "group");
+    // on a phone the keys scroll sideways; the track takes focus so arrow keys can scroll it too
+    track.tabIndex = 0;
     track.setAttribute("aria-label", "Digital piano keyboard");
 
     const whites = document.createElement("div");
@@ -1506,14 +1584,21 @@ window.LuneKeyboard = (function () {
           if (midi < minM) minM = midi;
           if (midi > maxM) maxM = midi;
         }
-        if (minM <= maxM) {
-          const mid = Math.round((minM + maxM) / 2);
-          const midKey = keyMap.get(mid) || keyMap.get(minM);
-          if (midKey && track) {
-            const kr = midKey.getBoundingClientRect();
+        // The keyboard holds still while the notes are on screen; it glides only
+        // when a note would fall off the edge, and then centres the whole hand
+        if (minM <= maxM && track && track.scrollWidth > track.clientWidth + 2) {
+          const lo = keyMap.get(minM);
+          const hi = keyMap.get(maxM);
+          if (lo && hi) {
             const tr = track.getBoundingClientRect();
-            const delta = kr.left + kr.width / 2 - (tr.left + tr.width / 2);
-            if (Math.abs(delta) > 8) track.scrollLeft += delta;
+            const a = lo.getBoundingClientRect();
+            const z = hi.getBoundingClientRect();
+            const margin = Math.min(36, tr.width * 0.06);
+            if (a.left < tr.left + margin || z.right > tr.right - margin) {
+              const delta = (a.left + z.right) / 2 - (tr.left + tr.width / 2);
+              const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+              track.scrollTo({ left: track.scrollLeft + delta, behavior: reduced ? "auto" : "smooth" });
+            }
           }
         }
       },

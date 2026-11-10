@@ -25,11 +25,43 @@ window.LuneStore = (function () {
 
   /* ---------------- local backend ---------------- */
 
+  /*
+   * Practice ratings, weakest to strongest: Again, Hard, Okay, Good, Strong.
+   * Until lune04 there were four, and the top one was called "easy"; it is
+   * the same rating as Strong and is renamed wherever it is read.
+   */
+  const GRADES = ["again", "hard", "okay", "good", "strong"];
+  const GRADE_ALIASES = { easy: "strong" };
+  function normGrade(g) {
+    const k = String(g || "").toLowerCase();
+    return GRADE_ALIASES[k] || k;
+  }
+  /** Rename stored "easy" ratings to "strong", once, in this browser's copy. */
+  function migrateGrades(data) {
+    let changed = false;
+    for (const c of data.cards || []) {
+      if (c.last_grade && GRADE_ALIASES[c.last_grade]) {
+        c.last_grade = GRADE_ALIASES[c.last_grade];
+        changed = true;
+      }
+    }
+    for (const r of data.activity || []) {
+      if (r.grade && GRADE_ALIASES[r.grade]) {
+        r.grade = GRADE_ALIASES[r.grade];
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
   function readLocal() {
     try {
       const raw = localStorage.getItem(LOCAL_KEY);
       const data = raw ? JSON.parse(raw) : null;
-      if (data && data.v === 1) return data;
+      if (data && data.v === 1) {
+        if (migrateGrades(data)) writeLocal(data);
+        return data;
+      }
     } catch {
       /* private mode or blocked storage */
     }
@@ -80,14 +112,8 @@ window.LuneStore = (function () {
   function remote() {
     return !!(client && session?.user);
   }
-  let clientReady = null;
-  /** Start (once) and wait for the Supabase client. Resolves even if it can't load. */
-  function ensureClient() {
-    if (!configured()) return Promise.resolve();
-    if (!clientReady) clientReady = startClient();
-    return clientReady;
-  }
-  async function startClient() {
+  async function init() {
+    if (!configured()) return;
     try {
       await loadClientLibrary(); // only fetched when accounts are switched on
       client = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
@@ -105,30 +131,6 @@ window.LuneStore = (function () {
       client = null;
     }
     emit();
-  }
-  /** A stored cloud session, an auth redirect, or a code still to be entered on this device. */
-  function cloudHint() {
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        if (/^sb-.+-auth-token$/.test(localStorage.key(i) || "")) return true;
-      }
-    } catch {
-      /* blocked storage: no stored session either */
-    }
-    if (/[#&?](access_token|refresh_token|error_description)=|[?&]code=/.test(location.href)) return true;
-    const local = localAccount();
-    return !!(local && (local.awaitingCode || local.awaitingLink));
-  }
-  async function init() {
-    if (!configured()) return;
-    // Someone with a cloud session needs it before the first screen is chosen.
-    if (cloudHint()) return ensureClient();
-    // A guest doesn't: the ~210 KB client loads once the page is idle, and every
-    // account call below waits for it, so nothing falls back to the device by mistake.
-    const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1500));
-    const later = () => idle(() => ensureClient());
-    if (document.readyState === "complete") later();
-    else window.addEventListener("load", later, { once: true });
   }
   function emit() {
     for (const fn of listeners) {
@@ -187,6 +189,16 @@ window.LuneStore = (function () {
       awaitingCode: false,
     };
   }
+  /** The signed-in account's access token, for Lune AI's server to check who is asking. */
+  async function accessToken() {
+    if (!remote()) return "";
+    try {
+      const { data } = await client.auth.getSession(); // refreshes an expired token
+      return data?.session?.access_token || "";
+    } catch {
+      return session?.access_token || "";
+    }
+  }
   function check(res) {
     if (res?.error) throw new Error(res.error.message || "Could not reach your Repertoire");
     return res?.data;
@@ -211,7 +223,6 @@ window.LuneStore = (function () {
    * dashboard query if the RPC isn't installed yet.
    */
   async function ownerImpactStats() {
-    await ensureClient();
     if (!isOwner()) throw new Error("Owner sign-in required.");
     syncPlanCountPref();
     const users = await ownerUserCount().catch(() => ({ users: null }));
@@ -265,7 +276,6 @@ window.LuneStore = (function () {
   }
 
   async function publishImpactSnapshot(stats, enabled = true) {
-    await ensureClient();
     if (!isOwner()) throw new Error("Owner sign-in required.");
     const clean = {
       users: stats?.users ?? null,
@@ -295,7 +305,6 @@ window.LuneStore = (function () {
   }
 
   async function fetchPublicImpact() {
-    await ensureClient();
     const local = prefs().impactPublic;
     if (configured() && client) {
       try {
@@ -321,7 +330,6 @@ window.LuneStore = (function () {
   }
 
   async function createShareLink(payload) {
-    await ensureClient();
     const token = uuid().replace(/-/g, "").slice(0, 22);
     const row = {
       id: uuid(),
@@ -364,7 +372,6 @@ window.LuneStore = (function () {
     return row;
   }
   async function revokeShareLink(token) {
-    await ensureClient();
     mutateLocal((d) => {
       const row = (d.shareLinks || []).find((s) => s.token === token);
       if (row) row.revoked = true;
@@ -379,7 +386,6 @@ window.LuneStore = (function () {
     return [...(readLocal().shareLinks || [])];
   }
   async function fetchShareByToken(token) {
-    await ensureClient();
     const local = (readLocal().shareLinks || []).find((s) => s.token === token && !s.revoked);
     if (local) return local;
     if (configured() && client) {
@@ -395,7 +401,6 @@ window.LuneStore = (function () {
   }
 
   async function ownerUserCount() {
-    await ensureClient();
     if (!isOwner()) throw new Error("Owner sign-in required.");
     if (!configured() || !client) {
       return { users: null, mode: "local", note: "Cloud accounts aren’t configured on this build." };
@@ -418,7 +423,6 @@ window.LuneStore = (function () {
   }
 
   async function signIn(email) {
-    await ensureClient();
     const clean = String(email || "").trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) throw new Error("That doesn’t look like an email address.");
     // Cloud email OTP when Supabase is wired; otherwise create a local account so the
@@ -455,7 +459,6 @@ window.LuneStore = (function () {
   }
   /** Confirm the email OTP from Supabase (`verifyOtp`, type email). Codes are typically 8 digits. */
   async function verifyOtp(email, token) {
-    await ensureClient();
     const clean = String(email || "").trim().toLowerCase();
     const code = String(token || "").replace(/\D+/g, "");
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) throw new Error("That doesn’t look like an email address.");
@@ -510,7 +513,6 @@ window.LuneStore = (function () {
     return true;
   }
   async function signOut() {
-    await ensureClient();
     if (client) await client.auth.signOut();
     session = null;
     mutateLocal((d) => {
@@ -519,7 +521,6 @@ window.LuneStore = (function () {
     emit();
   }
   async function deleteAccount() {
-    await ensureClient();
     if (remote()) {
       check(await client.rpc("delete_my_account"));
       await client.auth.signOut();
@@ -574,7 +575,10 @@ window.LuneStore = (function () {
       if ("done" in patch) {
         becameDone = !!patch.done && !row.done;
         row.done = !!patch.done;
+        if (becameDone) row.done_at = nowIso();
+        else if (!row.done) row.done_at = null;
       }
+      row.updated_at = nowIso();
       if ("plan" in patch) row.plan = patch.plan;
       if ("notes" in patch) row.notes = String(patch.notes || "").slice(0, 800);
       if ("bars" in patch) {
@@ -583,11 +587,13 @@ window.LuneStore = (function () {
       pieceKey = row.piece_key || "";
     });
     if (becameDone) logActivity({ kind: "task", piece_key: pieceKey });
+    if (remote()) syncPrefs().catch(() => false);
     emit();
   }
   function removeTask(id) {
     mutateLocal((d) => {
       d.tasks = (d.tasks || []).filter((t) => t.id !== id);
+      d.removedTaskIds = [...(d.removedTaskIds || []), id].slice(-300);
     });
     syncPlanCountPref();
     if (remote()) syncPrefs().catch(() => false);
@@ -753,29 +759,39 @@ window.LuneStore = (function () {
     const since = dayKey(new Date(Date.now() - sinceDays * DAY));
     return rows.filter((r) => r.day >= since);
   }
+  /*
+   * This week, from what Lune actually records:
+   * - a practice day is a day you rated a bar or finished a task in Lune (on any of your devices);
+   * - a session is one piece practised on one day;
+   * - Lune does not time practice, so there are no minutes here.
+   * Opening a piece or pressing Play does not count.
+   */
   function weekSnapshot(week = weekStartKey()) {
-    const rows = listActivity({ week });
-    const days = new Set(rows.map((r) => r.day));
-    const sessions = rows.filter((r) =>
-      r.kind === "practice" || r.kind === "follow" || r.kind === "review" || r.kind === "task" || r.kind === "tonight"
-    ).length;
-    const mins = rows.reduce((n, r) => n + (Number(r.mins) || 0), 0);
-    const good = rows.filter((r) => r.kind === "review" && (r.grade === "good" || r.grade === "easy")).length;
-    const hard = rows.filter((r) => r.kind === "review" && (r.grade === "again" || r.grade === "hard")).length;
-    const barsWorked = new Set(
-      rows.filter((r) => r.bar != null && Number(r.bar) > 0).map((r) => `${r.piece_key}:${r.bar}`)
-    ).size;
+    const rows = listActivity({ week }).filter((r) => r.kind === "review" || r.kind === "task" || r.kind === "practice");
+    // a task finished in this week counts even where its activity row was never recorded (older data)
+    const finished = (readLocal().tasks || []).filter((t) => t.done && t.done_at && weekStartKey(new Date(t.done_at)) === week);
+    const days = new Set([...rows.map((r) => r.day), ...finished.map((t) => dayKey(new Date(t.done_at)))]);
+    const sessionKeys = new Set([...rows.map((r) => `${r.day}|${r.piece_key}`), ...finished.map((t) => `${dayKey(new Date(t.done_at))}|${t.piece_key || ""}`)]);
+    const reviews = rows.filter((r) => r.kind === "review");
+    const rated = (...g) => reviews.filter((r) => g.includes(normGrade(r.grade))).length;
+    const good = rated("good", "strong");
+    const okay = rated("okay");
+    const hard = rated("again", "hard");
+    const barsWorked = new Set(reviews.filter((r) => r.bar != null && Number(r.bar) > 0).map((r) => `${r.piece_key}:${r.bar}`)).size;
     const goalDays = Number(prefs().practiceDays) || 4;
     const goalMins = Number(prefs().practiceMins) || 30;
     return {
       week,
       days: days.size,
       goalDays,
-      sessions,
-      mins,
+      sessions: sessionKeys.size,
+      mins: 0,
+      ratings: reviews.length,
+      tasksDone: finished.length,
       barsWorked,
       goalMinsPerSession: goalMins,
       good,
+      okay,
       hard,
       updated_at: nowIso(),
     };
@@ -820,8 +836,16 @@ window.LuneStore = (function () {
   /* ---------------- review cards (spaced repetition) ---------------- */
 
   const DAY = 86400000;
-  /** SM-2 style scheduling, tuned for practice (minutes → days → weeks). */
-  function schedule(card, grade) {
+  /**
+   * SM-2 style scheduling, tuned for practice (minutes → days → weeks).
+   * Each rating sits on one scale, so a stronger rating never brings a bar
+   * back sooner: Again (10 minutes, a lapse), Hard (×0.6, ease −0.15),
+   * Okay (×0.8), Good (×1), Strong (×1.4, ease +0.15).
+   */
+  const STEP = { hard: 0.6, okay: 0.8, good: 1, strong: 1.4 };
+  function schedule(card, rawGrade) {
+    const grade = normGrade(rawGrade);
+    if (!GRADES.includes(grade)) throw new Error(`Unknown rating: ${rawGrade}`);
     const c = { ease: 2.5, interval_days: 0, reps: 0, lapses: 0, ...card };
     if (grade === "again") {
       c.lapses += 1;
@@ -832,9 +856,9 @@ window.LuneStore = (function () {
     } else {
       c.reps += 1;
       if (grade === "hard") c.ease = Math.max(1.3, c.ease - 0.15);
-      if (grade === "easy") c.ease = c.ease + 0.15;
+      if (grade === "strong") c.ease = c.ease + 0.15;
       const base = c.reps === 1 ? 1 : c.reps === 2 ? 3 : c.interval_days * c.ease;
-      const mult = grade === "hard" ? 0.6 : grade === "easy" ? 1.4 : 1;
+      const mult = STEP[grade];
       c.interval_days = Math.max(1, Math.round(base * mult * 10) / 10);
       c.due_at = new Date(Date.now() + c.interval_days * DAY).toISOString();
     }
@@ -846,7 +870,8 @@ window.LuneStore = (function () {
     if (remote()) {
       let q = client.from("bar_cards").select("*");
       if (pieceKey) q = q.eq("piece_key", pieceKey);
-      return check(await q.order("due_at")) || [];
+      // rows saved before the rename say "easy"; they are rewritten on their next review
+      return (check(await q.order("due_at")) || []).map((c) => (c.last_grade ? { ...c, last_grade: normGrade(c.last_grade) } : c));
     }
     const cards = readLocal().cards;
     return (pieceKey ? cards.filter((c) => c.piece_key === pieceKey) : cards).sort((a, b) => a.due_at.localeCompare(b.due_at));
@@ -923,7 +948,6 @@ window.LuneStore = (function () {
   /* ---------------- study (anonymous) ---------------- */
 
   async function addStudyRows(rows) {
-    await ensureClient();
     if (client) {
       const { error } = await client.from("study_results").insert(rows);
       if (!error) return "cloud";
@@ -942,7 +966,6 @@ window.LuneStore = (function () {
 
   /** Returns "cloud" when the row was stored; "mail" means the caller should offer email instead. */
   async function addFeedback(row) {
-    await ensureClient();
     if (client) {
       const { error } = await client.from("feedback").insert(row);
       if (!error) return "cloud";
@@ -951,7 +974,6 @@ window.LuneStore = (function () {
   }
 
   async function ownerFeedback() {
-    await ensureClient();
     if (!isOwner()) throw new Error("Owner sign-in required.");
     if (!client) throw new Error("Feedback is stored in the cloud — sign in online to read it.");
     const { data, error } = await client.rpc("owner_feedback");
@@ -993,10 +1015,54 @@ window.LuneStore = (function () {
       "displayName",
       "impactPublic",
       "planCount",
+      "pieceProgress",
+      "pieceSummaries",
+      "weekPlan",
     ];
     const out = {};
     for (const k of keys) if (p[k] !== undefined) out[k] = p[k];
+    // plans travel with the account (and so do the ones deleted, so they stay deleted)
+    const d = readLocal();
+    out.planTasks = (d.tasks || []).slice(0, 150);
+    out.removedTaskIds = (d.removedTaskIds || []).slice(-300);
+    // the last five weeks of practice evidence, so This week reads the same on every device
+    const since = dayKey(new Date(Date.now() - 35 * DAY));
+    out.recentActivity = (d.activity || [])
+      .filter((r) => r.day >= since)
+      .slice(-600)
+      .map(({ id, kind, piece_key, bar, grade, day, week, created_at }) => ({ id, kind, piece_key, bar, grade, day, week, created_at }));
     return out;
+  }
+  /** Practice evidence from another device joins this one's, each event once. */
+  function mergeActivity(d, remote) {
+    const incoming = Array.isArray(remote.recentActivity) ? remote.recentActivity : [];
+    if (!incoming.length) return false;
+    d.activity = d.activity || [];
+    const have = new Set(d.activity.map((r) => r.id));
+    let added = 0;
+    for (const r of incoming) {
+      if (!r?.id || have.has(r.id) || !r.day || !r.week) continue;
+      d.activity.push({ mins: 0, ...r });
+      have.add(r.id);
+      added++;
+    }
+    if (added) d.activity.sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+    return added > 0;
+  }
+  /** Put plans from another device together with this one's: newest state of each plan wins. */
+  function mergePlanTasks(d, remote) {
+    const gone = new Set([...(d.removedTaskIds || []), ...(remote.removedTaskIds || [])]);
+    d.removedTaskIds = [...gone].slice(-300);
+    const byId = new Map();
+    const stamp = (t) => String(t.done_at || t.updated_at || t.created_at || "");
+    for (const t of [...(d.tasks || []), ...(Array.isArray(remote.planTasks) ? remote.planTasks : [])]) {
+      if (!t?.id || gone.has(t.id)) continue;
+      const had = byId.get(t.id);
+      if (!had || stamp(t) > stamp(had) || (t.done && !had.done)) byId.set(t.id, t);
+    }
+    const before = JSON.stringify((d.tasks || []).map((t) => [t.id, t.done]));
+    d.tasks = [...byId.values()].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+    return JSON.stringify(d.tasks.map((t) => [t.id, t.done])) !== before;
   }
   async function syncPrefs() {
     if (!remote()) return false;
@@ -1048,7 +1114,12 @@ window.LuneStore = (function () {
           const remLen = Array.isArray(rem) ? rem.length : rem && typeof rem === "object" ? 1 : 0;
           if (locLen && locLen >= remLen) merged[key] = loc;
         }
-        changed = stable(merged) !== stable(local);
+        const plansChanged = mergePlanTasks(d, remotePrefs);
+        const activityChanged = mergeActivity(d, remotePrefs);
+        delete merged.planTasks;
+        delete merged.removedTaskIds;
+        delete merged.recentActivity;
+        changed = plansChanged || activityChanged || stable(merged) !== stable(local);
         d.prefs = merged;
       });
       if (changed) emit();
@@ -1086,6 +1157,13 @@ window.LuneStore = (function () {
   }
 
   return {
+    mergePlanTasks,
+    mergeActivity,
+    prefsForCloud,
+    accessToken,
+    GRADES,
+    normGrade,
+    schedule,
     __attach,
     init,
     status,

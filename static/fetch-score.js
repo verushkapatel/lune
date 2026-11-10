@@ -124,7 +124,85 @@ window.LuneFetchScore = (function () {
     return xml;
   }
 
+  /*
+   * The open library: tens of thousands of public-domain piano scores from
+   * PDMX (MuseScore scores their authors released to the public domain),
+   * kept as .mxl files on the repository's "library" branch and served by
+   * raw.githubusercontent.com. Its index loads only when someone searches.
+   */
+  const LIBRARY_URL = () =>
+    typeof luneUrl === "function" ? luneUrl("/static/library-index.json?v=lib01") : "static/library-index.json?v=lib01";
+  let libraryPromise = null;
+  function loadLibrary() {
+    if (!libraryPromise) {
+      libraryPromise = fetch(LIBRARY_URL(), { cache: "force-cache" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (!d || !Array.isArray(d.items)) return { items: [], rows: [], byId: new Map() };
+          const rows = d.items.map(([id, title, composer, path, era, w]) => ({
+            id,
+            query: id,
+            title,
+            composer,
+            path,
+            epoch: era || "",
+            group: composer || "Open library",
+            hay: fold(`${title} ${composer}`),
+            w: Number(w) || 0,
+            remote: true,
+          }));
+          return { ...d, rows, byId: new Map(rows.map((r) => [r.id, r])) };
+        })
+        .catch(() => {
+          libraryPromise = null;
+          return { items: [], rows: [], byId: new Map() };
+        });
+    }
+    return libraryPromise;
+  }
+  const isLibraryId = (q) => /^pdmx-[a-z0-9-]+$/i.test(String(q || ""));
+
+  async function openFromLibrary(body) {
+    const lib = await loadLibrary();
+    const row = lib.byId.get(String(body.query || "").trim());
+    if (!row) return null;
+    const entry = {
+      id: row.id,
+      title: row.title,
+      composer: row.composer,
+      epoch: row.epoch,
+      source: "pdmx",
+      url: `${lib.base}${row.path || `${row.id.slice(5, 7).toLowerCase()}/${row.id}.mxl`}`,
+      credit: lib.credit,
+    };
+    const musicxml = await fetchMusicXml(entry, lib.allowlistHosts || ["raw.githubusercontent.com"]);
+    return {
+      kind: "score",
+      opened: true,
+      needsAnalysis: true,
+      title: entry.title,
+      composer: entry.composer,
+      filename: entry.url.split("/").pop(),
+      musicxml,
+      overview: {},
+      epoch: entry.epoch,
+      era: entry.epoch,
+      source: "pdmx",
+      downloadName: `${String(entry.title || "score").replace(/[^A-Za-z0-9._-]+/g, "_").slice(0, 80)}.musicxml`,
+      id: entry.id,
+      credit: { ...lib.credit, sourceUrl: lib.credit?.sourceUrl || entry.url },
+      openQuery: entry.id,
+    };
+  }
+
   async function tryOpenRemote(body) {
+    if (isLibraryId(body.query)) {
+      try {
+        return await openFromLibrary(body);
+      } catch {
+        return null;
+      }
+    }
     const cat = await loadCatalog();
     const entry = await match(body);
     if (!entry) return null;
@@ -175,5 +253,5 @@ window.LuneFetchScore = (function () {
     }
   }
 
-  return { loadCatalog, match, tryOpenRemote };
+  return { loadCatalog, match, tryOpenRemote, loadLibrary, isLibraryId };
 })();
