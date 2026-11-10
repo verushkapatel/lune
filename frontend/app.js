@@ -1913,17 +1913,26 @@ function extractTempoMap(xml) {
   return map;
 }
 
+// The tempo map is read from the MusicXML once per piece. It used to be re-read for every
+// ornament (secondsPerQuarterAt), which cost ~5 s opening Clair de lune.
+let tempoMapCache = { piece: null, xml: null, map: [] };
 function pieceTempoMap() {
+  const piece = state.piece;
+  const xml = piece?.musicxml;
+  if (tempoMapCache.piece === piece && tempoMapCache.xml === xml) return tempoMapCache.map;
+  let map = [];
   try {
     // a mark written at (or a hair past) the barline belongs to its own bar, never to the next
-    const lens = measureLengths(state.piece);
-    return extractTempoMap(state.piece?.musicxml).map((r) => {
+    const lens = measureLengths(piece);
+    map = extractTempoMap(xml).map((r) => {
       const len = lens?.get(r.bar);
       return len > 0 && r.off != null && r.off >= len ? { ...r, off: Math.max(0, len - 0.001) } : r;
     });
   } catch {
-    return [];
+    map = [];
   }
+  tempoMapCache = { piece, xml, map };
+  return map;
 }
 
 function playbackTempoOpts(extra = {}) {
@@ -4269,9 +4278,27 @@ function widenUntilLabelsFit(osmd) {
  * wider than the page. If anything sticks out past the right edge, scale the
  * whole engraving down just enough and re-engrave (at most twice).
  */
-const fitZoomCache = new Map(); // piece|width → zoom that fits
+// piece|width → zoom that fits, kept across visits so a piece opened before engraves once
+const FIT_ZOOM_STORE = "lune.fitZoom.v1";
+const fitZoomCache = (() => {
+  try {
+    return new Map(JSON.parse(localStorage.getItem(FIT_ZOOM_STORE) || "[]"));
+  } catch {
+    return new Map();
+  }
+})();
+function rememberFitZoom(key, zoom) {
+  fitZoomCache.delete(key);
+  fitZoomCache.set(key, zoom);
+  while (fitZoomCache.size > 300) fitZoomCache.delete(fitZoomCache.keys().next().value);
+  try {
+    localStorage.setItem(FIT_ZOOM_STORE, JSON.stringify([...fitZoomCache]));
+  } catch {
+    /* private mode: remembered for this visit only */
+  }
+}
 
-function scoreOverflowRatio(host, svg) {
+function scoreOverflowRatio(host, svg, { staff = true } = {}) {
   // Compare the music's right edge with where the staff lines end (and the
   // screen edge): notes drawn past the final barline mean the bar lacks room.
   const hostBox = host.getBoundingClientRect();
@@ -4288,7 +4315,7 @@ function scoreOverflowRatio(host, svg) {
     const r = g.getBoundingClientRect();
     if (r.width && r.right > right) right = r.right;
   }
-  const limit = Math.min(hostBox.right, staffRight || hostBox.right);
+  const limit = staff ? Math.min(hostBox.right, staffRight || hostBox.right) : hostBox.right;
   const used = right - hostBox.left;
   const room = limit - hostBox.left;
   return used > room + 1.5 ? room / used : 1;
@@ -4299,17 +4326,23 @@ function fitScoreToWidth(osmd) {
   let svg = host?.querySelector("svg");
   if (!svg || !osmd) return;
   const key = fitZoomKey();
-  let ratio = scoreOverflowRatio(host, svg);
-  // small overflows: scale the drawing (instant); big ones: re-engrave smaller
-  for (let pass = 0; pass < 2 && ratio < 0.97; pass++) {
+  // On a phone, notes pushed past their barline mean the letter lane is cramped: engrave
+  // smaller. On a wide page that never cured the overhang and only shrank the score, so
+  // there only music past the screen edge counts. A size remembered for this piece and
+  // width is not re-checked.
+  const narrow = (host.clientWidth || 0) < 720;
+  let ratio = scoreOverflowRatio(host, svg, { staff: narrow });
+  const fromCache = fitZoomCache.get(key) === osmd.zoom;
+  for (let pass = 0; pass < 2 && ratio < 0.97 && !fromCache; pass++) {
     // A bar that can't fit its line draws past the barline: engrave again,
     // smaller by the overflow, so every bar has room.
     osmd.zoom = Math.max(0.45, osmd.zoom * ratio * 0.96);
     osmd.render();
     svg = host.querySelector("svg");
-    ratio = scoreOverflowRatio(host, svg);
+    ratio = scoreOverflowRatio(host, svg, { staff: narrow });
   }
-  fitZoomCache.set(key, osmd.zoom);
+  ratio = scoreOverflowRatio(host, svg, { staff: false });
+  rememberFitZoom(key, osmd.zoom);
   if (ratio < 1 && svg) {
     // last few pixels: scale the finished drawing (instant, same layout)
     const w = Number(svg.getAttribute("width")) || svg.getBoundingClientRect().width;
