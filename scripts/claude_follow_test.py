@@ -73,7 +73,7 @@ with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     pg = b.new_page()
     pg.goto(BASE + "#/beethoven-fur-elise/score", wait_until="networkidle")
-    pg.wait_for_function("() => document.querySelectorAll('#osmd .lane-letter').length > 50", timeout=60000)
+    pg.wait_for_function("() => document.querySelectorAll('#osmd:not([data-partial]) .lane-letter').length > 50", timeout=60000)
     events = pg.evaluate("() => LuneFollow.__buildEvents().map(e => ({bar: e.bar, q: e.q, midis: e.midis}))")
     b.close()
 
@@ -97,7 +97,7 @@ with sync_playwright() as p:
     errs = []
     pg.on("pageerror", lambda e: errs.append(str(e)))
     pg.goto(BASE + "#/beethoven-fur-elise/score", wait_until="networkidle")
-    pg.wait_for_function("() => document.querySelectorAll('#osmd .lane-letter').length > 50", timeout=60000)
+    pg.wait_for_function("() => document.querySelectorAll('#osmd:not([data-partial]) .lane-letter').length > 50", timeout=60000)
     pg.click("#btn-follow")
     pg.wait_for_selector("#lf-panel:not([hidden])")
     pg.wait_for_timeout(int(length * 1000) + 800)

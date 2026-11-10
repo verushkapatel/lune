@@ -95,13 +95,13 @@ with sync_playwright() as p:
 
     # --- open + practice notes ---
     pg.goto(BASE + "#/beethoven-fur-elise/score", wait_until="networkidle")
-    pg.wait_for_function("() => document.querySelectorAll('#osmd .lane-letter').length > 100", timeout=60000)
+    pg.wait_for_function("() => document.querySelectorAll('#osmd:not([data-partial]) .lane-letter').length > 100", timeout=60000)
     check("link: #/beethoven-fur-elise/score opens the score", True)
     explain_text = pg.evaluate("() => document.getElementById('panel-explain')?.innerText || ''")
     check("explain: 'Famous for a reason' at most once", explain_text.count("Famous for a reason") <= 1, explain_text.count("Famous for a reason"))
     t = pg.evaluate("() => (document.getElementById('time-label')||document.querySelector('.time, #scrub-time, [id*=time]')||{}).textContent || ''")
     check("time: duration shown before play", t and not t.strip().endswith("0:00 / 0:00") and "/ 0:00" not in t, t)
-    box = pg.locator("#osmd svg").bounding_box()
+    box = pg.locator("#osmd:not([data-partial]) svg").bounding_box()
     pg.mouse.click(box["x"] + box["width"] * 0.45, box["y"] + 200)
     pg.wait_for_timeout(700)
     chip = pg.evaluate("""() => { const b = document.querySelector('.chip.finger-only b, .tone-finger'); if (!b) return null; const cs = getComputedStyle(b); const bg = getComputedStyle(b.closest('.chip')); return {c: cs.color, bg: bg.backgroundColor}; }""")
@@ -122,7 +122,7 @@ with sync_playwright() as p:
     for w in (390, 1280):
         pg.set_viewport_size({"width": w, "height": 860})
         pg.goto(BASE + f"?w={w}#/debussy-clair-de-lune/score", wait_until="networkidle")
-        pg.wait_for_function("() => document.querySelectorAll('#osmd .lane-letter').length > 100", timeout=60000)
+        pg.wait_for_function("() => document.querySelectorAll('#osmd:not([data-partial]) .lane-letter').length > 100", timeout=60000)
         pg.wait_for_timeout(400)
         # bar 1, right hand, first chord: F and A♭ (DOM order), A♭ is the upper note
         order[w] = pg.evaluate(
@@ -138,7 +138,7 @@ with sync_playwright() as p:
 
     # --- an older link keeps one tab while moving between panels ---
     pg.goto(BASE + "?tabs=1#/debussy-clair-de-lune/score", wait_until="networkidle")
-    pg.wait_for_function("() => document.querySelectorAll('#osmd .lane-letter').length > 100", timeout=60000)
+    pg.wait_for_function("() => document.querySelectorAll('#osmd:not([data-partial]) .lane-letter').length > 100", timeout=60000)
     for panel in ("piano", "explain", "score"):
         pg.goto(BASE + f"?tabs=1#/debussy-clair-de-lune/{panel}", wait_until="networkidle")
         pg.wait_for_timeout(800)
@@ -176,8 +176,8 @@ with sync_playwright() as p:
         pg.set_input_files("#file", f"{UP}/{name}")
         try:
             if should_open:
-                pg.wait_for_function("() => document.querySelectorAll('#osmd .lane-letter').length > 10", timeout=40000)
-                n = pg.evaluate("() => document.querySelectorAll('#osmd .lane-letter').length")
+                pg.wait_for_function("() => document.querySelectorAll('#osmd:not([data-partial]) .lane-letter').length > 10", timeout=40000)
+                n = pg.evaluate("() => document.querySelectorAll('#osmd:not([data-partial]) .lane-letter').length")
                 fingers = pg.evaluate("() => Object.values(state.piece.debriefs).reduce((a,d)=>a+(d.rh||[]).concat(d.lh||[]).filter(n=>n.fingering).length,0)")
                 check(f"upload {name}: opens with letters + fingers", n > 10 and fingers > 10, f"{n} letters, {fingers} fingered")
             else:

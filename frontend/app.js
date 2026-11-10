@@ -3225,13 +3225,20 @@ function applyScoreOverlays() {
   if (!host || !state.osmd) return;
   if (LUNE_LYRIC_LANE) {
     // Labels are part of the engraving; just style them and drop any overlay.
-    LuneAnnotate.clearLetterOverlays(host);
-    styleLaneText(host);
-    state.laneStaggered = staggerLaneLabels(host);
-    if (state.renderedLaneMode === "both") {
-      centreLaneLabels(host);
-      showLaneMode(host);
+    // Each drawing is laid out once: the frame, settle and resize callbacks
+    // that follow one render find it done.
+    const svg = host.querySelector("svg");
+    if (svg && !svg.__luneLaneDone) {
+      LuneAnnotate.clearLetterOverlays(host);
+      styleLaneText(host);
+      // later passes settle labels an earlier one moved into new company
+      // (three, as many as the frame / settle / render callbacks used to run)
+      state.laneStaggered = 0;
+      for (let i = 0; i < 3; i++) state.laneStaggered += staggerLaneLabels(host);
+      if (state.renderedLaneMode === "both") centreLaneLabels(host);
+      svg.__luneLaneDone = true;
     }
+    if (state.renderedLaneMode === "both") showLaneMode(host);
     window.LunePractice?.afterScoreRender();
     return;
   }
@@ -3495,18 +3502,43 @@ function widenUntilLabelsFit(osmd) {
  * wider than the page. If anything sticks out past the right edge, scale the
  * whole engraving down just enough and re-engrave (at most twice).
  */
-const fitZoomCache = new Map(); // piece|width → zoom that fits
+const PREVIEW_BARS = 8; // drawn first while a long score engraves (renderScore)
 
-function scoreOverflowRatio(host, svg) {
-  // Compare the music's right edge with where the staff lines end (and the
-  // screen edge): notes drawn past the final barline mean the bar lacks room.
+// piece|width → zoom that fits; kept across visits so a piece opened before
+// engraves once
+const FIT_ZOOM_STORE = "lune.fitZoom.v1";
+const fitZoomCache = (() => {
+  try {
+    return new Map(Object.entries(JSON.parse(localStorage.getItem(FIT_ZOOM_STORE) || "{}")));
+  } catch {
+    return new Map();
+  }
+})();
+function rememberFitZoom(key, zoom) {
+  if (fitZoomCache.get(key) === zoom) return;
+  fitZoomCache.delete(key);
+  fitZoomCache.set(key, zoom);
+  while (fitZoomCache.size > 300) fitZoomCache.delete(fitZoomCache.keys().next().value);
+  try {
+    localStorage.setItem(FIT_ZOOM_STORE, JSON.stringify(Object.fromEntries(fitZoomCache)));
+  } catch {
+    /* private mode / full: this visit still uses it */
+  }
+}
+
+function scoreOverflowRatio(host, svg, { staff = true } = {}) {
+  // How far the music's right edge runs past where the staff lines end (and
+  // the screen edge): notes drawn past the final barline mean the bar lacks
+  // room. With staff off, only the screen edge counts.
   const hostBox = host.getBoundingClientRect();
   let staffRight = 0;
-  for (const m of svg.querySelectorAll("g.vf-measure")) {
-    for (const c of m.children) {
-      if (c.tagName.toLowerCase() !== "path") continue;
-      const r = c.getBoundingClientRect();
-      if (r.height < 2 && r.width > 10 && r.right > staffRight) staffRight = r.right;
+  if (staff) {
+    for (const m of svg.querySelectorAll("g.vf-measure")) {
+      for (const c of m.children) {
+        if (c.tagName.toLowerCase() !== "path") continue;
+        const r = c.getBoundingClientRect();
+        if (r.height < 2 && r.width > 10 && r.right > staffRight) staffRight = r.right;
+      }
     }
   }
   let right = 0;
@@ -3525,17 +3557,24 @@ function fitScoreToWidth(osmd) {
   let svg = host?.querySelector("svg");
   if (!svg || !osmd) return;
   const key = fitZoomKey();
-  let ratio = scoreOverflowRatio(host, svg);
-  // small overflows: scale the drawing (instant); big ones: re-engrave smaller
-  for (let pass = 0; pass < 2 && ratio < 0.97; pass++) {
-    // A bar that can't fit its line draws past the barline: engrave again,
-    // smaller by the overflow, so every bar has room.
+  // On a phone, notes pushed past their barline mean the lane is cramped:
+  // engraving smaller gives the labels room. On a wide page it doesn't (the
+  // engraver packs more bars per line and the overhang comes back), so there
+  // only music off the screen counts.
+  const narrow = (host.clientWidth || 0) < 720;
+  let ratio = scoreOverflowRatio(host, svg, { staff: narrow });
+  // Engrave again, smaller by the overflow (twice at most: each pass packs
+  // more bars per line, so the first rarely lands). Already engraved at the
+  // size that fitted last time: scale only, or every visit would shrink it.
+  const fromCache = fitZoomCache.get(key) === osmd.zoom;
+  for (let pass = 0; pass < 2 && ratio < 0.97 && !fromCache; pass++) {
     osmd.zoom = Math.max(0.45, osmd.zoom * ratio * 0.96);
     osmd.render();
     svg = host.querySelector("svg");
-    ratio = scoreOverflowRatio(host, svg);
+    ratio = scoreOverflowRatio(host, svg, { staff: narrow });
   }
-  fitZoomCache.set(key, osmd.zoom);
+  ratio = scoreOverflowRatio(host, svg, { staff: false });
+  rememberFitZoom(key, osmd.zoom);
   if (ratio < 1 && svg) {
     // last few pixels: scale the finished drawing (instant, same layout)
     const w = Number(svg.getAttribute("width")) || svg.getBoundingClientRect().width;
@@ -3728,6 +3767,36 @@ function staggerLaneLabels(host) {
       moved++;
     }
   }
+  // Last: a label still sitting on notation (a beam or a low note hanging into
+  // the lane, where no spare line was free) slides up or down by part of a
+  // line, to the nearest spot clear of notation, slurs, markings and other
+  // labels. If there is none it stays where the engraver put it.
+  const marks = [];
+  for (const g of svg.querySelectorAll("g.vf-text:not(.lyrics)")) {
+    try {
+      const r = g.getBBox();
+      if (r.width || r.height) marks.push(r);
+    } catch {
+      /* not drawn */
+    }
+  }
+  const meets = (a, r, pad) =>
+    a.x < r.x + r.width + pad && a.x + a.width + pad > r.x && a.y + a.height * 0.15 < r.y + r.height && a.y + a.height * 0.85 > r.y;
+  const onInk = (b) => touchesInk(b) || curves.some((r) => meets(b, r, 0.8)) || marks.some((r) => meets(b, r, 0.8));
+  for (const el of labels) {
+    const b = el.getBBox();
+    if (!b.width || !onInk(b)) continue;
+    const y0 = Number(el.getAttribute("y"));
+    if (!Number.isFinite(y0)) continue;
+    const near = labels.filter((o) => o !== el).map((o) => o.getBBox()).filter((r) => Math.abs(r.y - b.y) < b.height * 2.5 && Math.abs(r.x - b.x) < b.width * 3 + 20);
+    for (const f of [0.25, -0.25, 0.5, -0.5, 0.75]) {
+      const nb = { x: b.x, y: b.y + b.height * f, width: b.width, height: b.height };
+      if (onInk(nb) || near.some((r) => meets(nb, r, 1.5))) continue;
+      el.setAttribute("y", String(y0 + b.height * f));
+      moved++;
+      break;
+    }
+  }
   return moved;
 }
 
@@ -3790,7 +3859,28 @@ async function renderScore() {
   // load() resets zoom, so set it afterwards: 1 (the size the label lane is
   // tuned for), larger in large-print mode, or the cached fit for this width.
   osmd.zoom = cachedFitZoom(1);
+  const host = $("osmd");
+  // A long score takes seconds to engrave on a phone, and nothing shows until
+  // it is done. Draw the opening bars on their own first, so music is on the
+  // page at once while the whole score engraves. #osmd[data-partial] marks
+  // that preview; the full drawing replaces it.
+  const R = osmd.EngravingRules;
+  if ((osmd.Sheet?.SourceMeasures?.length || 0) > PREVIEW_BARS * 2) {
+    host.dataset.partial = "1";
+    R.MaxMeasureToDrawIndex = PREVIEW_BARS - 1;
+    R.MaxMeasureToDrawNumber = PREVIEW_BARS;
+    try {
+      osmd.render();
+      await new Promise((done) => requestAnimationFrame(() => setTimeout(done, 0)));
+    } catch {
+      /* the full drawing below is what counts */
+    }
+    R.MaxMeasureToDrawIndex = Number.MAX_VALUE;
+    R.MaxMeasureToDrawNumber = Number.MAX_VALUE;
+    if (state.osmd !== osmd) return;
+  }
   osmd.render();
+  delete host.dataset.partial;
   fitScoreToWidth(osmd);
   untangleScoreDirections($("osmd"));
   state.osmdRenderedWidth = Math.round($("osmd")?.clientWidth || 0);

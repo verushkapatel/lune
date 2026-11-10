@@ -21,7 +21,7 @@ PIECES = [
 
 def wait_overlays(page, sel, min_n=1, timeout_ms=25000):
     try:
-        page.wait_for_selector("#osmd svg", state="attached", timeout=min(timeout_ms, 20000))
+        page.wait_for_selector("#osmd:not([data-partial]) svg", state="attached", timeout=min(timeout_ms, 20000))
     except Exception:
         page.wait_for_timeout(800)
     deadline = time.time() + timeout_ms / 1000
@@ -63,7 +63,7 @@ def open_piece(page, query):
     page.press("#q", "Enter")
     page.wait_for_function("() => !document.getElementById('studio')?.hidden", timeout=90000)
     page.click("#tab-score")
-    page.wait_for_selector("#osmd svg", timeout=90000)
+    page.wait_for_selector("#osmd:not([data-partial]) svg", timeout=90000)
     page.wait_for_timeout(600)
 
 

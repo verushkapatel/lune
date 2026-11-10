@@ -56,7 +56,7 @@ def screens(pg):
     pg.wait_for_timeout(600)
     yield "landing"
     pg.goto(BASE + "#/debussy-clair-de-lune/score", wait_until="networkidle")
-    pg.wait_for_selector("#osmd g.vf-notehead", timeout=40000)
+    pg.wait_for_selector("#osmd:not([data-partial]) g.vf-notehead", timeout=40000)
     pg.evaluate("() => { setBarSelection([2], { open: true }); }")
     pg.wait_for_timeout(800)
     yield "score + bar panel"

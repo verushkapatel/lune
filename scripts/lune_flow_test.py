@@ -112,7 +112,7 @@ with sync_playwright() as p:
 
     # FLOW 3 — add to repertoire, in words, once
     pg.click(".studio-tab[data-panel=score]")
-    pg.wait_for_selector("#osmd g.vf-notehead", timeout=40000)
+    pg.wait_for_selector("#osmd:not([data-partial]) g.vf-notehead", timeout=40000)
     check("3  button says what it does", "Add this piece to my Repertoire" in pg.evaluate("document.querySelector('#btn-bookmark .lp-add-label').textContent"))
     pg.click("#btn-bookmark")
     pg.wait_for_function("/in your Repertoire/.test(document.querySelector('#btn-bookmark .lp-add-label').textContent)", timeout=8000)
@@ -154,12 +154,12 @@ with sync_playwright() as p:
     lit = pg.evaluate("(() => { const c = document.getElementById('piano-roll-canvas'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 0; i < d.length; i += 400) if (d[i] > 120) n++; return n; })()")
     check("6  the piano view draws from that same timeline", lit > 50)
     pg.click(".studio-tab[data-panel=score]")
-    pg.wait_for_selector("#osmd g.vf-notehead", timeout=40000)
+    pg.wait_for_selector("#osmd:not([data-partial]) g.vf-notehead", timeout=40000)
 
     # FLOW 7 — Notes / Fingers without a redraw
-    r = pg.evaluate("""async () => { const svg = document.querySelector('#osmd svg'); const top = document.getElementById('score-scroll').scrollTop; const t = performance.now();
+    r = pg.evaluate("""async () => { const svg = document.querySelector('#osmd:not([data-partial]) svg'); const top = document.getElementById('score-scroll').scrollTop; const t = performance.now();
       document.getElementById('anno-fingers').click(); await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-      return { ms: performance.now() - t, sameSvg: svg === document.querySelector('#osmd svg'), sameScroll: top === document.getElementById('score-scroll').scrollTop, fingers: document.querySelectorAll('#osmd text.lane-finger').length }; }""")
+      return { ms: performance.now() - t, sameSvg: svg === document.querySelector('#osmd:not([data-partial]) svg'), sameScroll: top === document.getElementById('score-scroll').scrollTop, fingers: document.querySelectorAll('#osmd text.lane-finger').length }; }""")
     check("7  Fingers appears in under 150 ms with no re-engraving or scroll jump", r["ms"] < 150 and r["sameSvg"] and r["sameScroll"] and r["fingers"] > 50, str(r))
     pg.evaluate("() => { document.getElementById('anno-notes').click(); }")
 
@@ -248,7 +248,7 @@ with sync_playwright() as p:
     pg.wait_for_timeout(300)
     check("16 Copy puts that text on the clipboard", "Clair de lune" in pg.evaluate("navigator.clipboard.readText()"))
     pg.evaluate("() => { LunePractice.openFromRepertoire('%s'); }" % key)
-    pg.wait_for_selector("#osmd g.vf-notehead", timeout=40000)
+    pg.wait_for_selector("#osmd:not([data-partial]) g.vf-notehead", timeout=40000)
     pg.click(".studio-tab[data-panel=explain]")
     pg.wait_for_timeout(500)
     pg.click("#btn-share-piece")
@@ -334,7 +334,7 @@ with sync_playwright() as p:
 
     # reading aloud controls
     pg.goto(BASE + "#/debussy-clair-de-lune/score", wait_until="networkidle")
-    pg.wait_for_selector("#osmd g.vf-notehead", timeout=40000)
+    pg.wait_for_selector("#osmd:not([data-partial]) g.vf-notehead", timeout=40000)
     pg.evaluate("() => { setBarSelection([2], { open: false }); }")
     pg.click("#btn-listen")
     pg.wait_for_timeout(400)
@@ -366,7 +366,7 @@ with sync_playwright() as p:
     for label, pid in (("slow, tied, pedalled (Clair de lune)", "debussy-clair-de-lune"), ("marked pedal (Für Elise)", "ludwig-van-beethoven-fur-elise"), ("no pedal, even semiquavers (Bach Prelude in C)", "bach-prelude-c"), ("polyphonic, fetched on open (Bach Fugue BWV 846)", "asap-bach-fugue-bwv-846"), ("fast and chord-heavy (Chopin Etude Op. 10 no. 12, fetched)", "asap-chopin-etudes-op-10-12")):
         pg.goto(BASE + f"#/{pid}/score", wait_until="networkidle")
         try:
-            pg.wait_for_selector("#osmd g.vf-notehead", timeout=90000)
+            pg.wait_for_selector("#osmd:not([data-partial]) g.vf-notehead", timeout=90000)
             pg.evaluate("() => { primeTimeline(); }")
             pg.wait_for_timeout(400)
             m = pg.evaluate(MUSIC)
@@ -378,7 +378,7 @@ with sync_playwright() as p:
 
     # ACCESSIBILITY — names, labels, dialogs, headings, keyboard, reduced motion
     pg.goto(BASE + "#/debussy-clair-de-lune/score", wait_until="networkidle")
-    pg.wait_for_selector("#osmd g.vf-notehead", timeout=40000)
+    pg.wait_for_selector("#osmd:not([data-partial]) g.vf-notehead", timeout=40000)
     pg.evaluate("() => { setBarSelection([2], { open: true }); }")
     pg.wait_for_timeout(600)
     a11y = pg.evaluate("""() => {
@@ -410,7 +410,7 @@ with sync_playwright() as p:
     check("REDUCED MOTION the Ask Lune panel has no entry animation", rm.evaluate("(() => { const s = [...document.styleSheets].flatMap(sh => { try { return [...sh.cssRules]; } catch { return []; } }); return s.some(r => r.media && /reduced-motion/.test(r.media.mediaText) && /ask-lune/.test(r.cssText)); })()"))
     check("PHONE no sideways scroll on the landing page", rm.evaluate("document.getElementById('home').scrollWidth <= document.getElementById('home').clientWidth + 1"))
     rm.goto(BASE + "#/debussy-clair-de-lune/score", wait_until="networkidle")
-    rm.wait_for_selector("#osmd g.vf-notehead", timeout=40000)
+    rm.wait_for_selector("#osmd:not([data-partial]) g.vf-notehead", timeout=40000)
     check("PHONE the score's main controls are on screen", rm.evaluate("['btn-tell', 'btn-listen', 'btn-toggle-kbd', 'btn-play-range'].every(id => { const r = document.getElementById(id).getBoundingClientRect(); return r.width > 0 && r.left >= 0 && r.right <= innerWidth + 1; })"))
     rm.click("#btn-tell")
     rm.wait_for_timeout(400)

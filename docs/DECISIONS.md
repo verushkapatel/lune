@@ -46,6 +46,8 @@
 - Search results show hover with an inset bar, not extra padding, so the text doesn't move.
 - On a phone, controls get a 44 px hit area where the layout allows. Header tools grow in height only so the header fits at 390 px; sliders keep their drawn size.
 - Opening a piece by link that has to be fetched (remote scores can take 30–40 s): if the address changes before it lands, its loader goes at once and the score doesn't take the screen back. Before, the loader blocked every click until the abandoned download finished, then the old piece replaced the one asked for.
+- Engraving a score: the opening 8 bars are drawn on their own first (`#osmd[data-partial]`), so music is on the page in about half a second while a long score engraves; the full drawing replaces it. Tests wait for `#osmd:not([data-partial])`.
+- Fitting a score to the page re-engraves smaller only on a phone (under 720 px), where notes pushed past their barline mean the letter lane is cramped; on a wide page that never cured the overhang and only shrank the score, so there only music off the screen counts. The size that fitted is kept per piece and width in `localStorage` (`lune.fitZoom.v1`), so a piece opened before engraves once. The letter lane is laid out once per drawing (three settling passes in one go) instead of again by every callback that follows a render.
 - CI (`.github/workflows/site.yml`) takes the published gh-pages site as the score library, copies this branch's frontend over it, and runs the browser suites. Accounts are off or stubbed in every suite.
 
 ## Visible buttons (before → after)

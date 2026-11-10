@@ -21,7 +21,7 @@ PIECE = "debussy-clair-de-lune"
 
 
 def wait_score(pg):
-    pg.wait_for_function("() => document.querySelectorAll('#osmd .lane-letter').length > 50", timeout=60000)
+    pg.wait_for_function("() => document.querySelectorAll('#osmd:not([data-partial]) .lane-letter').length > 50", timeout=60000)
     pg.wait_for_timeout(400)
 
 

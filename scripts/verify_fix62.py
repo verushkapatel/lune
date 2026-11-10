@@ -84,13 +84,13 @@ def run(width, label):
 
         # 4. Score
         page.click("#tab-score")
-        page.wait_for_function("() => !!document.querySelector('#osmd svg')", timeout=90000)
+        page.wait_for_function("() => !!document.querySelector('#osmd:not([data-partial]) svg')", timeout=90000)
         page.wait_for_timeout(1500)
         page.screenshot(path=str(OUT / f"fix62-score-{label}.png"))
 
         # Bar click -> coach
         box = page.evaluate("""() => {
-          const svg = document.querySelector('#osmd svg');
+          const svg = document.querySelector('#osmd:not([data-partial]) svg');
           const r = svg.getBoundingClientRect();
           return {x: r.left + r.width*0.4, y: r.top + 60};
         }""")

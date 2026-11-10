@@ -10,15 +10,18 @@ BASE = ARGS[0] if ARGS else "http://127.0.0.1:8137/lune/"
 SAMPLE = int(sys.argv[sys.argv.index("--sample") + 1]) if "--sample" in sys.argv else 0
 CHECK = r"""
 (mode) => {
-  const svg = document.querySelector('#osmd svg');
+  const svg = document.querySelector('#osmd:not([data-partial]) svg');
   const labels = [...svg.querySelectorAll('g.lyrics text')].filter(t => t.getAttribute('visibility') !== 'hidden');
-  // expected = pitched, non-grace notes that start a sound (tie starts / untied)
-  let expected = 0;
-  for (const m of state.osmd.GraphicSheet.MeasureList) for (const sm of m) if (sm) for (const se of sm.staffEntries) for (const g of se.graphicalVoiceEntries) for (const gn of g.notes) {
+  // expected = keys struck: pitched, non-grace notes that start a sound (tie
+  // starts / untied), a unison doubled across voices counted once (it gets
+  // one label, as it is one key)
+  const struck = new Set();
+  state.osmd.GraphicSheet.MeasureList.forEach((m, mi) => m.forEach((sm, si) => { if (sm) for (const se of sm.staffEntries) for (const g of se.graphicalVoiceEntries) for (const gn of g.notes) {
     const sn = gn.sourceNote; if (!sn.Pitch || sn.isRest?.() || sn.IsGraceNote) continue;
     const t = sn.NoteTie; if (t && t.StartNote && t.StartNote !== sn) continue;
-    expected++;
-  }
+    struck.add(`${mi}|${si}|${se.relInMeasureTimestamp?.RealValue}|${sn.halfTone}`);
+  }}));
+  const expected = struck.size;
   const r = (e) => { const b = e.getBoundingClientRect(); return {l:b.left+0.5, r:b.right-0.5, t:b.top+b.height*0.2, b:b.bottom-b.height*0.2}; };
   const hit = (a, b) => Math.min(a.r,b.r) > Math.max(a.l,b.l) && Math.min(a.b,b.b) > Math.max(a.t,b.t);
   const lr = labels.map(r);
@@ -44,7 +47,7 @@ with sync_playwright() as p:
             pg.goto(f"{BASE}?w={w}&n={time.time_ns()}#/{row['id']}/score", wait_until="networkidle")
             t0 = time.time()
             try:
-                pg.wait_for_function("(id) => state.piece && state.piece.id === id && state.renderedLaneMode === 'both' && document.querySelectorAll('#osmd g.lyrics text').length > 0", arg=row['id'], timeout=150000)
+                pg.wait_for_function("(id) => state.piece && state.piece.id === id && state.renderedLaneMode === 'both' && document.querySelectorAll('#osmd:not([data-partial]) g.lyrics text').length > 0", arg=row['id'], timeout=150000)
                 pg.wait_for_timeout(400)
             except Exception:
                 bad.append((w, row['id'], 'no labels')); print(w, row['id'], 'NO LABELS', flush=True); continue

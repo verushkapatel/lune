@@ -22,7 +22,7 @@ def check(name, ok, detail=""):
 
 
 def wait_score(pg, n=50):
-    pg.wait_for_function(f"() => document.querySelectorAll('#osmd .lane-letter').length > {n}", timeout=60000)
+    pg.wait_for_function(f"() => document.querySelectorAll('#osmd:not([data-partial]) .lane-letter').length > {n}", timeout=60000)
     pg.wait_for_timeout(300)
 
 

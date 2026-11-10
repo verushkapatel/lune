@@ -57,5 +57,21 @@ Lighthouse, mobile preset (Moto G Power, slow 4G, 4× CPU), gzip, median of 3:
 | Score page: performance score | 43 | 43 |
 
 A score page is bound by engraving: OSMD lays out every bar and reads back
-pixels to space the systems, about 6 s of blocking time under 4× CPU slowdown
-(about 3 s unthrottled on a laptop). That is the next thing to work on.
+pixels to space the systems. What changed, for Clair de lune (Chrome on a
+laptop, no throttling):
+
+| | Before | After |
+| --- | --- | --- |
+| Phone width: first music on screen | 3.6 s | 0.6 s |
+| Phone width: whole score drawn | 3.6 s | 2.5 s |
+| Laptop: first music on screen | 3.6 s | 0.6 s |
+| Laptop: whole score drawn | 3.6 s | 1.6 s |
+| Opening a piece again (any width) | 3 engravings | 1 |
+
+The opening bars are drawn first, a wide page no longer re-engraves to chase
+notes past a barline, and the fitted size is remembered. Lighthouse still
+scores the page 43 (largest paint 11.6 s → 9.5 s): a first visit on a phone
+still engraves Clair de lune three times to fit the letter lane (plus the
+small opening preview), about 6 s of
+blocking time under its 4× CPU slowdown. Moving engraving off the main thread
+is the remaining step, and a large one (OSMD needs the DOM).

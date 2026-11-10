@@ -84,7 +84,7 @@ with sync_playwright() as p:
     pg.wait_for_timeout(3000)
     check("sound: Tone.js not fetched by the home page", not any(k == "tone" for k, _ in log) and pg.evaluate("typeof Tone") == "undefined")
     pg.goto(BASE + "#/debussy-clair-de-lune/score", wait_until="networkidle")
-    pg.wait_for_function("() => document.querySelectorAll('#osmd .lane-letter').length > 50", timeout=60000)
+    pg.wait_for_function("() => document.querySelectorAll('#osmd:not([data-partial]) .lane-letter').length > 50", timeout=60000)
     # the warm-up runs before any tap; it used to leave the first Play waiting forever
     pg.wait_for_timeout(5000)
     pg.click("#btn-play-range")

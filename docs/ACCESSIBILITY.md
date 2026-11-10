@@ -55,8 +55,14 @@ them on every push (`.github/workflows/site.yml`).
 
 ## Known gaps
 
-- Some notes in dense pieces still have no letter, and a few labels touch
-  notation on a phone (12 overlaps and 230 unlabelled notes across a 40-piece
-  sample at 390 and 1280 px). `scripts/claude_lane_sweep.py --sample N`
-  measures this.
+- A few labels still touch notation on a phone, and a few keys have no letter:
+  across a 40-piece sample at 390 and 1280 px, 10 of about 90,000 labels touch
+  ink and 40 struck keys are unlabelled. (The sweep used to report 230
+  unlabelled notes; most were unisons, the same key in two voices, which get
+  one label by design and are now counted once.) The worst case is beams and
+  stems from the system below reaching up into a letter lane (Mozart, Sonata
+  no. 10, III). `scripts/claude_lane_sweep.py --sample N` measures this.
+- A bar too wide for a phone screen, such as the long run in bar 10 of the
+  Pathétique (I), runs off the left edge: the engraver can't break a bar
+  across lines.
 - Voice notes and spoken questions understand English only.
