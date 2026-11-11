@@ -2092,7 +2092,7 @@ function showDiscoverPage(piece, { canOpen }) {
   if (!canOpen && !String(piece?.composer || "").trim()) {
     const typed = ($("q").value || piece?.title || "").trim();
     toast(
-      `No match for “${typed}”. Try a composer or title — Chopin Mazurka, Für Elise, Clair de Lune — or upload your own score.`
+      `No match for “${typed}”. Try a composer or title — Chopin Mazurka, Für Elise, Clair de lune — or upload your own score.`
     );
     // stay wherever the pianist is (home or their open piece)
     $("q")?.focus();
