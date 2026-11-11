@@ -151,6 +151,38 @@ Rules:
   const FINGERING_NOTE =
     "Finger numbers here are Lune's suggested fingering, worked out from the notes by Lune. They are not printed in the pianist's edition. Call them suggested fingering.";
 
+  /** "Gb4" → "G♭4": the score's own signs, so answers use them too. */
+  function spell(name) {
+    return String(name || "").replace(/^([A-Ga-g])(bb|b|##|#)?(-?\d*)$/, (m, l, acc, oct) => l.toUpperCase() + ({ b: "♭", bb: "♭♭", "#": "♯", "##": "♯♯" }[acc] || "") + oct);
+  }
+
+  /**
+   * What makes a bar tricky, in the bar panel's own words (its headline and
+   * reasons). Empty means Lune found nothing hard about it.
+   */
+  function barTricky(d) {
+    if (!d) return null;
+    const reasons = (d.difficulty?.reasons || []).filter((r) => r && !/straightforward/i.test(r));
+    const headline = String(d.headline || "").trim();
+    if (!headline && !reasons.length) return "Nothing in particular: one of the more straightforward bars.";
+    return [headline, ...reasons.filter((r) => !headline.toLowerCase().includes(r.toLowerCase()))].filter(Boolean).join("; ");
+  }
+
+  /** An answer that shows Lune's plumbing: field names, ids, the word null. */
+  const LEAK = /\bCONTEXT\b|\b[a-z]+[A-Z]?\w*\.(bar|piece|goal|tempo|remarks|difficulty|plans|notes)\b|\bupload-[a-z0-9-]{6,}|\b[a-z]+-[a-z]+-[a-z0-9-]{12,}\b|\bnull\b|\bJSON\b|\bwhatMakesItTricky\b|\bprintedHere\b|\bearlierQuestions\b|\bfingeringNote\b/;
+  function leaks(text) {
+    return LEAK.test(String(text || ""));
+  }
+  /** Remove any sentence that leaks; spell notes with signs; British spelling for practise (verb). */
+  function scrub(text) {
+    let t = String(text || "");
+    if (leaks(t)) t = t.split(/(?<=[.!?])\s+/).filter((sn) => !leaks(sn)).join(" ");
+    t = t.replace(/\b([A-G])(b|#)(\d)\b/g, (m, l, a, o) => l + (a === "b" ? "♭" : "♯") + o);
+    t = t.replace(/\bpractice (it|this|that|them|the|slowly|each|hands|with|bar|bars|at)\b/g, "practise $1");
+    t = t.replace(/\bcolor/g, "colour").replace(/\bfavorite/g, "favourite");
+    return t.trim();
+  }
+
   /** Everything Lune knows that is relevant to this question, as plain data. */
   async function buildContext(bar) {
     const p = state.piece || {};
@@ -162,14 +194,19 @@ Rules:
       store().listCards(key).catch(() => []),
     ]);
     const slim = (list) =>
-      (list || []).map((n) => ({ note: n.letter || n.pitch, beat: n.offset, length: n.duration, finger: n.fingering ?? null }));
+      (list || []).map((n) => ({ note: spell(n.letter || n.pitch), beat: n.offset, length: n.duration, finger: n.fingering ?? null }));
+    const facts = window.LuneScoreFacts?.forPiece?.(p) || null;
     const tasks = (store().listTasks?.() || []).filter((t) => t.piece_key === key).slice(0, 6);
     const ctx = {
       piece: {
         title: p.overview?.title || p.title || null,
         composer: p.overview?.composer || p.composer || null,
-        key: p.notatedKey || p.overview?.key || null,
-        timeSignature: p.timeSignature || p.overview?.timeSignature || null,
+        key: facts?.key?.name || p.notatedKey || p.overview?.key || null,
+        keySignature: facts?.key?.signature || null,
+        keyChanges: facts?.keyChanges?.length ? facts.keyChanges.map((k) => ({ bar: k.bar, key: k.name, signature: k.signature })) : undefined,
+        timeSignature: facts?.time || p.timeSignature || p.overview?.timeSignature || null,
+        printedTempo: facts?.tempo?.[0]?.mark || null,
+        printedWords: facts?.words?.length ? facts.words.slice(0, 40) : undefined,
         tempo: p.tempo || p.overview?.tempo || null,
         era: p.epoch || p.overview?.era || null,
         bars: Object.keys(p.debriefs || {}).length || null,
@@ -182,7 +219,10 @@ Rules:
         .slice(0, 12)
         .map((c) => ({ bar: c.bar, timesReviewed: c.reps ?? null, lastRating: c.last_grade || c.grade || null, nextReview: c.due_at })),
       plans: tasks.map((t) => ({ bars: t.bars, summary: t.plan?.summary || t.notes, done: !!t.done })),
-      earlierQuestions: (bar ? historyFor(bar) : history()).slice(-4).map((h) => ({ question: h.q, answer: h.a })),
+      earlierQuestions: (bar ? historyFor(bar) : history())
+        .filter((h) => !leaks(h.a))
+        .slice(-4)
+        .map((h) => ({ question: h.q, answer: h.a })),
       fingeringNote: FINGERING_NOTE,
     };
     // bars the pianist keeps finding hard (from their own ratings)
@@ -204,7 +244,9 @@ Rules:
         number: Number(bar),
         rightHand: slim(d.rh),
         leftHand: slim(d.lh),
-        difficulty: d.difficulty ? { hard: !!d.difficulty.isHard, reasons: d.difficulty.reasons || [] } : null,
+        // The same words the bar panel shows, so Lune AI never contradicts it.
+        whatMakesItTricky: barTricky(d),
+        printedHere: window.LuneScoreFacts?.near?.(facts, Number(bar)) || undefined,
         technicalFeatures: d.tags || [],
         dynamics: d.dynamics || [],
         harmony: d.harmony || [],
@@ -220,7 +262,7 @@ Rules:
     answerQuestion: (q) => q,
     explainBar: () => "Explain what happens in this bar and what makes it easy or hard, using only CONTEXT.",
     whyHard: () =>
-      "Say why this bar is hard, or that it is not, using only CONTEXT.bar.difficulty, CONTEXT.bar.technicalFeatures and the notes in CONTEXT.bar. Then suggest one thing to try.",
+      "Say what makes this bar tricky, using the bar's 'what makes it tricky' line (the same words the bar panel shows) and its notes. If that line says nothing in particular, say it is one of the easier bars and give one thing to listen for. Then suggest one thing to try.",
     explainPracticeProblem: (q) => `The pianist says: "${q}". Using CONTEXT (their ratings, remarks and the bar's difficulty), say what is most likely going wrong and one thing to try.`,
     suggestPractice: () => "Suggest how to practise this bar or passage in three short steps, each tied to something in CONTEXT.",
     generatePracticePlan: (bars, mins) => `Write a practice plan of ${mins} minutes for bars ${bars.join(", ")}. Numbered steps with minutes for each, hands-separate or slow-tempo work only where CONTEXT supports it, and keep the pianist's goal.`,
@@ -244,7 +286,7 @@ Rules:
     account: {
       available: () => !!aiServer() && cloudAccount(),
       label: () => "Lune AI",
-      async answer(question, ctx, { signal } = {}) {
+      async answer(question, ctx, { signal, onToken } = {}) {
         ctx = spokenCtx(ctx);
         const token = await store().accessToken();
         if (!token) throw new Error("Sign in again to use Lune AI.");
@@ -258,13 +300,47 @@ Rules:
             body: JSON.stringify({ question, context: ctx }),
             signal: ctl.signal,
           });
+          // A streaming server sends server-sent events; words appear as they come.
+          if (res.ok && /event-stream/.test(res.headers.get("content-type") || "") && res.body) {
+            const reader = res.body.getReader();
+            const dec = new TextDecoder();
+            let buf = "";
+            let full = "";
+            for (;;) {
+              const { value, done } = await reader.read();
+              if (done) break;
+              buf += dec.decode(value, { stream: true });
+              let i;
+              while ((i = buf.indexOf("\n\n")) >= 0) {
+                const chunk = buf.slice(0, i);
+                buf = buf.slice(i + 2);
+                const data = chunk.split("\n").filter((l) => l.startsWith("data:")).map((l) => l.slice(5).trim()).join("");
+                if (!data || data === "[DONE]") continue;
+                let piece = "";
+                try {
+                  const j = JSON.parse(data);
+                  piece = j.response ?? j.token ?? j.text ?? "";
+                  if (j.error) throw Object.assign(new Error(j.error), { userMessage: j.error });
+                } catch (e) {
+                  if (e.userMessage) throw e;
+                  piece = data;
+                }
+                if (piece) {
+                  full += piece;
+                  onToken?.(piece);
+                }
+              }
+            }
+            if (!full.trim()) throw new Error("Lune AI sent an empty answer");
+            return full;
+          }
           const data = await res.json().catch(() => ({}));
           if (!res.ok || !data.answer) {
             const err = new Error(data.error || `Lune AI returned ${res.status}`);
             err.userMessage = data.error;
             throw err;
           }
-          return String(data.answer).slice(0, 4000);
+          return String(data.answer);
         } finally {
           clearTimeout(timer);
         }
@@ -283,7 +359,7 @@ Rules:
           { onToken },
         );
         if (!res?.text) throw new Error("model sent no answer");
-        return res.text.slice(0, 4000);
+        return res.text;
       },
     },
     /** A language model behind an OpenAI-compatible chat endpoint. */
@@ -409,7 +485,8 @@ Rules:
   function whoAnswers() {
     const m = active();
     if (m === providers.endpoint) return `${aiSettings().model.replace(/:latest$/, "")} · local`;
-    if (m === providers.account) return aiName().replace(/ Instruct$/, "");
+    // the product is Lune AI; which model runs it is said in Settings, not in the header
+    if (m === providers.account) return "";
     if (m === providers.device) return `${D()?.MODEL.name || "Lune AI"} · in this browser`;
     return "";
   }
@@ -888,8 +965,18 @@ Rules:
    * Write a model's answer into `el` as it arrives. `run({signal, onToken})`
    * calls the model. Resolves to { text, stopped, error }.
    */
-  async function streamAnswer(el, run) {
-    writing?.abort();
+  // Questions asked while Lune is still answering wait their turn; none is dropped.
+  let answerQueue = Promise.resolve();
+  function streamAnswer(el, run) {
+    const turn = answerQueue.then(() => streamOne(el, run));
+    answerQueue = turn.catch(() => {});
+    if (writing) {
+      el.classList.add("la-thinking");
+      el.innerHTML = `<p class="la-queued">Waiting for the answer above…</p>`;
+    }
+    return turn;
+  }
+  async function streamOne(el, run) {
     const ctl = new AbortController();
     writing = ctl;
     setWriting(true);
@@ -905,7 +992,7 @@ Rules:
       if (!el.isConnected) return;
       const stick = nearBottom(log);
       el.classList.remove("la-thinking");
-      richText(el, text, { live: true });
+      richText(el, scrub(text), { live: true });
       if (stick && log) log.scrollTop = log.scrollHeight;
     };
     const onToken = (t) => {
@@ -927,7 +1014,7 @@ Rules:
       writing = null;
       setWriting(false);
     }
-    text = text.trim();
+    text = scrub(text);
     el.classList.remove("la-thinking");
     el.removeAttribute("aria-busy");
     if (text) richText(el, text);
@@ -1388,7 +1475,7 @@ Rules:
     const sel = selectedBarsSorted();
     const where = $("ask-where");
     const title = state.piece?.overview?.title || state.piece?.title || "";
-    const who = providers.endpoint.available() ? aiSettings().model : providers.account.available() ? aiName().replace(/ Instruct$/, "") : providers.device.available() ? "on this device" : "built-in answers";
+    const who = providers.endpoint.available() ? aiSettings().model : providers.account.available() ? "Lune AI" : providers.device.available() ? "on this device" : "built-in answers";
     where.textContent = `${sel.length ? `Bar ${sel.join(", ")}` : title || "This piece"} · ${who}`;
     // suggestions only start a conversation, as in Claude or ChatGPT; with Lune AI on, its actions replace the built-in ones
     const fresh = !(sel.length ? historyFor(sel[0]) : history().filter((h) => !h.bar)).length;
@@ -1834,13 +1921,30 @@ Rules:
       plans: tasks.map((t) => ({ piece: t.piece_title || t.piece_key, bars: t.bars, summary: t.plan?.summary || t.notes || null, done: !!t.done })),
       thisWeek: week ? { daysPractised: week.days, goalDays: week.goalDays, minutes: week.mins, barsRatedGoodOrStrong: week.good, barsRatedHardOrAgain: week.hard, barsWorked: week.barsWorked } : null,
       barsStillHard: hardNow,
-      goal: { daysPerWeek: prefs.practiceDays || null, minutesPerSession: prefs.practiceMins || null, workingToward: prefs.dreamPiece?.title || null, level: prefs.grade ?? null },
+      goal: {
+        daysPerWeek: prefs.practiceDays || null,
+        minutesPerSession: prefs.practiceMins || null,
+        inWords: prefs.practiceDays ? `${prefs.practiceDays} days a week, ${prefs.practiceMins || 30} minutes each (not every day)` : null,
+        workingToward: prefs.dreamPiece?.title || null,
+        level: prefs.grade ?? null,
+      },
       fingeringNote: FINGERING_NOTE,
       conversation: log.slice(-6).map((m) => ({ from: m.who === "you" ? "pianist" : "lune", text: String(m.text).slice(0, 600) })),
     };
-    if (state.piece) {
-      const p = state.piece;
-      ctx.openPiece = { title: p.overview?.title || p.title || null, composer: p.overview?.composer || p.composer || null, hardestBars: hardest(5) };
+    // the piece on stage, or the one open in a tab, or the one last practised
+    const p = state.piece || state.sessions?.[state.sessions.length - 1]?.piece || null;
+    if (p) {
+      const facts = window.LuneScoreFacts?.forPiece?.(p) || null;
+      ctx.openPiece = {
+        title: p.overview?.title || p.title || null,
+        composer: p.overview?.composer || p.composer || null,
+        key: facts?.key?.name || null,
+        timeSignature: facts?.time || null,
+        hardestBars: p === state.piece ? hardest(5) : undefined,
+      };
+    } else if (pieces.length) {
+      const last = [...pieces].sort((a, b) => String(b.last_practised_at || "").localeCompare(String(a.last_practised_at || "")))[0];
+      ctx.lastPractisedPiece = { title: last.title, composer: last.composer || null };
     } else {
       ctx.openPiece = null;
       ctx.noScoreOpen = "No score is open, so there are no bar numbers to refer to. Answer as general piano teaching and do not name any bar.";

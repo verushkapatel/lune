@@ -1056,7 +1056,8 @@ window.LunePractice = (function () {
       ${
         window.LuneAsk?.modelConnected?.()
           ? `<div class="lp-ai-row" role="group" aria-label="Lune AI on bar ${primary}">${Object.entries(window.LuneAsk.MODEL_ACTIONS)
-              .filter(([, a]) => a.bar)
+              // "Why it's hard" only on a bar the panel says is tricky; otherwise "How to practise" says it all
+              .filter(([task, a]) => a.bar && !(task === "whyHard" && !String(debriefFor(primary)?.headline || "").trim()))
               .map(([task, a]) => `<button type="button" data-lp-task="${task}" title="${esc(a.label)}">${esc(SHORT[task] || a.label)}</button>`)
               .join("")}</div>`
           : ""
