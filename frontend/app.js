@@ -5318,8 +5318,12 @@ function bind() {
       items[activeIdx].click();
     }
   });
-  // Prefetch the free-score index so the first keystroke is already local.
-  ensureSearchIndex();
+  // P0-10: the 840 KB score index loads when someone heads for search, not on every first visit.
+  for (const id of ["q", "btn-search"]) {
+    for (const ev of ["pointerenter", "pointerdown", "touchstart"]) {
+      $(id)?.addEventListener(ev, () => ensureSearchIndex(), { once: true, passive: true });
+    }
+  }
   on("btn-search", "click", () => {
     const next = !document.body.classList.contains("phone-search-open");
     document.body.classList.toggle("phone-search-open", next);

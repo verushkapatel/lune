@@ -74,8 +74,9 @@
       var still = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
       // only on the front door: a link to a piece, or a second visit this session, goes straight in
       if (seen || still || (location.hash && location.hash !== "#" && location.hash !== "#/")) { el.parentNode.removeChild(el); return; }
-      setTimeout(function () { el.classList.add("gone"); }, 1500);
-      setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 2300);
+      // P0-09: a brief mark, not a wait; the landing is already painted underneath
+      setTimeout(function () { el.classList.add("gone"); }, 450);
+      setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 1200);
     })();
   </script>
   <script>if (/^#\/[a-z0-9]/i.test(location.hash) && !/^#\/(ai|repertoire|study|assign)\b/.test(location.hash)) document.documentElement.classList.add("boot-piece");</script>

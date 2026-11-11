@@ -112,7 +112,12 @@ window.LuneStore = (function () {
   function remote() {
     return !!(client && session?.user);
   }
-  async function init() {
+  // P1-26: one Supabase client per page, however many times init is asked for
+  let initOnce = null;
+  function init() {
+    return (initOnce = initOnce || initClient());
+  }
+  async function initClient() {
     if (!configured()) return;
     try {
       await loadClientLibrary(); // only fetched when accounts are switched on

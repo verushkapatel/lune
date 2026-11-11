@@ -940,9 +940,26 @@ window.LuneOnboard = (function () {
     });
   }
 
+  // P0-10: the composer list and score index load when setup opens, not on every visit
+  let onboardDataWarm = false;
+  function warmOnboardData() {
+    if (onboardDataWarm) return;
+    onboardDataWarm = true;
+    ensureLibraryComposers();
+    // search-index items for dream-piece filtering
+    (window.luneSearchIndexJson ? window.luneSearchIndexJson() : fetch(
+      typeof window.luneUrl === "function" ? window.luneUrl("/static/search-index.json") : "static/search-index.json"
+    ).then((r) => (r.ok ? r.json() : null)))
+      .then((data) => {
+        if (data?.items) window.__LUNE_SEARCH_ITEMS__ = data.items;
+      })
+      .catch(() => {});
+  }
+
   function showOnboard(n = 0, { fromHistory = false } = {}) {
     ensureDom();
     loadDraft();
+    warmOnboardData();
     store()?.setPref?.("seenWelcome", true);
     // retired screens fold into the four-step flow; the old last screen is the studio itself
     if (n === 6) {
@@ -2168,17 +2185,6 @@ window.LuneOnboard = (function () {
     ensureDom();
     ensureTourDom();
     loadDraft();
-    ensureLibraryComposers().then(() => {
-      if (step === 0 && !$("onboard")?.hidden) paintOnboard();
-    });
-    // Expose search-index items for dream-piece filtering when app.js loads them.
-    (window.luneSearchIndexJson ? window.luneSearchIndexJson() : fetch(
-      typeof window.luneUrl === "function" ? window.luneUrl("/static/search-index.json") : "static/search-index.json"
-    ).then((r) => (r.ok ? r.json() : null)))
-      .then((data) => {
-        if (data?.items) window.__LUNE_SEARCH_ITEMS__ = data.items;
-      })
-      .catch(() => {});
     // Cloud prefs are fetched once per sign-in, not on every store change
     // (the fetch itself reports a change, which used to start it again).
     let prefsPulled = false;
