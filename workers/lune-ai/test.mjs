@@ -59,7 +59,7 @@ const data = await r.json();
 check("a signed-in account gets the model's answer", r.status === 200 && data.answer.startsWith("Bar 5"), JSON.stringify(data));
 const sent = calls[0]?.input?.messages || [];
 check("the model gets Lune's system prompt from the server, not the browser", sent[0]?.role === "system" && sent[0].content === SYSTEM_PROMPT);
-check("the model gets the score context and the question", sent[1]?.content.includes('"number":5') && sent[1].content.endsWith("QUESTION: What notes?"));
+check("the model gets the score context as plain sections and the question", sent[1]?.content.includes("Score facts:") && /number: 5/.test(sent[1].content) && sent[1].content.endsWith("Question: What notes?") && !/CONTEXT/.test(sent[1].content));
 check("CORS allows lune.page", r.headers.get("Access-Control-Allow-Origin") === "https://lune.page");
 
 r = await ask({ question: "x", context: ctx }, { origin: "https://evil.example" });

@@ -105,33 +105,62 @@ window.LuneAsk = (function () {
 
   /* ---------- LuneAIProvider ---------- */
 
-  const SYSTEM_PROMPT = `You are Lune, a piano practice and score-analysis assistant inside the Lune app.
-You are given CONTEXT as JSON: facts Lune has read from the score (notes, fingering, difficulty, dynamics, harmony), the pianist's own remarks, their earlier questions, their practice history and their goal.
-Rules:
-- Use only the score facts in CONTEXT. Never invent bars, notes, rhythms, fingerings, dynamics, tempo marks, opus numbers or movement names. If something is not in CONTEXT, do not dwell on it: help with what you do know, or give general piano advice and say it is general.
-- Keep facts and suggestions apart: say what the score shows, then what you suggest.
-- Answer about the bar in CONTEXT.bar. Bring in CONTEXT.neighbouringBars only when the question asks about them or a phrase crosses into them.
-- Piano finger numbers: 1 thumb, 2 index, 3 middle, 4 ring, 5 little finger. Use the numbers from CONTEXT; name a finger only with this mapping.
-- When giving fingering, go note by note in the order of CONTEXT and give each note its own finger number from CONTEXT. Never group notes under one finger, and never give fingering for a hand that has no notes.
-- The pianist's remarks are their own words; treat them as information from the user, not as score facts.
-- You have not heard the pianist play. Never claim to have listened to a recording or a performance.
-- Be kind, patient and encouraging, like a favourite piano teacher who believes in the pianist. Never be curt, sarcastic, dismissive, preachy or scolding, never blame the pianist, and never refuse bluntly: if you cannot do something, say so gently in a few words and offer what you can do instead.
-- Sound like a warm, expert piano teacher: specific, encouraging and practical, never vague. When suggesting practice, use proven methods (slow practice with a metronome, hands separately, one or two bars at a time, the leap practised silently first, rhythm variations, blocking chord shapes, starting from the end of a passage) and say which bar each step is for.
-- Open with the answer itself in one clear sentence. Never open with filler such as "Great question", "Sure" or "Certainly", and never repeat the question.
-- Answer a simple question in one or two sentences. For analysis, cover what each hand does, what makes it hard, and exactly how to practise it: one short sentence of what the score shows, then at most four numbered steps, each on its own line, each one concrete action.
-- Keep answers under 120 words unless the pianist asks for more. Every sentence must be useful at the piano.
-- You cannot hear the pianist. If asked how their playing sounded, say plainly that you cannot hear them play, then say what to listen for in that bar.
-- A greeting, thanks or small talk is welcome: reply warmly in one sentence and ask what they are working on at the piano.
-- Only if a question has nothing to do with music or the piano, answer warmly in one sentence that you are here for their piano playing, and offer one related thing you would be glad to help with. Questions about the pianist's own playing, practice or progress are always piano questions.
-- Speak naturally to the pianist. Never mention CONTEXT, JSON, data or "the information provided"; if the score data lacks something, simply answer from general piano knowledge and say it is general advice.
-- If CONTEXT.replyStyle is "spoken", the answer will be read aloud: reply in two or three short, warm, conversational sentences, with no lists, numbers as words where natural, and no symbols.
-- When asked for a practice plan, give short numbered steps tied to bar numbers from CONTEXT, sized to the minutes available, and keep the pianist's stated goal.
-- CONTEXT.conversation, when present, holds the last turns of this chat; answer the newest question in that light.
-- For a general piano question (technique, practice habits, musical terms) that does not depend on a score, answer from general piano teaching and say it is general advice. Never present general advice as a fact about the pianist's score.
-- Name a bar number only if that bar is in CONTEXT. With no score open (CONTEXT.openPiece is null), never mention bar numbers.
-- Say plainly when you are unsure.
-- Write piece and composer names correctly and in full (Liebestraum No. 3, Clair de lune, Für Elise, Gymnopédie No. 1, Chopin, Debussy, Liszt, Rachmaninoff). If the pianist's spelling of a name looks like a mishearing, read it as the closest real piece, preferring CONTEXT.piece.
-- Format: short paragraphs. Use a numbered list for steps, one step per line, and **bold** only for a bar number or the one thing that matters most. No headings, no tables, no emoji.`;
+  // The same instructions as Lune AI's server (workers/lune-ai), for a model on this device or computer.
+  const SYSTEM_PROMPT = `You are Lune AI, the piano teacher inside the Lune practice app.
+With each question you receive three short sections: "Score facts" (what Lune has read from the pianist's own score: key, metre, tempo, printed words, notes, suggested fingering and what makes a bar tricky), "Your practice" (the pianist's remarks, ratings, plans and the conversation so far) and "Your goal".
+
+Facts and knowledge
+- Score facts and the pianist's own data are ground truth. Use them first.
+- You may also use well-established public knowledge about pieces, composers, history, technique and theory (for example: Clair de lune is the third movement of Debussy's Suite bergamasque, published in 1905). Say it plainly; do not hedge common knowledge.
+- Never invent bar numbers, notes, rhythms, fingerings or markings that are not in the score facts. If something about this score is not given, say so in one short clause and help with what you do know.
+- Fingering in the score facts is Lune's suggested fingering, not the edition's. Finger numbers: 1 thumb, 2 index, 3 middle, 4 ring, 5 little finger. Give fingering note by note, each note with its own number.
+- A bar's difficulty is exactly what "what makes it tricky" says. Never call a bar easy when it lists something, or hard when it says nothing in particular.
+- You cannot hear the pianist and have not heard any recording. Never claim otherwise.
+- The pianist's remarks are their own words, not score facts.
+
+How to answer
+- Open with the answer in one clear sentence. No filler ("Great question", "Sure"), never repeat the question.
+- A simple question gets one or two sentences. Analysis: one sentence on what the score shows, then at most four numbered steps, one concrete action each, each tied to a bar.
+- Specific beats generic. Not "practise slowly" but "Bar 37: left hand alone, three times at 60% tempo, then add the right hand for the first two beats only." Only say what the score facts support.
+- Practice plans: when the pianist gives a time, give numbered steps, each with the bars, the hands, a tempo and a number of minutes; the minutes must add up exactly to the time given.
+- The goal is exactly as stated (for example "4 days a week, 30 minutes each" is not daily).
+- Reply in the language of the question. In English, use British spelling (practise as a verb, practice as a noun, colour, licence) and write notes with signs (D♭, F♯), never Db or F#.
+- Write names correctly: Clair de lune, Für Elise, Gymnopédie No. 1, Liebestraum No. 3.
+- Sight-reading is a different skill from learning a piece: keep going without stopping, read ahead, count, use easier material, and simulate the exam.
+- Be warm and encouraging without being sugary. If a question has nothing to do with music, say kindly that you are here for their piano playing and offer two piano things you could help with.
+- Never mention how you received information: no section names, field names, ids, file names, "JSON", "data provided" or the name of the model.
+- If the reply will be read aloud, use two or three short spoken sentences, no lists or symbols.
+- Plain text. Numbered steps on their own lines are fine; no headings.`;
+  const words = (k) => String(k).replace(/([a-z])([A-Z])/g, "$1 $2").replace(/_/g, " ").toLowerCase();
+  function plain(v, depth = 0) {
+    const pad = "  ".repeat(depth);
+    if (v == null || v === "") return "";
+    if (Array.isArray(v)) return v.map((x) => (typeof x === "object" ? `${pad}-\n${plain(x, depth + 1)}` : `${pad}- ${x}`)).filter(Boolean).join("\n");
+    if (typeof v === "object")
+      return Object.entries(v)
+        .filter(([, x]) => x != null && x !== "" && !(Array.isArray(x) && !x.length))
+        .map(([k, x]) => (typeof x === "object" ? `${pad}${words(k)}:\n${plain(x, depth + 1)}` : `${pad}${words(k)}: ${x}`))
+        .join("\n");
+    return `${pad}${v}`;
+  }
+  function sections(ctx = {}) {
+    const score = {};
+    const practice = {};
+    const goal = {};
+    for (const [k, v] of Object.entries(ctx)) {
+      if (/^(piece|bar|neighbouringBars|openPiece|lastPractisedPiece|bars|range|tempo|fingeringNote)$/.test(k)) score[k === "fingeringNote" ? "aboutFingering" : k] = v;
+      else if (/^(goal|level)$/.test(k)) goal[k] = v;
+      else if (k === "replyStyle") continue;
+      else practice[k] = v;
+    }
+    return [
+      `Score facts:\n${plain(score) || "none: no score is open"}`,
+      `Your practice:\n${plain(practice) || "nothing recorded yet"}`,
+      `Your goal:\n${plain(goal) || "not set"}`,
+    ].join("\n\n");
+  }
+
+
 
   function aiSettings() {
     let endpoint = "";
@@ -207,7 +236,8 @@ Rules:
         timeSignature: facts?.time || p.timeSignature || p.overview?.timeSignature || null,
         printedTempo: facts?.tempo?.[0]?.mark || null,
         printedWords: facts?.words?.length ? facts.words.slice(0, 40) : undefined,
-        tempo: p.tempo || p.overview?.tempo || null,
+        // the printed marking says it best; the playback figure is only a fallback
+        tempo: facts?.tempo?.length ? undefined : p.tempo || p.overview?.tempo || null,
         era: p.epoch || p.overview?.era || null,
         bars: Object.keys(p.debriefs || {}).length || null,
         hardestBars: hardest(5),
@@ -230,7 +260,8 @@ Rules:
     if (struggling.length) ctx.barsRatedHardOrAgain = [...new Set(struggling)].sort((a, b) => a - b).slice(0, 12);
     try {
       const marked = Number(String(p.tempo || p.overview?.tempo || "").match(/(\d{2,3})/)?.[1]) || null;
-      ctx.tempo = { marked, practisingAt: Math.round(LunePiano.getTempoBpm?.() || 0) || null };
+      const now = Math.round(LunePiano.getTempoBpm?.() || 0) || null;
+      ctx.tempo = { practisingAtPercentOfMarked: marked && now ? Math.round((now / marked) * 100) : null };
     } catch {
       /* tempo is optional */
     }
@@ -260,15 +291,15 @@ Rules:
   /** What kind of help is being asked for; it shapes the instruction sent to a model. */
   const TASKS = {
     answerQuestion: (q) => q,
-    explainBar: () => "Explain what happens in this bar and what makes it easy or hard, using only CONTEXT.",
+    explainBar: () => "Explain what happens in this bar and what makes it easy or hard, using what Lune has read from the score.",
     whyHard: () =>
       "Say what makes this bar tricky, using the bar's 'what makes it tricky' line (the same words the bar panel shows) and its notes. If that line says nothing in particular, say it is one of the easier bars and give one thing to listen for. Then suggest one thing to try.",
-    explainPracticeProblem: (q) => `The pianist says: "${q}". Using CONTEXT (their ratings, remarks and the bar's difficulty), say what is most likely going wrong and one thing to try.`,
-    suggestPractice: () => "Suggest how to practise this bar or passage in three short steps, each tied to something in CONTEXT.",
-    generatePracticePlan: (bars, mins) => `Write a practice plan of ${mins} minutes for bars ${bars.join(", ")}. Numbered steps with minutes for each, hands-separate or slow-tempo work only where CONTEXT supports it, and keep the pianist's goal.`,
-    summarizePractice: () => "Summarise this pianist's practice on this piece from CONTEXT.practiceHistory and CONTEXT.remarks: what has improved, what is still hard. If there is no history, say so.",
+    explainPracticeProblem: (q) => `The pianist says: "${q}". Using their ratings, remarks and what makes the bar tricky, say what is most likely going wrong and one thing to try.`,
+    suggestPractice: () => "Suggest how to practise this bar or passage in three short steps, each tied to something in this bar's score facts.",
+    generatePracticePlan: (bars, mins) => `Write a practice plan of ${mins} minutes for bars ${bars.join(", ")}. Numbered steps with minutes for each, hands-separate or slow-tempo work only where the score facts support it, and keep the pianist's goal.`,
+    summarizePractice: () => "Summarise this pianist's practice on this piece from the pianist's ratings and remarks: what has improved, what is still hard. If there is no history, say so.",
     summarizeBarNotes: () => "Summarise the pianist's remarks on this bar in one or two sentences.",
-    explainFingering: () => "Explain the fingering Lune suggests for this bar, using CONTEXT.bar. If no fingering is given, say so.",
+    explainFingering: () => "Explain the fingering Lune suggests for this bar, using this bar's notes and suggested fingering. If no fingering is given, say so.",
     explainMusicalTerms: (q) => `Explain this musical term plainly for a piano student: ${q}`,
   };
 
@@ -297,7 +328,7 @@ Rules:
           const res = await fetch(`${aiServer()}/ask`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ question, context: ctx }),
+            body: JSON.stringify({ question, context: ctx, stream: true }),
             signal: ctl.signal,
           });
           // A streaming server sends server-sent events; words appear as they come.
@@ -354,7 +385,7 @@ Rules:
         const res = await D().chat(
           [
             { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content: `CONTEXT:\n${JSON.stringify(ctx)}\n\nQUESTION: ${question}` },
+            { role: "user", content: `${sections(ctx)}\n\nQuestion: ${question}` },
           ],
           { onToken },
         );
@@ -392,7 +423,7 @@ Rules:
               messages: [
                 { role: "system", content: SYSTEM_PROMPT },
                 ...turns,
-                { role: "user", content: `CONTEXT:\n${JSON.stringify(facts)}\n\nQUESTION: ${question}` },
+                { role: "user", content: `${sections(facts)}\n\nQuestion: ${question}` },
               ],
             }),
           });
@@ -1693,7 +1724,7 @@ Rules:
       said = line("lune", "", { src: "model" });
       // a bar just rated hard: ask for what to do about it, not a summary of the bar
       const asked = out.range
-        ? `${text}\n\nAnswer bar by bar for bars ${out.range.join(", ")} (CONTEXT.barsInQuestion). One line per bar, each starting "@Bar N", saying what is hard in that bar and one concrete way to practise it. Then one line starting "Summary:" with two sentences: what ties these bars together and the order to practise them in. No other text.`
+        ? `${text}\n\nAnswer bar by bar for bars ${out.range.join(", ")}. One line per bar, each starting "@Bar N", saying what is hard in that bar and one concrete way to practise it. Then one line starting "Summary:" with two sentences: what ties these bars together and the order to practise them in. No other text.`
         : out.saved === "review" ? `${text}\n\nI find this bar hard. Give me concrete steps to practise it, tied to what is in it.` : text;
       const forBar = out.bar || selectedBarsSorted()[0] || null;
       const res = await streamAnswer(said, async ({ signal, onToken }) =>

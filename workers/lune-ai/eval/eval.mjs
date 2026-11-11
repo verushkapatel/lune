@@ -7,7 +7,7 @@
 //
 // Run: EVAL_URL=… EVAL_KEY=… node workers/lune-ai/eval/eval.mjs
 import { readFileSync } from "node:fs";
-import { SYSTEM_PROMPT } from "../src/index.js";
+import { SYSTEM_PROMPT, sections } from "../src/index.js";
 
 const EVAL_URL = process.env.EVAL_URL;
 const EVAL_KEY = process.env.EVAL_KEY;
@@ -25,7 +25,7 @@ async function ask(question, context) {
     body: JSON.stringify({
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: `CONTEXT:\n${JSON.stringify(context)}\n\nQUESTION: ${question}` },
+        { role: "user", content: `${sections(context)}\n\nQuestion: ${question}` },
       ],
     }),
   });
@@ -125,7 +125,7 @@ const CASES = [
   },
   {
     name: "explaining bar 12 stays on bars 11 to 13",
-    q: "Explain what happens in this bar and what makes it easy or hard, using only CONTEXT.",
+    q: "Explain what happens in this bar and what makes it easy or hard, using what Lune has read from the score.",
     c: ctx.bar12,
     ok: (t) => {
       const bars = [...t.matchAll(/\bbars?\s+(\d{1,3})/gi)].every((m) => near12.has(Number(m[1])));
