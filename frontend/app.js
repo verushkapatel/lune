@@ -1723,10 +1723,16 @@ function primeTimeline() {
     if (LunePiano.isPlaying()) return;
     const notes = pieceNotes();
     if (!notes.length) return;
+    // Moving between Score, Overview and Piano keeps your place in the same piece.
+    const samePiece = state.timelinePiece === state.piece && LunePiano.hasTimeline?.();
+    // arm() reads 0 to 1 as a fraction of the piece, so pass the place that way
+    const total = LunePiano.duration?.() || 0;
+    const at = samePiece && total > 0 ? Math.min(1, LunePiano.progress() / total) : 0;
     seedTempoFromPiece();
     LunePiano.setRate?.(state.playRate || 1);
     state.timelineKind = "piece";
-    LunePiano.arm(notes, { ...playbackHandlers(), from: 0, ...playbackTempoOpts() });
+    state.timelinePiece = state.piece;
+    LunePiano.arm(notes, { ...playbackHandlers(), from: at, ...playbackTempoOpts() });
     renderScrubTicks();
     syncPlayButton();
     if (state.panel === "piano") mountPianoTutorial();
@@ -5379,7 +5385,12 @@ function bind() {
     }
   });
   on("tab-explain", "click", () => {
-    stopAll();
+    // Reading the Overview pauses the music but keeps your place (P0-16).
+    if (LunePiano.isPlaying()) {
+      LunePiano.pause();
+      clearKeyboard();
+      syncPlayButton();
+    }
     setStudioPanel("explain");
   });
   on("tab-piano", "click", () => {
