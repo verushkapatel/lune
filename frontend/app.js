@@ -4359,6 +4359,34 @@ function rememberFitZoom(key, zoom) {
   }
 }
 
+/**
+ * P1-27: VexFlow gives each staff's bar group the bar number as its id, so the
+ * two staves of a piano score share ids "1", "2"… Every OSMD render here goes
+ * through this wrapper, which makes them unique (nothing looks bars up by id).
+ */
+(function uniqueScoreIds() {
+  const proto = window.opensheetmusicdisplay?.OpenSheetMusicDisplay?.prototype;
+  if (!proto || proto.__luneIds) return;
+  const render = proto.render;
+  let n = 0;
+  proto.render = function (...args) {
+    const out = render.apply(this, args);
+    const host = this.container || this.Container;
+    if (host?.querySelectorAll) {
+      // bar numbers, staff names repeated on every system, and groups that share an id with their own path
+      const tag = `s${++n}`;
+      const seen = new Set();
+      host.querySelectorAll("svg [id]").forEach((el, i) => {
+        if (/^\d+$/.test(el.id)) el.id = `${tag}-bar${el.id}-${i}`;
+        else if (seen.has(el.id)) el.id = `${el.id}-${i}`;
+        seen.add(el.id);
+      });
+    }
+    return out;
+  };
+  proto.__luneIds = true;
+})();
+
 function scoreOverflowRatio(host, svg, { staff = true } = {}) {
   // Compare the music's right edge with where the staff lines end (and the
   // screen edge): notes drawn past the final barline mean the bar lacks room.

@@ -1506,6 +1506,8 @@ window.LuneKeyboard = (function () {
     const blacks = document.createElement("div");
     blacks.className = "lune-kbd-blacks";
 
+    // P1-27: every key has a name (C4, F♯3), even though the keyboard is decorative to screen readers
+    const keyName = (midi) => `${["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"][((midi % 12) + 12) % 12]}${Math.floor(midi / 12) - 1}`;
     const whiteList = [];
     for (let m = MIDI_LO; m <= MIDI_HI; m++) {
       if (!isBlack(m)) whiteList.push(m);
@@ -1519,6 +1521,7 @@ window.LuneKeyboard = (function () {
       key.dataset.midi = String(midi);
       key.setAttribute("tabindex", "-1");
       key.setAttribute("aria-hidden", "true");
+      key.setAttribute("aria-label", keyName(midi));
       // Octave notches for orientation (C keys)
       if (midi % 12 === 0) {
         const notch = document.createElement("span");
@@ -1551,6 +1554,7 @@ window.LuneKeyboard = (function () {
       key.dataset.midi = String(m);
       key.setAttribute("tabindex", "-1");
       key.setAttribute("aria-hidden", "true");
+      key.setAttribute("aria-label", keyName(m));
       key.style.left = `calc(${whiteBefore + nudge} * var(--key-w) - var(--black-w) / 2)`;
       const dig = document.createElement("span");
       dig.className = "lune-key-finger";
