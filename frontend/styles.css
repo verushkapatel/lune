@@ -12062,3 +12062,40 @@ html[data-theme="light"] #home-guest #about .about-columns strong, html[data-the
 }
 #create-account-dialog .auth-continue-device:hover { border-color: rgba(255,255,255,0.8) !important; }
 html[data-theme="light"] #create-account-dialog .auth-continue-device { color: #111 !important; background: #fff !important; border-color: rgba(0,0,0,0.35) !important; }
+
+/* ---------- Lune AI in light mode (P0-15) ----------
+ * The composer, the Home ask bar, the user's bubble and the locked-chat copy
+ * were drawn for the dark: dark glass under dark text, white text on white. */
+html[data-theme="light"] .lc-composer,
+html[data-theme="light"] .home-ask,
+html[data-theme="light"] #home-member .home-ask,
+html[data-theme="light"] .lp-askbar {
+  background: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.14) !important;
+  color: #111111 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+}
+html[data-theme="light"] .lc-composer:focus-within,
+html[data-theme="light"] .home-ask:focus-within {
+  border-color: #3b4f8f !important;
+  box-shadow: 0 0 0 3px rgba(59, 79, 143, 0.16) !important;
+}
+html[data-theme="light"] .lc-composer textarea,
+html[data-theme="light"] .lc-composer input,
+html[data-theme="light"] .home-ask input,
+html[data-theme="light"] .home-ask textarea { color: #111111 !important; }
+html[data-theme="light"] .lc-composer textarea::placeholder,
+html[data-theme="light"] .lc-composer input::placeholder,
+html[data-theme="light"] .home-ask input::placeholder,
+html[data-theme="light"] .home-ask textarea::placeholder { color: #6b6b6b !important; opacity: 1 !important; }
+html[data-theme="light"] .ask-from-you,
+html[data-theme="light"] .chat-from-you .chat-bubble {
+  background: #eef1f8 !important;
+  color: #111111 !important;
+  border: 1px solid #d6dcea !important;
+}
+html[data-theme="light"] .chat-locked-h { color: #111111 !important; }
+html[data-theme="light"] .lune-chat .primary,
+html[data-theme="light"] .ask-lune .primary { color: #ffffff !important; }
+html[data-theme="light"] .chat-form,
+html[data-theme="light"] .ask-form { background: transparent !important; }
