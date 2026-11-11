@@ -1430,6 +1430,34 @@ function buildExplainChapters(piece, opts) {
   return chapters;
 }
 
+/** The bars Lune's own analysis found hardest, in words ("Bar 15: wide stretch, hand crossing"). */
+const explainAnalysis = new WeakMap();
+function hardestBarsInWords(piece, limit = 3) {
+  let src = piece;
+  // Explain can open before the score has been analysed; reading it here takes well under 100 ms
+  if (!piece?.hardSpots?.length && piece?.musicxml && window.LuneLite?.analyze) {
+    if (!explainAnalysis.has(piece)) {
+      try {
+        explainAnalysis.set(piece, LuneLite.analyze(piece.musicxml, { filename: piece.filename || "score.musicxml" }));
+      } catch {
+        explainAnalysis.set(piece, null);
+      }
+    }
+    src = explainAnalysis.get(piece) || piece;
+  }
+  const deb = src?.debriefs || {};
+  const spots = (src?.hardSpots || [])
+    .map((s) => (typeof s === "object" ? s : { measure: s }))
+    .map((s) => ({ bar: Number(s.measure), reasons: s.reasons || deb[String(s.measure)]?.difficulty?.reasons || [] }))
+    .filter((s) => s.bar > 0);
+  return spots
+    .map((s) => ({ ...s, reasons: s.reasons.filter((r) => r && r !== "straightforward") }))
+    .filter((s) => s.reasons.length)
+    .sort((a, b) => a.bar - b.bar)
+    .slice(0, limit)
+    .map((s) => `Bar ${s.bar}: ${s.reasons.slice(0, 3).join(", ")}`);
+}
+
 function buildExplainChaptersRaw(piece, { canOpen }) {
   const o = piece.overview || {};
   const composer = o.composer || piece.composer || "";
@@ -1439,32 +1467,39 @@ function buildExplainChaptersRaw(piece, { canOpen }) {
     era ||
     "Style";
   const ci = o.composerInfo || {};
+  const notes = window.LunePieceNotes?.forPiece(piece) || null;
+  const real = (t) => (window.LunePieceNotes?.isFiller(t) ? "" : t || "");
+  const realList = (xs) => (xs || []).filter((x) => real(x));
+  const facts = canOpen ? window.LuneScoreFacts?.forPiece(piece) : null;
+  const said = window.LuneScoreFacts?.describe?.(facts) || [];
+  const hard = canOpen ? hardestBarsInWords(piece) : [];
   return [
-    {
-      label: "Composer",
-      title: `About ${ci.name || composer || "the composer"}`,
-      body: ci.full || ci.bio || ci.hook || (composer ? `${composer}’s story isn’t in Lune’s notes yet.` : "Add a composer to this score’s details to see their story here."),
-      extras: ci.highlights || [],
-    },
     {
       label: "The work",
       title: "About this piece",
-      body: o.history || o.summary || "Explore this work.",
-      extras: o.highlights || [],
+      body: notes?.history || real(o.history) || real(o.summary) || "",
+      extras: notes?.highlights || realList(o.highlights),
+    },
+    {
+      label: "Score",
+      title: "In this score",
+      body: canOpen
+        ? [...said, hard.length ? "Lune's bar-by-bar reading expects the most work here:" : ""].filter(Boolean).join(" ") ||
+          "Lune is still reading this score."
+        : "A free MusicXML isn’t available for this title yet. Upload your own score to practise it here.",
+      extras: hard,
+    },
+    {
+      label: "Composer",
+      title: `About ${ci.name || composer || "the composer"}`,
+      body: real(ci.full) || real(ci.bio) || real(ci.hook) || "",
+      extras: realList(ci.highlights),
     },
     {
       label: "World",
       title: `Era · ${eraLabel}`,
       body: (o.eraInfo && o.eraInfo.story) || "",
       extras: (o.eraInfo && o.eraInfo.tips) || [],
-    },
-    {
-      label: "Score",
-      title: "In this score",
-      body: canOpen
-        ? "Open Score to hear it with piano sound — the playhead follows the bar, and you can show the keyboard under the page."
-        : "A free MusicXML isn’t available for this title yet — upload your own score to practise here.",
-      extras: (o.playingCards || []).map((c) => `${c.label}: ${c.value}`),
     },
   ];
 }
@@ -1480,10 +1515,10 @@ function renderExplainPanel(piece) {
   if ($("explain-era")) $("explain-era").textContent = era || "Meet the piece";
   if ($("explain-title")) $("explain-title").textContent = title;
   if ($("explain-by")) $("explain-by").textContent = composer ? `by ${composer}` : "";
-  if ($("explain-hook")) {
-    $("explain-hook").textContent =
-      ci.hook || o.summary || "A piece waiting to be heard carefully.";
-  }
+  const notes = window.LunePieceNotes?.forPiece(piece) || null;
+  const real = (t) => (window.LunePieceNotes?.isFiller(t) ? "" : t || "");
+  const hook = notes?.hook || real(o.summary) || real(ci.hook) || "A piece waiting to be heard carefully.";
+  if ($("explain-hook")) $("explain-hook").textContent = hook;
 
   applyComposerFace(
     $("explain-hero-img"),
@@ -1496,10 +1531,7 @@ function renderExplainPanel(piece) {
   if ($("discover-era")) $("discover-era").textContent = era || "Discover";
   if ($("discover-title")) $("discover-title").textContent = title;
   if ($("discover-by")) $("discover-by").textContent = composer ? `by ${composer}` : "";
-  if ($("discover-hook")) {
-    $("discover-hook").textContent =
-      ci.hook || o.summary || "A piece waiting to be heard carefully.";
-  }
+  if ($("discover-hook")) $("discover-hook").textContent = hook;
   if ($("composer-hero-img")) {
     applyComposerFace(
       $("composer-hero-img"),

@@ -51,11 +51,12 @@ window.LuneScoreFacts = (function () {
     if (!doc || doc.getElementsByTagName("parsererror").length) return null;
     const parts = [...doc.getElementsByTagName("part")];
     if (!parts.length) return null;
-    const out = { key: null, keyChanges: [], time: null, timeChanges: [], tempo: [], words: [], dynamics: [], pedalMarks: 0, range: {} };
+    const out = { bars: 0, key: null, keyChanges: [], time: null, timeChanges: [], tempo: [], words: [], dynamics: [], pedalMarks: 0, range: {} };
 
-    let lastBassPc = null;
+    let lastBassMidi = null;
     parts.forEach((part, pi) => {
       const measures = [...part.children].filter((m) => m.nodeName === "measure");
+      if (pi === 0) out.bars = measures.filter((m) => m.getAttribute("implicit") !== "yes").length;
       measures.forEach((m, mi) => {
         const bar = parseInt(m.getAttribute("number"), 10) || mi + 1;
         for (const el of m.getElementsByTagName("*")) {
@@ -69,8 +70,8 @@ window.LuneScoreFacts = (function () {
             const t = `${text(el, "beats")}/${text(el, "beat-type")}`;
             if (t !== "/" && (!out.timeChanges.length || out.timeChanges[out.timeChanges.length - 1].time !== t)) out.timeChanges.push({ bar, time: t });
           } else if (pi === 0 && tag === "words") {
-            const w = el.textContent.replace(/\s+/g, " ").trim();
-            if (w && !out.words.some((x) => x.bar === bar && x.text === w)) out.words.push({ bar, text: w });
+            const w = el.textContent.replace(/\s+/g, " ").replace(/\.{2,}$/, ".").trim();
+            if (w && /\p{L}{2,}/u.test(w) && !out.words.some((x) => x.bar === bar && x.text === w)) out.words.push({ bar, text: w });
           } else if (pi === 0 && tag === "dynamics") {
             const d = el.firstElementChild?.nodeName;
             if (d && d !== "other-dynamics" && !out.dynamics.some((x) => x.bar === bar && x.mark === d)) out.dynamics.push({ bar, mark: d });
@@ -92,7 +93,7 @@ window.LuneScoreFacts = (function () {
             const r = (out.range[hand] = out.range[hand] || { low: midi, high: midi });
             r.low = Math.min(r.low, midi);
             r.high = Math.max(r.high, midi);
-            if (mi === measures.length - 1 && (lastBassPc == null || staff >= 2)) lastBassPc = ((midi % 12) + 12) % 12;
+            if (mi === measures.length - 1 && (lastBassMidi == null || midi < lastBassMidi)) lastBassMidi = midi;
           }
         }
       });
@@ -104,6 +105,7 @@ window.LuneScoreFacts = (function () {
       if (t > 0) out.tempo.push({ bar: 1, mark: `crotchet = ${Math.round(t)}`, crotchetsPerMinute: t, fromPlayback: true });
     }
     const first = out.keyChanges[0];
+    const lastBassPc = lastBassMidi == null ? null : ((lastBassMidi % 12) + 12) % 12;
     if (first) out.key = keyName(first.fifths, first.mode, lastBassPc);
     out.keyChanges = out.keyChanges.slice(1).map((k) => ({ bar: k.bar, ...keyName(k.fifths, k.mode, null) }));
     out.time = out.timeChanges[0]?.time || null;
@@ -139,5 +141,34 @@ window.LuneScoreFacts = (function () {
     return { words: [...before, ...facts.words.filter(inRange)], dynamics: facts.dynamics.filter(inRange) };
   }
 
-  return { read, forPiece, near };
+  const DYN = { ppp: "ppp", pp: "pp", p: "p", mp: "mp", mf: "mf", f: "f", ff: "ff", fff: "fff", sf: "sf", sfz: "sfz", fp: "fp" };
+  const METER = { "2/4": "two crotchets", "3/4": "three crotchets", "4/4": "four crotchets", "2/2": "two minims", "3/8": "three quavers", "6/8": "two dotted crotchets", "9/8": "three dotted crotchets", "12/8": "four dotted crotchets", "6/4": "two dotted minims", "3/2": "three minims", "5/4": "five crotchets", "2/8": "two quavers" };
+
+  /** What the score says, in sentences: key, metre, tempo, opening markings, changes, length, hand ranges. */
+  function describe(facts) {
+    if (!facts) return [];
+    const out = [];
+    const bits = [];
+    if (facts.key) bits.push(`in ${facts.key.name} (${facts.key.signature})`);
+    if (facts.time) bits.push(`in ${facts.time}${METER[facts.time] ? `, ${METER[facts.time]} to a bar` : ""}`);
+    if (bits.length) out.push(`Written ${bits.join(", ")}${facts.bars ? `, over ${facts.bars} bars` : ""}.`);
+    const mark = facts.tempo.find((t) => !t.fromPlayback);
+    const first = facts.words.filter((w) => w.bar <= 2).map((w) => w.text);
+    const dyn = facts.dynamics.find((d) => d.bar <= 2);
+    const open = [...first, dyn ? DYN[dyn.mark] || dyn.mark : ""].filter(Boolean);
+    if (open.length || mark) {
+      out.push(`It opens ${open.length ? `marked ${open.join(", ")}` : ""}${open.length && mark ? ", at " : mark ? "at " : ""}${mark ? mark.mark : ""}.`.replace(/ +/g, " "));
+    }
+    const list = (xs) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
+    const kc = facts.keyChanges.slice(0, 4);
+    if (kc.length === 1) out.push(`The key signature changes at bar ${kc[0].bar} to ${kc[0].signature} (${kc[0].name}).`);
+    else if (kc.length) out.push(`The key signature changes at ${list(kc.map((k) => `bar ${k.bar} (${k.signature})`))}.`);
+    const tc = facts.timeChanges.slice(0, 4);
+    if (tc.length) out.push(`The metre changes at ${list(tc.map((t) => `bar ${t.bar} (${t.time})`))}.`);
+    const later = facts.words.filter((w) => w.bar > 2).slice(0, 4);
+    if (later.length) out.push(`Later markings: ${later.map((w) => `${w.text} (bar ${w.bar})`).join(", ")}.`);
+    return out;
+  }
+
+  return { read, forPiece, near, describe };
 })();
