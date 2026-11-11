@@ -69,14 +69,20 @@ window.LunePractice = (function () {
     const d = Math.round(s / 86400);
     return d === 1 ? "yesterday" : `${d} days ago`;
   }
-  function untilText(iso) {
-    const s = (new Date(iso).getTime() - Date.now()) / 1000;
+  /** P1-31: when a bar comes back, as a day ("later today", "tomorrow", "on Friday", "on 21 November"). */
+  function returnDayText(iso) {
+    const due = new Date(iso);
+    const s = (due.getTime() - Date.now()) / 1000;
     if (s <= 60) return "now";
-    if (s < 3600) return `in ${Math.round(s / 60)} min`;
-    if (s < 86400) return `in ${Math.round(s / 3600)} h`;
-    const d = Math.round(s / 86400);
-    return d === 1 ? "tomorrow" : `in ${d} days`;
+    if (s < 3600) return `in ${Math.round(s / 60)} minutes`;
+    const today = new Date();
+    const days = Math.round((new Date(due.toDateString()) - new Date(today.toDateString())) / 86400000);
+    if (days <= 0) return "later today";
+    if (days === 1) return "tomorrow";
+    if (days < 7) return `on ${due.toLocaleDateString("en-GB", { weekday: "long" })}`;
+    return `on ${due.toLocaleDateString("en-GB", { day: "numeric", month: "long" })}`;
   }
+  const RATE_EXPLAINER = "Tap how it went. Lune brings shaky bars back sooner and secure ones later.";
   function barsText(bars) {
     const b = [...new Set(bars)].sort((x, y) => x - y);
     if (!b.length) return "";
@@ -1072,7 +1078,7 @@ window.LunePractice = (function () {
         <div class="lp-grades" role="group" aria-label="Rate this practice">
           ${GRADES.map(([g, label, hint]) => `<button type="button" class="lp-grade lp-${g}" data-grade="${g}" title="${esc(hint)}">${label}</button>`).join("")}
         </div>
-        <p class="lp-due dim"></p>
+        <p class="lp-due dim">${RATE_EXPLAINER}</p>
       </div>
       <h3 class="lp-h lp-h-remarks" hidden>Remarks</h3>
       <ul class="lp-notes" aria-live="polite" hidden></ul>
@@ -1116,15 +1122,34 @@ window.LunePractice = (function () {
         const cards = (await store.listCards(key)).filter((c) => bars.includes(c.bar));
         if (token !== coachToken) return;
         if (!cards.length) {
-          dueEl.textContent = "";
+          dueEl.textContent = RATE_EXPLAINER;
+          dueEl.dataset.rest = dueEl.textContent;
           return;
         }
         const c = cards.sort((a, b) => a.due_at.localeCompare(b.due_at))[0];
-        dueEl.textContent = `Next review ${untilText(c.due_at)}${c.reps ? ` · reviewed ${c.reps}×` : ""}.`;
+        dueEl.textContent = `Lune will bring ${bars.length > 1 ? "these bars" : "this bar"} back ${returnDayText(c.due_at)}.`;
+        dueEl.dataset.rest = dueEl.textContent;
       } catch {
-        dueEl.textContent = "";
+        dueEl.textContent = RATE_EXPLAINER;
+        dueEl.dataset.rest = dueEl.textContent;
       }
     };
+    // what each rating means, shown under the buttons on hover or keyboard focus (touch screens see it after tapping)
+    const gradeHint = (e) => {
+      const g = e.target.closest?.(".lp-grade");
+      if (!g) return;
+      const row = GRADES.find(([k]) => k === g.dataset.grade);
+      if (row) dueEl.textContent = `${row[1]}: ${row[2]}`;
+    };
+    const gradeRest = (e) => {
+      if (!e.target.closest?.(".lp-grade")) return;
+      dueEl.textContent = dueEl.dataset.rest || RATE_EXPLAINER;
+    };
+    const gradesRow = wrap.querySelector(".lp-grades");
+    gradesRow?.addEventListener("pointerover", gradeHint);
+    gradesRow?.addEventListener("focusin", gradeHint);
+    gradesRow?.addEventListener("pointerout", gradeRest);
+    gradesRow?.addEventListener("focusout", gradeRest);
     // as in ChatGPT: the round button is voice mode while the box is empty, and Send once you type
     const syncAskButtons = () => {
       const has = !!wrap.querySelector("#lp-ask-input")?.value.trim();
@@ -1276,7 +1301,8 @@ window.LunePractice = (function () {
           let last = null;
           for (const b of bars) last = await store.reviewBar(key, b, g);
           wrap.querySelectorAll(".lp-grade").forEach((x) => x.classList.toggle("picked", x === btn));
-          toast(`${barsText(bars)[0].toUpperCase() + barsText(bars).slice(1)} — next review ${untilText(last.due_at)}`);
+          const what = barsText(bars);
+          toast(`${what[0].toUpperCase() + what.slice(1)} rated ${btn.textContent.trim()}. Back ${returnDayText(last.due_at)}.`);
           renderDue();
           refreshBadge();
           // Again or Hard, with Lune AI on: one concrete thing to try, from this bar's notes and your remarks
