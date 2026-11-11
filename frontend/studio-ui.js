@@ -244,7 +244,8 @@ window.LuneStudioUI = (function () {
       const on = metro?.getAttribute("aria-pressed") === "true";
       b.setAttribute("aria-pressed", on ? "true" : "false");
       b.classList.toggle("on", on);
-      const v = slider?.value || $("bpm-readout")?.textContent || "";
+      // the readout already speaks in the score's own beat (dotted crotchet = 50, not 75)
+      const v = $("bpm-readout")?.textContent || slider?.value || "";
       rail.querySelector("#st-rail-bpm b").textContent = v;
       rail.querySelector("#st-rail-tag-bpm").textContent = v;
     };

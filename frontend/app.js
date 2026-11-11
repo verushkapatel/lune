@@ -3027,9 +3027,25 @@ function applyPieceMeter() {
   }
 }
 
+/**
+ * P1-15: the beat the score itself counts in. Playback runs in crotchets per minute;
+ * a piece marked "dotted crotchet = 50" is shown as 50 dotted crotchets, not 75.
+ */
+const BEAT_SIGN = { crotchet: "", "dotted crotchet": "♩.", quaver: "♪", "dotted quaver": "♪.", minim: "𝅗𝅥", "dotted minim": "𝅗𝅥." };
+function printedBeat() {
+  const facts = state.piece?.musicxml ? window.LuneScoreFacts?.forPiece(state.piece) : null;
+  const t = facts?.tempo?.find((x) => !x.fromPlayback);
+  const m = t && /^(.+?) = ([\d.]+)$/.exec(t.mark);
+  if (!m) return { factor: 1, unit: "crotchet", sign: "", mark: "" };
+  const factor = t.crotchetsPerMinute / Number(m[2]);
+  return { factor: factor > 0 ? factor : 1, unit: m[1], sign: BEAT_SIGN[m[1]] ?? "", mark: t.mark };
+}
+
 function syncTempoUi() {
   const marked = state.markedBpm || markedTempoBpm();
   const bpm = practiceTempoBpm();
+  const beat = printedBeat();
+  const inBeats = (v) => Math.round(v / beat.factor);
   const slider = $("bpm-slider");
   const readout = $("bpm-readout");
   const mark = $("bpm-orig-mark");
@@ -3038,13 +3054,20 @@ function syncTempoUi() {
     if (Number(slider.max) < needMax) slider.max = String(Math.min(208, needMax));
     if (document.activeElement !== slider) slider.value = String(bpm);
   }
-  if (readout) readout.textContent = String(Math.round(bpm));
+  if (readout) readout.textContent = String(inBeats(bpm));
+  const unitEl = document.querySelector("#bpm-readout-btn .bpm-unit");
+  if (unitEl) unitEl.textContent = beat.factor === 1 ? "bpm" : beat.sign ? `${beat.sign}/min` : `${beat.unit}s/min`;
+  $("bpm-readout-btn")?.setAttribute(
+    "aria-label",
+    `Tempo ${beat.factor === 1 ? `${inBeats(bpm)} beats a minute` : `${beat.unit} = ${inBeats(bpm)}`}: show the tempo slider`
+  );
+  if (slider) slider.setAttribute("aria-valuetext", beat.factor === 1 ? `${Math.round(bpm)} beats a minute` : `${beat.unit} = ${inBeats(bpm)}`);
   if (mark && slider) {
     const min = Number(slider.min) || 40;
     const max = Number(slider.max) || 120;
     const pct = ((Math.max(min, Math.min(max, marked)) - min) / (max - min)) * 100;
     mark.style.left = `${pct}%`;
-    mark.title = `Original · ${Math.round(marked)} bpm`;
+    mark.title = beat.mark ? `Original: ${beat.mark}` : `Original: ${Math.round(marked)} beats a minute`;
   }
   const meterEl = $("bpm-meter");
   if (meterEl) meterEl.textContent = pieceTimeSignature();
