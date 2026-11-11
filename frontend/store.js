@@ -216,15 +216,32 @@ window.LuneStore = (function () {
 
   /* ---------------- accounts ---------------- */
 
-  function ownerEmail() {
-    return String(window.LUNE_CONFIG?.ownerEmail || "")
-      .trim()
-      .toLowerCase();
+  /*
+   * The owner is recognised by a SHA-256 fingerprint of their email
+   * (LUNE_CONFIG.ownerEmailSha256), so the address itself is not in the public
+   * files (P0-18). This only shows the owner's menu entries: the owner's
+   * numbers come from database functions that check the account on the server.
+   */
+  let ownerFor = { email: "", yes: false };
+  async function sha256(text) {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+    return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  function checkOwner(email) {
+    const want = String(window.LUNE_CONFIG?.ownerEmailSha256 || "").toLowerCase();
+    const mine = String(email || "").trim().toLowerCase();
+    if (!want || !mine || !window.crypto?.subtle) return;
+    if (ownerFor.email === mine) return;
+    ownerFor = { email: mine, yes: false };
+    sha256(mine).then((h) => {
+      if (ownerFor.email === mine) ownerFor.yes = h === want;
+    }).catch(() => {});
   }
   function isOwner() {
     const st = status();
-    const mine = ownerEmail();
-    return !!(st.signedIn && mine && String(st.email || "").trim().toLowerCase() === mine);
+    if (!st.signedIn) return false;
+    checkOwner(st.email);
+    return ownerFor.email === String(st.email || "").trim().toLowerCase() && ownerFor.yes;
   }
 
   /**

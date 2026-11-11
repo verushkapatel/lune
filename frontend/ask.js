@@ -2276,6 +2276,15 @@ How to answer
       location.hash = "#/ai";
     }
   }
+  // Leaving #/ai for any other place closes the Lune AI page (P0-17).
+  window.addEventListener("hashchange", () => {
+    if (location.hash === "#/ai") return;
+    const d = document.getElementById("lune-chat");
+    if (d?.open && d.classList.contains("is-page")) {
+      aiReturn = null;
+      d.close();
+    }
+  });
   /** The Lune AI page (#/ai): the same chat, full screen, with its history at the side. */
   function openChatPage() {
     const d = ensureChat();

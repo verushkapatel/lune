@@ -1657,7 +1657,7 @@ window.LunePractice = (function () {
     if (!box) return;
     const st = store.status();
     if (st.signedIn) {
-      box.innerHTML = `<span class="rep-acct-text"><span class="rep-acct-dot on"></span>Synced to ${esc(st.email)}</span>
+      box.innerHTML = `<span class="rep-acct-text"><span class="rep-acct-dot on"></span>Synced to your account</span>
         <button type="button" class="link-btn" data-lp-account>Account</button>`;
     } else if (st.cloud) {
       box.innerHTML = `<span class="rep-acct-text"><span class="rep-acct-dot"></span>Saved in this browser</span>

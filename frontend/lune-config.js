@@ -9,8 +9,9 @@
 window.LUNE_CONFIG = {
   supabaseUrl: "https://ggxbkynudklihxovqedv.supabase.co",
   supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdneGJreW51ZGtsaWh4b3ZxZWR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEwMTI3ODEsImV4cCI6MjEwNjU4ODc4MX0.aBrUJsPWU1iz2Z7DVCqDrLIW1R0YV6PZ7OKdmgm4xLE",
-  /** Owner-only stats (user count). Must match the signed-in email. */
-  ownerEmail: "verushkapatel@icloud.com",
+  /** Owner menu entries: SHA-256 of the owner's sign-in email (lower case).
+   *  The address itself is not published; owner numbers are checked on the server. */
+  ownerEmailSha256: "abf187b9ddcd663173e3a3e4b5fdb58f1f3038640488f85a8e0a297115dc1061",
   /** Inbox for replies / feedback (also used as mailto on the site). */
   feedbackEmail: "info@lune.page",
   /** Form-to-email relay for the Feedback form: answers are posted to
