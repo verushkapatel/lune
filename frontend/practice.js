@@ -2121,15 +2121,17 @@ window.LunePractice = (function () {
   function zoomBoost() {
     return store.prefs().largePrint ? 1.4 : 1;
   }
-  async function loadBrailleIndex() {
-    if (brailleIndex) return brailleIndex;
-    try {
-      const r = await fetch(luneUrl("/static/braille/index.json"), { cache: "force-cache" });
-      brailleIndex = r.ok ? await r.json() : {};
-    } catch {
-      brailleIndex = {};
-    }
-    return brailleIndex;
+  // P0-10: one request, however many chips ask at once
+  let brailleIndexPromise = null;
+  function loadBrailleIndex() {
+    if (brailleIndex) return Promise.resolve(brailleIndex);
+    brailleIndexPromise =
+      brailleIndexPromise ||
+      fetch(luneUrl("/static/braille/index.json"), { cache: "force-cache" })
+        .then((r) => (r.ok ? r.json() : {}))
+        .catch(() => ({}))
+        .then((d) => (brailleIndex = d));
+    return brailleIndexPromise;
   }
   function openAccessDialog() {
     const d = dialog("access-dialog");

@@ -77,6 +77,24 @@ def simplify(score) -> None:
             n.lyrics = []
 
 
+def hand_by_hand(score, title: str, composer: str) -> str:
+    """Fallback when one bar is too dense for bar-over-bar keyboard layout:
+    each hand in full, right hand first, each under its own heading."""
+    from music21.braille import basic
+
+    def words(s: str) -> str:
+        return "\u2800".join(basic.wordToBraille(w) for w in s.split() if w)
+
+    simplify(score)
+    lines = [words(title), words(composer)] if composer else [words(title)]
+    for label, part in zip(("right hand", "left hand"), score.parts):
+        lines += ["", words(label), translate.objectToBraille(part, maxLineLength=40)]
+    return "\n".join(lines)
+
+
+HAND_NOTE = "Braille music made automatically with music21, right hand then left hand — check with a braille music reader before relying on it."
+
+
 class Timeout(Exception):
     pass
 
@@ -102,13 +120,22 @@ def main(site: Path) -> None:
             score.metadata = metadata.Metadata()
             score.metadata.title = ascii_text(row["title"])[:60]
             score.metadata.composer = ascii_text(row.get("composer", ""))[:40]
+            note = None
             try:
                 text = translate.objectToBraille(score, maxLineLength=40)
             except Exception:  # noqa: BLE001
                 # second try without the words the translator can't place
                 # (long tempo text, expressions, editorial fingerings)
                 simplify(score)
-                text = translate.objectToBraille(score, maxLineLength=40)
+                try:
+                    text = translate.objectToBraille(score, maxLineLength=40)
+                except Exception:  # noqa: BLE001
+                    # a bar too dense for bar-over-bar: write the hands one after the other
+                    if len(score.parts) != 2:
+                        raise
+                    # a fresh copy: the failed attempts may have rewritten the score
+                    text = hand_by_hand(converter.parse(str(src)), ascii_text(row["title"])[:60], ascii_text(row.get("composer", ""))[:40])
+                    note = HAND_NOTE
             signal.alarm(0)
         except Exception as err:  # noqa: BLE001 — music21 raises many kinds
             signal.alarm(0)
@@ -122,7 +149,7 @@ def main(site: Path) -> None:
             "file": f"{row['id']}.brf",
             "text": f"{row['id']}.txt",
             "lines": text.count("\n") + 1,
-            "note": "Braille music made automatically with music21 — check with a braille music reader before relying on it.",
+            "note": note or "Braille music made automatically with music21 — check with a braille music reader before relying on it.",
         }
         print(f"ok   {row['id']}  ({index[row['id']]['lines']} lines)")
     (out_dir / "index.json").write_text(json.dumps(index, indent=1))
