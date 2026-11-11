@@ -4362,13 +4362,16 @@ function fitScoreToWidth(osmd) {
 /** On a phone a bar or two per line reads like a real page; full size elsewhere. */
 function phoneScoreZoom() {
   const w = $("osmd")?.clientWidth || window.innerWidth;
-  return w < 520 ? 0.74 : 1;
+  if (w < 520) return 0.74;
+  // On a laptop the page is short: engrave so at least two full systems show
+  // above the keyboard (P0-14). 800 px tall gives about 0.78; tall screens keep 1.
+  return Math.max(0.7, Math.min(1, (window.innerHeight - 180) / 790));
 }
 
 function fitZoomKey() {
   const host = $("osmd");
   const boost = window.LunePractice?.zoomBoost?.() || 1;
-  return `${state.piece?.id || state.piece?.title || ""}|${Math.round((host?.clientWidth || 0) / 20)}|${boost}`;
+  return `${state.piece?.id || state.piece?.title || ""}|${Math.round((host?.clientWidth || 0) / 20)}|${Math.round(window.innerHeight / 50)}|${boost}`;
 }
 function cachedFitZoom(defaultZoom) {
   const boost = window.LunePractice?.zoomBoost?.() || 1;
