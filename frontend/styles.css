@@ -12099,3 +12099,8 @@ html[data-theme="light"] .lune-chat .primary,
 html[data-theme="light"] .ask-lune .primary { color: #ffffff !important; }
 html[data-theme="light"] .chat-form,
 html[data-theme="light"] .ask-form { background: transparent !important; }
+
+/* ---------- setup: four steps, each closable (P0-11) ---------- */
+.onboard-stage { position: relative; }
+.onboard-close { position: absolute; top: 12px; right: 12px; z-index: 2; }
+.onboard-nav-right { display: inline-flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
