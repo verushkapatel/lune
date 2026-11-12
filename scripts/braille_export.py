@@ -58,8 +58,8 @@ def wrap40(text: str, width: int = 40) -> str:
 
 
 def ascii_text(s: str) -> str:
-    # keep the key right: "A♭ major" becomes "A-flat major", not "A major"
-    s = (s or "").replace("♭", "-flat").replace("♯", "-sharp")
+    # keep the key right: "A♭ major" becomes "A flat major", not "A major"
+    s = (s or "").replace("♭", " flat").replace("♯", " sharp")
     s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode()
     return "".join(c if c.isalnum() or c in " ,.-" else " " for c in s).strip()
 
