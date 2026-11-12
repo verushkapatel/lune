@@ -1146,7 +1146,8 @@ How to answer
       const chat = $("lune-chat");
       if (chat?.open) chat.close();
       try {
-        if (typeof setStudioPanel === "function" && state.panel !== "score") setStudioPanel("score");
+        // the Score tab itself, which also draws the score when it is not on the page yet
+        if (state.panel !== "score") document.getElementById("tab-score")?.click();
         setBarSelection(bars, { open: false, primary: st.from });
         const marked = state.markedBpm || (typeof markedTempoBpm === "function" ? markedTempoBpm() : 72);
         const target = st.bpm || (st.pct ? Math.round((marked * st.pct) / 100) : null);

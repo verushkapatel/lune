@@ -1,3 +1,10 @@
+/* flats, sharps and naturals only: Garamond has none, so they come from a symbol font that sets them close */
+@font-face {
+  font-family: "Lune Accidentals";
+  src: local("Apple Symbols"), local("Segoe UI Symbol"), local("Noto Music"), local("Noto Sans Symbols 2"), local("DejaVu Sans");
+  unicode-range: U+266D-266F;
+  size-adjust: 118%;
+}
 /* ==========================================================================
    Lune design layer (November 2026)
 
@@ -8,8 +15,14 @@
    ========================================================================== */
 
 :root {
-  --ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-  --display: ui-serif, "New York", "Iowan Old Style", "Charter", Georgia, serif;
+  /* EB Garamond for words, everywhere; the system face only for numbers that must line up */
+  --ui: "Lune Accidentals", "EB Garamond", "Cormorant Garamond", Garamond, "Iowan Old Style", Georgia, serif;
+  --display: "Lune Accidentals", "EB Garamond", "Cormorant Garamond", Garamond, Georgia, serif;
+  --nums: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  /* navy, in small doses */
+  --navy-deep: #16244a;
+  --navy-mid: #22386e;
+  --navy-hi: #9fb2e4;
   --serif: var(--ui);
   --garamond: var(--ui);
   /* the older layers used a monospace font for labels and Lune AI's reading lines;
@@ -468,3 +481,105 @@ html body .lune-chat .ask-empty-h {
 #hero .mr-keys::before { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 1px 0 rgba(255, 255, 255, 0.06) !important; }
 #hero .mr-k.mr-wk.is-lit, #hero .mr-k.mr-wk.is-hit { background: #e3e3e7 !important; box-shadow: inset 0 -4px 0 #c7c7cc !important; }
 #hero .mr-k.mr-bk.is-lit, #hero .mr-k.mr-bk.is-hit { background: #3a3a3e !important; box-shadow: inset 0 -3px 0 #1c1c1e !important; }
+
+
+/* ==========================================================================
+   Garamond everywhere, set to read comfortably, with hints of navy
+   ========================================================================== */
+/* Garamond's small x-height, evened out: every size reads like the size it says */
+html body, html body * { font-size-adjust: 0.47; }
+html body svg, html body svg *, html body #osmd *, html body .score-page * , html body .lune-kbd-host * { font-size-adjust: none; }
+html body { font-feature-settings: "kern", "liga", "onum" 0; }
+/* figures that line up: timers, tempo, counts */
+.scrub-meta, #scrub-time, .bpm-readout, .st-bpm b, .impact-num, .lp-proof dt, .rep-card-meta time { font-family: var(--nums) !important; font-variant-numeric: tabular-nums; font-size-adjust: none !important; }
+.lp-proof dt { font-family: var(--display) !important; font-weight: 400 !important; font-variant-numeric: lining-nums; }
+
+/* titles: Garamond at display weight, a touch of italic for the second line */
+h1, h2, .member-title, #explain-title, .chapter-title, .ask-empty-h { font-weight: 400 !important; letter-spacing: -0.01em !important; }
+#hero h1 .mr-l2, .mr-promise em, .home-feat-copy h2 em { font-style: italic; }
+h3, .rep-card h3, .rep-plan-card h3 { font-weight: 600 !important; letter-spacing: 0 !important; }
+
+/* buttons and labels in Garamond read best a little larger and a little bolder */
+.primary, .quiet, .bar-auth, .lp-nav a, .st-seg-panels button, .st-seg-anno button, .studio-tab, .la-reply, .chat-starters button,
+.settings-row strong, .ch-new, .ch-item > button, .lp-grade, .lp-tools button, .lp-ai-row button, .hero-cta-alt, .wk-opts button {
+  font-family: var(--ui) !important; font-weight: 500 !important; letter-spacing: 0.005em !important;
+}
+
+/* navy, sparingly: the account button, the send button, what is chosen, what is in progress */
+header.bar .bar-auth, html[data-theme="light"] header.bar .bar-auth {
+  background: var(--navy-mid) !important; color: #fff !important; border: 1px solid rgba(159, 178, 228, 0.28) !important;
+}
+header.bar .bar-auth:hover { background: #2a4482 !important; }
+.lune-chat .lc-round, .lc-send, .lc-round { background: var(--navy-mid) !important; color: #fff !important; }
+.la-reply.on { background: var(--navy-mid) !important; border-color: var(--navy-mid) !important; color: #fff !important; }
+.rp-bar i, #member-streak .po-bar i, .lw-bar i { background: var(--navy-hi) !important; }
+body:not(.studio-compact) .studio-seg .studio-tab[aria-selected="true"]::before { background: var(--navy-hi) !important; box-shadow: none !important; }
+.st-seg-panels button[aria-pressed="true"] { background: var(--navy-mid) !important; color: #fff !important; }
+.lune-chat .la-bar { text-decoration-color: rgba(159, 178, 228, 0.55) !important; }
+.lune-chat .la-bar:hover { text-decoration-color: var(--navy-hi) !important; }
+/* the small labels above sections: Garamond italic in soft navy */
+html body .about-kicker, html body .home-feat-copy .about-kicker, html body .member-kicker, html body #home .mr-kicker, html body #home-guest .about-kicker,
+html body .chapter-label, html body .explain-era, html body #explain-era, html body .auth-kicker, html body .mh-phase {
+  font-family: var(--ui) !important; font-style: italic !important; font-weight: 500 !important; font-size: 16px !important;
+  letter-spacing: 0 !important; text-transform: none !important; color: var(--navy-hi) !important;
+}
+/* a hairline of navy under the header, nowhere else */
+header.bar { border-bottom: 1px solid rgba(34, 56, 110, 0.55) !important; }
+
+/* light mode: deep navy for the same few things */
+html[data-theme="light"] .rp-bar i, html[data-theme="light"] #member-streak .po-bar i { background: var(--navy-mid) !important; }
+html[data-theme="light"] body .about-kicker, html[data-theme="light"] body .chapter-label, html[data-theme="light"] body .explain-era,
+html[data-theme="light"] body #explain-era, html[data-theme="light"] body .member-kicker, html[data-theme="light"] body .auth-kicker,
+html[data-theme="light"] body #home-guest .about-kicker, html[data-theme="light"] body .mh-phase { color: var(--navy-mid) !important; }
+html[data-theme="light"] header.bar { border-bottom-color: rgba(22, 36, 74, 0.18) !important; }
+
+/* signed-in home: the main action in white like every other primary, the Ask bar with the crescent */
+html body #home-member .member-next .primary, html body #home-member .member-next button.primary {
+  background: var(--accent) !important; color: var(--accent-ink) !important; border: 0 !important; box-shadow: none !important;
+}
+html body .home-ask .lune-orb-sm, html body .home-ask .lune-orb, html body #home-member .home-ask [class*="orb"] {
+  width: 18px !important; height: 18px !important; filter: none !important; box-shadow: none !important; border: 0 !important;
+  background: var(--navy-hi) !important;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='4 3 26 26'%3E%3Cpath d='M17.61 4.58A12 12 0 1 0 27.70 24.77A11.4 11.4 0 1 1 17.61 4.58Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='4 3 26 26'%3E%3Cpath d='M17.61 4.58A12 12 0 1 0 27.70 24.77A11.4 11.4 0 1 1 17.61 4.58Z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+html body .home-ask [class*="orb"] * { display: none !important; }
+html body #home-member .member-rec-role {
+  font-family: var(--ui) !important; font-style: italic !important; font-size: 14px !important; letter-spacing: 0 !important;
+  text-transform: none !important; color: var(--navy-hi) !important;
+}
+html body #home-member .home-ask .lc-round, html body #home-member .home-ask button[type="submit"] { background: var(--navy-mid) !important; color: #fff !important; box-shadow: none !important; }
+
+/* Repertoire cards: one clear action (Open, in navy), the rest as quiet words */
+html body #repertoire .rep-card .rep-card-actions .primary, html body .rep-card .primary {
+  background: var(--navy-mid) !important; color: #fff !important; border: 1px solid rgba(159, 178, 228, 0.28) !important; box-shadow: none !important;
+}
+html body .rep-card .rep-card-actions .quiet {
+  border: 0 !important; background: transparent !important; color: var(--d-label-2) !important; padding: 0 10px !important; min-height: 36px !important;
+}
+html body .rep-card .rep-card-actions .quiet:hover { color: var(--d-label) !important; background: var(--d-surface-2) !important; }
+html body .rep-card .rep-card-actions select {
+  font: 500 15px var(--ui) !important; border-radius: 999px !important; background: var(--d-surface-2) !important; border: 0 !important; color: var(--d-label) !important;
+}
+html body #home-member .member-next-k, html body #member-streak .wk-k, html body .member-week-k {
+  font-family: var(--ui) !important; font-style: italic !important; font-size: 15px !important; letter-spacing: 0 !important;
+  text-transform: none !important; color: var(--navy-hi) !important;
+}
+html[data-theme="light"] body .rep-card .primary { background: var(--navy-mid) !important; color: #fff !important; }
+
+/* Explain: reading and access as one quiet row, not a second panel competing with the title */
+html body #explain-access.access-card { background: none !important; border: 0 !important; padding: 0 !important; margin-top: 18px !important; box-shadow: none !important; }
+html body #explain-access .access-card-h { font: italic 500 16px var(--ui) !important; color: var(--navy-hi) !important; margin: 0 0 10px !important; letter-spacing: 0 !important; }
+html body #explain-access .access-card-grid { display: flex !important; flex-wrap: wrap; gap: 8px !important; }
+html body #explain-access .access-option {
+  display: inline-flex !important; align-items: center; min-height: 36px; padding: 0 14px !important; border-radius: 999px !important;
+  background: var(--d-surface) !important; border: 1px solid var(--d-sep) !important; width: auto !important;
+}
+html body #explain-access .access-option strong { font: 500 15px var(--ui) !important; color: var(--d-label) !important; }
+html body #explain-access .access-option span { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+html body #explain-access .access-option[aria-pressed="true"] { background: var(--navy-mid) !important; border-color: var(--navy-mid) !important; }
+html body #explain-access .access-option[hidden] { display: none !important; }
+html[data-theme="light"] body #explain-access .access-card-h { color: var(--navy-mid) !important; }
+
+/* one divider between the hero and the chapters, not two */
+html body #explain-chapters .chapter:first-child { border-top: 0 !important; padding-top: 8px !important; }

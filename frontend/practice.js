@@ -1866,7 +1866,7 @@ window.LunePractice = (function () {
                   <div class="rp-bar" role="progressbar" aria-label="How much of ${esc(p.title)} you can play" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${prog?.pct ?? 0}"><i style="width:${prog?.pct ?? 0}%"></i></div>
                   <button type="button" class="link-btn rp-set" data-progress="${esc(p.piece_key)}">${prog ? esc(window.LunePlans.progressLabel(prog)) : "Mark progress"}</button>
                 </div>
-                ${sum ? `<p class="rep-sum"><span class="rep-sum-k">${sum.via === "model" ? "Lune AI" : "Last session"}</span> ${esc(sum.text)}</p>` : `<p class="rep-card-meta">Practised ${esc(ago(p.last_practised_at))}${n ? ` · ${n} note${n === 1 ? "" : "s"}` : ""}</p>`}
+                ${sum ? `<p class="rep-sum"><span class="rep-sum-k">${sum.via === "model" ? "Lune AI" : "Last session"}</span> ${esc(sum.text)}</p>` : `<p class="rep-card-meta">${p.last_practised_at ? `Practised ${esc(ago(p.last_practised_at))}` : "Not practised yet"}${n ? ` · ${n} note${n === 1 ? "" : "s"}` : ""}</p>`}
               </div>
               <div class="rep-card-actions">
                 <label class="visually-hidden" for="st-${esc(p.piece_key)}">Status</label>
