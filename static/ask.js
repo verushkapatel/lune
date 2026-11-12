@@ -1415,6 +1415,13 @@ How to answer
     const orbHost = d.querySelector("#lt-orb");
     orbHost.innerHTML = "";
     const orb = window.LuneFX.orb(orbHost);
+    // the voice stage reacts to the level too: rings grow with the voice, Lune's or yours
+    const setLv = orb.setLevel.bind(orb);
+    orb.setLevel = (v) => {
+      setLv(v);
+      orbHost.style.setProperty("--lv", String(Math.max(0, Math.min(1, Number(v) || 0))));
+    };
+    if (!orbHost.querySelector(".lt-moon")) orbHost.insertAdjacentHTML("beforeend", '<span class="lt-ring r1"></span><span class="lt-ring r2"></span><span class="lt-ring r3"></span><span class="lt-moon"></span>');
     const stateEl = d.querySelector("#lt-state");
     const cap = d.querySelector("#lt-caption");
     const tapBtn = d.querySelector('[data-talk="tap"]');
@@ -1467,7 +1474,8 @@ How to answer
         try {
           said = await P().hearPhrase({ fast: true, onLevel: (v) => orb.setLevel(v), onPartial: (t) => !/^Listening|^Writing/.test(t) && (cap.textContent = t) });
         } catch (err) {
-          setState("idle", err.message || "Lune couldn’t hear that.");
+          const blocked = /denied|not ?allowed|permission/i.test(`${err?.name} ${err?.message}`);
+          setState("idle", blocked ? "Lune needs your microphone. Allow it for lune.page in your browser, then tap the microphone." : err.message || "Lune couldn’t hear that.");
           return;
         }
         orb.setLevel(0);
