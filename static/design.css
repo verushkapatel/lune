@@ -592,3 +592,64 @@ html body #home-member .home-ask-chips, html body .home-ask-chips { justify-cont
     margin-inline: -16px !important; padding-inline: 16px !important; scroll-padding-inline: 16px;
   }
 }
+
+/* ==========================================================================
+   Hero: the product itself, in the first screen
+   ========================================================================== */
+.hero-demo {
+  position: relative; z-index: 2; box-sizing: border-box;
+  width: min(560px, calc(100vw - 32px)); margin: 40px auto 0; padding: 22px 24px 20px; text-align: left;
+  background: rgba(18, 20, 28, 0.62); border: 1px solid rgba(159, 178, 228, 0.18); border-radius: 22px;
+  -webkit-backdrop-filter: blur(24px) saturate(140%); backdrop-filter: blur(24px) saturate(140%);
+  box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  opacity: 0; transform: translateY(14px); transition: opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1), transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.hero-demo.is-asking, .hero-demo.is-done { opacity: 1; transform: none; }
+.hd2-top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
+.hd2-piece { font: 500 19px var(--display); color: var(--d-label); }
+.hd2-piece em { color: var(--d-label-3); font-style: italic; }
+.hd2-tag { font: italic 500 15px var(--ui); color: var(--navy-hi); }
+.hd2-notes { display: flex; gap: 10px; margin: 0 0 18px; }
+.hd2-chord { display: inline-flex; flex-direction: column; gap: 2px; padding: 8px 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.07); }
+.hd2-chord b { font: 500 16px/1.25 var(--ui); color: var(--d-label); }
+.hd2-chord sup { font: 600 11px var(--nums); color: var(--navy-hi); margin-left: 3px; vertical-align: super; font-size-adjust: none; }
+.hd2-q {
+  margin: 0 0 12px auto; width: fit-content; max-width: 80%; padding: 8px 14px; border-radius: 16px 16px 4px 16px;
+  background: var(--navy-mid); color: #fff; font: 400 16px/1.4 var(--ui);
+  opacity: 0; transform: translateY(6px); transition: opacity 0.5s ease 0.2s, transform 0.5s ease 0.2s;
+}
+.hero-demo.is-asking .hd2-q, .hero-demo.is-done .hd2-q { opacity: 1; transform: none; }
+.hd2-a { margin: 0 0 14px; min-height: 3.1em; font: 400 17.5px/1.55 var(--ui); color: rgba(245, 245, 247, 0.92); }
+.hero-demo.is-answering:not(.is-done) .hd2-a::after { content: ""; display: inline-block; width: 2px; height: 1em; margin-left: 2px; vertical-align: -0.12em; background: var(--navy-hi); animation: hd2-caret 0.9s steps(1) infinite; }
+@keyframes hd2-caret { 50% { opacity: 0; } }
+.hd2-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.hd2-steps li {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.06); font: 400 15px/1.35 var(--ui); color: var(--d-label-2);
+  opacity: 0; transform: translateY(6px); transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.hd2-steps li:nth-child(2) { transition-delay: 0.15s; }
+.hero-demo.is-done .hd2-steps li { opacity: 1; transform: none; }
+.hd2-steps i { flex: none; font: 600 12.5px var(--ui); font-style: normal; padding: 5px 12px; border-radius: 999px; background: var(--d-label); color: #000; }
+/* the older hero card this replaces */
+#hero .hd, #hero .mr-tonight { display: none !important; }
+@media (max-width: 560px) {
+  .hero-demo { padding: 18px 16px 16px; margin-top: 28px; }
+  .hd2-notes { gap: 6px; }
+  .hd2-chord { padding: 6px 9px; }
+  .hd2-a { font-size: 16.5px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-demo, .hd2-q, .hd2-steps li { transition: none !important; opacity: 1 !important; transform: none !important; }
+}
+html[data-theme="light"] .hero-demo { background: rgba(255, 255, 255, 0.78); border-color: rgba(22, 36, 74, 0.12); box-shadow: 0 30px 80px -40px rgba(22, 36, 74, 0.35); }
+html[data-theme="light"] .hd2-chord, html[data-theme="light"] .hd2-steps li { background: rgba(22, 36, 74, 0.04); border-color: rgba(22, 36, 74, 0.08); }
+html[data-theme="light"] .hd2-chord b, html[data-theme="light"] .hd2-piece { color: #111; }
+html[data-theme="light"] .hd2-a { color: rgba(0, 0, 0, 0.82); }
+html[data-theme="light"] .hd2-chord sup, html[data-theme="light"] .hd2-tag { color: var(--navy-mid); }
+html[data-theme="light"] .hd2-steps i { background: var(--navy-mid); color: #fff; }
+/* the product moment, right under the hero */
+.demo-moment { padding: 96px 16px 72px; text-align: center; background: #000; }
+.demo-moment h2 { margin: 6px auto 0; max-width: 18ch; font-size: clamp(32px, 4.2vw, 52px) !important; line-height: 1.08; color: var(--d-label); }
+.demo-moment .hero-demo { margin-top: 44px; }
+html[data-theme="light"] .demo-moment { background: #fff; }
