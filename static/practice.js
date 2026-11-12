@@ -847,7 +847,7 @@ window.LunePractice = (function () {
           u.lang = voice.lang;
         } else u.lang = seg.lang === "fr" ? "fr-FR" : "en-GB";
         u.rate = rate;
-        u.pitch = 1.04; // a touch warmer than flat
+        u.pitch = 1; // the voice as its makers tuned it
         const base = spoken;
         u.onboundary = (ev) => {
           pulse = 0.8;
@@ -1000,7 +1000,8 @@ window.LunePractice = (function () {
   function premiumVoice() {
     try {
       const v = bestVoice();
-      return v && /natural|neural|premium|enhanced|siri/i.test(v.name) ? v : null;
+      // a good system voice beats the server's: Apple's own (Daniel, Serena, Samantha…), Microsoft's natural ones, Google's UK voice
+      return v && /natural|neural|premium|enhanced|siri|Daniel|Serena|Kate|Stephanie|Martha|Arthur|Samantha|Karen|Moira|Ava|Zoe|Jamie|Libby|Sonia|Ryan|Aria|Jenny|Google UK English/i.test(v.name) ? v : null;
     } catch {
       return null;
     }
@@ -1012,7 +1013,9 @@ window.LunePractice = (function () {
       const n = v.name;
       let s = 0;
       if (/natural|neural|premium|enhanced|siri/i.test(n)) s += 50;
-      if (/Google UK English Female|Google US English|Samantha|Karen|Serena|Daniel|Moira|Ava|Allison|Sonia|Libby|Aria|Jenny/i.test(n)) s += 25;
+      // British first, warm and clear: Daniel and Serena are Apple's best en-GB voices
+      if (/Daniel|Serena|Arthur|Martha|Kate|Stephanie|Libby|Sonia|Ryan/i.test(n)) s += 30;
+      if (/Google UK English Female|Google US English|Samantha|Karen|Moira|Ava|Zoe|Allison|Aria|Jenny/i.test(n)) s += 22;
       if (/compact|eloquence|albert|bad news|bahh|bells|boing|bubbles|cellos|jester|organ|trinoids|whisper|zarvox|wobble|fred|junior|ralph|kathy|good news|superstar/i.test(n)) s -= 80;
       if (/en[-_]GB/i.test(v.lang)) s += 6;
       if (v.localService) s += 2;
