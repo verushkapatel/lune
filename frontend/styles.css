@@ -12182,3 +12182,9 @@ body.studio-compact.is-studio #companion-bar { flex-wrap: wrap; }
   .home-ask-chips::-webkit-scrollbar { display: none; }
   .home-ask-chips > * { flex: 0 0 auto; scroll-snap-align: start; }
 }
+
+/* P1-22: one header everywhere — "Sign in", and Share and Settings as the same icon buttons on every page */
+header.bar .bar-tool .bar-tool-label {
+  position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+header.bar .bar-tool { width: 40px; height: 40px; padding: 0 !important; display: inline-grid; place-items: center; border-radius: 999px; }

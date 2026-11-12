@@ -169,7 +169,7 @@ window.LuneStudioUI = (function () {
         <button type="button" data-m="settings">Settings</button>
         <button type="button" data-m="home">Home</button>
       </div>
-      ${document.body.classList.contains("is-signed-in") ? "" : `<button type="button" class="sm-signin" data-m="signin">Sign in or Create account</button>`}`;
+      ${document.body.classList.contains("is-signed-in") ? "" : `<button type="button" class="sm-signin" data-m="signin">Sign in</button>`}`;
   }
 
   function openMenu() {
