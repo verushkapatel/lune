@@ -88,11 +88,31 @@ def hand_by_hand(score, title: str, composer: str) -> str:
     simplify(score)
     lines = [words(title), words(composer)] if composer else [words(title)]
     for label, part in zip(("right hand", "left hand"), score.parts):
-        lines += ["", words(label), translate.objectToBraille(part, maxLineLength=40)]
+        try:
+            music = translate.objectToBraille(part, maxLineLength=40)
+        except Exception:  # noqa: BLE001
+            # last resort: the notes and rhythm without slurs, dynamics, words or grace notes
+            strip_marks(part)
+            music = translate.objectToBraille(part, maxLineLength=40)
+        lines += ["", words(label), music]
     return "\n".join(lines)
 
 
-HAND_NOTE = "Braille music made automatically with music21, right hand then left hand — check with a braille music reader before relying on it."
+def strip_marks(part) -> None:
+    from music21 import dynamics, expressions, spanner
+
+    for cls in (spanner.Spanner, dynamics.Dynamic, expressions.Expression):
+        for el in list(part.recurse().getElementsByClass(cls)):
+            try:
+                el.activeSite.remove(el)
+            except Exception:  # noqa: BLE001
+                pass
+    for n in list(part.recurse().notes):
+        if n.duration.isGrace:
+            n.activeSite.remove(n)
+
+
+HAND_NOTE = "Braille music made automatically with music21, right hand then left hand, with some slurs and markings left out. Check with a braille music reader before relying on it."
 
 
 class Timeout(Exception):
