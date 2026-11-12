@@ -2504,6 +2504,7 @@ window.LunePractice = (function () {
         ${window.LunePlans?.planMode?.() === "free" ? row("plan-week", "Plan my week", "Turn on a weekly plan") : row("plan-week", "Change my week’s plan", "Days, minutes and goal")}
         ${window.LunePlans?.planMode?.() === "free" ? "" : row("plan-free", "No schedule", "Play whenever it suits you")}
         ${signedIn ? row("week", "This week", "Your progress") : ""}
+        ${row("tour", "Show me around", "Three steps on a real score")}
         ${row("example-week", "How this week works", "A quick example")}
       </section>
       <section class="settings-sec" aria-labelledby="set-h-look">
@@ -2695,6 +2696,15 @@ window.LunePractice = (function () {
       else if (act === "signin") window.LuneOnboard?.openCreateAccount?.();
       else if (act === "week") window.LuneImpact?.openWeeklyReview?.();
       else if (act === "example-week") openExampleWeek();
+      else if (act === "tour") {
+        d.close();
+        // on a score: tour now; elsewhere: open Clair de lune first
+        if (window.state?.piece || (typeof state !== "undefined" && state.piece)) window.LuneTour?.start({ force: true });
+        else {
+          document.querySelector('[data-open-piece="debussy-clair-de-lune"]')?.click();
+          setTimeout(() => window.LuneTour?.start({ force: true }), 1500);
+        }
+      }
       else if (act === "chat") window.LuneAsk?.goAiPage?.();
       else if (act === "plan-week") window.LunePlans?.openWizard?.();
       else if (act === "plan-free") { window.LunePlans?.setPlanMode?.("free"); d.close?.(); }

@@ -112,6 +112,7 @@ window.LuneStudioUI = (function () {
       if (act === "save") press("btn-bookmark");
       if (act === "share") press("btn-share");
       if (act === "settings") press("btn-settings");
+      if (act === "tour") setTimeout(() => window.LuneTour?.start({ force: true }), 250);
       if (act === "ask") window.LuneAsk?.open?.();
       if (act === "ai") window.LuneAsk?.goAiPage?.();
       if (act === "home") press("btn-home");
@@ -166,6 +167,7 @@ window.LuneStudioUI = (function () {
         <button type="button" data-m="ai">Lune AI chat</button>
         <button type="button" data-m="save">${saved ? "Saved" : "Save"}</button>
         <button type="button" data-m="share">Share</button>
+        <button type="button" data-m="tour">Show me around</button>
         <button type="button" data-m="settings">Settings</button>
         <button type="button" data-m="home">Home</button>
       </div>
@@ -295,7 +297,7 @@ window.LuneStudioUI = (function () {
         <button type="button" data-p="explain">Explain</button>
         <button type="button" data-p="piano">Piano</button>
       </div>
-      <button type="button" class="st-more" aria-haspopup="dialog">More</button>
+      <button type="button" class="st-more" aria-haspopup="dialog" aria-label="More: letters, fingers, pedal, braille, settings"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="5.5" cy="12" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="18.5" cy="12" r="1.7" fill="currentColor"/></svg></button>
       <div class="st-seg-anno" role="group" aria-label="Letters on the score">
         <button type="button" data-a="notes">Notes</button>
         <button type="button" data-a="fingers">Fingers</button>
