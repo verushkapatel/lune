@@ -58,7 +58,9 @@ def wrap40(text: str, width: int = 40) -> str:
 
 
 def ascii_text(s: str) -> str:
-    s = unicodedata.normalize("NFKD", s or "").encode("ascii", "ignore").decode()
+    # keep the key right: "A♭ major" becomes "A-flat major", not "A major"
+    s = (s or "").replace("♭", "-flat").replace("♯", "-sharp")
+    s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode()
     return "".join(c if c.isalnum() or c in " ,.-" else " " for c in s).strip()
 
 
@@ -91,11 +93,80 @@ def hand_by_hand(score, title: str, composer: str) -> str:
         try:
             music = translate.objectToBraille(part, maxLineLength=40)
         except Exception:  # noqa: BLE001
-            # last resort: the notes and rhythm without slurs, dynamics, words or grace notes
+            # the notes and rhythm without slurs, dynamics, words or grace notes
             strip_marks(part)
-            music = translate.objectToBraille(part, maxLineLength=40)
+            try:
+                music = translate.objectToBraille(part, maxLineLength=40)
+            except Exception:  # noqa: BLE001
+                # a cadenza bar longer than a braille line: written in halves,
+                # and the hand in runs of bars that each start a fresh line
+                split_long_bars(part)
+                try:
+                    music = translate.objectToBraille(part, maxLineLength=40)
+                except Exception:  # noqa: BLE001
+                    music = in_runs(part)
         lines += ["", words(label), music]
     return "\n".join(lines)
+
+
+def split_long_bars(part) -> int:
+    """Halve any bar that will not fit on one 40-cell braille line (a long cadenza),
+    repeatedly, until every piece fits. Returns how many bars were split."""
+    from music21 import stream
+
+    def fits(m) -> bool:
+        try:
+            # continuation lines are indented two cells, so a bar must fit in 38
+            translate.objectToBraille(stream.Part([m]), maxLineLength=38)
+            return True
+        except Exception:  # noqa: BLE001
+            return False
+
+    split = 0
+    queue = list(part.getElementsByClass(stream.Measure))
+    while queue:
+        m = queue.pop(0)
+        if fits(m) or m.highestTime <= 0.5:
+            continue
+        half = m.highestTime / 2
+        try:
+            _, right = m.splitAtQuarterLength(half, retainOrigin=True)
+        except Exception:  # noqa: BLE001
+            continue
+        right.number = m.number
+        # the second half continues the bar: no repeated clef, key or time signature
+        for el in list(right.getElementsByClass(["Clef", "KeySignature", "TimeSignature"])):
+            if el.offset == 0:
+                right.remove(el)
+        part.insert(m.offset + half, right)
+        split += 1
+        queue[:0] = [m, right]
+    return split
+
+
+def in_runs(part) -> str:
+    """Translate a hand as the longest runs of consecutive bars that fit, joined line by line."""
+    import copy
+
+    from music21 import stream
+
+    ms = list(part.getElementsByClass(stream.Measure))
+    out, i = [], 0
+    while i < len(ms):
+        best, text = i + 1, None
+        lo, hi = i + 1, len(ms)
+        while lo <= hi:  # binary search for the longest run from bar i that translates
+            mid = (lo + hi) // 2
+            try:
+                t = translate.objectToBraille(stream.Part([copy.deepcopy(m) for m in ms[i:mid]]), maxLineLength=40)
+                best, text, lo = mid, t, mid + 1
+            except Exception:  # noqa: BLE001
+                hi = mid - 1
+        if text is None:
+            raise ValueError(f"bar {ms[i].number} will not translate")
+        out.append(text)
+        i = best
+    return "\n".join(out)
 
 
 def strip_marks(part) -> None:
