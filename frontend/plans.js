@@ -77,7 +77,16 @@ window.LunePlans = (function () {
     session = null;
     const played = s ? [...(s.played || [])].sort((a, b) => a - b) : [];
     const mins = s ? Math.round((s.playMs || 0) / 60000) : 0;
-    if (!s || !(s.questions + s.notes) && played.length < 2) return null;
+    if (!s) return null;
+    // rating a bar is practice too: a session with ratings always gets its report
+    let ratedNow = 0;
+    try {
+      const since = new Date(s.start - 1000).toISOString();
+      ratedNow = ((await store().listCards(s.key).catch(() => [])) || []).filter((c) => (c.updated_at || "") >= since).length;
+    } catch {
+      ratedNow = 0;
+    }
+    if (!(s.questions + s.notes) && played.length < 2 && !ratedNow) return null;
     let asked = [];
     try {
       asked = JSON.parse(localStorage.getItem(`lune.ask.${s.key}`) || "[]").filter((h) => h.t >= s.start);
@@ -107,10 +116,11 @@ window.LunePlans = (function () {
         text = "";
       }
     }
-    if (!text && !asked.length && !notes.length && played.length < 2) return null;
+    if (!text && !asked.length && !notes.length && played.length < 2 && !ratedNow) return null;
     if (!text) {
       const said = [];
       if (played.length >= 2) said.push(`You played bars ${spanText(played)}${mins ? ` for ${mins} minute${mins === 1 ? "" : "s"}` : ""}.`);
+      if (ratedNow && !played.length) said.push(`You rated ${ratedNow} bar${ratedNow === 1 ? "" : "s"}.`);
       const talked = [...new Set([...asked.map((h) => h.bar), ...notes.map((n) => n.bar)].filter((b) => b > 0))].sort((a, b) => a - b);
       const parts = [];
       if (asked.length) parts.push(`asked ${asked.length} question${asked.length === 1 ? "" : "s"}`);
@@ -124,6 +134,25 @@ window.LunePlans = (function () {
     all[s.key] = { text: String(text).slice(0, 600), at: new Date().toISOString(), via, bars };
     store().setPref("pieceSummaries", all);
     store().syncPrefs?.();
+    // the session report: what happened, in numbers, and what comes back next
+    try {
+      const cards = (await store().listCards(s.key).catch(() => [])) || [];
+      const startIso = new Date(s.start - 1000).toISOString();
+      const rated = cards.filter((c) => (c.updated_at || "") >= startIso).map((c) => ({ bar: c.bar, grade: String(c.last_grade || "").toLowerCase() })).sort((a, b) => a.bar - b.bar);
+      const soon = cards
+        .filter((c) => c.due_at)
+        .sort((a, b) => a.due_at.localeCompare(b.due_at))
+        .slice(0, 4)
+        .map((c) => ({ bar: c.bar, due: c.due_at }));
+      const piece = (await store().getPiece?.(s.key).catch?.(() => null)) || null;
+      document.dispatchEvent(
+        new CustomEvent("lune:session-report", {
+          detail: { key: s.key, title: s.title, composer: piece?.composer || "", mins, played: played.length, asked: asked.length, notes: notes.length, rated, soon, text: all[s.key].text, via },
+        })
+      );
+    } catch {
+      /* the summary is saved; the report is a bonus */
+    }
     return all[s.key];
   }
   // a model reply that talks about itself or its inputs is not a summary
