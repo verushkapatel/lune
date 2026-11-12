@@ -214,7 +214,10 @@ window.LuneLite = (function () {
             const hand = parts.length > 1 ? (pi === 0 ? "RH" : "LH") : staff >= 2 ? "LH" : "RH";
             const ties = [...el.children].filter((c) => c.nodeName === "tie").map((t) => t.getAttribute("type"));
             const name = `${step}${ACC[alter] ?? ""}${octave}`;
+            // the edition's own finger number, when it prints one
+            const printed = parseInt(el.getElementsByTagName("fingering")[0]?.textContent || "", 10);
             const note = {
+              edFinger: printed >= 1 && printed <= 5 ? printed : null,
               pitch: name,
               letter: name,
               midi,
@@ -460,6 +463,8 @@ window.LuneLite = (function () {
         run.push(n);
       }
       if (run.length) solveRun(run, hand);
+      // where the edition prints a finger, it wins: Lune never contradicts the page
+      for (const n of notes) if (n.edFinger) n.fingering = n.edFinger;
       // tied continuations repeat the held finger
       for (const num of parsed.order) {
         const list = hand === "RH" ? parsed.bars.get(num).rh : parsed.bars.get(num).lh;
