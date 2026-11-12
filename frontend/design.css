@@ -994,3 +994,39 @@ html body #repertoire .rep-section.rep-week { order: 2; }
 html body #repertoire .rep-section:has(#rep-today) { order: 3; }
 html body #repertoire #rep-add-section { order: 4; }
 html body #repertoire .rep-foot { order: 9; }
+
+/* the search arrow: one centred arrow, drawn on the button itself */
+html body header.bar .top-search .search-go::before, html body header.bar .top-search .search-go::after { display: none !important; content: none !important; }
+html body header.bar .top-search .search-go {
+  display: block !important; padding: 0 !important; border: 0 !important; border-radius: 50% !important; font-size: 0 !important; color: transparent !important;
+  background: rgba(255, 255, 255, 0.08) center / 15px 15px no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12h13M13 6l6 6-6 6' fill='none' stroke='%23f5f5f7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+}
+html body header.bar .top-search .search-go:hover { background-color: rgba(255, 255, 255, 0.16) !important; }
+html[data-theme="light"] body header.bar .top-search .search-go {
+  background: rgba(0, 0, 0, 0.06) center / 15px 15px no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12h13M13 6l6 6-6 6' fill='none' stroke='%23111' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+}
+
+/* ==========================================================================
+   Lune AI's first screen, as Claude and ChatGPT do it: the greeting and the
+   message box together in the middle, suggestions just under the box.
+   ========================================================================== */
+html body .lune-chat.is-empty .chat-main { justify-content: center; }
+html body .lune-chat.is-empty .chat-head { position: absolute; top: 0; left: 0; right: 0; }
+html body .lune-chat.is-empty .chat-log { flex: 0 0 auto !important; overflow: visible !important; padding: 0 20px 22px !important; }
+html body .lune-chat.is-empty .ask-empty { margin: 0 !important; }
+html body .lune-chat.is-empty .chat-form { order: 3; }
+html body .lune-chat.is-empty .chat-starters { order: 4; padding-top: 14px !important; }
+html body .lune-chat.is-empty .chat-fine { order: 5; position: absolute; bottom: 8px; left: 0; right: 0; }
+html body .lune-chat.is-empty .lc-composer { min-height: 58px; }
+html body .lune-chat.is-empty .ask-empty-h { font-size: clamp(32px, 3.6vw, 42px) !important; }
+/* message actions under an answer: the small grey icons Claude and ChatGPT use */
+html body .lune-chat .ask-actions { display: flex; gap: 2px; margin-left: -6px !important; }
+html body .lune-chat .lc-mini { color: var(--d-label-3) !important; }
+html body .lune-chat .lc-mini:hover { color: var(--d-label) !important; }
+/* the user's message: a soft grey bubble, right-aligned, generous radius */
+html body .lune-chat .chat-from-you .chat-bubble { border-radius: 22px !important; padding: 10px 18px !important; }
+/* the header: just the title, centred, no rule */
+html body .lune-chat .chat-head { border-bottom: 0 !important; }
+html body .lune-chat #chat-sub:empty { display: none; }
+html body .lune-chat.is-empty .chat-log { margin-top: 0 !important; margin-bottom: 0 !important; }
+html body .lune-chat.is-empty .chat-starters { margin-bottom: 48px !important; }
