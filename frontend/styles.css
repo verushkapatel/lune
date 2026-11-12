@@ -12104,3 +12104,16 @@ html[data-theme="light"] .ask-form { background: transparent !important; }
 .onboard-stage { position: relative; }
 .onboard-close { position: absolute; top: 12px; right: 12px; z-index: 2; }
 .onboard-nav-right { display: inline-flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+
+/* P1-21: Work on it — one content column, actions on one baseline, removal tucked away */
+.work-dialog textarea#work-extra { display: block; width: 100%; box-sizing: border-box; margin-top: 6px; }
+.work-dialog .work-extra-label { display: block; margin-top: 18px; }
+.work-dialog .work-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; flex-wrap: wrap; }
+.work-dialog .work-actions-main { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+.work-dialog .work-actions-main button { margin: 0; }
+.work-dialog .work-more { position: relative; }
+.work-dialog .work-more summary { cursor: pointer; list-style: none; padding: 8px 12px; border-radius: 999px; color: var(--muted, #9a9a9a); font-size: 14px; min-height: 24px; }
+.work-dialog .work-more summary::-webkit-details-marker { display: none; }
+.work-dialog .work-more[open] summary { color: inherit; }
+.work-dialog .work-more-menu { position: absolute; bottom: calc(100% + 6px); left: 0; padding: 6px; border-radius: 12px; background: var(--panel, #161616); border: 1px solid rgba(127, 127, 127, 0.25); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35); white-space: nowrap; z-index: 2; }
+.work-dialog .work-reading { margin-top: 12px; }
