@@ -583,3 +583,12 @@ html[data-theme="light"] body #explain-access .access-card-h { color: var(--navy
 
 /* one divider between the hero and the chapters, not two */
 html body #explain-chapters .chapter:first-child { border-top: 0 !important; padding-top: 8px !important; }
+
+/* suggestion chips: centred when they fit, scrolling from the left edge when they don't */
+html body #home-member .home-ask-chips, html body .home-ask-chips { justify-content: safe center !important; }
+@media (max-width: 700px) {
+  html body #home-member .home-ask-chips, html body .home-ask-chips {
+    justify-content: flex-start !important; flex-wrap: nowrap !important; overflow-x: auto !important;
+    margin-inline: -16px !important; padding-inline: 16px !important; scroll-padding-inline: 16px;
+  }
+}
