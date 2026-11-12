@@ -1313,6 +1313,8 @@ window.LunePractice = (function () {
           if (!repertoireKeys.has(key)) await addCurrentToRepertoire({ quiet: true });
           let last = null;
           for (const b of bars) last = await store.reviewBar(key, b, g);
+          // a rating is practice: it opens (or continues) the session that ends in a report
+          window.LunePlans?.noteActivity?.("rate", { key, title: state.piece?.overview?.title || state.piece?.title || "", bar: primary });
           wrap.querySelectorAll(".lp-grade").forEach((x) => x.classList.toggle("picked", x === btn));
           const what = barsText(bars);
           toast(`${what[0].toUpperCase() + what.slice(1)} rated ${btn.textContent.trim()}. Back ${returnDayText(last.due_at)}.`);
@@ -1563,6 +1565,7 @@ window.LunePractice = (function () {
         <header class="rep-hero">
           <h1>Repertoire</h1>
           <div class="rep-account" id="rep-account"></div>
+          <dl class="rep-stats" id="rep-stats" hidden></dl>
         </header>
         <section class="rep-section" id="rep-add-section" aria-labelledby="rep-add-h">
           <h2 id="rep-add-h" class="visually-hidden">Add a piece</h2>
@@ -1825,8 +1828,10 @@ window.LunePractice = (function () {
     }
     // P1-14: one practice log. A rating or a remark is practice, so "last practised"
     // is the latest of the three, and older rows are corrected once.
+    let allCards = [];
     try {
       const cards = await store.listCards();
+      allCards = cards;
       const latest = {};
       for (const c of cards) if (c.updated_at > (latest[c.piece_key] || "")) latest[c.piece_key] = c.updated_at;
       for (const p of pieces) {
@@ -1865,16 +1870,40 @@ window.LunePractice = (function () {
           .join("")
       : `<p class="rep-empty">No tasks yet. Tap a bar on a score, then Add to my plan.</p>`;
 
+    // what the ratings say, per piece: bars due back today, bars still shaky, bars secure
+    const nowIso = new Date().toISOString();
+    const per = {};
+    for (const c of allCards) {
+      const r = (per[c.piece_key] = per[c.piece_key] || { due: 0, shaky: 0, secure: 0 });
+      if (c.due_at <= nowIso) r.due += 1;
+      if (/again|hard/i.test(c.last_grade || "")) r.shaky += 1;
+      if (/good|strong|easy/i.test(c.last_grade || "")) r.secure += 1;
+    }
+    const totals = Object.values(per).reduce((t, r) => ({ due: t.due + r.due, secure: t.secure + r.secure }), { due: 0, secure: 0 });
+    const statsEl = $("rep-stats");
+    if (statsEl) {
+      statsEl.hidden = !pieces.length;
+      statsEl.innerHTML = `<div><dt>${pieces.length}</dt><dd>piece${pieces.length === 1 ? "" : "s"}</dd></div><div><dt>${totals.due}</dt><dd>bar${totals.due === 1 ? "" : "s"} due today</dd></div><div><dt>${totals.secure}</dt><dd>bar${totals.secure === 1 ? "" : "s"} secure</dd></div>`;
+    }
     const listHtml = pieces.length
       ? pieces
           .map((p) => {
             const n = counts[p.piece_key] || 0;
             const prog = window.LunePlans?.progressOf?.(p.piece_key);
             const sum = window.LunePlans?.summaryOf?.(p.piece_key);
+            const r = per[p.piece_key] || { due: 0, shaky: 0, secure: 0 };
+            const face = window.luneFace?.(p.composer);
+            const chips = [
+              r.due ? `<span class="rep-chip rep-chip-due">${r.due} bar${r.due === 1 ? "" : "s"} due</span>` : "",
+              r.shaky ? `<span class="rep-chip">${r.shaky} still shaky</span>` : "",
+              r.secure ? `<span class="rep-chip rep-chip-ok">${r.secure} secure</span>` : "",
+            ].join("");
             return `<article class="rep-card fx-spot" data-key="${esc(p.piece_key)}">
+              ${face ? `<span class="rep-face" aria-hidden="true" style="background-image:url('${face}')"></span>` : `<span class="rep-face rep-face-letter" aria-hidden="true">${esc((p.title || "?").trim().charAt(0))}</span>`}
               <div class="rep-card-main">
                 <h3>${esc(p.title)}</h3>
                 <p class="rep-card-by">${esc(p.composer || (p.source === "upload" ? "Your score" : ""))}${levelFor(p.piece_key) ? ` · ${esc(levelFor(p.piece_key))}` : ""}</p>
+                ${chips ? `<div class="rep-chips">${chips}</div>` : ""}
                 <div class="rp-row">
                   <div class="rp-bar" role="progressbar" aria-label="How much of ${esc(p.title)} you can play" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${prog?.pct ?? 0}"><i style="width:${prog?.pct ?? 0}%"></i></div>
                   <button type="button" class="link-btn rp-set" data-progress="${esc(p.piece_key)}">${prog ? esc(window.LunePlans.progressLabel(prog)) : "Mark progress"}</button>

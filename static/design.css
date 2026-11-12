@@ -914,3 +914,83 @@ html body #home-member .member-rec .member-rec-face {
 }
 html body #home-member .member-rec.has-face::after { z-index: 0 !important; width: 100%; height: 100%; top: 0; left: 0; }
 @media (max-width: 700px) { html body #home-member .member-rec { min-height: 180px !important; } }
+
+/* ==========================================================================
+   Repertoire: a library, like Apple Music's — portrait, title, where it stands
+   ========================================================================== */
+html body .rep-stats { display: flex; gap: 0; margin: 22px 0 0; border-top: 1px solid var(--d-sep); border-bottom: 1px solid var(--d-sep); }
+html body .rep-stats div { flex: 1; padding: 14px 4px; }
+html body .rep-stats div + div { border-left: 1px solid var(--d-sep); padding-left: 18px; }
+html body .rep-stats dt { font: 400 34px/1 var(--display); color: var(--d-label); font-variant-numeric: lining-nums; }
+html body .rep-stats dd { margin: 4px 0 0; font: italic 400 15px var(--ui); color: var(--navy-hi); }
+html body #repertoire .rep-card { display: grid !important; grid-template-columns: 76px 1fr; column-gap: 18px; align-items: start; }
+html body #repertoire .rep-card .rep-card-actions { grid-column: 1 / -1; }
+html body .rep-face {
+  width: 76px; height: 76px; border-radius: 14px; background-size: cover; background-position: center 22%;
+  filter: grayscale(1) contrast(1.05); border: 1px solid rgba(255, 255, 255, 0.08);
+}
+html body .rep-face-letter { display: grid; place-items: center; filter: none; background: linear-gradient(140deg, #1d2a50, #0d0f18); font: italic 400 38px var(--display); color: #dfe6fb; }
+html body .rep-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 8px; }
+html body .rep-chip { padding: 3px 10px; border-radius: 999px; font: 500 13.5px var(--ui); background: var(--d-surface-2); color: var(--d-label-2); }
+html body .rep-chip-due { background: var(--navy-mid); color: #fff; }
+html body .rep-chip-ok { color: #cfe8d6; background: rgba(48, 120, 80, 0.22); }
+html body .rep-sum { border-left: 2px solid var(--navy-mid) !important; background: transparent !important; padding: 2px 0 2px 12px !important; margin-top: 10px !important; font: 400 15.5px/1.5 var(--ui); color: var(--d-label-2); }
+html body .rep-sum-k { display: block; font: italic 500 14px var(--ui) !important; letter-spacing: 0 !important; text-transform: none !important; color: var(--navy-hi) !important; }
+@media (max-width: 560px) {
+  html body #repertoire .rep-card { grid-template-columns: 56px 1fr; column-gap: 12px; }
+  html body .rep-face { width: 56px; height: 56px; border-radius: 12px; }
+  html body .rep-stats dt { font-size: 28px; }
+}
+
+/* ==========================================================================
+   Session report: one quiet page after practice
+   ========================================================================== */
+.lr-sheet {
+  position: fixed; inset: 0; z-index: 9200; display: grid; place-items: center; padding: 20px; overflow-y: auto;
+  background: rgba(0, 0, 0, 0.72); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+  opacity: 0; transition: opacity 0.38s ease;
+}
+.lr-sheet.on { opacity: 1; }
+.lr-card {
+  position: relative; overflow: hidden; width: min(520px, 100%); box-sizing: border-box; padding: 34px 30px 24px; border-radius: 26px;
+  background: linear-gradient(160deg, #10162a 0%, #0a0a0d 60%); border: 1px solid rgba(159, 178, 228, 0.18);
+  box-shadow: 0 40px 100px -30px rgba(0, 0, 0, 0.9); color: #f5f5f7;
+  transform: translateY(14px) scale(0.98); transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.lr-sheet.on .lr-card { transform: none; }
+.lr-face {
+  position: absolute; top: 0; right: 0; width: 46%; height: 230px; background-size: cover; background-position: center 20%;
+  filter: grayscale(1) brightness(0.8); opacity: 0.7;
+  -webkit-mask-image: linear-gradient(to left, #000 20%, transparent), linear-gradient(to bottom, #000 40%, transparent);
+  -webkit-mask-composite: source-in; mask-image: linear-gradient(to left, #000 20%, transparent); pointer-events: none;
+}
+.lr-card > :not(.lr-face) { position: relative; }
+.lr-k { margin: 0 0 6px; font: italic 500 16px var(--ui); color: var(--navy-hi); }
+.lr-card h2 { margin: 0; max-width: 70%; font: 400 40px/1.04 var(--display) !important; color: #f5f5f7; }
+.lr-by { margin: 6px 0 0; font: italic 400 18px var(--ui); color: rgba(245, 245, 247, 0.7); }
+.lr-stats { display: flex; margin: 26px 0 6px; border-top: 1px solid rgba(255, 255, 255, 0.1); border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+.lr-stats div { flex: 1; padding: 14px 0; }
+.lr-stats div + div { border-left: 1px solid rgba(255, 255, 255, 0.1); padding-left: 16px; }
+.lr-stats dt { font: 400 36px/1 var(--display); font-variant-numeric: lining-nums; }
+.lr-stats dd { margin: 4px 0 0; font: 400 14.5px var(--ui); color: rgba(245, 245, 247, 0.6); }
+.lr-h { margin: 20px 0 8px; font: italic 500 15px var(--ui); color: var(--navy-hi); }
+.lr-bars { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.lr-bars li { display: inline-flex; align-items: baseline; gap: 6px; padding: 6px 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); font: 400 15px var(--ui); }
+.lr-bars li b { font-weight: 600; }
+.lr-bars li span { color: rgba(245, 245, 247, 0.7); }
+.lr-bars li.g-again span, .lr-bars li.g-hard span { color: #f0b7a8; }
+.lr-bars li.g-good span, .lr-bars li.g-strong span, .lr-bars li.g-easy span { color: #b9e2c6; }
+.lr-text { margin: 0; font: 400 17.5px/1.55 var(--ui); color: rgba(245, 245, 247, 0.9); }
+.lr-soon { margin: 0; font: 400 16px/1.5 var(--ui); color: rgba(245, 245, 247, 0.78); }
+.lr-nav { display: flex; justify-content: space-between; gap: 10px; margin-top: 26px; }
+.lr-rep { min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.18); background: transparent; color: #f5f5f7; font: 500 15.5px var(--ui); cursor: pointer; }
+.lr-done { min-height: 44px; padding: 0 26px; border-radius: 999px; border: 0; background: #f5f5f7; color: #000; font: 600 15.5px var(--ui); cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { .lr-sheet, .lr-card { transition: none; } }
+/* the library comes first: pieces, then the week and tasks */
+html body #repertoire .rep-wrap, html body #repertoire > div { display: flex; flex-direction: column; }
+html body #repertoire .rep-hero { order: 0; }
+html body #repertoire .rep-section:has(#rep-list) { order: 1; }
+html body #repertoire .rep-section.rep-week { order: 2; }
+html body #repertoire .rep-section:has(#rep-today) { order: 3; }
+html body #repertoire #rep-add-section { order: 4; }
+html body #repertoire .rep-foot { order: 9; }
