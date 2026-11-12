@@ -415,9 +415,8 @@
   "piece": {
    "title": "Für Elise",
    "composer": "Ludwig van Beethoven",
-   "key": null,
+   "key": "A minor",
    "timeSignature": "3/8",
-   "tempo": "72 bpm",
    "era": "Early Romantic",
    "bars": 106,
    "hardestBars": [
@@ -441,12 +440,78 @@
      "bar": 27,
      "why": "wide leaps, chords"
     }
+   ],
+   "keySignature": "no sharps or flats",
+   "printedTempo": [
+    "Poco moto"
+   ],
+   "printedWords": [
+    {
+     "bar": 1,
+     "text": "Poco moto"
+    }
    ]
   },
   "goal": {
    "daysPerWeek": null,
    "minutesPerSession": null,
    "workingToward": null
+  },
+  "remarks": [],
+  "practiceHistory": [],
+  "plans": [],
+  "earlierQuestions": [],
+  "tempo": {
+   "marked": 72,
+   "practisingAt": 72
+  }
+ },
+ "planGoal": {
+  "piece": {
+   "title": "Für Elise",
+   "composer": "Ludwig van Beethoven",
+   "key": "A minor",
+   "timeSignature": "3/8",
+   "era": "Early Romantic",
+   "bars": 106,
+   "hardestBars": [
+    {
+     "bar": 79,
+     "why": "busy texture, wide leaps"
+    },
+    {
+     "bar": 32,
+     "why": "wide leaps, busy texture"
+    },
+    {
+     "bar": 34,
+     "why": "wide leaps, busy texture"
+    },
+    {
+     "bar": 33,
+     "why": "busy texture, wide leaps"
+    },
+    {
+     "bar": 27,
+     "why": "wide leaps, chords"
+    }
+   ],
+   "keySignature": "no sharps or flats",
+   "printedTempo": [
+    "Poco moto"
+   ],
+   "printedWords": [
+    {
+     "bar": 1,
+     "text": "Poco moto"
+    }
+   ]
+  },
+  "goal": {
+   "daysPerWeek": 4,
+   "minutesPerSession": 20,
+   "workingToward": "Für Elise from memory",
+   "inWords": "4 days a week, 20 minutes each (not every day)"
   },
   "remarks": [],
   "practiceHistory": [],

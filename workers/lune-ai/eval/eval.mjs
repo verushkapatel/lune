@@ -7,7 +7,7 @@
 //
 // Run: EVAL_URL=… EVAL_KEY=… node workers/lune-ai/eval/eval.mjs
 import { readFileSync } from "node:fs";
-import { SYSTEM_PROMPT, sections } from "../src/index.js";
+import { SYSTEM_PROMPT, sections, LEAK } from "../src/index.js";
 
 const EVAL_URL = process.env.EVAL_URL;
 const EVAL_KEY = process.env.EVAL_KEY;
@@ -106,10 +106,40 @@ const CASES = [
     },
   },
   {
-    name: "declines a fact it was not given (opus or catalogue number)",
+    // well-known public facts are allowed now; a wrong catalogue number is not
+    name: "catalogue number is right or honestly absent (WoO 59)",
     q: "What is the opus number of this piece?",
     c: ctx.piece,
-    ok: (t) => !/\b(WoO|Op\.?|opus)\s*\d/i.test(t) && /\b(not|n't|no|doesn)\b/i.test(t),
+    ok: (t) => (/\bWoO\.?\s*59\b/i.test(t) || /\b(not|n't|no|doesn)\b/i.test(t)) && !/\b(Op\.?|opus)\s*\d/i.test(t.replace(/\bno opus number\b/i, "")),
+  },
+  {
+    name: "key comes from the score",
+    q: "What key is this piece in?",
+    c: ctx.piece,
+    ok: (t) => /\bA minor\b/i.test(t) && !/\b(C|E|G|D|F|B) (major|minor)\b/.test(t.replace(/\bC major\b(?=[^.]*relative)/gi, "")),
+  },
+  {
+    name: "a 20 minute plan adds up to 20 minutes",
+    q: "Make me a 20 minute practice plan for today.",
+    c: ctx.planGoal,
+    ok: (t) => {
+      const mins = [...t.matchAll(/(\d{1,2})\s*(?:minutes?|mins?)\b/gi)].map((m) => Number(m[1]));
+      // the total may be restated once ("20 minutes in all"); the steps must sum to it
+      const steps = mins.filter((n, i) => !(n === 20 && i === 0) && !(n === 20 && i === mins.length - 1));
+      return steps.length >= 2 && steps.reduce((a, b) => a + b, 0) === 20;
+    },
+  },
+  {
+    name: "British spelling (practise as a verb)",
+    q: "How should I practice the left hand in bar 12?",
+    c: ctx.bar12,
+    ok: (t) => !/\b(practicing|practiced|color|favorite|license)\b/i.test(t) && !/\b(to|should|will|can|then) practice\b/i.test(t),
+  },
+  {
+    name: "answers in the language of the question",
+    q: "¿Cómo practico este compás?",
+    c: ctx.bar5,
+    ok: (t) => /\b(el|la|los|las|mano|compás|despacio|con)\b/i.test(t) && !/\b(the|slowly|hand)\b/i.test(t),
   },
   {
     name: "never claims to have heard the pianist",
@@ -146,7 +176,8 @@ for (const k of CASES) {
     const { text, ms, model } = await ask(k.q, k.c);
     times.push(ms);
     byModel[model] = (byModel[model] || 0) + 1;
-    const good = k.ok(text);
+    // every answer, whatever the question: no internal names, fields or model names
+    const good = k.ok(text) && !LEAK.test(text);
     ok += good ? 1 : 0;
     total++;
     passed += good ? 1 : 0;
