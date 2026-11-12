@@ -1050,8 +1050,99 @@ How to answer
     el.removeAttribute("aria-busy");
     if (text) richText(el, text);
     else el.innerHTML = "";
+    if (text && !wasStopped) addPlanButtons(el);
     return { text, stopped: wasStopped, error };
   }
+
+  /**
+   * A7: an answer that is a practice plan (numbered steps, each with bars and
+   * minutes) gets a Start button on every step and "Save to my plan" under it.
+   * Start selects the bars, sets the tempo the step names and times the step.
+   */
+  function parsePlanStep(t) {
+    const bars = /\bbars?\s+(\d{1,3})(?:\s*(?:to|–|-|and)\s*(\d{1,3}))?/i.exec(t);
+    const mins = /(\d{1,2})\s*(?:minutes?|mins?)\b/i.exec(t);
+    if (!bars || !mins) return null;
+    const pct = /(\d{2,3})\s?%/.exec(t);
+    const bpm = /(\d{2,3})\s*(?:bpm|beats a minute)/i.exec(t);
+    const from = Number(bars[1]);
+    const to = Math.max(from, Number(bars[2] || from));
+    return { from, to, mins: Number(mins[1]), pct: pct ? Number(pct[1]) : null, bpm: bpm ? Number(bpm[1]) : null };
+  }
+  function addPlanButtons(el) {
+    const items = [...el.querySelectorAll("ol > li")];
+    const steps = items.map((li) => ({ li, step: parsePlanStep(li.textContent || "") })).filter((x) => x.step);
+    if (steps.length < 2 || !state.piece) return;
+    for (const { li, step } of steps) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "la-plan-start";
+      b.dataset.step = JSON.stringify(step);
+      b.textContent = "Start";
+      b.setAttribute("aria-label", `Start: bar${step.to > step.from ? `s ${step.from} to ${step.to}` : ` ${step.from}`}, ${step.mins} minutes`);
+      li.appendChild(b);
+    }
+    const save = document.createElement("button");
+    save.type = "button";
+    save.className = "quiet la-plan-save";
+    save.textContent = "Save to my plan";
+    save.dataset.plan = JSON.stringify(steps.map(({ li, step }) => ({ ...step, text: (li.firstChild?.textContent || li.textContent || "").trim().slice(0, 200) })));
+    el.appendChild(save);
+  }
+  let planTimer = 0;
+  document.addEventListener("click", (e) => {
+    const start = e.target.closest?.(".la-plan-start");
+    const save = e.target.closest?.(".la-plan-save");
+    if (start) {
+      const st = JSON.parse(start.dataset.step);
+      const bars = [];
+      for (let n = st.from; n <= st.to; n++) bars.push(n);
+      const chat = $("lune-chat");
+      if (chat?.open) chat.close();
+      try {
+        if (typeof setStudioPanel === "function" && state.panel !== "score") setStudioPanel("score");
+        setBarSelection(bars, { open: false, primary: st.from });
+        const marked = state.markedBpm || (typeof markedTempoBpm === "function" ? markedTempoBpm() : 72);
+        const target = st.bpm || (st.pct ? Math.round((marked * st.pct) / 100) : null);
+        if (target && typeof setPracticeBpm === "function") setPracticeBpm(target);
+      } catch {
+        /* the score isn't on screen */
+      }
+      clearTimeout(planTimer);
+      const what = st.to > st.from ? `Bars ${st.from} to ${st.to}` : `Bar ${st.from}`;
+      window.toast?.(`${what}${st.pct ? ` at ${st.pct}%` : ""}: ${st.mins} minute${st.mins === 1 ? "" : "s"}. Lune will tell you when time is up.`);
+      planTimer = setTimeout(() => window.toast?.(`Time is up for ${what.toLowerCase()}. Rate how it went, then start the next step.`), st.mins * 60000);
+    } else if (save) {
+      const steps = JSON.parse(save.dataset.plan);
+      // the bars to work on are the focused steps; a run-through of the whole page is not one
+      const focused = steps.filter((s) => s.to - s.from <= 3);
+      const bars = [...new Set((focused.length ? focused : steps).flatMap((s) => Array.from({ length: s.to - s.from + 1 }, (_, i) => s.from + i)))].sort((a, b) => a - b);
+      const mins = steps.reduce((n, s) => n + s.mins, 0);
+      const piece = state.piece;
+      const key = window.LunePractice?.keyFor?.(piece) || piece?.id || piece?.title;
+      try {
+        window.LuneStore?.addTask?.({
+          piece_key: key,
+          title: piece?.overview?.title || piece?.title || "This piece",
+          composer: piece?.overview?.composer || piece?.composer || "",
+          bars,
+          notes: `${mins} minutes from Lune AI.`,
+          plan: {
+            source: "lune-ai",
+            mins,
+            summary: `${mins} minutes from Lune AI.`,
+            steps: steps.map((s) => ({ kind: "hard", bars: Array.from({ length: s.to - s.from + 1 }, (_, i) => s.from + i), title: s.to > s.from ? `Bars ${s.from} to ${s.to}` : `Bar ${s.from}`, detail: s.text })),
+            created_at: new Date().toISOString(),
+          },
+        });
+        save.disabled = true;
+        save.textContent = "Saved to your plan";
+        window.toast?.("Saved to your plan in Repertoire");
+      } catch (err) {
+        window.toast?.(err.message || "Couldn’t save the plan");
+      }
+    }
+  });
   document.addEventListener("click", (e) => {
     if (e.target.closest?.(".lc-stop")) {
       e.preventDefault();
@@ -2371,5 +2462,5 @@ How to answer
   for (const task of Object.keys(TASKS)) LuneAIProvider[task] = (bar, ...args) => LuneAIProvider.run(task, bar, ...args);
   window.LuneAIProvider = LuneAIProvider;
 
-  return { explainMarking, openTalk, openChatPage, goAiPage, askOnPage, chatStore, askModel: async (q, ctx) => { const m = active(); return m ? m.answer(q, ctx) : null; }, openChat, paintAiHome, buildChatContext, open, close, ask, historyFor, onSelection, buildContext, aiSettings, SYSTEM_PROMPT, TASKS, MODEL_ACTIONS, runTask, paintNews, voice, modelConnected: () => !!active(), deviceOfferHtml, turnOnDeviceAI, testModel: () => providers.endpoint.answer("Reply with the single word: ready", { test: true }) };
+  return { planButtons: addPlanButtons, explainMarking, openTalk, openChatPage, goAiPage, askOnPage, chatStore, askModel: async (q, ctx) => { const m = active(); return m ? m.answer(q, ctx) : null; }, openChat, paintAiHome, buildChatContext, open, close, ask, historyFor, onSelection, buildContext, aiSettings, SYSTEM_PROMPT, TASKS, MODEL_ACTIONS, runTask, paintNews, voice, modelConnected: () => !!active(), deviceOfferHtml, turnOnDeviceAI, testModel: () => providers.endpoint.answer("Reply with the single word: ready", { test: true }) };
 })();

@@ -12245,3 +12245,12 @@ html[data-theme="light"] .settings-top { background: rgba(255, 255, 255, 0.92); 
   .home-feat { align-items: start !important; }
   .home-feat-copy { align-self: start !important; padding-top: 8px; margin-top: 0 !important; }
 }
+
+/* A7: Start on each step of a Lune AI practice plan */
+.la-plan-start {
+  margin-left: 8px; min-height: 30px; padding: 0 12px; border-radius: 999px; vertical-align: middle;
+  border: 1px solid color-mix(in srgb, var(--navy, #3d5cff) 70%, transparent); background: transparent;
+  color: inherit; font: inherit; font-size: 13px; cursor: pointer;
+}
+.la-plan-start:hover { background: color-mix(in srgb, var(--navy, #3d5cff) 18%, transparent); }
+.la-plan-save { margin-top: 10px; }
