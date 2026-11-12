@@ -1112,3 +1112,91 @@ html[data-theme="light"] body #home-member form#home-ask input#home-ask-input { 
   html body:not(.phone-search-open):not(.studio-search-open) header.bar .top-search { display: none !important; }
   html body header.bar { flex-wrap: nowrap !important; }
 }
+
+/* ==========================================================================
+   The bar panel, calm: how to practise it, how it went, the notes, ask
+   ========================================================================== */
+html body #help-body { display: flex !important; flex-direction: column !important; gap: 0; }
+html body #help-body > section.coach-bar-block, html body #help-body > section.lp-coach { display: contents !important; }
+html body #help-body h4:has(+ .coach-advice) { order: 1; margin-top: 4px !important; }
+html body #help-body .coach-advice { order: 2; }
+html body #help-body .coach-advice p { font: 400 16.5px/1.55 var(--ui) !important; }
+html body #help-body .lp-rate { order: 3; margin-top: 18px !important; }
+html body #help-body h4:not(:has(+ .coach-advice)), html body #help-body .hand-label, html body #help-body .notes { order: 4; }
+html body #help-body h4:not(:has(+ .coach-advice)) { margin-top: 22px !important; }
+html body #help-body .notes { gap: 6px !important; margin-bottom: 6px !important; }
+html body #help-body .chip.letter { font-size: 13px !important; padding: 5px 8px !important; line-height: 1.25 !important; border-radius: 9px !important; }
+html body #help-body .lp-askbar { order: 6; margin-top: 22px !important; }
+html body #help-body .lp-note-form { order: 7; margin-top: 10px !important; }
+html body #help-body .lp-tools { order: 8; margin-top: 12px !important; display: flex !important; gap: 4px !important; flex-wrap: wrap; }
+html body #help-body .lp-tools button {
+  flex-direction: row !important; min-height: 32px !important; height: auto !important; padding: 0 12px !important; gap: 6px !important;
+  font: 500 14px var(--ui) !important; background: transparent !important; border: 1px solid rgba(0, 0, 0, 0.14) !important;
+}
+html body #help-body .lp-tools button svg { width: 14px !important; height: 14px !important; }
+html body #help-body .lp-ai-row, html body #help-body .lp-asked, html body #help-body .coach-more-btn { display: none !important; }
+html body #help-body .lp-h { font: 600 17px var(--ui) !important; letter-spacing: 0 !important; }
+
+/* home suggestions: clean text cards, no portrait on every piece (only tonight's piece keeps its composer) */
+html body #home-member .member-rec .member-rec-face, html body #home-member .member-rec.has-face::after { display: none !important; }
+html body #home-member .member-rec { min-height: 0 !important; padding: 18px 18px 16px !important; justify-content: flex-start !important; background: #121216 !important; }
+html body #home-member .member-rec-title { font: 500 19px/1.2 var(--display) !important; color: #f5f5f7 !important; }
+html body #home-member .member-rec-by { color: rgba(245, 245, 247, 0.6) !important; }
+html body #home-member .member-rec-role { margin-bottom: 8px !important; }
+html[data-theme="light"] body #home-member .member-rec { background: #f6f6f8 !important; }
+html[data-theme="light"] body #home-member .member-rec-title { color: #111 !important; }
+html[data-theme="light"] body #home-member .member-rec-by { color: rgba(0, 0, 0, 0.6) !important; }
+
+/* ==========================================================================
+   Voice mode, as Claude does it: the whole screen, one living shape,
+   a caption, two round buttons
+   ========================================================================== */
+html body dialog#lune-talk.lune-talk[open] {
+  position: fixed !important; inset: 0 !important; width: 100vw !important; height: 100dvh !important; max-width: none !important; max-height: none !important;
+  margin: 0 !important; border: 0 !important; border-radius: 0 !important; padding: 0 !important;
+  background: radial-gradient(90% 60% at 50% 42%, #0f1730 0%, #050508 62%, #000 100%) !important; box-shadow: none !important;
+  display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important;
+}
+html body #lune-talk .lt-top { position: absolute; top: 22px; left: 0; right: 0; text-align: center; }
+html body #lune-talk .lt-title { font: 500 17px var(--ui) !important; color: rgba(245, 245, 247, 0.7) !important; background: none !important; -webkit-text-fill-color: currentColor !important; }
+html body #lune-talk .lt-orb {
+  --lv: 0; position: relative; width: min(280px, 62vw) !important; height: min(280px, 62vw) !important;
+  border: 0 !important; background: none !important; box-shadow: none !important; display: grid; place-items: center;
+}
+html body #lune-talk .lt-orb canvas { display: none !important; }
+html body #lune-talk .lt-moon {
+  position: relative; z-index: 2; width: 34%; height: 34%; background: #f5f5f7;
+  filter: drop-shadow(0 0 28px rgba(200, 214, 255, 0.55));
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='4 3 26 26'%3E%3Cpath d='M17.61 4.58A12 12 0 1 0 27.70 24.77A11.4 11.4 0 1 1 17.61 4.58Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='4 3 26 26'%3E%3Cpath d='M17.61 4.58A12 12 0 1 0 27.70 24.77A11.4 11.4 0 1 1 17.61 4.58Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  transform: scale(calc(1 + var(--lv) * 0.12)); transition: transform 0.12s ease-out;
+}
+html body #lune-talk .lt-ring {
+  position: absolute; inset: 0; margin: auto; border-radius: 50%; pointer-events: none;
+  border: 1px solid rgba(159, 178, 228, 0.28); background: radial-gradient(circle, rgba(60, 90, 170, 0.18), transparent 70%);
+  transform: scale(calc(var(--s) + var(--lv) * 0.25)); transition: transform 0.14s ease-out; animation: lt-breathe 5s ease-in-out infinite;
+}
+html body #lune-talk .lt-ring.r1 { --s: 0.55; width: 100%; height: 100%; }
+html body #lune-talk .lt-ring.r2 { --s: 0.78; width: 100%; height: 100%; animation-delay: -1.6s; opacity: 0.7; }
+html body #lune-talk .lt-ring.r3 { --s: 1; width: 100%; height: 100%; animation-delay: -3.2s; opacity: 0.45; }
+@keyframes lt-breathe { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.9; } }
+html body #lune-talk .lt-orb[data-mode="listening"] .lt-ring { border-color: rgba(200, 214, 255, 0.5); animation-duration: 2.2s; }
+html body #lune-talk .lt-orb[data-mode="thinking"] .lt-ring { animation: lt-think 1.4s ease-in-out infinite; }
+html body #lune-talk .lt-orb[data-mode="thinking"] .lt-ring.r2 { animation-delay: -0.45s; }
+html body #lune-talk .lt-orb[data-mode="thinking"] .lt-ring.r3 { animation-delay: -0.9s; }
+@keyframes lt-think { 0%, 100% { opacity: 0.25; transform: scale(calc(var(--s) * 0.96)); } 50% { opacity: 0.85; transform: scale(calc(var(--s) * 1.04)); } }
+html body #lune-talk .lt-orb[data-mode="speaking"] .lt-ring { border-color: rgba(220, 230, 255, 0.6); animation-duration: 1.6s; }
+html body #lune-talk .lt-state { margin: 34px 0 0 !important; font: italic 400 20px var(--ui) !important; color: var(--navy-hi) !important; text-align: center; max-width: 30ch; }
+html body #lune-talk .lt-bar { display: none !important; }
+html body #lune-talk .lt-caption { margin: 14px auto 0 !important; max-width: 34ch; min-height: 3em; text-align: center; font: 400 21px/1.45 var(--ui) !important; color: #f5f5f7 !important; }
+html body #lune-talk .lt-actions { position: absolute; bottom: max(36px, env(safe-area-inset-bottom)); left: 0; right: 0; display: flex; justify-content: center; gap: 28px; }
+html body #lune-talk .lt-round {
+  width: 64px !important; height: 64px !important; border-radius: 50% !important; border: 0 !important; display: grid; place-items: center;
+  background: rgba(255, 255, 255, 0.1) !important; color: #f5f5f7 !important; box-shadow: none !important;
+}
+html body #lune-talk .lt-round svg { width: 24px !important; height: 24px !important; }
+html body #lune-talk .lt-round.off { background: rgba(255, 255, 255, 0.06) !important; color: rgba(245, 245, 247, 0.55) !important; }
+html body #lune-talk .lt-round.lt-end { background: #f5f5f7 !important; color: #000 !important; }
+@media (prefers-reduced-motion: reduce) { html body #lune-talk .lt-ring, html body #lune-talk .lt-moon { animation: none !important; transition: none !important; } }
+html body #lune-talk .lt-caption { flex: 0 0 auto !important; height: auto !important; min-height: 3em !important; }
+html body #lune-talk .lt-orb { margin-top: 0 !important; }
