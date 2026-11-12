@@ -458,7 +458,7 @@ window.LuneLite = (function () {
         tags.push("leap");
         reasons.push("wide leaps");
         advice.push(
-          `${handName(hand)} leaps ${leapTo.midi < leapFrom.midi ? "down" : "up"} a ${intervalName(maxLeap)} — ${leapFrom.letter} to ${leapTo.letter}. Practise the jump silently first: eyes find ${leapTo.letter} before the hand leaves ${leapFrom.letter}, then add sound.`
+          `${handName(hand)} leaps ${leapTo.midi < leapFrom.midi ? "down" : "up"} ${/^[aeiou]/i.test(intervalName(maxLeap)) ? "an" : "a"} ${intervalName(maxLeap)}: ${leapFrom.letter} to ${leapTo.letter}. Practise the jump silently first: eyes find ${leapTo.letter} before the hand leaves ${leapFrom.letter}, then add sound.`
         );
         lineAdvice[key].push(`${handName(hand)}: prepare leaps by looking at the landing note before you leave.`);
       }

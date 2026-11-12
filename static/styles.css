@@ -2148,8 +2148,8 @@ body.is-panel-piano .piano-dock-label {
   scrollbar-width: thin;
 }
 @keyframes score-in {
-  from { opacity: 0.45; transform: translateY(4px); }
-  to { opacity: 1; transform: none; }
+  from { transform: translateY(4px); }
+  to { transform: none; }
 }
 /* White paper page with a crisp lit edge against the night frame */
 .score-page {
@@ -10023,7 +10023,7 @@ html[data-theme="light"] .fx-aurora i { mix-blend-mode: multiply; opacity: 0.1; 
 body.studio-compact.is-studio header.bar {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 8px 10px 8px 8px; min-height: 0;
 }
-body.studio-compact.is-studio header.bar > *:not(.st-btn):not(#studio-piece-quiet):not(#piece-tabs):not(.top-search):not(.results) { display: none !important; }
+body.studio-compact.is-studio header.bar > *:not(.st-btn):not(#studio-piece-quiet):not(#piece-tabs):not(#st-seg):not(.top-search):not(.results) { display: none !important; }
 body.studio-compact.is-studio header.bar .st-btn {
   display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 50%;
   border: 0; background: transparent; color: var(--text); cursor: pointer; flex: 0 0 auto; transition: background-color 0.2s, transform 0.15s;
@@ -10861,7 +10861,7 @@ body.is-signed-in.is-home header.bar #btn-home { margin-right: auto; }
 #home-member .member-title .fx-word { color: inherit; }
 #home-member .home-ask { width: 100%; border-radius: 22px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05);
   -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); box-shadow: 0 20px 60px -20px rgba(80, 100, 230, 0.35), inset 0 1px 0 rgba(255,255,255,0.06); }
-#home-member .home-ask-chips { justify-content: center; margin-top: 14px; }
+#home-member .home-ask-chips { justify-content: safe center; margin-top: 14px; }
 #home-member .member-next {
   width: 100%; text-align: left; margin-top: 30px; border-radius: 24px; border: 1px solid rgba(138, 162, 255, 0.28);
   background: linear-gradient(160deg, rgba(74, 99, 240, 0.18), rgba(20, 22, 34, 0.7) 60%); box-shadow: 0 30px 80px -30px rgba(74, 99, 240, 0.45);
@@ -12062,3 +12062,195 @@ html[data-theme="light"] #home-guest #about .about-columns strong, html[data-the
 }
 #create-account-dialog .auth-continue-device:hover { border-color: rgba(255,255,255,0.8) !important; }
 html[data-theme="light"] #create-account-dialog .auth-continue-device { color: #111 !important; background: #fff !important; border-color: rgba(0,0,0,0.35) !important; }
+
+/* ---------- Lune AI in light mode (P0-15) ----------
+ * The composer, the Home ask bar, the user's bubble and the locked-chat copy
+ * were drawn for the dark: dark glass under dark text, white text on white. */
+html[data-theme="light"] .lc-composer,
+html[data-theme="light"] .home-ask,
+html[data-theme="light"] #home-member .home-ask,
+html[data-theme="light"] .lp-askbar {
+  background: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.14) !important;
+  color: #111111 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+}
+html[data-theme="light"] .lc-composer:focus-within,
+html[data-theme="light"] .home-ask:focus-within {
+  border-color: #3b4f8f !important;
+  box-shadow: 0 0 0 3px rgba(59, 79, 143, 0.16) !important;
+}
+html[data-theme="light"] .lc-composer textarea,
+html[data-theme="light"] .lc-composer input,
+html[data-theme="light"] .home-ask input,
+html[data-theme="light"] .home-ask textarea { color: #111111 !important; }
+html[data-theme="light"] .lc-composer textarea::placeholder,
+html[data-theme="light"] .lc-composer input::placeholder,
+html[data-theme="light"] .home-ask input::placeholder,
+html[data-theme="light"] .home-ask textarea::placeholder { color: #6b6b6b !important; opacity: 1 !important; }
+html[data-theme="light"] .ask-from-you,
+html[data-theme="light"] .chat-from-you .chat-bubble {
+  background: #eef1f8 !important;
+  color: #111111 !important;
+  border: 1px solid #d6dcea !important;
+}
+html[data-theme="light"] .chat-locked-h { color: #111111 !important; }
+html[data-theme="light"] .lune-chat .primary,
+html[data-theme="light"] .ask-lune .primary { color: #ffffff !important; }
+html[data-theme="light"] .chat-form,
+html[data-theme="light"] .ask-form { background: transparent !important; }
+
+/* ---------- setup: four steps, each closable (P0-11) ---------- */
+.onboard-stage { position: relative; }
+.onboard-close { position: absolute; top: 12px; right: 12px; z-index: 2; }
+.onboard-nav-right { display: inline-flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+
+/* P1-21: Work on it — one content column, actions on one baseline, removal tucked away */
+.work-dialog textarea#work-extra { display: block; width: 100%; box-sizing: border-box; margin-top: 6px; }
+.work-dialog .work-extra-label { display: block; margin-top: 18px; }
+.work-dialog .work-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; flex-wrap: wrap; }
+.work-dialog .work-actions-main { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+.work-dialog .work-actions-main button { margin: 0; }
+.work-dialog .work-more { position: relative; }
+.work-dialog .work-more summary { cursor: pointer; list-style: none; padding: 8px 12px; border-radius: 999px; color: var(--muted, #9a9a9a); font-size: 14px; min-height: 24px; }
+.work-dialog .work-more summary::-webkit-details-marker { display: none; }
+.work-dialog .work-more[open] summary { color: inherit; }
+.work-dialog .work-more-menu { position: absolute; bottom: calc(100% + 6px); left: 0; padding: 6px; border-radius: 12px; background: var(--panel, #161616); border: 1px solid rgba(127, 127, 127, 0.25); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35); white-space: nowrap; z-index: 2; }
+.work-dialog .work-reading { margin-top: 12px; }
+
+/* P1-16 to P1-18: phone studio — one segmented control on screen, tools docked at the bottom */
+#st-seg, #st-bottom { display: none; }
+body.studio-compact.is-studio header.bar > #st-seg {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  width: 100%; padding: 6px 12px 8px; box-sizing: border-box; order: 10;
+}
+body.studio-compact.is-studio header.bar > #st-seg { display: flex !important; }
+body.studio-compact.is-studio header.bar #piece-tabs,
+body.studio-compact.is-studio header.bar #piece-tabs:not([hidden]) { display: none !important; }
+.st-ask { white-space: nowrap; }
+.st-ask .lune-orb-sm { width: 18px; height: 18px; flex: 0 0 18px; }
+body.studio-compact.is-studio #btn-tell,
+body.studio-compact.is-studio #st-rail { display: none !important; }
+.st-seg-panels, .st-seg-anno {
+  display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px;
+  background: rgba(127, 127, 127, 0.14);
+}
+.st-seg-panels { flex: 1 1 auto; }
+.st-seg-panels button, .st-seg-anno button {
+  flex: 1 1 0; min-height: 36px; padding: 0 12px; border: 0; border-radius: 999px;
+  background: transparent; color: inherit; font: inherit; font-size: 15px; opacity: 0.72; cursor: pointer;
+}
+.st-seg-anno button { min-height: 30px; font-size: 13px; }
+.st-seg-panels button[aria-pressed="true"], .st-seg-anno button[aria-pressed="true"] {
+  background: #f5f5f7; color: #0a0a0a; opacity: 1;
+}
+.st-more {
+  min-height: 42px; padding: 0 16px; border-radius: 999px; border: 1px solid rgba(127, 127, 127, 0.35);
+  background: transparent; color: inherit; font: inherit; font-size: 15px; cursor: pointer;
+}
+.st-seg-anno { display: none; flex: 1 1 100%; }
+#st-seg.on-score .st-seg-anno { display: inline-flex; }
+body.studio-compact.is-studio #st-bottom {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 6px 14px 0; box-sizing: border-box; width: 100%;
+}
+.st-ask {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px;
+  border-radius: 999px; border: 1px solid rgba(127, 127, 127, 0.35); background: transparent;
+  color: inherit; font: inherit; font-size: 15px; cursor: pointer;
+}
+.st-tempo { display: inline-flex; align-items: center; gap: 2px; }
+.st-bbtn {
+  width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%;
+  border: 0; background: transparent; color: inherit; cursor: pointer;
+}
+.st-bbtn.on { background: rgba(127, 127, 127, 0.22); }
+.st-bpm { display: inline-flex; align-items: baseline; gap: 3px; min-width: 64px; justify-content: center; font-variant-numeric: tabular-nums; }
+.st-bpm b { font-weight: 500; font-size: 17px; }
+.st-bpm small { font-size: 12px; opacity: 0.7; }
+:root[data-theme="light"] .st-seg-panels button[aria-pressed="true"],
+:root[data-theme="light"] .st-seg-anno button[aria-pressed="true"] { background: #0a0a0a; color: #fff; }
+body.studio-compact.is-studio #companion-bar { flex-wrap: wrap; }
+
+/* P1-20: horizontal chip rows start inside the gutter and keep it while scrolling */
+.home-ask-chips, .ask-chips, .chat-starters {
+  scroll-padding-inline: 16px;
+  scroll-snap-type: x proximity;
+}
+@media (max-width: 700px) {
+  .home-ask-chips { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 8px; padding-inline: 16px; margin-inline: -16px; scrollbar-width: none; }
+  .home-ask-chips::-webkit-scrollbar { display: none; }
+  .home-ask-chips > * { flex: 0 0 auto; scroll-snap-align: start; }
+}
+
+/* P1-22: one header everywhere — "Sign in", and Share and Settings as the same icon buttons on every page */
+header.bar .bar-tool .bar-tool-label {
+  position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+header.bar .bar-tool { width: 40px; height: 40px; padding: 0 !important; display: inline-grid; place-items: center; border-radius: 999px; }
+
+/* P2-02: say swipe only where people swipe */
+.only-pointer { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .only-touch { display: none; }
+  .only-pointer { display: inline; }
+}
+
+/* P2-03, P2-04: the landing footer keeps the night theme; links are 44 px targets, text meets AA */
+html:not([data-theme="light"]) body.is-home:not(.is-signed-in) #home-guest > .home-footer {
+  background: #050507; color: #e8e8ea; border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+html:not([data-theme="light"]) body.is-home:not(.is-signed-in) #home-guest > .home-footer .home-footer-word { color: #f5f5f7 !important; }
+body.is-home:not(.is-signed-in) #home-guest > .home-footer p,
+body.is-home:not(.is-signed-in) #home-guest > .home-footer a,
+body.is-home:not(.is-signed-in) #home-guest > .home-footer .link-btn { color: #b8b8be !important; }
+html[data-theme="light"] body.is-home:not(.is-signed-in) #home-guest > .home-footer p,
+html[data-theme="light"] body.is-home:not(.is-signed-in) #home-guest > .home-footer a,
+html[data-theme="light"] body.is-home:not(.is-signed-in) #home-guest > .home-footer .link-btn { color: #3d3d3d !important; }
+body.is-home:not(.is-signed-in) #home-guest > .home-footer .home-footer-line { color: #8fa2ff !important; }
+.home-footer a, .home-footer .link-btn, .rep-foot .link-btn, .rep-foot a {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 6px; font-size: 13px !important; vertical-align: middle;
+}
+.home-footer-keys { color: #8a8a8a; }
+
+/* P2-05: carousel dots keep their look with a 24 px hit area */
+.ai-dots { gap: 4px; }
+.ai-dots button { position: relative; background-clip: content-box; padding: 8px !important; box-sizing: content-box; width: 8px; height: 8px; background-color: transparent; }
+.ai-dots button::before { content: ""; position: absolute; inset: 8px; border-radius: 4px; background: var(--line-strong); }
+.ai-dots button[aria-current="true"] { width: 22px; background: transparent; }
+.ai-dots button[aria-current="true"]::before { background: var(--text); }
+
+/* P2-09: Repertoire footer on one baseline */
+.rep-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0 4px; }
+.rep-foot > span[aria-hidden] { line-height: 1; }
+
+/* P2-10: toasts sit above the player's transport bar and the phone dock */
+body.is-studio .toast { bottom: calc(var(--dock-h, 72px) + 96px) !important; }
+
+/* P2-11: Stop reads as a live control */
+#btn-stop:not(:disabled) { opacity: 1; color: var(--text); }
+#btn-stop:disabled { opacity: 0.4; }
+
+/* P2-14, P2-18: piano legend and key labels readable, C markers scale with the keys */
+.piano-tut-meta { font-size: 14px; color: #b0b0b0; }
+html[data-theme="light"] .piano-tut-meta { color: #4a4a4a; }
+.lune-key-notch { width: max(6px, calc(var(--key-w, 24px) * 0.28)); height: max(6px, calc(var(--key-w, 24px) * 0.28)); }
+.lune-key-finger { font-size: max(11px, calc(var(--key-w, 24px) * 0.5)); }
+
+/* P2-17: Settings' sticky header has a hairline and a backdrop in light mode */
+html[data-theme="light"] .settings-top { background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(0, 0, 0, 0.08); }
+
+/* P2-01: feature copy starts level with the top of its demo */
+@media (min-width: 901px) {
+  .home-feat { align-items: start !important; }
+  .home-feat-copy { align-self: start !important; padding-top: 8px; margin-top: 0 !important; }
+}
+
+/* A7: Start on each step of a Lune AI practice plan */
+.la-plan-start {
+  margin-left: 8px; min-height: 30px; padding: 0 12px; border-radius: 999px; vertical-align: middle;
+  border: 1px solid color-mix(in srgb, var(--navy, #3d5cff) 70%, transparent); background: transparent;
+  color: inherit; font: inherit; font-size: 13px; cursor: pointer;
+}
+.la-plan-start:hover { background: color-mix(in srgb, var(--navy, #3d5cff) 18%, transparent); }
+.la-plan-save { margin-top: 10px; }

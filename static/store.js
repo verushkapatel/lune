@@ -112,7 +112,12 @@ window.LuneStore = (function () {
   function remote() {
     return !!(client && session?.user);
   }
-  async function init() {
+  // P1-26: one Supabase client per page, however many times init is asked for
+  let initOnce = null;
+  function init() {
+    return (initOnce = initOnce || initClient());
+  }
+  async function initClient() {
     if (!configured()) return;
     try {
       await loadClientLibrary(); // only fetched when accounts are switched on
@@ -216,15 +221,32 @@ window.LuneStore = (function () {
 
   /* ---------------- accounts ---------------- */
 
-  function ownerEmail() {
-    return String(window.LUNE_CONFIG?.ownerEmail || "")
-      .trim()
-      .toLowerCase();
+  /*
+   * The owner is recognised by a SHA-256 fingerprint of their email
+   * (LUNE_CONFIG.ownerEmailSha256), so the address itself is not in the public
+   * files (P0-18). This only shows the owner's menu entries: the owner's
+   * numbers come from database functions that check the account on the server.
+   */
+  let ownerFor = { email: "", yes: false };
+  async function sha256(text) {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+    return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  function checkOwner(email) {
+    const want = String(window.LUNE_CONFIG?.ownerEmailSha256 || "").toLowerCase();
+    const mine = String(email || "").trim().toLowerCase();
+    if (!want || !mine || !window.crypto?.subtle) return;
+    if (ownerFor.email === mine) return;
+    ownerFor = { email: mine, yes: false };
+    sha256(mine).then((h) => {
+      if (ownerFor.email === mine) ownerFor.yes = h === want;
+    }).catch(() => {});
   }
   function isOwner() {
     const st = status();
-    const mine = ownerEmail();
-    return !!(st.signedIn && mine && String(st.email || "").trim().toLowerCase() === mine);
+    if (!st.signedIn) return false;
+    checkOwner(st.email);
+    return ownerFor.email === String(st.email || "").trim().toLowerCase() && ownerFor.yes;
   }
 
   /**
@@ -718,6 +740,37 @@ window.LuneStore = (function () {
     }
     return readLocal().scores[pieceKey] || null;
   }
+  /* ---------------- Lune AI chats (C8) ---------------- */
+  // Signed in, conversations sync to the chats table. Until that table exists
+  // (supabase/schema.sql, November 2026) chats simply stay in this browser.
+  let chatsMissing = false;
+  async function loadChats() {
+    if (!remote() || chatsMissing) return null;
+    const { data, error } = await client.from("chats").select("id,title,msgs,updated_at").order("updated_at", { ascending: false }).limit(50);
+    if (error) {
+      if (/chats|relation|schema cache|PGRST205|42P01/i.test(`${error.code} ${error.message}`)) chatsMissing = true;
+      return null;
+    }
+    return (data || []).map((r) => ({ id: r.id, title: r.title, msgs: Array.isArray(r.msgs) ? r.msgs : [], t: Date.parse(r.updated_at) || Date.now() }));
+  }
+  async function saveChats(convs) {
+    if (!remote() || chatsMissing || !convs?.length) return false;
+    const rows = convs.slice(0, 50).map((c) => ({
+      id: String(c.id).slice(0, 40),
+      title: String(c.title || "").slice(0, 80),
+      msgs: (c.msgs || []).slice(-40),
+      updated_at: new Date(c.t || Date.now()).toISOString(),
+    }));
+    const { error } = await client.from("chats").upsert(rows, { onConflict: "user_id,id" });
+    if (error && /chats|relation|schema cache|PGRST205|42P01/i.test(`${error.code} ${error.message}`)) chatsMissing = true;
+    return !error;
+  }
+  async function deleteChat(id) {
+    if (!remote() || chatsMissing) return false;
+    const { error } = await client.from("chats").delete().eq("id", id);
+    return !error;
+  }
+
   async function markPractised(pieceKey) {
     if (!(await getPiece(pieceKey))) return;
     await updatePiece(pieceKey, { last_practised_at: nowIso() });
@@ -1229,6 +1282,9 @@ window.LuneStore = (function () {
     ownerFeedback,
     listTasks,
     addTask,
+    loadChats,
+    saveChats,
+    deleteChat,
     updateTask,
     removeTask,
     prefs,

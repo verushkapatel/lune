@@ -105,33 +105,62 @@ window.LuneAsk = (function () {
 
   /* ---------- LuneAIProvider ---------- */
 
-  const SYSTEM_PROMPT = `You are Lune, a piano practice and score-analysis assistant inside the Lune app.
-You are given CONTEXT as JSON: facts Lune has read from the score (notes, fingering, difficulty, dynamics, harmony), the pianist's own remarks, their earlier questions, their practice history and their goal.
-Rules:
-- Use only the score facts in CONTEXT. Never invent bars, notes, rhythms, fingerings, dynamics, tempo marks, opus numbers or movement names. If something is not in CONTEXT, do not dwell on it: help with what you do know, or give general piano advice and say it is general.
-- Keep facts and suggestions apart: say what the score shows, then what you suggest.
-- Answer about the bar in CONTEXT.bar. Bring in CONTEXT.neighbouringBars only when the question asks about them or a phrase crosses into them.
-- Piano finger numbers: 1 thumb, 2 index, 3 middle, 4 ring, 5 little finger. Use the numbers from CONTEXT; name a finger only with this mapping.
-- When giving fingering, go note by note in the order of CONTEXT and give each note its own finger number from CONTEXT. Never group notes under one finger, and never give fingering for a hand that has no notes.
-- The pianist's remarks are their own words; treat them as information from the user, not as score facts.
-- You have not heard the pianist play. Never claim to have listened to a recording or a performance.
-- Be kind, patient and encouraging, like a favourite piano teacher who believes in the pianist. Never be curt, sarcastic, dismissive, preachy or scolding, never blame the pianist, and never refuse bluntly: if you cannot do something, say so gently in a few words and offer what you can do instead.
-- Sound like a warm, expert piano teacher: specific, encouraging and practical, never vague. When suggesting practice, use proven methods (slow practice with a metronome, hands separately, one or two bars at a time, the leap practised silently first, rhythm variations, blocking chord shapes, starting from the end of a passage) and say which bar each step is for.
-- Open with the answer itself in one clear sentence. Never open with filler such as "Great question", "Sure" or "Certainly", and never repeat the question.
-- Answer a simple question in one or two sentences. For analysis, cover what each hand does, what makes it hard, and exactly how to practise it: one short sentence of what the score shows, then at most four numbered steps, each on its own line, each one concrete action.
-- Keep answers under 120 words unless the pianist asks for more. Every sentence must be useful at the piano.
-- You cannot hear the pianist. If asked how their playing sounded, say plainly that you cannot hear them play, then say what to listen for in that bar.
-- A greeting, thanks or small talk is welcome: reply warmly in one sentence and ask what they are working on at the piano.
-- Only if a question has nothing to do with music or the piano, answer warmly in one sentence that you are here for their piano playing, and offer one related thing you would be glad to help with. Questions about the pianist's own playing, practice or progress are always piano questions.
-- Speak naturally to the pianist. Never mention CONTEXT, JSON, data or "the information provided"; if the score data lacks something, simply answer from general piano knowledge and say it is general advice.
-- If CONTEXT.replyStyle is "spoken", the answer will be read aloud: reply in two or three short, warm, conversational sentences, with no lists, numbers as words where natural, and no symbols.
-- When asked for a practice plan, give short numbered steps tied to bar numbers from CONTEXT, sized to the minutes available, and keep the pianist's stated goal.
-- CONTEXT.conversation, when present, holds the last turns of this chat; answer the newest question in that light.
-- For a general piano question (technique, practice habits, musical terms) that does not depend on a score, answer from general piano teaching and say it is general advice. Never present general advice as a fact about the pianist's score.
-- Name a bar number only if that bar is in CONTEXT. With no score open (CONTEXT.openPiece is null), never mention bar numbers.
-- Say plainly when you are unsure.
-- Write piece and composer names correctly and in full (Liebestraum No. 3, Clair de lune, Für Elise, Gymnopédie No. 1, Chopin, Debussy, Liszt, Rachmaninoff). If the pianist's spelling of a name looks like a mishearing, read it as the closest real piece, preferring CONTEXT.piece.
-- Format: short paragraphs. Use a numbered list for steps, one step per line, and **bold** only for a bar number or the one thing that matters most. No headings, no tables, no emoji.`;
+  // The same instructions as Lune AI's server (workers/lune-ai), for a model on this device or computer.
+  const SYSTEM_PROMPT = `You are Lune AI, the piano teacher inside the Lune practice app.
+With each question you receive three short sections: "Score facts" (what Lune has read from the pianist's own score: key, metre, tempo, printed words, notes, suggested fingering and what makes a bar tricky), "Your practice" (the pianist's remarks, ratings, plans and the conversation so far) and "Your goal".
+
+Facts and knowledge
+- Score facts and the pianist's own data are ground truth. Use them first.
+- You may also use well-established public knowledge about pieces, composers, history, technique and theory (for example: Clair de lune is the third movement of Debussy's Suite bergamasque, published in 1905). Say it plainly; do not hedge common knowledge.
+- Never invent bar numbers, notes, rhythms, fingerings or markings that are not in the score facts. If something about this score is not given, say so in one short clause and help with what you do know.
+- Fingering in the score facts is Lune's suggested fingering, not the edition's. Finger numbers: 1 thumb, 2 index, 3 middle, 4 ring, 5 little finger. Give fingering note by note, each note with its own number.
+- A bar's difficulty is exactly what "what makes it tricky" says. Never call a bar easy when it lists something, or hard when it says nothing in particular.
+- You cannot hear the pianist and have not heard any recording. Never claim otherwise.
+- The pianist's remarks are their own words, not score facts.
+
+How to answer
+- Open with the answer in one clear sentence. No filler ("Great question", "Sure"), never repeat the question.
+- A simple question gets one or two sentences. Analysis: one sentence on what the score shows, then at most four numbered steps, one concrete action each, each tied to a bar.
+- Specific beats generic. Not "practise slowly" but "Bar 37: left hand alone, three times at 60% tempo, then add the right hand for the first two beats only." Only say what the score facts support.
+- Practice plans: when the pianist gives a time, give numbered steps, each with the bars, the hands, a tempo and a number of minutes; the minutes must add up exactly to the time given.
+- The goal is exactly as stated (for example "4 days a week, 30 minutes each" is not daily).
+- Reply in the language of the question. In English, use British spelling (practise as a verb, practice as a noun, colour, licence) and write notes with signs (D♭, F♯), never Db or F#.
+- Write names correctly: Clair de lune, Für Elise, Gymnopédie No. 1, Liebestraum No. 3.
+- Sight-reading is a different skill from learning a piece: keep going without stopping, read ahead, count, use easier material, and simulate the exam.
+- Be warm and encouraging without being sugary. If a question has nothing to do with music, say kindly that you are here for their piano playing and offer two piano things you could help with.
+- Never mention how you received information: no section names, field names, ids, file names, "JSON", "data provided" or the name of the model.
+- If the reply will be read aloud, use two or three short spoken sentences, no lists or symbols.
+- Plain text. Numbered steps on their own lines are fine; no headings.`;
+  const words = (k) => String(k).replace(/([a-z])([A-Z])/g, "$1 $2").replace(/_/g, " ").toLowerCase();
+  function plain(v, depth = 0) {
+    const pad = "  ".repeat(depth);
+    if (v == null || v === "") return "";
+    if (Array.isArray(v)) return v.map((x) => (typeof x === "object" ? `${pad}-\n${plain(x, depth + 1)}` : `${pad}- ${x}`)).filter(Boolean).join("\n");
+    if (typeof v === "object")
+      return Object.entries(v)
+        .filter(([, x]) => x != null && x !== "" && !(Array.isArray(x) && !x.length))
+        .map(([k, x]) => (typeof x === "object" ? `${pad}${words(k)}:\n${plain(x, depth + 1)}` : `${pad}${words(k)}: ${x}`))
+        .join("\n");
+    return `${pad}${v}`;
+  }
+  function sections(ctx = {}) {
+    const score = {};
+    const practice = {};
+    const goal = {};
+    for (const [k, v] of Object.entries(ctx)) {
+      if (/^(piece|bar|neighbouringBars|openPiece|lastPractisedPiece|bars|range|tempo|fingeringNote)$/.test(k)) score[k === "fingeringNote" ? "aboutFingering" : k] = v;
+      else if (/^(goal|level)$/.test(k)) goal[k] = v;
+      else if (k === "replyStyle") continue;
+      else practice[k] = v;
+    }
+    return [
+      `Score facts:\n${plain(score) || "none: no score is open"}`,
+      `Your practice:\n${plain(practice) || "nothing recorded yet"}`,
+      `Your goal:\n${plain(goal) || "not set"}`,
+    ].join("\n\n");
+  }
+
+
 
   function aiSettings() {
     let endpoint = "";
@@ -151,6 +180,38 @@ Rules:
   const FINGERING_NOTE =
     "Finger numbers here are Lune's suggested fingering, worked out from the notes by Lune. They are not printed in the pianist's edition. Call them suggested fingering.";
 
+  /** "Gb4" → "G♭4": the score's own signs, so answers use them too. */
+  function spell(name) {
+    return String(name || "").replace(/^([A-Ga-g])(bb|b|##|#)?(-?\d*)$/, (m, l, acc, oct) => l.toUpperCase() + ({ b: "♭", bb: "♭♭", "#": "♯", "##": "♯♯" }[acc] || "") + oct);
+  }
+
+  /**
+   * What makes a bar tricky, in the bar panel's own words (its headline and
+   * reasons). Empty means Lune found nothing hard about it.
+   */
+  function barTricky(d) {
+    if (!d) return null;
+    const reasons = (d.difficulty?.reasons || []).filter((r) => r && !/straightforward/i.test(r));
+    const headline = String(d.headline || "").trim();
+    if (!headline && !reasons.length) return "Nothing in particular: one of the more straightforward bars.";
+    return [headline, ...reasons.filter((r) => !headline.toLowerCase().includes(r.toLowerCase()))].filter(Boolean).join("; ");
+  }
+
+  /** An answer that shows Lune's plumbing: field names, ids, the word null. */
+  const LEAK = /\bCONTEXT\b|\b[a-z]+[A-Z]?\w*\.(bar|piece|goal|tempo|remarks|difficulty|plans|notes)\b|\bupload-[a-z0-9-]{6,}|\b[a-z]+-[a-z]+-[a-z0-9-]{12,}\b|\bnull\b|\bJSON\b|\bwhatMakesItTricky\b|\bprintedHere\b|\bearlierQuestions\b|\bfingeringNote\b/;
+  function leaks(text) {
+    return LEAK.test(String(text || ""));
+  }
+  /** Remove any sentence that leaks; spell notes with signs; British spelling for practise (verb). */
+  function scrub(text) {
+    let t = String(text || "");
+    if (leaks(t)) t = t.split(/(?<=[.!?])\s+/).filter((sn) => !leaks(sn)).join(" ");
+    t = t.replace(/\b([A-G])(b|#)(\d)\b/g, (m, l, a, o) => l + (a === "b" ? "♭" : "♯") + o);
+    t = t.replace(/\bpractice (it|this|that|them|the|slowly|each|hands|with|bar|bars|at)\b/g, "practise $1");
+    t = t.replace(/\bcolor/g, "colour").replace(/\bfavorite/g, "favourite");
+    return t.trim();
+  }
+
   /** Everything Lune knows that is relevant to this question, as plain data. */
   async function buildContext(bar) {
     const p = state.piece || {};
@@ -162,15 +223,21 @@ Rules:
       store().listCards(key).catch(() => []),
     ]);
     const slim = (list) =>
-      (list || []).map((n) => ({ note: n.letter || n.pitch, beat: n.offset, length: n.duration, finger: n.fingering ?? null }));
+      (list || []).map((n) => ({ note: spell(n.letter || n.pitch), beat: n.offset, length: n.duration, finger: n.fingering ?? null }));
+    const facts = window.LuneScoreFacts?.forPiece?.(p) || null;
     const tasks = (store().listTasks?.() || []).filter((t) => t.piece_key === key).slice(0, 6);
     const ctx = {
       piece: {
         title: p.overview?.title || p.title || null,
         composer: p.overview?.composer || p.composer || null,
-        key: p.notatedKey || p.overview?.key || null,
-        timeSignature: p.timeSignature || p.overview?.timeSignature || null,
-        tempo: p.tempo || p.overview?.tempo || null,
+        key: facts?.key?.name || p.notatedKey || p.overview?.key || null,
+        keySignature: facts?.key?.signature || null,
+        keyChanges: facts?.keyChanges?.length ? facts.keyChanges.map((k) => ({ bar: k.bar, key: k.name, signature: k.signature })) : undefined,
+        timeSignature: facts?.time || p.timeSignature || p.overview?.timeSignature || null,
+        printedTempo: facts?.tempo?.[0]?.mark || null,
+        printedWords: facts?.words?.length ? facts.words.slice(0, 40) : undefined,
+        // the printed marking says it best; the playback figure is only a fallback
+        tempo: facts?.tempo?.length ? undefined : p.tempo || p.overview?.tempo || null,
         era: p.epoch || p.overview?.era || null,
         bars: Object.keys(p.debriefs || {}).length || null,
         hardestBars: hardest(5),
@@ -182,7 +249,10 @@ Rules:
         .slice(0, 12)
         .map((c) => ({ bar: c.bar, timesReviewed: c.reps ?? null, lastRating: c.last_grade || c.grade || null, nextReview: c.due_at })),
       plans: tasks.map((t) => ({ bars: t.bars, summary: t.plan?.summary || t.notes, done: !!t.done })),
-      earlierQuestions: (bar ? historyFor(bar) : history()).slice(-4).map((h) => ({ question: h.q, answer: h.a })),
+      earlierQuestions: (bar ? historyFor(bar) : history())
+        .filter((h) => !leaks(h.a))
+        .slice(-4)
+        .map((h) => ({ question: h.q, answer: h.a })),
       fingeringNote: FINGERING_NOTE,
     };
     // bars the pianist keeps finding hard (from their own ratings)
@@ -190,7 +260,8 @@ Rules:
     if (struggling.length) ctx.barsRatedHardOrAgain = [...new Set(struggling)].sort((a, b) => a - b).slice(0, 12);
     try {
       const marked = Number(String(p.tempo || p.overview?.tempo || "").match(/(\d{2,3})/)?.[1]) || null;
-      ctx.tempo = { marked, practisingAt: Math.round(LunePiano.getTempoBpm?.() || 0) || null };
+      const now = Math.round(LunePiano.getTempoBpm?.() || 0) || null;
+      ctx.tempo = { practisingAtPercentOfMarked: marked && now ? Math.round((now / marked) * 100) : null };
     } catch {
       /* tempo is optional */
     }
@@ -204,7 +275,9 @@ Rules:
         number: Number(bar),
         rightHand: slim(d.rh),
         leftHand: slim(d.lh),
-        difficulty: d.difficulty ? { hard: !!d.difficulty.isHard, reasons: d.difficulty.reasons || [] } : null,
+        // The same words the bar panel shows, so Lune AI never contradicts it.
+        whatMakesItTricky: barTricky(d),
+        printedHere: window.LuneScoreFacts?.near?.(facts, Number(bar)) || undefined,
         technicalFeatures: d.tags || [],
         dynamics: d.dynamics || [],
         harmony: d.harmony || [],
@@ -218,15 +291,15 @@ Rules:
   /** What kind of help is being asked for; it shapes the instruction sent to a model. */
   const TASKS = {
     answerQuestion: (q) => q,
-    explainBar: () => "Explain what happens in this bar and what makes it easy or hard, using only CONTEXT.",
+    explainBar: () => "Explain what happens in this bar and what makes it easy or hard, using what Lune has read from the score.",
     whyHard: () =>
-      "Say why this bar is hard, or that it is not, using only CONTEXT.bar.difficulty, CONTEXT.bar.technicalFeatures and the notes in CONTEXT.bar. Then suggest one thing to try.",
-    explainPracticeProblem: (q) => `The pianist says: "${q}". Using CONTEXT (their ratings, remarks and the bar's difficulty), say what is most likely going wrong and one thing to try.`,
-    suggestPractice: () => "Suggest how to practise this bar or passage in three short steps, each tied to something in CONTEXT.",
-    generatePracticePlan: (bars, mins) => `Write a practice plan of ${mins} minutes for bars ${bars.join(", ")}. Numbered steps with minutes for each, hands-separate or slow-tempo work only where CONTEXT supports it, and keep the pianist's goal.`,
-    summarizePractice: () => "Summarise this pianist's practice on this piece from CONTEXT.practiceHistory and CONTEXT.remarks: what has improved, what is still hard. If there is no history, say so.",
+      "Say what makes this bar tricky, using the bar's 'what makes it tricky' line (the same words the bar panel shows) and its notes. If that line says nothing in particular, say it is one of the easier bars and give one thing to listen for. Then suggest one thing to try.",
+    explainPracticeProblem: (q) => `The pianist says: "${q}". Using their ratings, remarks and what makes the bar tricky, say what is most likely going wrong and one thing to try.`,
+    suggestPractice: () => "Suggest how to practise this bar or passage in three short steps, each tied to something in this bar's score facts.",
+    generatePracticePlan: (bars, mins) => `Write a practice plan of ${mins} minutes for bars ${bars.join(", ")}. Numbered steps with minutes for each, hands-separate or slow-tempo work only where the score facts support it, and keep the pianist's goal.`,
+    summarizePractice: () => "Summarise this pianist's practice on this piece from the pianist's ratings and remarks: what has improved, what is still hard. If there is no history, say so.",
     summarizeBarNotes: () => "Summarise the pianist's remarks on this bar in one or two sentences.",
-    explainFingering: () => "Explain the fingering Lune suggests for this bar, using CONTEXT.bar. If no fingering is given, say so.",
+    explainFingering: () => "Explain the fingering Lune suggests for this bar, using this bar's notes and suggested fingering. If no fingering is given, say so.",
     explainMusicalTerms: (q) => `Explain this musical term plainly for a piano student: ${q}`,
   };
 
@@ -244,7 +317,7 @@ Rules:
     account: {
       available: () => !!aiServer() && cloudAccount(),
       label: () => "Lune AI",
-      async answer(question, ctx, { signal } = {}) {
+      async answer(question, ctx, { signal, onToken } = {}) {
         ctx = spokenCtx(ctx);
         const token = await store().accessToken();
         if (!token) throw new Error("Sign in again to use Lune AI.");
@@ -255,16 +328,50 @@ Rules:
           const res = await fetch(`${aiServer()}/ask`, {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ question, context: ctx }),
+            body: JSON.stringify({ question, context: ctx, stream: true }),
             signal: ctl.signal,
           });
+          // A streaming server sends server-sent events; words appear as they come.
+          if (res.ok && /event-stream/.test(res.headers.get("content-type") || "") && res.body) {
+            const reader = res.body.getReader();
+            const dec = new TextDecoder();
+            let buf = "";
+            let full = "";
+            for (;;) {
+              const { value, done } = await reader.read();
+              if (done) break;
+              buf += dec.decode(value, { stream: true });
+              let i;
+              while ((i = buf.indexOf("\n\n")) >= 0) {
+                const chunk = buf.slice(0, i);
+                buf = buf.slice(i + 2);
+                const data = chunk.split("\n").filter((l) => l.startsWith("data:")).map((l) => l.slice(5).trim()).join("");
+                if (!data || data === "[DONE]") continue;
+                let piece = "";
+                try {
+                  const j = JSON.parse(data);
+                  piece = j.response ?? j.token ?? j.text ?? "";
+                  if (j.error) throw Object.assign(new Error(j.error), { userMessage: j.error });
+                } catch (e) {
+                  if (e.userMessage) throw e;
+                  piece = data;
+                }
+                if (piece) {
+                  full += piece;
+                  onToken?.(piece);
+                }
+              }
+            }
+            if (!full.trim()) throw new Error("Lune AI sent an empty answer");
+            return full;
+          }
           const data = await res.json().catch(() => ({}));
           if (!res.ok || !data.answer) {
             const err = new Error(data.error || `Lune AI returned ${res.status}`);
             err.userMessage = data.error;
             throw err;
           }
-          return String(data.answer).slice(0, 4000);
+          return String(data.answer);
         } finally {
           clearTimeout(timer);
         }
@@ -278,12 +385,12 @@ Rules:
         const res = await D().chat(
           [
             { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content: `CONTEXT:\n${JSON.stringify(ctx)}\n\nQUESTION: ${question}` },
+            { role: "user", content: `${sections(ctx)}\n\nQuestion: ${question}` },
           ],
           { onToken },
         );
         if (!res?.text) throw new Error("model sent no answer");
-        return res.text.slice(0, 4000);
+        return res.text;
       },
     },
     /** A language model behind an OpenAI-compatible chat endpoint. */
@@ -316,7 +423,7 @@ Rules:
               messages: [
                 { role: "system", content: SYSTEM_PROMPT },
                 ...turns,
-                { role: "user", content: `CONTEXT:\n${JSON.stringify(facts)}\n\nQUESTION: ${question}` },
+                { role: "user", content: `${sections(facts)}\n\nQuestion: ${question}` },
               ],
             }),
           });
@@ -409,7 +516,8 @@ Rules:
   function whoAnswers() {
     const m = active();
     if (m === providers.endpoint) return `${aiSettings().model.replace(/:latest$/, "")} · local`;
-    if (m === providers.account) return aiName().replace(/ Instruct$/, "");
+    // the product is Lune AI; which model runs it is said in Settings, not in the header
+    if (m === providers.account) return "";
     if (m === providers.device) return `${D()?.MODEL.name || "Lune AI"} · in this browser`;
     return "";
   }
@@ -888,8 +996,18 @@ Rules:
    * Write a model's answer into `el` as it arrives. `run({signal, onToken})`
    * calls the model. Resolves to { text, stopped, error }.
    */
-  async function streamAnswer(el, run) {
-    writing?.abort();
+  // Questions asked while Lune is still answering wait their turn; none is dropped.
+  let answerQueue = Promise.resolve();
+  function streamAnswer(el, run) {
+    const turn = answerQueue.then(() => streamOne(el, run));
+    answerQueue = turn.catch(() => {});
+    if (writing) {
+      el.classList.add("la-thinking");
+      el.innerHTML = `<p class="la-queued">Waiting for the answer above…</p>`;
+    }
+    return turn;
+  }
+  async function streamOne(el, run) {
     const ctl = new AbortController();
     writing = ctl;
     setWriting(true);
@@ -905,7 +1023,7 @@ Rules:
       if (!el.isConnected) return;
       const stick = nearBottom(log);
       el.classList.remove("la-thinking");
-      richText(el, text, { live: true });
+      richText(el, scrub(text), { live: true });
       if (stick && log) log.scrollTop = log.scrollHeight;
     };
     const onToken = (t) => {
@@ -927,13 +1045,104 @@ Rules:
       writing = null;
       setWriting(false);
     }
-    text = text.trim();
+    text = scrub(text);
     el.classList.remove("la-thinking");
     el.removeAttribute("aria-busy");
     if (text) richText(el, text);
     else el.innerHTML = "";
+    if (text && !wasStopped) addPlanButtons(el);
     return { text, stopped: wasStopped, error };
   }
+
+  /**
+   * A7: an answer that is a practice plan (numbered steps, each with bars and
+   * minutes) gets a Start button on every step and "Save to my plan" under it.
+   * Start selects the bars, sets the tempo the step names and times the step.
+   */
+  function parsePlanStep(t) {
+    const bars = /\bbars?\s+(\d{1,3})(?:\s*(?:to|–|-|and)\s*(\d{1,3}))?/i.exec(t);
+    const mins = /(\d{1,2})\s*(?:minutes?|mins?)\b/i.exec(t);
+    if (!bars || !mins) return null;
+    const pct = /(\d{2,3})\s?%/.exec(t);
+    const bpm = /(\d{2,3})\s*(?:bpm|beats a minute)/i.exec(t);
+    const from = Number(bars[1]);
+    const to = Math.max(from, Number(bars[2] || from));
+    return { from, to, mins: Number(mins[1]), pct: pct ? Number(pct[1]) : null, bpm: bpm ? Number(bpm[1]) : null };
+  }
+  function addPlanButtons(el) {
+    const items = [...el.querySelectorAll("ol > li")];
+    const steps = items.map((li) => ({ li, step: parsePlanStep(li.textContent || "") })).filter((x) => x.step);
+    if (steps.length < 2 || !state.piece) return;
+    for (const { li, step } of steps) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "la-plan-start";
+      b.dataset.step = JSON.stringify(step);
+      b.textContent = "Start";
+      b.setAttribute("aria-label", `Start: bar${step.to > step.from ? `s ${step.from} to ${step.to}` : ` ${step.from}`}, ${step.mins} minutes`);
+      li.appendChild(b);
+    }
+    const save = document.createElement("button");
+    save.type = "button";
+    save.className = "quiet la-plan-save";
+    save.textContent = "Save to my plan";
+    save.dataset.plan = JSON.stringify(steps.map(({ li, step }) => ({ ...step, text: (li.firstChild?.textContent || li.textContent || "").trim().slice(0, 200) })));
+    el.appendChild(save);
+  }
+  let planTimer = 0;
+  document.addEventListener("click", (e) => {
+    const start = e.target.closest?.(".la-plan-start");
+    const save = e.target.closest?.(".la-plan-save");
+    if (start) {
+      const st = JSON.parse(start.dataset.step);
+      const bars = [];
+      for (let n = st.from; n <= st.to; n++) bars.push(n);
+      const chat = $("lune-chat");
+      if (chat?.open) chat.close();
+      try {
+        if (typeof setStudioPanel === "function" && state.panel !== "score") setStudioPanel("score");
+        setBarSelection(bars, { open: false, primary: st.from });
+        const marked = state.markedBpm || (typeof markedTempoBpm === "function" ? markedTempoBpm() : 72);
+        const target = st.bpm || (st.pct ? Math.round((marked * st.pct) / 100) : null);
+        if (target && typeof setPracticeBpm === "function") setPracticeBpm(target);
+      } catch {
+        /* the score isn't on screen */
+      }
+      clearTimeout(planTimer);
+      const what = st.to > st.from ? `Bars ${st.from} to ${st.to}` : `Bar ${st.from}`;
+      window.toast?.(`${what}${st.pct ? ` at ${st.pct}%` : ""}: ${st.mins} minute${st.mins === 1 ? "" : "s"}. Lune will tell you when time is up.`);
+      planTimer = setTimeout(() => window.toast?.(`Time is up for ${what.toLowerCase()}. Rate how it went, then start the next step.`), st.mins * 60000);
+    } else if (save) {
+      const steps = JSON.parse(save.dataset.plan);
+      // the bars to work on are the focused steps; a run-through of the whole page is not one
+      const focused = steps.filter((s) => s.to - s.from <= 3);
+      const bars = [...new Set((focused.length ? focused : steps).flatMap((s) => Array.from({ length: s.to - s.from + 1 }, (_, i) => s.from + i)))].sort((a, b) => a - b);
+      const mins = steps.reduce((n, s) => n + s.mins, 0);
+      const piece = state.piece;
+      const key = window.LunePractice?.keyFor?.(piece) || piece?.id || piece?.title;
+      try {
+        window.LuneStore?.addTask?.({
+          piece_key: key,
+          title: piece?.overview?.title || piece?.title || "This piece",
+          composer: piece?.overview?.composer || piece?.composer || "",
+          bars,
+          notes: `${mins} minutes from Lune AI.`,
+          plan: {
+            source: "lune-ai",
+            mins,
+            summary: `${mins} minutes from Lune AI.`,
+            steps: steps.map((s) => ({ kind: "hard", bars: Array.from({ length: s.to - s.from + 1 }, (_, i) => s.from + i), title: s.to > s.from ? `Bars ${s.from} to ${s.to}` : `Bar ${s.from}`, detail: s.text })),
+            created_at: new Date().toISOString(),
+          },
+        });
+        save.disabled = true;
+        save.textContent = "Saved to your plan";
+        window.toast?.("Saved to your plan in Repertoire");
+      } catch (err) {
+        window.toast?.(err.message || "Couldn’t save the plan");
+      }
+    }
+  });
   document.addEventListener("click", (e) => {
     if (e.target.closest?.(".lc-stop")) {
       e.preventDefault();
@@ -1388,7 +1597,7 @@ Rules:
     const sel = selectedBarsSorted();
     const where = $("ask-where");
     const title = state.piece?.overview?.title || state.piece?.title || "";
-    const who = providers.endpoint.available() ? aiSettings().model : providers.account.available() ? aiName().replace(/ Instruct$/, "") : providers.device.available() ? "on this device" : "built-in answers";
+    const who = providers.endpoint.available() ? aiSettings().model : providers.account.available() ? "Lune AI" : providers.device.available() ? "on this device" : "built-in answers";
     where.textContent = `${sel.length ? `Bar ${sel.join(", ")}` : title || "This piece"} · ${who}`;
     // suggestions only start a conversation, as in Claude or ChatGPT; with Lune AI on, its actions replace the built-in ones
     const fresh = !(sel.length ? historyFor(sel[0]) : history().filter((h) => !h.bar)).length;
@@ -1606,7 +1815,7 @@ Rules:
       said = line("lune", "", { src: "model" });
       // a bar just rated hard: ask for what to do about it, not a summary of the bar
       const asked = out.range
-        ? `${text}\n\nAnswer bar by bar for bars ${out.range.join(", ")} (CONTEXT.barsInQuestion). One line per bar, each starting "@Bar N", saying what is hard in that bar and one concrete way to practise it. Then one line starting "Summary:" with two sentences: what ties these bars together and the order to practise them in. No other text.`
+        ? `${text}\n\nAnswer bar by bar for bars ${out.range.join(", ")}. One line per bar, each starting "@Bar N", saying what is hard in that bar and one concrete way to practise it. Then one line starting "Summary:" with two sentences: what ties these bars together and the order to practise them in. No other text.`
         : out.saved === "review" ? `${text}\n\nI find this bar hard. Give me concrete steps to practise it, tied to what is in it.` : text;
       const forBar = out.bar || selectedBarsSorted()[0] || null;
       const res = await streamAnswer(said, async ({ signal, onToken }) =>
@@ -1756,6 +1965,7 @@ Rules:
     }
     return st;
   }
+  let chatSyncTimer = 0;
   function putChats(st) {
     try {
       localStorage.setItem(CHATS_KEY, JSON.stringify({ cur: st.cur, convs: st.convs.slice(0, 50) }));
@@ -1763,7 +1973,29 @@ Rules:
     } catch {
       /* private mode: the chats last for this visit */
     }
+    // C8: signed in, the same conversations follow the account (a moment later, in one batch)
+    clearTimeout(chatSyncTimer);
+    chatSyncTimer = setTimeout(() => window.LuneStore?.saveChats?.(st.convs).catch?.(() => {}), 1500);
   }
+  /** Bring the account's conversations into this browser: the newer copy of each wins. */
+  let chatsPulled = false;
+  async function pullChats() {
+    if (chatsPulled || !window.LuneStore?.status?.().signedIn) return;
+    const remote = await window.LuneStore.loadChats?.().catch?.(() => null);
+    if (!remote) return;
+    chatsPulled = true;
+    const st = chatStore();
+    const byId = new Map(st.convs.map((c) => [c.id, c]));
+    for (const r of remote) {
+      const mine = byId.get(r.id);
+      if (!mine || (r.t || 0) > (mine.t || 0)) byId.set(r.id, r);
+    }
+    st.convs = [...byId.values()].sort((x, y) => (y.t || 0) - (x.t || 0)).slice(0, 50);
+    putChats(st);
+    paintHistoryList();
+  }
+  window.LuneStore?.onChange?.(() => pullChats());
+  setTimeout(pullChats, 2500);
   function chatTitle(msgs) {
     const first = String(msgs.find((m) => m.who === "you")?.text || "New chat").replace(/\s+/g, " ").trim();
     return first.length > 42 ? `${first.slice(0, 40)}…` : first;
@@ -1800,6 +2032,7 @@ Rules:
   }
   function deleteConv(id) {
     const st = chatStore();
+    window.LuneStore?.deleteChat?.(id).catch?.(() => {});
     st.convs = st.convs.filter((c) => c.id !== id);
     if (st.cur === id) st.cur = null;
     putChats(st);
@@ -1834,13 +2067,30 @@ Rules:
       plans: tasks.map((t) => ({ piece: t.piece_title || t.piece_key, bars: t.bars, summary: t.plan?.summary || t.notes || null, done: !!t.done })),
       thisWeek: week ? { daysPractised: week.days, goalDays: week.goalDays, minutes: week.mins, barsRatedGoodOrStrong: week.good, barsRatedHardOrAgain: week.hard, barsWorked: week.barsWorked } : null,
       barsStillHard: hardNow,
-      goal: { daysPerWeek: prefs.practiceDays || null, minutesPerSession: prefs.practiceMins || null, workingToward: prefs.dreamPiece?.title || null, level: prefs.grade ?? null },
+      goal: {
+        daysPerWeek: prefs.practiceDays || null,
+        minutesPerSession: prefs.practiceMins || null,
+        inWords: prefs.practiceDays ? `${prefs.practiceDays} days a week, ${prefs.practiceMins || 30} minutes each (not every day)` : null,
+        workingToward: prefs.dreamPiece?.title || null,
+        level: prefs.grade ?? null,
+      },
       fingeringNote: FINGERING_NOTE,
       conversation: log.slice(-6).map((m) => ({ from: m.who === "you" ? "pianist" : "lune", text: String(m.text).slice(0, 600) })),
     };
-    if (state.piece) {
-      const p = state.piece;
-      ctx.openPiece = { title: p.overview?.title || p.title || null, composer: p.overview?.composer || p.composer || null, hardestBars: hardest(5) };
+    // the piece on stage, or the one open in a tab, or the one last practised
+    const p = state.piece || state.sessions?.[state.sessions.length - 1]?.piece || null;
+    if (p) {
+      const facts = window.LuneScoreFacts?.forPiece?.(p) || null;
+      ctx.openPiece = {
+        title: p.overview?.title || p.title || null,
+        composer: p.overview?.composer || p.composer || null,
+        key: facts?.key?.name || null,
+        timeSignature: facts?.time || null,
+        hardestBars: p === state.piece ? hardest(5) : undefined,
+      };
+    } else if (pieces.length) {
+      const last = [...pieces].sort((a, b) => String(b.last_practised_at || "").localeCompare(String(a.last_practised_at || "")))[0];
+      ctx.lastPractisedPiece = { title: last.title, composer: last.composer || null };
     } else {
       ctx.openPiece = null;
       ctx.noScoreOpen = "No score is open, so there are no bar numbers to refer to. Answer as general piano teaching and do not name any bar.";
@@ -2141,6 +2391,33 @@ Rules:
       location.hash = "#/ai";
     }
   }
+  // Leaving #/ai for any other place closes the Lune AI page (P0-17), however the
+  // route changed: a link, Back and Forward, or the app showing another view.
+  const leaveAiPage = () => {
+    if (location.hash === "#/ai") return;
+    const d = document.getElementById("lune-chat");
+    if (d?.open && d.classList.contains("is-page")) {
+      aiReturn = null;
+      d.close();
+    }
+  };
+  window.addEventListener("hashchange", leaveAiPage);
+  window.addEventListener("popstate", leaveAiPage);
+  const wrapShowView = () => {
+    const show = window.showView;
+    if (typeof show !== "function" || show.__luneAi) return;
+    const wrapped = function (...args) {
+      const out = show.apply(this, args);
+      // the route's URL is updated just after the view is shown
+      setTimeout(leaveAiPage, 0);
+      return out;
+    };
+    wrapped.__luneAi = true;
+    window.showView = wrapped;
+  };
+  // app.js (which defines showView) runs after this file: wrap once the page has loaded
+  document.addEventListener("DOMContentLoaded", wrapShowView, { once: true });
+  window.addEventListener("load", wrapShowView, { once: true });
   /** The Lune AI page (#/ai): the same chat, full screen, with its history at the side. */
   function openChatPage() {
     const d = ensureChat();
@@ -2209,5 +2486,5 @@ Rules:
   for (const task of Object.keys(TASKS)) LuneAIProvider[task] = (bar, ...args) => LuneAIProvider.run(task, bar, ...args);
   window.LuneAIProvider = LuneAIProvider;
 
-  return { explainMarking, openTalk, openChatPage, goAiPage, askOnPage, chatStore, askModel: async (q, ctx) => { const m = active(); return m ? m.answer(q, ctx) : null; }, openChat, paintAiHome, buildChatContext, open, close, ask, historyFor, onSelection, buildContext, aiSettings, SYSTEM_PROMPT, TASKS, MODEL_ACTIONS, runTask, paintNews, voice, modelConnected: () => !!active(), deviceOfferHtml, turnOnDeviceAI, testModel: () => providers.endpoint.answer("Reply with the single word: ready", { test: true }) };
+  return { planButtons: addPlanButtons, explainMarking, openTalk, openChatPage, goAiPage, askOnPage, chatStore, askModel: async (q, ctx) => { const m = active(); return m ? m.answer(q, ctx) : null; }, openChat, paintAiHome, buildChatContext, open, close, ask, historyFor, onSelection, buildContext, aiSettings, SYSTEM_PROMPT, TASKS, MODEL_ACTIONS, runTask, paintNews, voice, modelConnected: () => !!active(), deviceOfferHtml, turnOnDeviceAI, testModel: () => providers.endpoint.answer("Reply with the single word: ready", { test: true }) };
 })();

@@ -69,14 +69,20 @@ window.LunePractice = (function () {
     const d = Math.round(s / 86400);
     return d === 1 ? "yesterday" : `${d} days ago`;
   }
-  function untilText(iso) {
-    const s = (new Date(iso).getTime() - Date.now()) / 1000;
+  /** P1-31: when a bar comes back, as a day ("later today", "tomorrow", "on Friday", "on 21 November"). */
+  function returnDayText(iso) {
+    const due = new Date(iso);
+    const s = (due.getTime() - Date.now()) / 1000;
     if (s <= 60) return "now";
-    if (s < 3600) return `in ${Math.round(s / 60)} min`;
-    if (s < 86400) return `in ${Math.round(s / 3600)} h`;
-    const d = Math.round(s / 86400);
-    return d === 1 ? "tomorrow" : `in ${d} days`;
+    if (s < 3600) return `in ${Math.round(s / 60)} minutes`;
+    const today = new Date();
+    const days = Math.round((new Date(due.toDateString()) - new Date(today.toDateString())) / 86400000);
+    if (days <= 0) return "later today";
+    if (days === 1) return "tomorrow";
+    if (days < 7) return `on ${due.toLocaleDateString("en-GB", { weekday: "long" })}`;
+    return `on ${due.toLocaleDateString("en-GB", { day: "numeric", month: "long" })}`;
   }
+  const RATE_EXPLAINER = "Tap how it went. Lune brings shaky bars back sooner and secure ones later.";
   function barsText(bars) {
     const b = [...new Set(bars)].sort((x, y) => x - y);
     if (!b.length) return "";
@@ -1056,7 +1062,8 @@ window.LunePractice = (function () {
       ${
         window.LuneAsk?.modelConnected?.()
           ? `<div class="lp-ai-row" role="group" aria-label="Lune AI on bar ${primary}">${Object.entries(window.LuneAsk.MODEL_ACTIONS)
-              .filter(([, a]) => a.bar)
+              // "Why it's hard" only on a bar the panel says is tricky; otherwise "How to practise" says it all
+              .filter(([task, a]) => a.bar && !(task === "whyHard" && !String(debriefFor(primary)?.headline || "").trim()))
               .map(([task, a]) => `<button type="button" data-lp-task="${task}" title="${esc(a.label)}">${esc(SHORT[task] || a.label)}</button>`)
               .join("")}</div>`
           : ""
@@ -1071,7 +1078,7 @@ window.LunePractice = (function () {
         <div class="lp-grades" role="group" aria-label="Rate this practice">
           ${GRADES.map(([g, label, hint]) => `<button type="button" class="lp-grade lp-${g}" data-grade="${g}" title="${esc(hint)}">${label}</button>`).join("")}
         </div>
-        <p class="lp-due dim"></p>
+        <p class="lp-due dim">${RATE_EXPLAINER}</p>
       </div>
       <h3 class="lp-h lp-h-remarks" hidden>Remarks</h3>
       <ul class="lp-notes" aria-live="polite" hidden></ul>
@@ -1115,15 +1122,34 @@ window.LunePractice = (function () {
         const cards = (await store.listCards(key)).filter((c) => bars.includes(c.bar));
         if (token !== coachToken) return;
         if (!cards.length) {
-          dueEl.textContent = "";
+          dueEl.textContent = RATE_EXPLAINER;
+          dueEl.dataset.rest = dueEl.textContent;
           return;
         }
         const c = cards.sort((a, b) => a.due_at.localeCompare(b.due_at))[0];
-        dueEl.textContent = `Next review ${untilText(c.due_at)}${c.reps ? ` · reviewed ${c.reps}×` : ""}.`;
+        dueEl.textContent = `Lune will bring ${bars.length > 1 ? "these bars" : "this bar"} back ${returnDayText(c.due_at)}.`;
+        dueEl.dataset.rest = dueEl.textContent;
       } catch {
-        dueEl.textContent = "";
+        dueEl.textContent = RATE_EXPLAINER;
+        dueEl.dataset.rest = dueEl.textContent;
       }
     };
+    // what each rating means, shown under the buttons on hover or keyboard focus (touch screens see it after tapping)
+    const gradeHint = (e) => {
+      const g = e.target.closest?.(".lp-grade");
+      if (!g) return;
+      const row = GRADES.find(([k]) => k === g.dataset.grade);
+      if (row) dueEl.textContent = `${row[1]}: ${row[2]}`;
+    };
+    const gradeRest = (e) => {
+      if (!e.target.closest?.(".lp-grade")) return;
+      dueEl.textContent = dueEl.dataset.rest || RATE_EXPLAINER;
+    };
+    const gradesRow = wrap.querySelector(".lp-grades");
+    gradesRow?.addEventListener("pointerover", gradeHint);
+    gradesRow?.addEventListener("focusin", gradeHint);
+    gradesRow?.addEventListener("pointerout", gradeRest);
+    gradesRow?.addEventListener("focusout", gradeRest);
     // as in ChatGPT: the round button is voice mode while the box is empty, and Send once you type
     const syncAskButtons = () => {
       const has = !!wrap.querySelector("#lp-ask-input")?.value.trim();
@@ -1275,7 +1301,8 @@ window.LunePractice = (function () {
           let last = null;
           for (const b of bars) last = await store.reviewBar(key, b, g);
           wrap.querySelectorAll(".lp-grade").forEach((x) => x.classList.toggle("picked", x === btn));
-          toast(`${barsText(bars)[0].toUpperCase() + barsText(bars).slice(1)} — next review ${untilText(last.due_at)}`);
+          const what = barsText(bars);
+          toast(`${what[0].toUpperCase() + what.slice(1)} rated ${btn.textContent.trim()}. Back ${returnDayText(last.due_at)}.`);
           renderDue();
           refreshBadge();
           // Again or Hard, with Lune AI on: one concrete thing to try, from this bar's notes and your remarks
@@ -1656,7 +1683,7 @@ window.LunePractice = (function () {
     if (!box) return;
     const st = store.status();
     if (st.signedIn) {
-      box.innerHTML = `<span class="rep-acct-text"><span class="rep-acct-dot on"></span>Synced to ${esc(st.email)}</span>
+      box.innerHTML = `<span class="rep-acct-text"><span class="rep-acct-dot on"></span>Synced to your account</span>
         <button type="button" class="link-btn" data-lp-account>Account</button>`;
     } else if (st.cloud) {
       box.innerHTML = `<span class="rep-acct-text"><span class="rep-acct-dot"></span>Saved in this browser</span>
@@ -1767,6 +1794,12 @@ window.LunePractice = (function () {
           : mode === "plan"
             ? `<p class="rep-empty">Lune is making this week’s plan from your goal…</p>`
             : `<div class="rep-empty wk-choose-row"><p>Lune can plan your week around your goal, or you can play whenever it suits you.</p><span class="wk-opts"><button type="button" class="quiet wk-go" data-wp-choose="plan">Plan my week</button><button type="button" class="quiet" data-wp-choose="free">No schedule</button></span></div>`;
+      // P1-23: one "Plan my week" per card. The header button only appears once there is a plan to change.
+      const headBtn = document.querySelector(".rep-plan-week[data-wp-open]");
+      if (headBtn) {
+        headBtn.hidden = !wp;
+        headBtn.innerHTML = `<span aria-hidden="true">＋</span> Change plan`;
+      }
       if (!wp && mode === "plan") window.LunePlans?.ensureWeekPlan?.().then((made) => made && renderRepertoire()).catch(() => {});
     }
     let pieces = [];
@@ -1776,6 +1809,22 @@ window.LunePractice = (function () {
     } catch (err) {
       listEl.innerHTML = `<p class="rep-empty">Couldn’t load your Repertoire: ${esc(err.message)}</p>`;
       return;
+    }
+    // P1-14: one practice log. A rating or a remark is practice, so "last practised"
+    // is the latest of the three, and older rows are corrected once.
+    try {
+      const cards = await store.listCards();
+      const latest = {};
+      for (const c of cards) if (c.updated_at > (latest[c.piece_key] || "")) latest[c.piece_key] = c.updated_at;
+      for (const p of pieces) {
+        const l = latest[p.piece_key];
+        if (l && l > (p.last_practised_at || "")) {
+          p.last_practised_at = l;
+          store.updatePiece?.(p.piece_key, { last_practised_at: l }).catch?.(() => {});
+        }
+      }
+    } catch {
+      /* show what the repertoire row says */
     }
     repertoireKeys = new Set(pieces.map((p) => p.piece_key));
     refreshBadge();
@@ -2094,15 +2143,17 @@ window.LunePractice = (function () {
   function zoomBoost() {
     return store.prefs().largePrint ? 1.4 : 1;
   }
-  async function loadBrailleIndex() {
-    if (brailleIndex) return brailleIndex;
-    try {
-      const r = await fetch(luneUrl("/static/braille/index.json"), { cache: "force-cache" });
-      brailleIndex = r.ok ? await r.json() : {};
-    } catch {
-      brailleIndex = {};
-    }
-    return brailleIndex;
+  // P0-10: one request, however many chips ask at once
+  let brailleIndexPromise = null;
+  function loadBrailleIndex() {
+    if (brailleIndex) return Promise.resolve(brailleIndex);
+    brailleIndexPromise =
+      brailleIndexPromise ||
+      fetch(luneUrl("/static/braille/index.json"), { cache: "force-cache" })
+        .then((r) => (r.ok ? r.json() : {}))
+        .catch(() => ({}))
+        .then((d) => (brailleIndex = d));
+    return brailleIndexPromise;
   }
   function openAccessDialog() {
     const d = dialog("access-dialog");
@@ -2295,91 +2346,117 @@ window.LunePractice = (function () {
   /* ---------------- repertoire: what to work on ---------------- */
 
   /** A summary for one Repertoire piece, from its analysis, your remarks and your reviews. */
-  async function openWorkOn(key) {
-    const row = await store.getPiece(key);
-    if (!row) return;
-    const d = dialog("work-dialog");
-    d.classList.add("settings-dialog");
-    d.innerHTML = `${closeRow}<p class="auth-kicker">What to work on</p><h2>${esc(row.title)}</h2><p class="dim">Reading the score…</p>`;
-    if (!d.open) d.showModal();
-    const [notes, cards] = await Promise.all([store.listNotes(key).catch(() => []), store.listCards(key).catch(() => [])]);
-    // the score's own hard bars, when this piece is in the library
-    let hard = [];
-    try {
+  // P1-21: a piece's hardest bars, read once per visit
+  const workHardCache = new Map();
+  async function hardBarsFor(key, row) {
+    if (workHardCache.has(key)) return workHardCache.get(key);
+    const job = (async () => {
       const open = state.sessions.find((s) => s.piece && keyFor(s.piece) === key)?.piece;
       const piece =
         open?.debriefs && Object.keys(open.debriefs).length
           ? open
           : await tryOpen({ query: row.source === "upload" ? row.title : key, title: row.title, composer: row.composer || "", analyze: true });
-      hard = Object.values(piece?.debriefs || {})
-        .filter((x) => x?.difficulty?.score != null)
+      let deb = piece?.debriefs || {};
+      if (!Object.keys(deb).length && piece?.musicxml && window.LuneLite?.analyze) deb = LuneLite.analyze(piece.musicxml).debriefs || {};
+      return Object.values(deb)
+        .filter((x) => x?.difficulty?.score != null && !(x.difficulty.reasons || []).every((r) => r === "straightforward"))
         .sort((a, b) => b.difficulty.score - a.difficulty.score)
         .slice(0, 4)
         .map((x) => ({ bar: x.measure, why: (x.difficulty.reasons || []).slice(0, 2).join(", "), tip: Array.isArray(x.advice) ? x.advice[0] : x.advice }));
-    } catch {
-      /* not a library piece: work from remarks and reviews */
-    }
+    })().catch(() => []);
+    workHardCache.set(key, job);
+    return job;
+  }
+
+  async function openWorkOn(key) {
+    const row = await store.getPiece(key);
+    if (!row) return;
+    const d = dialog("work-dialog");
+    d.classList.add("settings-dialog", "work-dialog");
+    const [notes, cards] = await Promise.all([store.listNotes(key).catch(() => []), store.listCards(key).catch(() => [])]);
     const due = cards.filter((c) => c.due_at <= new Date().toISOString()).map((c) => c.bar);
     const remarkBars = [...new Set(notes.map((n) => n.bar))];
-    const bars = [...new Set([...due, ...remarkBars, ...hard.map((h) => h.bar)])].filter((b) => b > 0).slice(0, 6).sort((a, b) => a - b);
     const mins = Number(store.prefs().practiceMins) || 20;
-    const steps = [{ kind: "hear", title: "Hear it once", detail: "Listen through before you play." }];
-    for (const b of bars) {
-      const h = hard.find((x) => x.bar === b);
-      const mine = notes.filter((n) => n.bar === b).map((n) => n.body);
-      steps.push({
-        kind: "hard",
-        bars: [b],
-        title: `Bar ${b}`,
-        detail: [due.includes(b) ? "Due for review." : "", h?.tip ? String(h.tip).split(/(?<=[.!?])\s/)[0] : "", mine.length ? `Your remark: “${mine[mine.length - 1]}”.` : ""].filter(Boolean).join(" ") || "Slowly, hands separately, then together.",
-      });
-    }
     const label = Object.fromEntries(STATUS);
-    d.innerHTML = `${closeRow}<p class="auth-kicker">What to work on</p><h2>${esc(row.title)}</h2>
-      <p class="settings-note">${esc(label[row.status] || "Learning")} · last practised ${esc(ago(row.last_practised_at))} · ${notes.length} remark${notes.length === 1 ? "" : "s"}</p>
-      ${
-        bars.length
-          ? `<ol class="work-steps">${steps.map((st) => `<li><strong>${esc(st.title)}</strong> ${esc(st.detail)}</li>`).join("")}</ol>`
-          : `<p class="settings-note">Nothing to plan yet. Open the piece, tap the bars that give you trouble and leave a remark or rate them; they will show up here.</p>`
+    let bars = [];
+    let steps = [];
+
+    const build = (hard, reading) => {
+      bars = [...new Set([...due, ...remarkBars, ...hard.map((h) => h.bar)])].filter((b) => b > 0).slice(0, 6).sort((a, b) => a - b);
+      steps = [{ kind: "hear", title: "Hear it once", detail: "Listen through before you play." }];
+      for (const b of bars) {
+        const h = hard.find((x) => x.bar === b);
+        const mine = notes.filter((n) => n.bar === b).map((n) => n.body);
+        steps.push({
+          kind: "hard",
+          bars: [b],
+          title: `Bar ${b}`,
+          detail: [due.includes(b) ? "Due for review." : "", h?.why ? `Lune's reading: ${h.why}.` : "", h?.tip ? String(h.tip).split(/(?<=[.!?])\s/)[0] : "", mine.length ? `Your remark: “${mine[mine.length - 1]}”.` : ""].filter(Boolean).join(" ") || "Slowly, hands separately, then together.",
+        });
       }
-      <label for="work-extra">Add something of your own <span class="dim">(optional)</span></label>
-      <textarea id="work-extra" rows="2" maxlength="300" placeholder="e.g. memorise the first page"></textarea>
-      <div class="onboard-nav auth-keep-nav">
-        <button type="button" class="quiet rep-remove-link" data-work-remove>Remove from Repertoire</button>
-        <button type="button" class="quiet" data-work-open>Open piece</button>
-        <button type="button" class="primary" data-work-add>Add to my plan</button>
-      </div>`;
-    d.querySelector("[data-work-open]").addEventListener("click", () => {
-      d.close();
-      openFromRepertoire(key, { bars }).catch((err) => toast(err.message));
-    });
-    d.querySelector("[data-work-remove]").addEventListener("click", (e) => {
-      // removing takes two presses, so it can't happen by accident
-      if (!e.currentTarget.dataset.sure) {
-        e.currentTarget.dataset.sure = "1";
-        e.currentTarget.textContent = "Remove? Press again";
-        return;
+      const extra = d.querySelector("#work-extra")?.value || "";
+      d.innerHTML = `${closeRow}<p class="auth-kicker">What to work on</p><h2>${esc(row.title)}</h2>
+        <p class="settings-note">${esc(label[row.status] || "Learning")} · last practised ${esc(ago(row.last_practised_at))} · ${notes.length} remark${notes.length === 1 ? "" : "s"}</p>
+        ${
+          bars.length
+            ? `<ol class="work-steps">${steps.map((st) => `<li><strong>${esc(st.title)}</strong> ${esc(st.detail)}</li>`).join("")}</ol>`
+            : reading
+              ? ""
+              : `<p class="settings-note">Nothing to plan yet. Open the piece, tap the bars that give you trouble and leave a remark or rate them; they will show up here.</p>`
+        }
+        ${reading ? `<p class="dim work-reading" role="status">Finding the hardest bars…</p>` : ""}
+        <label class="work-extra-label" for="work-extra">Add something of your own <span class="dim">(optional)</span></label>
+        <textarea id="work-extra" rows="2" maxlength="300" placeholder="e.g. memorise the first page"></textarea>
+        <div class="work-actions">
+          <details class="work-more">
+            <summary aria-label="More options">More</summary>
+            <div class="work-more-menu">
+              <button type="button" class="quiet rep-remove-link" data-work-remove>Remove from Repertoire…</button>
+            </div>
+          </details>
+          <span class="work-actions-main">
+            <button type="button" class="quiet" data-work-open>Open piece</button>
+            <button type="button" class="primary" data-work-add>Add to my plan</button>
+          </span>
+        </div>`;
+      d.querySelector("#work-extra").value = extra;
+    };
+
+    build([], !workHardCache.has(key));
+    if (!d.open) d.showModal();
+    // the dialog is useful at once; the score's own hard bars join when they are ready
+    const cached = workHardCache.has(key);
+    const hard = await hardBarsFor(key, row);
+    if (d.open && (!cached || hard.length)) build(hard, false);
+
+    d.onclick = (e) => {
+      const t = e.target.closest("button");
+      if (!t) return;
+      if (t.matches("[data-work-open]")) {
+        d.close();
+        openFromRepertoire(key, { bars }).catch((err) => toast(err.message));
+      } else if (t.matches("[data-work-remove]")) {
+        if (!window.confirm(`Remove ${row.title} from your Repertoire? Your remarks and ratings for it are kept.`)) return;
+        d.close();
+        document.querySelector(`#rep-list [data-remove="${CSS.escape(key)}"]`)?.click();
+        document.querySelector(`#rep-list [data-remove="${CSS.escape(key)}"]`)?.click();
+      } else if (t.matches("[data-work-add]")) {
+        const extra = d.querySelector("#work-extra").value.trim();
+        const all = extra ? [...steps, { kind: "own", title: "Your own", detail: extra }] : steps;
+        if (!bars.length && !extra) return toast("Write something to add, or mark some bars in the piece first");
+        store.addTask({
+          piece_key: key,
+          title: row.title,
+          composer: row.composer || "",
+          bars,
+          notes: extra || `${mins} minutes${bars.length ? ` on bars ${bars.join(", ")}` : ""}.`,
+          plan: { source: "repertoire", mins, summary: `${mins} minutes${bars.length ? ` on bars ${bars.join(", ")}` : ""}.`, steps: all, created_at: new Date().toISOString() },
+        });
+        d.close();
+        toast("Added to your plan");
+        renderRepertoire();
       }
-      d.close();
-      document.querySelector(`#rep-list [data-remove="${CSS.escape(key)}"]`)?.click();
-      document.querySelector(`#rep-list [data-remove="${CSS.escape(key)}"]`)?.click();
-    });
-    d.querySelector("[data-work-add]").addEventListener("click", () => {
-      const extra = d.querySelector("#work-extra").value.trim();
-      const all = extra ? [...steps, { kind: "own", title: "Your own", detail: extra }] : steps;
-      if (!bars.length && !extra) return toast("Write something to add, or mark some bars in the piece first");
-      store.addTask({
-        piece_key: key,
-        title: row.title,
-        composer: row.composer || "",
-        bars,
-        notes: extra || `${mins} minutes${bars.length ? ` on bars ${bars.join(", ")}` : ""}.`,
-        plan: { source: "repertoire", mins, summary: `${mins} minutes${bars.length ? ` on bars ${bars.join(", ")}` : ""}.`, steps: all, created_at: new Date().toISOString() },
-      });
-      d.close();
-      toast("Added to your plan");
-      renderRepertoire();
-    });
+    };
   }
 
   /* ---------------- settings ---------------- */
@@ -2695,7 +2772,7 @@ window.LunePractice = (function () {
       ex(4, "See tasks", "One list, in Repertoire", `<div class="example-share"><p><span class="task-origin">Suggested by Lune</span> · bars 3, 7, 12</p><p>1. Hear it once. 2. Bar 3, slowly. 3. Bar 7, hands separately. 4. Play it through.</p><p><span class="task-origin task-origin-you">Written by you</span> · Memorise the first page</p></div>`),
       ex(5, "Mark progress", "Rate a bar after you play it", `<div class="impact-stats impact-stats-owner">
             <div><span class="impact-num">3</span><span class="dim">days practised · goal ${days}</span></div>
-            <div><span class="impact-num">5</span><span class="dim">bars rated Good or Easy</span></div>
+            <div><span class="impact-num">5</span><span class="dim">bars rated Good or Strong</span></div>
             <div><span class="impact-num">2</span><span class="dim">bars still Hard</span></div>
             <div><span class="impact-num">1</span><span class="dim">task finished</span></div>
           </div><p class="settings-note">A day counts when you rate a bar or finish a task. Opening a piece does not count. Again and Hard bars come back sooner.</p>`),
@@ -2883,7 +2960,7 @@ window.LunePractice = (function () {
     items.push({ label: "Reading & access", action: () => openAccessDialog() });
     items.push({ label: "Feedback", action: () => window.LuneFeedback?.open?.() });
     if (window.LuneInstall && !window.LuneInstall.installed()) items.push({ label: "Install Lune", action: () => window.LuneInstall.install() });
-    items.push({ label: "Credits & licenses", action: () => document.querySelector("[data-open-credits]")?.click() });
+    items.push({ label: "Credits and licences", action: () => document.querySelector("[data-open-credits]")?.click() });
     if (!studio) items.push({ label: "Privacy", action: () => openCreditsPrivacy() });
     return items;
   }
@@ -3439,6 +3516,13 @@ window.LunePractice = (function () {
       return;
     }
     const last = pieces[0];
+    // P1-23: the landing already has "Open Clair de lune"; don't repeat it in a Continue card
+    if (/clair de lune/i.test(last.title || "")) {
+      host.hidden = true;
+      host.innerHTML = "";
+      host.dataset.painted = "";
+      return;
+    }
     const n = store.listTasks().filter((t) => !t.done).length;
     host.hidden = false;
     const html = `<p class="home-continue-k">Continue</p>

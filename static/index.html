@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- lune50 -->
-  <!-- deploy-lune50 -->
-  <!-- deploy-lune50 -->
+  <!-- lune51 -->
+  <!-- deploy-lune51 -->
+  <!-- deploy-lune51 -->
 
 <meta charset="UTF-8">
   <script>
@@ -22,25 +22,25 @@
   <meta property="og:title" content="Lune — so practice feels right again">
   <meta property="og:description" content="Piano scores that explain themselves: every note named, every hard bar made clear. 3,700+ free scores, braille music, works offline.">
   <meta property="og:url" content="https://lune.page/">
-  <meta property="og:image" content="https://lune.page/static/assets/og.png?v=lune50">
+  <meta property="og:image" content="https://lune.page/static/assets/og.png?v=lune51">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="Lune — so practice feels right again">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Lune — so practice feels right again">
   <meta name="twitter:description" content="Piano scores that explain themselves: every note named, every hard bar made clear. Free.">
-  <meta name="twitter:image" content="https://lune.page/static/assets/og.png?v=lune50">
+  <meta name="twitter:image" content="https://lune.page/static/assets/og.png?v=lune51">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Lune">
-  <link rel="icon" href="static/assets/favicon.svg?v=lune50" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=lune50">
+  <link rel="icon" href="static/assets/favicon.svg?v=lune51" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=lune51">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="preload" href="static/assets/fonts/ebgaramond-var.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="static/assets/fonts/ebgaramond-italic-var.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="static/styles.css?v=lune50">
-  <link rel="stylesheet" href="static/theme-light.css?v=lune50">
+  <link rel="stylesheet" href="static/styles.css?v=lune51">
+  <link rel="stylesheet" href="static/theme-light.css?v=lune51">
   <script>window.luneSearchIndexJson = () => window.__luneSearchIndex || (window.__luneSearchIndex = fetch(window.luneUrl ? window.luneUrl("/static/search-index.json?v=catalog03") : "static/search-index.json?v=catalog03").then((r) => (r.ok ? r.json() : null)).catch(() => null));</script>
 </head>
 <body>
@@ -74,8 +74,9 @@
       var still = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
       // only on the front door: a link to a piece, or a second visit this session, goes straight in
       if (seen || still || (location.hash && location.hash !== "#" && location.hash !== "#/")) { el.parentNode.removeChild(el); return; }
-      setTimeout(function () { el.classList.add("gone"); }, 1500);
-      setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 2300);
+      // P0-09: a brief mark, not a wait; the landing is already painted underneath
+      setTimeout(function () { el.classList.add("gone"); }, 450);
+      setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 1200);
     })();
   </script>
   <script>if (/^#\/[a-z0-9]/i.test(location.hash) && !/^#\/(ai|repertoire|study|assign)\b/.test(location.hash)) document.documentElement.classList.add("boot-piece");</script>
@@ -145,7 +146,7 @@
         <a href="#get-lune" data-lp-jump="get-lune">Get Lune</a>
       </nav>
       <button type="button" class="bar-auth" id="btn-bar-auth" data-lp-signin-only>
-        Sign in<span class="bar-auth-rest">&nbsp;or Create account</span>
+        Sign in
       </button>
       <button type="button" class="quiet bar-tool" id="btn-share" aria-label="Share" title="Share your repertoire, a piece, your week, or annotated bars">
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M12 15V4m0 0L8 8m4-4l4 4M5 13v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -155,7 +156,7 @@
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M4 7h10M18 7h2M4 12h4M12 12h8M4 17h12M20 17h0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16" cy="7" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="10" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="18" cy="17" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
         <span class="bar-tool-label">Settings</span>
       </button>
-      <button type="button" class="visually-hidden" id="btn-open" tabindex="-1" aria-hidden="true">Upload</button>
+      <button type="button" id="btn-open" hidden tabindex="-1" aria-hidden="true">Upload</button>
       <input type="file" id="file" accept=".musicxml,.xml,.mxl,application/vnd.recordare.musicxml+xml,application/vnd.recordare.musicxml,.pdf,image/*" hidden>
     </header>
 
@@ -205,7 +206,7 @@
 
         <section class="member-week" id="member-week" aria-labelledby="member-week-h">
           <details class="member-week-more">
-            <summary><h2 id="member-week-h">How This week works</h2></summary>
+            <summary><h2 id="member-week-h">How this week works</h2></summary>
             <ul class="member-week-how">
               <li>Set your practice days in Settings.</li>
               <li>A day counts when you rate a bar or finish a task. Lune never times you.</li>
@@ -243,7 +244,7 @@
             <button type="button" class="link-btn" id="btn-footer-invite">Invite</button>
           </p>
           <p class="fine-print home-footer-legal">
-            <button type="button" class="link-btn" data-open-credits>Credits &amp; licenses</button> ·
+            <button type="button" class="link-btn" data-open-credits>Credits and licences</button> ·
             <button type="button" class="link-btn" data-open-credits="privacy">Privacy</button> ·
             free and non-commercial
           </p>
@@ -291,7 +292,7 @@
           <p class="mr-sub">Piano scores that explain themselves. Every note named, every hard bar made clear. Free.</p>
           <div class="hero-cta">
             <button type="button" class="hero-cta-main" data-open-piece="debussy-clair-de-lune" data-open-panel="score">Open Clair de lune</button>
-            <button type="button" class="hero-cta-alt" data-lp-personalise>Make Lune yours</button>
+            <button type="button" class="hero-cta-alt" data-lp-personalise>Set up in 1 minute</button>
           </div>
         </div>
         <div class="mr-stage">
@@ -310,7 +311,7 @@
         <dl>
           <div><dt>3,700+</dt><dd>public-domain scores, open in a tap</dd></div>
           <div><dt>220</dt><dd>composers, Bach to Debussy</dd></div>
-          <div><dt>831</dt><dd>scores in braille music</dd></div>
+          <div><dt>834</dt><dd>scores in braille music</dd></div>
           <div><dt>Offline</dt><dd>installs like an app, works without a signal</dd></div>
         </dl>
       </section>
@@ -428,7 +429,7 @@
         <div class="ai-intro" data-reveal>
           <p class="about-kicker">Lune AI</p>
           <h2 id="ai-h" data-fx-blur>Help that reads<br>your score first.</h2>
-          <p class="ai-lead">It reads the score in front of you. Swipe through it on real bars of Für Elise.</p>
+          <p class="ai-lead">It reads the score in front of you. <span class="only-touch">Swipe through it</span><span class="only-pointer">See it</span> on real bars of Für Elise.</p>
         </div>
 
         <div class="ai-scenes" tabindex="0" role="region" aria-label="Lune AI examples. Use the arrow keys to move between them.">
@@ -593,7 +594,7 @@
         <p class="home-footer-line">Lune · named for Clair de lune</p>
         <p class="home-footer-word" aria-hidden="true"><svg viewBox="0 0 40 40" focusable="false"><g stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><line x1="5" y1="26" x2="10.07" y2="26"/><line x1="27.93" y1="26" x2="35" y2="26"/><line x1="5" y1="30" x2="35" y2="30"/><line x1="5" y1="34" x2="35" y2="34"/></g><path fill="currentColor" d="M17.61 4.58A12 12 0 1 0 27.70 24.77A11.4 11.4 0 1 1 17.61 4.58Z"/></svg>lune</p>
         <p class="fine-print home-footer-legal">
-          <button type="button" class="link-btn" data-open-credits>Credits &amp; licenses</button> ·
+          <button type="button" class="link-btn" data-open-credits>Credits and licences</button> ·
           <button type="button" class="link-btn" data-open-credits="privacy">Privacy</button> ·
           <a href="mailto:info@lune.page?subject=Lune%20feedback" id="footer-feedback" data-open-feedback="pianist">Feedback</a> ·
           free and non-commercial
@@ -655,7 +656,7 @@
             </div>
             <div class="access-strip" id="score-access" aria-label="Reading options">
               <button type="button" class="access-chip" id="btn-dyslexia-score" aria-pressed="false" title="Easy read letters (Atkinson Hyperlegible)" aria-label="Easy read letters">Easy read</button>
-              <a class="access-chip access-braille" id="btn-braille-score" hidden href="#" download aria-label="Download braille music"><span class="braille-glyph" aria-hidden="true">⠿</span><span class="braille-word">Braille</span></a>
+              <a class="access-chip access-braille" id="btn-braille-score" hidden download aria-label="Download braille music"><span class="braille-glyph" aria-hidden="true">⠿</span><span class="braille-word">Braille</span></a>
             </div>
             <!-- Legacy XOR hooks kept for session restore / tests -->
             <span class="tog-group xor-group" hidden aria-hidden="true">
@@ -704,7 +705,7 @@
                 <h2 class="access-card-h" id="access-card-h">Reading and access</h2>
                 <div class="access-card-grid">
                   <button type="button" class="access-option" id="btn-dyslexia-explain" aria-pressed="false"><strong>Easy-read letters</strong><span>Note names in a typeface where every letter is distinct.</span></button>
-                  <a class="access-option" id="btn-braille-explain" hidden href="#" download><strong>Braille music</strong><span>Download this piece as a braille music file (.brf) for a braille display or embosser.</span></a>
+                  <a class="access-option" id="btn-braille-explain" hidden download><strong>Braille music</strong><span>Download this piece as a braille music file (.brf) for a braille display or embosser.</span></a>
                   <span class="access-option is-off" id="braille-none-explain" hidden><strong>Braille music</strong><span>Not available for this piece yet.</span></span>
                   <button type="button" class="access-option" id="btn-access-more"><strong>Large print, contrast, read aloud</strong><span>Bigger notes, black on white, and each bar described out loud.</span></button>
                 </div>
@@ -840,7 +841,7 @@
         </svg>
       </button>
     </form>
-    <h2 id="credits-title">Credits &amp; licenses</h2>
+    <h2 id="credits-title">Credits and licences</h2>
     <p>Lune is a free, non-commercial practice tool. It stands on other people’s generous work:</p>
     <h3>Scores</h3>
     <ul>
@@ -890,28 +891,30 @@
   <div class="toast" id="toast" hidden></div>
   <script defer src="static/vendor/opensheetmusicdisplay.min.js"></script>
   <script defer src="static/vendor/Tone.js"></script>
-  <script defer src="static/piano.js?v=lune50"></script>
-  <script defer src="static/annotate.js?v=lune50"></script>
-  <script defer src="static/lite-analyze.js?v=lune50"></script>
-  <script defer src="static/fetch-score.js?v=lune50"></script>
-  <script defer src="static/lyric-lane.js?v=lune50"></script>
-  <script defer src="static/menu.js?v=lune50"></script>
-  <script defer src="static/lune-fx.js?v=lune50"></script>
-  <script defer src="static/lune-config.js?v=lune50"></script>
-  <script defer src="static/store.js?v=lune50"></script>
-  <script defer src="static/onboard.js?v=lune50"></script>
-  <script defer src="static/impact.js?v=lune50"></script>
-  <script defer src="static/feedback.js?v=lune50"></script>
-  <script defer src="static/ai-device.js?v=lune50"></script>
-  <script defer src="static/ask.js?v=lune50"></script>
-  <script defer src="static/markings.js?v=lune50"></script>
-  <script defer src="static/plans.js?v=lune50"></script>
-  <script defer src="static/app.js?v=lune50"></script>
-  <script defer src="static/studio-ui.js?v=lune50"></script>
-  <script defer src="static/landing-score.js?v=lune50"></script>
-  <script defer src="static/moonrise.js?v=lune50"></script>
-  <script defer src="static/practice.js?v=lune50"></script>
-  <script defer src="static/study.js?v=lune50"></script>
-  <script defer src="static/install.js?v=lune50"></script>
+  <script defer src="static/piano.js?v=lune51"></script>
+  <script defer src="static/annotate.js?v=lune51"></script>
+  <script defer src="static/lite-analyze.js?v=lune51"></script>
+  <script defer src="static/fetch-score.js?v=lune51"></script>
+  <script defer src="static/lyric-lane.js?v=lune51"></script>
+  <script defer src="static/menu.js?v=lune51"></script>
+  <script defer src="static/lune-fx.js?v=lune51"></script>
+  <script defer src="static/lune-config.js?v=lune51"></script>
+  <script defer src="static/store.js?v=lune51"></script>
+  <script defer src="static/onboard.js?v=lune51"></script>
+  <script defer src="static/impact.js?v=lune51"></script>
+  <script defer src="static/feedback.js?v=lune51"></script>
+  <script defer src="static/ai-device.js?v=lune51"></script>
+  <script defer src="static/ask.js?v=lune51"></script>
+  <script defer src="static/markings.js?v=lune51"></script>
+  <script defer src="static/plans.js?v=lune51"></script>
+  <script defer src="static/score-facts.js?v=lune51"></script>
+  <script defer src="static/piece-notes.js?v=lune51"></script>
+  <script defer src="static/app.js?v=lune51"></script>
+  <script defer src="static/studio-ui.js?v=lune51"></script>
+  <script defer src="static/landing-score.js?v=lune51"></script>
+  <script defer src="static/moonrise.js?v=lune51"></script>
+  <script defer src="static/practice.js?v=lune51"></script>
+  <script defer src="static/study.js?v=lune51"></script>
+  <script defer src="static/install.js?v=lune51"></script>
 </body>
 </html>

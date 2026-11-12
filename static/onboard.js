@@ -84,7 +84,7 @@ window.LuneOnboard = (function () {
   const DREAM_SUGGESTIONS = [
     { title: "Clair de lune", composer: "Debussy", query: "clair de lune", id: "debussy-clair-de-lune", grade: 6 },
     { title: "Für Elise", composer: "Beethoven", query: "fur elise", id: "beethoven-fur-elise", grade: 3 },
-    { title: "Moonlight Sonata (1st mov.)", composer: "Beethoven", query: "moonlight", grade: 5 },
+    { title: "Moonlight Sonata, 1st movement", composer: "Beethoven", query: "moonlight", grade: 5 },
     { title: "Nocturne Op. 9 No. 2", composer: "Chopin", query: "nocturne op 9", grade: 6 },
     { title: "Gymnopédie No. 1", composer: "Satie", query: "gymnopedie", id: "satie-gymnopedie-1", grade: 3 },
     { title: "Prelude in C major, BWV 846", composer: "Bach", query: "bach prelude c", grade: 3 },
@@ -100,45 +100,45 @@ window.LuneOnboard = (function () {
   const GRADE_POOL = {
     1: [
       { title: "Twinkle Twinkle Little Star", composer: "Traditional", query: "twinkle", grade: 1 },
-      { title: "Minuet in G", composer: "J. S. Bach", query: "bach minuet", grade: 1 },
+      { title: "Minuet in G", composer: "Bach", query: "bach minuet", grade: 1 },
       { title: "Ode to Joy (easy)", composer: "Beethoven", query: "ode to joy easy", grade: 1 },
     ],
     2: [
-      { title: "Minuet in G", composer: "J. S. Bach", query: "bach minuet", grade: 2 },
+      { title: "Minuet in G", composer: "Bach", query: "bach minuet", grade: 2 },
       { title: "Greensleeves (easy)", composer: "Traditional", query: "greensleeves easy", grade: 2 },
       { title: "Canon in D (easy)", composer: "Pachelbel", query: "canon in d easy", grade: 2 },
     ],
     3: [
       { title: "Für Elise", composer: "Beethoven", query: "fur elise", id: "beethoven-fur-elise", grade: 3 },
-      { title: "Gymnopédie No. 1", composer: "Erik Satie", query: "gymnopedie", id: "satie-gymnopedie-1", grade: 3 },
-      { title: "Prelude in C major, BWV 846", composer: "J. S. Bach", query: "bach prelude c", grade: 3 },
+      { title: "Gymnopédie No. 1", composer: "Satie", query: "gymnopedie", id: "satie-gymnopedie-1", grade: 3 },
+      { title: "Prelude in C major, BWV 846", composer: "Bach", query: "bach prelude c", grade: 3 },
     ],
     4: [
       { title: "Für Elise", composer: "Beethoven", query: "fur elise", id: "beethoven-fur-elise", grade: 4 },
-      { title: "Invention No. 1", composer: "J. S. Bach", query: "invention 1", grade: 4 },
-      { title: "Sonatina (Clementi)", composer: "Muzio Clementi", query: "clementi sonatina", grade: 4 },
-      { title: "Nocturne (easy)", composer: "Chopin", query: "nocturne easy", grade: 4 },
+      { title: "Invention No. 1", composer: "Bach", query: "invention 1", grade: 4 },
+      { title: "Sonatina", composer: "Clementi", query: "clementi sonatina", grade: 4 },
+      { title: "Nocturne Op. 9 No. 2 (easy)", composer: "Chopin", query: "nocturne easy", grade: 4 },
     ],
     5: [
-      { title: "Moonlight Sonata (1st mov.)", composer: "Beethoven", query: "moonlight", grade: 5 },
+      { title: "Moonlight Sonata, 1st movement", composer: "Beethoven", query: "moonlight", grade: 5 },
       { title: "Prelude in E minor", composer: "Chopin", query: "prelude e minor", grade: 5 },
-      { title: "Gnossienne No. 1", composer: "Erik Satie", query: "gnossienne", grade: 5 },
-      { title: "Maple Leaf Rag", composer: "Scott Joplin", query: "maple leaf", grade: 5 },
+      { title: "Gnossienne No. 1", composer: "Satie", query: "gnossienne", grade: 5 },
+      { title: "Maple Leaf Rag", composer: "Joplin", query: "maple leaf", grade: 5 },
     ],
     6: [
-      { title: "Clair de lune", composer: "Claude Debussy", query: "clair de lune", id: "debussy-clair-de-lune", grade: 6 },
+      { title: "Clair de lune", composer: "Debussy", query: "clair de lune", id: "debussy-clair-de-lune", grade: 6 },
       { title: "Nocturne Op. 9 No. 2", composer: "Chopin", query: "nocturne op 9", grade: 6 },
       { title: "Arabesque No. 1", composer: "Debussy", query: "arabesque", grade: 6 },
-      { title: "The Entertainer", composer: "Scott Joplin", query: "entertainer", grade: 6 },
+      { title: "The Entertainer", composer: "Joplin", query: "entertainer", grade: 6 },
     ],
     7: [
-      { title: "Clair de lune", composer: "Claude Debussy", query: "clair de lune", id: "debussy-clair-de-lune", grade: 7 },
-      { title: "Liebestraum No. 3", composer: "Franz Liszt", query: "liebestraum", grade: 7 },
+      { title: "Clair de lune", composer: "Debussy", query: "clair de lune", id: "debussy-clair-de-lune", grade: 7 },
+      { title: "Liebestraum No. 3", composer: "Liszt", query: "liebestraum", grade: 7 },
       { title: "Mazurka Op. 6 No. 2", composer: "Chopin", query: "mazurka 06 2", grade: 7 },
       { title: "Raindrop Prelude", composer: "Chopin", query: "prelude 28 15", grade: 7 },
     ],
     8: [
-      { title: "Clair de lune", composer: "Claude Debussy", query: "clair de lune", id: "debussy-clair-de-lune", grade: 8 },
+      { title: "Clair de lune", composer: "Debussy", query: "clair de lune", id: "debussy-clair-de-lune", grade: 8 },
       { title: "Ballade No. 1", composer: "Chopin", query: "ballade", grade: 8 },
       { title: "La Campanella", composer: "Liszt", query: "campanella", grade: 8 },
       { title: "Moonlight Sonata", composer: "Beethoven", query: "moonlight", grade: 8 },
@@ -146,6 +146,12 @@ window.LuneOnboard = (function () {
   };
 
   const STEP_LABELS = ["Composers", "Level", "Aspire", "Practice", "Dream", "Account", "Path"];
+  // Setup shows four screens (P0-11): level, the piece you're working toward,
+  // practice days, account. Composer taste and the aspiration step stay in the
+  // code for later use but are not asked up front.
+  const FLOW = [1, 4, 3, 5];
+  const FLOW_LABELS = ["Level", "Goal piece", "Practice days", "Account"];
+  const flowAt = (n) => Math.max(0, FLOW.indexOf(n));
   const WELCOME_VERSION = 3;
   /** Post-OTP hello moment — bump to re-show after copy changes. */
   const SIGNED_WELCOME_VERSION = 2;
@@ -826,17 +832,9 @@ window.LuneOnboard = (function () {
       markStudioReady();
       clearDraft();
       pendingEnterStudio = false;
-      if (!seenSignedWelcome()) {
-        pendingSignedWelcome = true;
-        pendingWelcomeBack = false;
-        showSignedWelcome({ mode: "first" });
-        return;
-      }
-      if (!sessionWelcomeBackSeen()) {
-        pendingWelcomeBack = true;
-        showSignedWelcome({ mode: "back" });
-        return;
-      }
+      // no welcome interstitial (P1-13): signed-in members land on their home
+      markSignedWelcomeSeen();
+      markSessionWelcomeBack();
       enterApp();
       return;
     }
@@ -848,9 +846,38 @@ window.LuneOnboard = (function () {
       return;
     }
     // Signed in but questionnaire incomplete → resume questions (never the email step).
-    if (selectedComposers.size && dreamPiece) showOnboard(6);
-    else showOnboard(Math.min(Math.max(step, 0), 4));
+    finishOnboard({ quiet: true, skipKeepPrompt: true });
   }
+
+  /** Leave setup without losing the answers given so far. */
+  function closeOnboard({ fromHistory = false } = {}) {
+    saveDraft?.();
+    const o = $("onboard");
+    if (o) o.hidden = true;
+    document.body.classList.remove("is-onboard");
+    if (!fromHistory) {
+      // drop the setup steps from history so Back doesn't reopen them
+      try {
+        history.replaceState(null, "", location.href);
+      } catch {
+        /* ignore */
+      }
+    }
+    window.goHome?.({ forceApp: true });
+    // the landing (or the member's home) must be what is left on screen
+    if ($("home")?.hidden) window.showView?.("home");
+    applyGateChrome();
+    paintSignedHome();
+  }
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && $("onboard") && !$("onboard").hidden && !document.querySelector("dialog[open]")) closeOnboard();
+  });
+  window.addEventListener("popstate", (e) => {
+    if (!$("onboard") || $("onboard").hidden) return;
+    const n = e.state?.luneOnboard;
+    if (n != null && FLOW.includes(n)) showOnboard(n, { fromHistory: true });
+    else closeOnboard({ fromHistory: true });
+  });
 
   function showWelcome() {
     ensureDom();
@@ -913,10 +940,42 @@ window.LuneOnboard = (function () {
     });
   }
 
-  function showOnboard(n = 0) {
+  // P0-10: the composer list and score index load when setup opens, not on every visit
+  let onboardDataWarm = false;
+  function warmOnboardData() {
+    if (onboardDataWarm) return;
+    onboardDataWarm = true;
+    ensureLibraryComposers();
+    // search-index items for dream-piece filtering
+    (window.luneSearchIndexJson ? window.luneSearchIndexJson() : fetch(
+      typeof window.luneUrl === "function" ? window.luneUrl("/static/search-index.json") : "static/search-index.json"
+    ).then((r) => (r.ok ? r.json() : null)))
+      .then((data) => {
+        if (data?.items) window.__LUNE_SEARCH_ITEMS__ = data.items;
+      })
+      .catch(() => {});
+  }
+
+  function showOnboard(n = 0, { fromHistory = false } = {}) {
     ensureDom();
     loadDraft();
+    warmOnboardData();
     store()?.setPref?.("seenWelcome", true);
+    // retired screens fold into the four-step flow; the old last screen is the studio itself
+    if (n === 6) {
+      finishOnboard({ quiet: true, skipKeepPrompt: true, guest: !signedIn() });
+      return;
+    }
+    if (!FLOW.includes(n)) n = FLOW[0];
+    // each step gets its own history entry, so the browser's Back button goes back a step
+    if (!fromHistory) {
+      try {
+        const first = $("onboard")?.hidden !== false;
+        history[first ? "pushState" : "pushState"]({ luneOnboard: n }, "", location.href);
+      } catch {
+        /* history unavailable: Back and Escape still work in the page */
+      }
+    }
     step = n;
     hideAllMains();
     const o = $("onboard");
@@ -932,18 +991,22 @@ window.LuneOnboard = (function () {
   }
 
   function progressHtml(active) {
-    return `<ol class="onboard-progress" aria-label="Onboarding progress">
-      ${STEP_LABELS.map(
+    const at = flowAt(active);
+    return `<ol class="onboard-progress" aria-label="Setup progress">
+      ${FLOW_LABELS.map(
         (label, i) =>
-          `<li class="${i === active ? "on" : i < active ? "done" : ""}"${i === active ? ' aria-current="step"' : ""}><span aria-hidden="true"></span><em>${label}</em><b class="visually-hidden">Step ${i + 1} of ${STEP_LABELS.length}${i === active ? "" : `: ${label}`}</b></li>`
+          `<li class="${i === at ? "on" : i < at ? "done" : ""}"${i === at ? ' aria-current="step"' : ""}><span aria-hidden="true"></span><em>${label}</em><b class="visually-hidden">Step ${i + 1} of ${FLOW_LABELS.length}${i === at ? "" : `: ${label}`}</b></li>`
       ).join("")}
     </ol>`;
   }
 
   function navHtml({ back = true, nextLabel = "Continue", nextDisabled = false, nextAttr = "data-next" } = {}) {
     return `<div class="onboard-nav">
-      ${back ? `<button type="button" class="quiet" data-back>Back</button>` : `<span></span>`}
-      <button type="button" class="primary" ${nextAttr} ${nextDisabled ? "disabled" : ""}>${nextLabel}</button>
+      <button type="button" class="quiet" data-back>Back</button>
+      <span class="onboard-nav-right">
+        <button type="button" class="quiet" data-skip>Skip</button>
+        <button type="button" class="primary" ${nextAttr} ${nextDisabled ? "disabled" : ""}>${nextLabel}</button>
+      </span>
     </div>`;
   }
 
@@ -1150,7 +1213,7 @@ window.LuneOnboard = (function () {
         ${navHtml({ nextDisabled: !dreamPiece, nextLabel: "Continue to account" })}`;
     } else if (step === 5) {
       if (signedIn()) {
-        showOnboard(6);
+        finishOnboard({ quiet: true, skipKeepPrompt: true });
         return;
       }
       restorePendingAuthEmail();
@@ -1185,7 +1248,10 @@ window.LuneOnboard = (function () {
         </form>
         <div class="onboard-nav">
           <button type="button" class="quiet" data-back>Back</button>
-          <button type="button" class="quiet" data-already>I already have an account</button>
+          <span class="onboard-nav-right">
+            <button type="button" class="quiet" data-already>I already have an account</button>
+            <button type="button" class="quiet" data-guest>Continue without an account</button>
+          </span>
         </div>`;
     } else {
       const pack = buildRecommendations();
@@ -1237,6 +1303,12 @@ window.LuneOnboard = (function () {
         </div>`;
     }
 
+    if (!stage.querySelector("[data-close]")) {
+      stage.insertAdjacentHTML(
+        "afterbegin",
+        `<button type="button" class="onboard-close icon-btn" data-close aria-label="Close setup" title="Close"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>`
+      );
+    }
     bindOnboardEvents(stage);
   }
 
@@ -1264,13 +1336,23 @@ window.LuneOnboard = (function () {
         });
       })
     );
+    const nextStep = () => {
+      const i = flowAt(step);
+      if (i >= FLOW.length - 1) finishOnboard({ quiet: true, skipKeepPrompt: true, guest: !signedIn() });
+      else showOnboard(FLOW[i + 1]);
+    };
     stage.querySelector("[data-next]")?.addEventListener("click", () => {
-      if (step === 0 && !selectedComposers.size) return;
-      if (step === 4 && !dreamPiece) return;
-      if (step === 2 && aspireGrade < selectedGrade) aspireGrade = selectedGrade;
-      showOnboard(Math.min(STEP_LABELS.length - 1, step + 1));
+      if (aspireGrade < selectedGrade) aspireGrade = selectedGrade;
+      nextStep();
     });
-    stage.querySelector("[data-back]")?.addEventListener("click", () => showOnboard(Math.max(0, step - 1)));
+    stage.querySelector("[data-skip]")?.addEventListener("click", nextStep);
+    stage.querySelector("[data-guest]")?.addEventListener("click", () => finishOnboard({ quiet: true, skipKeepPrompt: true, guest: true }));
+    stage.querySelector("[data-back]")?.addEventListener("click", () => {
+      const i = flowAt(step);
+      if (i === 0) closeOnboard();
+      else history.back();
+    });
+    stage.querySelector("[data-close]")?.addEventListener("click", () => closeOnboard());
     stage.querySelector("[data-finish]")?.addEventListener("click", () => finishOnboard());
     stage.querySelector("[data-already]")?.addEventListener("click", () => openCreateAccount());
 
@@ -1541,7 +1623,7 @@ window.LuneOnboard = (function () {
     return { progression, also: also.slice(0, 4) };
   }
 
-  function finishOnboard({ quiet = false, skipKeepPrompt = false } = {}) {
+  function finishOnboard({ quiet = false, skipKeepPrompt = false, guest = false } = {}) {
     const pack = buildRecommendations();
     // Always keep questionnaire / path answers — even if we still need OTP.
     store().setPref("grade", selectedGrade);
@@ -1556,7 +1638,7 @@ window.LuneOnboard = (function () {
     store().setPref("welcomeVersion", WELCOME_VERSION);
     store().syncPrefs?.();
 
-    if (!signedIn()) {
+    if (!signedIn() && !guest) {
       // Never restart the landing simulation from “Enter the studio”.
       pendingEnterStudio = true;
       showOnboard(5);
@@ -1569,13 +1651,9 @@ window.LuneOnboard = (function () {
     clearDraft();
     $("create-account-dialog")?.close?.();
     $("keep-lune-dialog")?.close?.();
-    // First verified sign-in → warm hello, then signed-in home (not guest sim).
-    if (pendingSignedWelcome || !seenSignedWelcome()) {
-      pendingSignedWelcome = true;
-      showSignedWelcome();
-      if (!quiet) window.toast?.("Welcome to Lune");
-      return;
-    }
+    // P1-13: no welcome page in between; setup goes straight to the studio home.
+    pendingSignedWelcome = false;
+    markSignedWelcomeSeen();
     enterApp();
     if (!quiet) window.toast?.("Your studio is ready");
     if (!skipKeepPrompt && !signedIn()) {
@@ -1933,22 +2011,9 @@ window.LuneOnboard = (function () {
       hydrateFromPrefs();
       if (hasCompletedOnboarding()) markStudioReady();
       document.body.classList.add("is-signed-in");
-      if (hasCompletedOnboarding()) {
-        if (!seenSignedWelcome()) {
-          pendingSignedWelcome = true;
-          showSignedWelcome({ mode: "first" });
-          return "hello";
-        }
-        if (!sessionWelcomeBackSeen()) {
-          pendingWelcomeBack = true;
-          showSignedWelcome({ mode: "back" });
-          return "hello";
-        }
-      } else if (!seenSignedWelcome()) {
-        pendingSignedWelcome = true;
-        showSignedWelcome({ mode: "first" });
-        return "hello";
-      }
+      // no welcome interstitial (P1-13): straight to the member's home
+      markSignedWelcomeSeen();
+      markSessionWelcomeBack();
     }
     applyGateChrome();
     paintSignedHome();
@@ -2120,17 +2185,6 @@ window.LuneOnboard = (function () {
     ensureDom();
     ensureTourDom();
     loadDraft();
-    ensureLibraryComposers().then(() => {
-      if (step === 0 && !$("onboard")?.hidden) paintOnboard();
-    });
-    // Expose search-index items for dream-piece filtering when app.js loads them.
-    (window.luneSearchIndexJson ? window.luneSearchIndexJson() : fetch(
-      typeof window.luneUrl === "function" ? window.luneUrl("/static/search-index.json") : "static/search-index.json"
-    ).then((r) => (r.ok ? r.json() : null)))
-      .then((data) => {
-        if (data?.items) window.__LUNE_SEARCH_ITEMS__ = data.items;
-      })
-      .catch(() => {});
     // Cloud prefs are fetched once per sign-in, not on every store change
     // (the fetch itself reports a change, which used to start it again).
     let prefsPulled = false;
