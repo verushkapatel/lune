@@ -731,3 +731,20 @@ html body #coach .lune-orb-sm, html body #coach [class*="orb"] {
 html body #coach [class*="orb"] * { display: none !important; }
 html:not([data-theme="light"]) body #coach .lc-round, html:not([data-theme="light"]) body #coach .lc-send { background: #c3d0f2 !important; color: #000 !important; }
 html[data-theme="light"] body #coach .lc-round, html[data-theme="light"] body #coach .lc-send { background: var(--navy-mid) !important; color: #fff !important; }
+
+/* ==========================================================================
+   Header, Apple-simple: open-piece tabs belong to the studio only; a guest on
+   the landing sees the wordmark, four links and Sign in.
+   ========================================================================== */
+html body:not(.is-studio) header.bar #piece-tabs { display: none !important; }
+html body.is-home:not(.is-signed-in) header.bar #btn-repertoire,
+html body.is-home:not(.is-signed-in) header.bar #btn-share { display: none !important; }
+html body.is-home:not(.is-signed-in) header.bar .lp-nav { margin-left: auto; margin-right: 8px; }
+header.bar .brand-name, header.bar .fx-brand { letter-spacing: 0.32em !important; font: 500 13px var(--ui) !important; }
+
+/* hero type at Apple scale on large screens */
+@media (min-width: 900px) {
+  html body #hero h1.mr-h, html body #hero h1.mr-h .mr-l1, html body #hero h1.mr-h .mr-l2 { font-size: clamp(64px, 6vw, 96px) !important; line-height: 1 !important; }
+  html body #hero h1.mr-h .mr-l1, html body #hero h1.mr-h .mr-l2 { display: block; white-space: nowrap; }
+  html body #hero .mr-sub { font-size: clamp(20px, 1.6vw, 24px) !important; max-width: 34ch; margin-inline: auto; color: rgba(245, 245, 247, 0.72) !important; }
+}
