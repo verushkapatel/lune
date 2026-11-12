@@ -450,3 +450,16 @@ html body .wk-opts .wk-go, html body button.wk-go { background: var(--accent) !i
 /* finger numbers in the bar panel: written for light, flipped in dark */
 html:not([data-theme="light"]) #coach .tone-finger { color: #2c2c2e !important; border-color: #2c2c2e !important; }
 html[data-theme="light"] .tone-finger { color: #14213d !important; border-color: #14213d !important; }
+
+/* Lune AI's empty state: the crescent and one large line, like a good chat app's greeting */
+html body .lune-chat .ask-empty { display: flex; flex-direction: column; align-items: center; gap: 18px; margin: auto 0 28px !important; }
+html body .lune-chat .ask-empty-orb {
+  width: 34px !important; height: 34px !important; min-height: 0 !important; filter: none !important; background: none !important;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='4 3 26 26'%3E%3Cpath d='M17.61 4.58A12 12 0 1 0 27.70 24.77A11.4 11.4 0 1 1 17.61 4.58Z'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='4 3 26 26'%3E%3Cpath d='M17.61 4.58A12 12 0 1 0 27.70 24.77A11.4 11.4 0 1 1 17.61 4.58Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  background-color: var(--d-label) !important; box-shadow: none !important; border: 0 !important;
+}
+html body .lune-chat .ask-empty-orb * { display: none !important; }
+html body .lune-chat .ask-empty-h {
+  font-family: var(--display) !important; font-size: clamp(28px, 3.4vw, 36px) !important; font-weight: 500 !important;
+  letter-spacing: -0.015em !important; color: var(--d-label) !important; margin: 0 !important; text-align: center;
+}

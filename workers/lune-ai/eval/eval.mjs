@@ -58,6 +58,15 @@ export function fingeringRight(t, bar) {
   const norm = (x) => x.replace("♯", "#").replace("♭", "b");
   const pairs = [];
   const notesIn = (list) => [...list.matchAll(new RegExp(NOTE, "g"))].map((m) => norm(m[0]));
+  // grouped, as the prompt asks: "F5–B♭5–F6: 1-2-5" or "C5 D♭5 E♭5: 1 2 3", notes and fingers in the same order
+  const group = new RegExp(`((?:${NOTE})(?:\\s*[–-]\\s*|\\s+)(?:${NOTE})(?:(?:\\s*[–-]\\s*|\\s+)(?:${NOTE}))*)\\s*:\\s*([1-5](?:\\s*[-–,\\s]\\s*[1-5])+)`, "g");
+  for (const m of t.matchAll(group)) {
+    const ns = notesIn(m[1]);
+    const fs = m[2].match(/[1-5]/g);
+    if (ns.length !== fs.length) return false;
+    ns.forEach((n, i) => pairs.push([n, fs[i]]));
+  }
+  t = t.replace(group, " ");
   // finger first: "5 for E5", "5 little finger for E5", "(5) on E5 and D#5"
   for (const m of t.matchAll(new RegExp(`\\(?\\b([1-5])\\)?(?:\\s+(?:thumb|index|middle|ring|little|pinky)(?:\\s+finger)?)?\\s+(?:for|on)\\s+(${NOTE}(?:\\s*(?:,|and|&)\\s*${NOTE})*)`, "gi")))
     for (const n of notesIn(m[2])) pairs.push([n, m[1]]);
