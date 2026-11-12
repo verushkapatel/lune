@@ -355,7 +355,9 @@ How to answer
                 let piece = "";
                 try {
                   const j = JSON.parse(data);
-                  piece = j.response ?? j.token ?? j.text ?? "";
+                  // Workers AI streams either its own {response} or OpenAI-style chunks with an empty
+                  // response field; read whichever carries the words
+                  piece = j?.choices?.[0]?.delta?.content || j.response || j.token || j.text || "";
                   if (j.error) throw Object.assign(new Error(j.error), { userMessage: j.error });
                 } catch (e) {
                   if (e.userMessage) throw e;
@@ -2091,7 +2093,7 @@ How to answer
   }
 
   /** What Chat with Lune knows: the pianist's Repertoire, plans, week and goal, and the open piece. */
-  async function buildChatContext(log) {
+  async function buildChatContext(log = []) {
     const prefs = store().prefs?.() || {};
     const pieces = await store().listPieces?.().catch(() => []) || [];
     const tasks = (store().listTasks?.() || []).slice(0, 12);

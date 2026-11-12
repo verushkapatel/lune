@@ -253,6 +253,44 @@ async function accountFor(token, env, fetchImpl) {
   return user?.id ? user : null;
 }
 
+/**
+ * Workers AI streams in more than one shape (its own {response} events, or
+ * OpenAI-style chunks whose response field is empty). The browser gets one
+ * shape: `data: {"response": "<words>"}` per piece, then `data: [DONE]`.
+ */
+export function plainStream(stream) {
+  const dec = new TextDecoder();
+  const enc = new TextEncoder();
+  let buf = "";
+  const out = (controller, line) => {
+    const data = line.startsWith("data:") ? line.slice(5).trim() : "";
+    if (!data || data === "[DONE]") return;
+    try {
+      const j = JSON.parse(data);
+      const words = j?.choices?.[0]?.delta?.content || j?.response || "";
+      if (words) controller.enqueue(enc.encode(`data: ${JSON.stringify({ response: words })}\n\n`));
+    } catch {
+      /* a partial or keep-alive line */
+    }
+  };
+  return stream.pipeThrough(
+    new TransformStream({
+      transform(chunk, controller) {
+        buf += dec.decode(chunk, { stream: true });
+        let i;
+        while ((i = buf.indexOf("\n")) >= 0) {
+          out(controller, buf.slice(0, i).trim());
+          buf = buf.slice(i + 1);
+        }
+      },
+      flush(controller) {
+        out(controller, buf.trim());
+        controller.enqueue(enc.encode("data: [DONE]\n\n"));
+      },
+    })
+  );
+}
+
 export async function handle(req, env, fetchImpl = fetch) {
   const url = new URL(req.url);
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(req, env) });
@@ -305,11 +343,18 @@ export async function handle(req, env, fetchImpl = fetch) {
     // a spoken reply is short, so it is written (and heard) sooner
     const spoken = body?.context?.replyStyle === "spoken";
     const terms = glossaryFor(question, body?.context);
+    // earlier turns go to the model as real turns, so "20 minutes" answers the question it asked
+    const convo = Array.isArray(body?.context?.conversation) ? body.context.conversation.slice(-8) : [];
+    const turns = convo
+      .map((m) => ({ role: m?.from === "pianist" ? "user" : "assistant", content: String(m?.text || "").slice(0, 1200) }))
+      .filter((m) => m.content.trim());
+    const facts = body?.context && typeof body.context === "object" ? { ...body.context, conversation: undefined } : body?.context;
     const messages = [
       { role: "system", content: SYSTEM_PROMPT },
+      ...turns,
       {
         role: "user",
-        content: `${sections(body?.context)}${terms.length ? `\n\nTerms in this score:\n${terms.map((t) => `- ${t}`).join("\n")}` : ""}\n\nQuestion: ${question}`,
+        content: `${sections(facts)}${terms.length ? `\n\nTerms in this score:\n${terms.map((t) => `- ${t}`).join("\n")}` : ""}\n\nQuestion: ${question}`,
       },
     ];
     const maxTokens = spoken ? 220 : 900;
@@ -318,7 +363,7 @@ export async function handle(req, env, fetchImpl = fetch) {
       for (const model of [env.MODEL, env.MODEL_FALLBACK].filter(Boolean)) {
         try {
           const stream = await env.AI.run(model, { messages, max_tokens: maxTokens, temperature: 0.3, stream: true });
-          return new Response(stream, { headers: { ...cors(req, env), "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
+          return new Response(plainStream(stream), { headers: { ...cors(req, env), "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
         } catch {
           /* try the fallback model */
         }

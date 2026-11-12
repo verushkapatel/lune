@@ -1,6 +1,6 @@
 // Tests for the Lune AI Worker, with a fake model and a fake Supabase.
 // Run: node workers/lune-ai/test.mjs
-import { handle, SYSTEM_PROMPT, cleanTranscript } from "./src/index.js";
+import { handle, SYSTEM_PROMPT, cleanTranscript, plainStream } from "./src/index.js";
 
 let pass = 0;
 let fail = 0;
@@ -126,6 +126,30 @@ check("no account, no voice", r.status === 401);
   check("the large model answers first when it can", (await r.json()).model === "big" && tried.join(",") === "big");
   r = await ask({ question: "What notes?", context: ctx }, { e: env({ MODEL: "big", MODEL_FALLBACK: "small", AI: { run: async () => { throw new Error("quota"); } } }) });
   check("when both fail, Lune says so and its built-in answers take over", r.status === 503);
+}
+
+// streaming: both shapes Workers AI sends come out as plain {response} words
+{
+  const enc = new TextEncoder();
+  const src = (lines) => new ReadableStream({ start(c) { for (const l of lines) c.enqueue(enc.encode(l)); c.close(); } });
+  const read = async (s) => new Response(plainStream(s)).text();
+  const openai = await read(src([
+    'data: {"choices":[{"delta":{"role":"assistant","content":""}}],"response":""}\n\n',
+    'data: {"choices":[{"delta":{"content":"Bar 15 "}}],"response":""}\n\ndata: {"choices":[{"delta":{"content":"is"}}],',
+    '"response":""}\n\ndata: [DONE]\n\n',
+  ]));
+  const words = (t) => [...t.matchAll(/data: (\{.*\})/g)].map((m) => JSON.parse(m[1]).response).join("");
+  check("an OpenAI-style stream (empty response field) still carries every word", words(openai) === "Bar 15 is" && openai.trim().endsWith("data: [DONE]"), openai);
+  const native = await read(src(['data: {"response":"Hello"}\n\ndata: {"response":" there"}\n\n']));
+  check("Workers AI's own stream shape passes through", words(native) === "Hello there", native);
+}
+// earlier turns reach the model as real turns
+{
+  let seen = null;
+  const r = await handle(new Request("https://x/ask", { method: "POST", headers: { Authorization: "Bearer t", "Content-Type": "application/json", Origin: "https://lune.page" }, body: JSON.stringify({ question: "20 minutes", context: { conversation: [{ from: "pianist", text: "Make me a plan" }, { from: "lune", text: "How long do you have today?" }] } }) }),
+    { MODEL: "big", ALLOWED_ORIGINS: "https://lune.page", SUPABASE_URL: "https://s", SUPABASE_ANON_KEY: "k", AI: { run: async (m, o) => { seen = o.messages; return { response: "Plan." }; } } },
+    async () => new Response(JSON.stringify({ id: "u" })));
+  check("the conversation goes to the model as turns before the question", r.status === 200 && seen?.[1]?.role === "user" && seen?.[2]?.role === "assistant" && /How long/.test(seen?.[2]?.content || ""), JSON.stringify(seen?.slice(0, 3)));
 }
 
 console.log(`\n${pass}/${pass + fail} passed`);
