@@ -2775,7 +2775,7 @@ window.LunePractice = (function () {
     if (!server) return "";
     const st = store.status();
     // plain words here; which model answers is in Credits and licences
-    const where = " · it reads your score and can still be wrong.";
+    const where = "<br><span class=\"set-ai-note\">It reads your score and can still be wrong.</span>";
     if (st.mode === "cloud") {
       return `<h4 class="settings-sub">Lune AI</h4><p class="settings-note" id="set-account-ai" role="status"><strong>Lune AI is on</strong>${where}</p>`;
     }

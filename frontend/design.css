@@ -1030,3 +1030,11 @@ html body .lune-chat .chat-head { border-bottom: 0 !important; }
 html body .lune-chat #chat-sub:empty { display: none; }
 html body .lune-chat.is-empty .chat-log { margin-top: 0 !important; margin-bottom: 0 !important; }
 html body .lune-chat.is-empty .chat-starters { margin-bottom: 48px !important; }
+
+/* the landing's first screen stays the promise: no Continue box above the headline */
+html body #hero #home-continue { display: none !important; }
+/* Settings: section labels in the same italic navy as the rest of Lune */
+html body .settings-dialog .settings-sub, html body .settings-dialog h4 {
+  font: italic 500 16px var(--ui) !important; letter-spacing: 0 !important; text-transform: none !important; color: var(--navy-hi) !important; margin: 22px 0 8px 4px !important;
+}
+html body .set-ai-note { color: var(--d-label-2); font-size: 15px; }
