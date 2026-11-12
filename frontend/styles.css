@@ -12239,3 +12239,9 @@ html[data-theme="light"] .piano-tut-meta { color: #4a4a4a; }
 
 /* P2-17: Settings' sticky header has a hairline and a backdrop in light mode */
 html[data-theme="light"] .settings-top { background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(0, 0, 0, 0.08); }
+
+/* P2-01: feature copy starts level with the top of its demo */
+@media (min-width: 901px) {
+  .home-feat { align-items: start !important; }
+  .home-feat-copy { align-self: start !important; padding-top: 8px; margin-top: 0 !important; }
+}
