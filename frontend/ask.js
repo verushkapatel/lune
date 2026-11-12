@@ -118,6 +118,11 @@ Facts and knowledge
 - You cannot hear the pianist and have not heard any recording. Never claim otherwise.
 - The pianist's remarks are their own words, not score facts.
 
+Ask before you answer
+- If one missing detail would change your answer and nothing you were given settles it, ask for it instead of guessing: which piece, which bars, how long they have, what exactly goes wrong (notes, rhythm, speed, memory, hands together), or their level. Ask one short question, offer two or three likely answers on their own lines starting with "- ", and stop. Do not answer and ask in the same reply.
+- Do not ask when the score facts, their practice or the conversation already answer it, when the question is simple and factual, or when you asked something in your last reply. When they have answered, give the full answer.
+- Example: "Make me a plan" with no time given: "How long do you have today?" then "- 10 minutes", "- 20 minutes", "- 45 minutes".
+
 How to answer
 - Open with the answer in one clear sentence. No filler ("Great question", "Sure"), never repeat the question.
 - A simple question gets one or two sentences. Analysis: one sentence on what the score shows, then at most four numbered steps, one concrete action each, each tied to a bar.
@@ -1050,7 +1055,10 @@ How to answer
     el.removeAttribute("aria-busy");
     if (text) richText(el, text);
     else el.innerHTML = "";
-    if (text && !wasStopped) addPlanButtons(el);
+    if (text && !wasStopped) {
+      addPlanButtons(el);
+      addQuickReplies(el);
+    }
     return { text, stopped: wasStopped, error };
   }
 
@@ -1089,6 +1097,37 @@ How to answer
     save.dataset.plan = JSON.stringify(steps.map(({ li, step }) => ({ ...step, text: (li.firstChild?.textContent || li.textContent || "").trim().slice(0, 200) })));
     el.appendChild(save);
   }
+  /**
+   * When Lune asks a question and lists likely answers ("- 20 minutes"), the
+   * answers become buttons: one tap sends that reply.
+   */
+  function addQuickReplies(el) {
+    const kids = [...el.children];
+    const list = kids[kids.length - 1];
+    const ask = kids[kids.length - 2];
+    if (!list || list.tagName !== "UL" || !ask || !/\?\s*$/.test(ask.textContent || "")) return;
+    const items = [...list.querySelectorAll("li")].map((li) => li.textContent.trim()).filter((t) => t && t.length <= 80);
+    if (items.length < 2 || items.length > 5) return;
+    const row = document.createElement("div");
+    row.className = "la-replies";
+    row.setAttribute("role", "group");
+    row.setAttribute("aria-label", "Quick replies");
+    row.innerHTML = items.map((t) => `<button type="button" class="la-reply">${esc(t)}</button>`).join("");
+    list.replaceWith(row);
+  }
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest?.(".la-reply");
+    if (!b) return;
+    const host = b.closest("dialog, .ask-lune, .lune-chat, #lune-chat, aside, section") || document;
+    const box = host.querySelector("textarea, input[type=text], input[type=search]");
+    const form = box?.closest("form");
+    if (!box || !form) return;
+    box.value = b.textContent;
+    box.dispatchEvent(new Event("input", { bubbles: true }));
+    b.parentElement.querySelectorAll(".la-reply").forEach((x) => (x.disabled = true));
+    b.classList.add("on");
+    form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+  });
   let planTimer = 0;
   document.addEventListener("click", (e) => {
     const start = e.target.closest?.(".la-plan-start");
@@ -2253,10 +2292,23 @@ How to answer
     paintHistoryList();
     $("lune-chat")?.classList.toggle("is-empty", !!model && !log.length);
     $("chat-log").innerHTML = "";
-    for (const m of log) {
+    log.forEach((m, i) => {
       const el = chatLine(m.who, m.text, { via: m.via });
-      if (m.who === "lune" && m.via === "model") richText(el, m.text);
-    }
+      if (m.who === "lune" && m.via === "model") {
+        richText(el, m.text);
+        addPlanButtons(el);
+        // a question Lune asked earlier: its answers as pills, the one chosen marked
+        addQuickReplies(el);
+        const next = log[i + 1];
+        const row = el.querySelector(".la-replies");
+        if (row && next?.who === "you") {
+          row.querySelectorAll(".la-reply").forEach((b) => {
+            b.disabled = true;
+            if (b.textContent.trim().toLowerCase() === String(next.text).trim().toLowerCase()) b.classList.add("on");
+          });
+        }
+      }
+    });
     $("chat-locked").hidden = !!model;
     $("chat-form").hidden = !model;
     $("chat-clear").hidden = !log.length;
