@@ -748,3 +748,26 @@ header.bar .brand-name, header.bar .fx-brand { letter-spacing: 0.32em !important
   html body #hero h1.mr-h .mr-l1, html body #hero h1.mr-h .mr-l2 { display: block; white-space: nowrap; }
   html body #hero .mr-sub { font-size: clamp(20px, 1.6vw, 24px) !important; max-width: 34ch; margin-inline: auto; color: rgba(245, 245, 247, 0.72) !important; }
 }
+
+/* tour: the welcome and the finish, full screen */
+.lt-moment {
+  position: fixed; inset: 0; z-index: 9100; display: grid; place-items: center; padding: 24px;
+  background: radial-gradient(60% 50% at 50% 38%, rgba(34, 56, 110, 0.35), rgba(0, 0, 0, 0.88) 70%);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  opacity: 0; transition: opacity 0.38s ease;
+}
+.lt-moment.on { opacity: 1; }
+.lt-moment-in { max-width: 460px; text-align: center; transform: translateY(10px) scale(0.98); transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
+.lt-moment.on .lt-moment-in { transform: none; }
+.lt-moment .lt-moon {
+  display: block; width: 46px; height: 46px; margin: 0 auto 22px; background: #f5f5f7;
+  filter: drop-shadow(0 0 22px rgba(255, 255, 255, 0.45));
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='4 3 26 26'%3E%3Cpath d='M17.61 4.58A12 12 0 1 0 27.70 24.77A11.4 11.4 0 1 1 17.61 4.58Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='4 3 26 26'%3E%3Cpath d='M17.61 4.58A12 12 0 1 0 27.70 24.77A11.4 11.4 0 1 1 17.61 4.58Z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.lt-moment h2 { margin: 0 0 12px; font: 400 clamp(36px, 6vw, 52px)/1.05 var(--display) !important; color: #f5f5f7; letter-spacing: -0.015em; }
+.lt-moment p { margin: 0 auto 28px; max-width: 34ch; font: 400 18.5px/1.55 var(--ui); color: rgba(245, 245, 247, 0.78); }
+.lt-moment-nav { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+.lt-moment .lt-next { min-height: 46px; padding: 0 26px; font-size: 16.5px; }
+.lt-moment .lt-skip { min-height: 46px; padding: 0 20px; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 999px; color: rgba(245, 245, 247, 0.8); }
+@media (prefers-reduced-motion: reduce) { .lt-moment, .lt-moment-in { transition: none; } }

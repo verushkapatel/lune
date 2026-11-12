@@ -153,8 +153,13 @@ window.LuneTour = (function () {
     setTimeout(() => card.querySelector(".lt-next")?.focus({ preventScroll: true }), 50);
   }
 
+  let advancing = false;
   function advance() {
-    if (step < 0) return;
+    if (step < 0 || advancing) return;
+    // one advance at a time: the step's own watcher must not move it on a second time
+    clearInterval(poll);
+    advancing = true;
+    setTimeout(() => (advancing = false), 700);
     if (step >= STEPS.length - 1) return end(true);
     // step two needs a bar open: open one if the person pressed Next without tapping
     if (step === 0 && !STEPS[0].done()) {
@@ -175,7 +180,46 @@ window.LuneTour = (function () {
     document.body.classList.remove("lt-on");
     if (ring) ring.hidden = true;
     if (card) card.hidden = true;
-    if (finished) window.toast?.("That’s the studio. Every score works the same way.");
+    if (finished)
+      moment({
+        title: "You’re ready.",
+        body: "Every score in Lune works this way. Your Repertoire keeps the pieces you are learning, and Lune brings back the bars that need you.",
+        primary: "Keep practising",
+        secondary: "Open my Repertoire",
+        onSecondary: () => {
+          location.hash = "#/repertoire";
+        },
+      });
+  }
+
+  /** A full-screen moment before and after the steps: the crescent, one line, one choice. */
+  function moment({ title, body, primary, secondary, onPrimary, onSecondary }) {
+    const m = document.createElement("div");
+    m.className = "lt-moment";
+    m.setAttribute("role", "dialog");
+    m.setAttribute("aria-modal", "true");
+    m.setAttribute("aria-label", title);
+    m.innerHTML = `
+      <div class="lt-moment-in">
+        <span class="lt-moon" aria-hidden="true"></span>
+        <h2>${title}</h2>
+        <p>${body}</p>
+        <div class="lt-moment-nav">
+          ${secondary ? `<button type="button" class="lt-skip">${secondary}</button>` : ""}
+          <button type="button" class="lt-next">${primary}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(m);
+    requestAnimationFrame(() => m.classList.add("on"));
+    const close = (fn) => {
+      m.classList.remove("on");
+      setTimeout(() => m.remove(), 380);
+      fn?.();
+    };
+    m.querySelector(".lt-next").addEventListener("click", () => close(onPrimary));
+    m.querySelector(".lt-skip")?.addEventListener("click", () => close(onSecondary));
+    setTimeout(() => m.querySelector(".lt-next")?.focus(), 60);
+    return m;
   }
 
   /** Start on the score: from the first visit, or from "Show me around". */
@@ -187,7 +231,19 @@ window.LuneTour = (function () {
       const wait = setInterval(() => {
         if (document.querySelector("#osmd svg")) {
           clearInterval(wait);
-          setTimeout(() => show(0), 400);
+          const title = state.piece?.overview?.title || state.piece?.title || "this piece";
+          setTimeout(
+            () =>
+              moment({
+                title: "Welcome to your studio.",
+                body: `Thirty seconds, three things, on ${title}: open a bar, tell Lune how it went, and ask it anything.`,
+                primary: "Show me",
+                secondary: "Not now",
+                onPrimary: () => setTimeout(() => show(0), 250),
+                onSecondary: () => end(),
+              }),
+            400
+          );
         }
       }, 300);
       setTimeout(() => clearInterval(wait), 15000);
