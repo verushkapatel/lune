@@ -1565,6 +1565,32 @@ How to answer
       send();
     });
     p.querySelector("#ask-mic").addEventListener("click", speakInto);
+    // + : add a score here too; it opens in Lune AI's page, where the score becomes a Lune piece
+    const askComposer = p.querySelector("#ask-composer");
+    if (askComposer && !p.querySelector("#ask-attach")) {
+      const add = document.createElement("button");
+      add.type = "button";
+      add.id = "ask-attach";
+      add.className = "lc-tool lc-attach";
+      add.setAttribute("aria-label", "Add a score: MusicXML, PDF or a photo");
+      add.title = "Add a score: MusicXML, PDF or a photo";
+      add.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+      const input = document.createElement("input");
+      input.type = "file";
+      input.hidden = true;
+      input.accept = ".musicxml,.xml,.mxl,.pdf,image/*,application/vnd.recordare.musicxml+xml,application/vnd.recordare.musicxml";
+      askComposer.prepend(add);
+      askComposer.appendChild(input);
+      add.addEventListener("click", () => input.click());
+      input.addEventListener("change", () => {
+        const f = input.files?.[0];
+        input.value = "";
+        if (!f) return;
+        close();
+        goAiPage();
+        setTimeout(() => attachScore(f), 500);
+      });
+    }
     p.querySelector("#ask-talk").addEventListener("click", () =>
       openTalk({ title: "Lune AI", answer: async (said) => (await ask(said)) || "" })
     );
