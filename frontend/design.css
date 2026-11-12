@@ -838,3 +838,21 @@ body:has(#ask-lune:not([hidden])) #coach { visibility: hidden; }
   html body aside#ask-lune.ask-lune { width: 100vw !important; border-left: 0 !important; }
 }
 html[data-theme="light"] body aside#ask-lune.ask-lune { background: #fff !important; }
+
+/* Lune AI: actions after adding a score look like the quick replies */
+.la-act {
+  min-height: 36px; padding: 0 16px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--d-sep); background: var(--d-surface); color: var(--d-label); font: 500 15px var(--ui);
+}
+.la-act:hover { background: var(--d-surface-2); }
+.la-act:disabled { opacity: 0.4; cursor: default; }
+.la-act.on { opacity: 1 !important; background: var(--navy-mid); border-color: var(--navy-mid); color: #fff; }
+.la-actions:has(.on) .la-act:not(.on) { display: none; }
+html body .lune-chat .lc-attach { width: 36px; height: 36px; border-radius: 50%; color: var(--d-label-2); flex: none; margin-left: -8px; }
+html body .lune-chat .lc-attach:hover { color: var(--d-label); background: var(--d-surface-2); }
+
+/* header: the search field holds its own arrow; Repertoire is the size of its neighbours */
+html body header.bar .top-search { position: relative !important; display: flex !important; align-items: center !important; }
+html body header.bar .top-search input { height: 38px !important; padding: 0 40px 0 16px !important; border-radius: 999px !important; font: 400 15.5px var(--ui) !important; }
+html body header.bar .top-search .search-go { position: absolute !important; right: 4px !important; top: 50% !important; transform: translateY(-50%) !important; width: 30px !important; height: 30px !important; min-width: 30px !important; }
+html body header.bar #btn-repertoire { height: 38px !important; min-height: 38px !important; padding: 0 14px !important; font: 500 15px var(--ui) !important; border-radius: 999px !important; }

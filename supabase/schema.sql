@@ -291,3 +291,32 @@ alter table public.chats enable row level security;
 drop policy if exists "own rows" on public.chats;
 create policy "own rows" on public.chats for all to authenticated
   using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+-- ---------------------------------------------------------------------------
+-- Added November 2026: scores pianists choose to share with Lune's library
+-- (through Lune AI, only after they confirm it is free to share). Files go to
+-- a private bucket; nobody can read them through the public API. The owner
+-- reviews them in the dashboard before anything is added to the catalogue.
+create table if not exists public.score_contributions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade default auth.uid(),
+  title text not null default '' check (char_length(title) <= 200),
+  composer text not null default '' check (char_length(composer) <= 200),
+  kind text not null check (kind in ('musicxml', 'pdf', 'photo')),
+  file_path text not null check (char_length(file_path) <= 300),
+  consent boolean not null check (consent),
+  status text not null default 'new' check (status in ('new', 'accepted', 'declined')),
+  created_at timestamptz not null default now()
+);
+alter table public.score_contributions enable row level security;
+drop policy if exists "share a score" on public.score_contributions;
+create policy "share a score" on public.score_contributions for insert to authenticated with check (user_id = auth.uid() and consent);
+drop policy if exists "see my shared scores" on public.score_contributions;
+create policy "see my shared scores" on public.score_contributions for select to authenticated using (user_id = auth.uid());
+
+insert into storage.buckets (id, name, public)
+values ('contributions', 'contributions', false)
+on conflict (id) do nothing;
+drop policy if exists "upload a shared score" on storage.objects;
+create policy "upload a shared score" on storage.objects for insert to authenticated
+  with check (bucket_id = 'contributions' and (storage.foldername(name))[1] = auth.uid()::text);

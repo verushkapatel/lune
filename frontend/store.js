@@ -771,6 +771,19 @@ window.LuneStore = (function () {
     return !error;
   }
 
+  /* ---------------- scores shared with Lune's library (with consent) ---------------- */
+  async function contributeScore({ file, title = "", composer = "", kind = "musicxml" }) {
+    if (!remote()) throw new Error("Sign in to share a score with Lune's library. It stays in this browser until then.");
+    if (!file || file.size > 25 * 1024 * 1024) throw new Error("That file is too large to share (25 MB at most).");
+    const safe = String(file.name || "score").replace(/[^A-Za-z0-9._-]+/g, "-").slice(-80);
+    const path = `${session.user.id}/${Date.now()}-${safe}`;
+    const up = await client.storage.from("contributions").upload(path, file, { contentType: file.type || "application/octet-stream" });
+    if (up.error) throw new Error(/not found|bucket/i.test(up.error.message) ? "Lune's library isn't taking scores yet. Your copy is safe in your account." : "The upload didn't go through. Try again in a moment.");
+    const ins = await client.from("score_contributions").insert({ title: String(title).slice(0, 200), composer: String(composer).slice(0, 200), kind, file_path: path, consent: true });
+    if (ins.error) throw new Error("The upload went through but couldn't be logged. Try again in a moment.");
+    return true;
+  }
+
   async function markPractised(pieceKey) {
     if (!(await getPiece(pieceKey))) return;
     await updatePiece(pieceKey, { last_practised_at: nowIso() });
@@ -1283,6 +1296,7 @@ window.LuneStore = (function () {
     listTasks,
     addTask,
     loadChats,
+    contributeScore,
     saveChats,
     deleteChat,
     updateTask,
