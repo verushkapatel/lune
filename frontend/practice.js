@@ -2960,7 +2960,7 @@ window.LunePractice = (function () {
     items.push({ label: "Reading & access", action: () => openAccessDialog() });
     items.push({ label: "Feedback", action: () => window.LuneFeedback?.open?.() });
     if (window.LuneInstall && !window.LuneInstall.installed()) items.push({ label: "Install Lune", action: () => window.LuneInstall.install() });
-    items.push({ label: "Credits & licenses", action: () => document.querySelector("[data-open-credits]")?.click() });
+    items.push({ label: "Credits and licences", action: () => document.querySelector("[data-open-credits]")?.click() });
     if (!studio) items.push({ label: "Privacy", action: () => openCreditsPrivacy() });
     return items;
   }

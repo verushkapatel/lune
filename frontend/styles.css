@@ -12188,3 +12188,54 @@ header.bar .bar-tool .bar-tool-label {
   position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
 }
 header.bar .bar-tool { width: 40px; height: 40px; padding: 0 !important; display: inline-grid; place-items: center; border-radius: 999px; }
+
+/* P2-02: say swipe only where people swipe */
+.only-pointer { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .only-touch { display: none; }
+  .only-pointer { display: inline; }
+}
+
+/* P2-03, P2-04: the landing footer keeps the night theme; links are 44 px targets, text meets AA */
+html:not([data-theme="light"]) body.is-home:not(.is-signed-in) #home-guest > .home-footer {
+  background: #050507; color: #e8e8ea; border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+html:not([data-theme="light"]) body.is-home:not(.is-signed-in) #home-guest > .home-footer .home-footer-word { color: #f5f5f7 !important; }
+body.is-home:not(.is-signed-in) #home-guest > .home-footer p,
+body.is-home:not(.is-signed-in) #home-guest > .home-footer a,
+body.is-home:not(.is-signed-in) #home-guest > .home-footer .link-btn { color: #b8b8be !important; }
+html[data-theme="light"] body.is-home:not(.is-signed-in) #home-guest > .home-footer p,
+html[data-theme="light"] body.is-home:not(.is-signed-in) #home-guest > .home-footer a,
+html[data-theme="light"] body.is-home:not(.is-signed-in) #home-guest > .home-footer .link-btn { color: #3d3d3d !important; }
+body.is-home:not(.is-signed-in) #home-guest > .home-footer .home-footer-line { color: #8fa2ff !important; }
+.home-footer a, .home-footer .link-btn, .rep-foot .link-btn, .rep-foot a {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 6px; font-size: 13px !important; vertical-align: middle;
+}
+.home-footer-keys { color: #8a8a8a; }
+
+/* P2-05: carousel dots keep their look with a 24 px hit area */
+.ai-dots { gap: 4px; }
+.ai-dots button { position: relative; background-clip: content-box; padding: 8px !important; box-sizing: content-box; width: 8px; height: 8px; background-color: transparent; }
+.ai-dots button::before { content: ""; position: absolute; inset: 8px; border-radius: 4px; background: var(--line-strong); }
+.ai-dots button[aria-current="true"] { width: 22px; background: transparent; }
+.ai-dots button[aria-current="true"]::before { background: var(--text); }
+
+/* P2-09: Repertoire footer on one baseline */
+.rep-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0 4px; }
+.rep-foot > span[aria-hidden] { line-height: 1; }
+
+/* P2-10: toasts sit above the player's transport bar and the phone dock */
+body.is-studio .toast { bottom: calc(var(--dock-h, 72px) + 96px) !important; }
+
+/* P2-11: Stop reads as a live control */
+#btn-stop:not(:disabled) { opacity: 1; color: var(--text); }
+#btn-stop:disabled { opacity: 0.4; }
+
+/* P2-14, P2-18: piano legend and key labels readable, C markers scale with the keys */
+.piano-tut-meta { font-size: 14px; color: #b0b0b0; }
+html[data-theme="light"] .piano-tut-meta { color: #4a4a4a; }
+.lune-key-notch { width: max(6px, calc(var(--key-w, 24px) * 0.28)); height: max(6px, calc(var(--key-w, 24px) * 0.28)); }
+.lune-key-finger { font-size: max(11px, calc(var(--key-w, 24px) * 0.5)); }
+
+/* P2-17: Settings' sticky header has a hairline and a backdrop in light mode */
+html[data-theme="light"] .settings-top { background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(0, 0, 0, 0.08); }
