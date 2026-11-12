@@ -1038,3 +1038,16 @@ html body .settings-dialog .settings-sub, html body .settings-dialog h4 {
   font: italic 500 16px var(--ui) !important; letter-spacing: 0 !important; text-transform: none !important; color: var(--navy-hi) !important; margin: 22px 0 8px 4px !important;
 }
 html body .set-ai-note { color: var(--d-label-2); font-size: 15px; }
+
+/* Settings section labels (Lune AI, Practice, Look, App): italic navy, no tracking */
+html body #settings-dialog h3[id^="set-h-"], html body .settings-dialog h3[id^="set-h-"] {
+  font: italic 500 16px var(--ui) !important; letter-spacing: 0 !important; text-transform: none !important;
+  color: var(--navy-hi) !important; margin: 24px 0 8px 4px !important;
+}
+html[data-theme="light"] body #settings-dialog h3[id^="set-h-"] { color: var(--navy-mid) !important; }
+
+/* switches: on is clearly on (navy track), as on an iPhone */
+html body .lp-switch input:checked, html body .lp-switch input[type="checkbox"]:checked {
+  background: var(--navy-mid) !important; border-color: var(--navy-mid) !important;
+}
+html[data-theme="light"] body .lp-switch input:checked { background: var(--navy-mid) !important; }
