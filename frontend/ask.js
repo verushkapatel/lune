@@ -1965,6 +1965,7 @@ How to answer
     }
     return st;
   }
+  let chatSyncTimer = 0;
   function putChats(st) {
     try {
       localStorage.setItem(CHATS_KEY, JSON.stringify({ cur: st.cur, convs: st.convs.slice(0, 50) }));
@@ -1972,7 +1973,29 @@ How to answer
     } catch {
       /* private mode: the chats last for this visit */
     }
+    // C8: signed in, the same conversations follow the account (a moment later, in one batch)
+    clearTimeout(chatSyncTimer);
+    chatSyncTimer = setTimeout(() => window.LuneStore?.saveChats?.(st.convs).catch?.(() => {}), 1500);
   }
+  /** Bring the account's conversations into this browser: the newer copy of each wins. */
+  let chatsPulled = false;
+  async function pullChats() {
+    if (chatsPulled || !window.LuneStore?.status?.().signedIn) return;
+    const remote = await window.LuneStore.loadChats?.().catch?.(() => null);
+    if (!remote) return;
+    chatsPulled = true;
+    const st = chatStore();
+    const byId = new Map(st.convs.map((c) => [c.id, c]));
+    for (const r of remote) {
+      const mine = byId.get(r.id);
+      if (!mine || (r.t || 0) > (mine.t || 0)) byId.set(r.id, r);
+    }
+    st.convs = [...byId.values()].sort((x, y) => (y.t || 0) - (x.t || 0)).slice(0, 50);
+    putChats(st);
+    paintHistoryList();
+  }
+  window.LuneStore?.onChange?.(() => pullChats());
+  setTimeout(pullChats, 2500);
   function chatTitle(msgs) {
     const first = String(msgs.find((m) => m.who === "you")?.text || "New chat").replace(/\s+/g, " ").trim();
     return first.length > 42 ? `${first.slice(0, 40)}…` : first;
@@ -2009,6 +2032,7 @@ How to answer
   }
   function deleteConv(id) {
     const st = chatStore();
+    window.LuneStore?.deleteChat?.(id).catch?.(() => {});
     st.convs = st.convs.filter((c) => c.id !== id);
     if (st.cur === id) st.cur = null;
     putChats(st);

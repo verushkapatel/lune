@@ -273,3 +273,21 @@ as $$
   );
 $$;
 grant execute on function public.get_impact_snapshot() to anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Added November 2026 (C8): Lune AI conversations, so chat history follows the
+-- account from phone to laptop. One row per conversation; messages are kept
+-- as a JSON array of at most 40 turns. Safe to run more than once.
+create table if not exists public.chats (
+  user_id uuid not null references auth.users (id) on delete cascade default auth.uid(),
+  id text not null check (char_length(id) <= 40),
+  title text not null default '' check (char_length(title) <= 80),
+  msgs jsonb not null default '[]'::jsonb check (jsonb_typeof(msgs) = 'array' and pg_column_size(msgs) < 200000),
+  updated_at timestamptz not null default now(),
+  primary key (user_id, id)
+);
+create index if not exists chats_recent on public.chats (user_id, updated_at desc);
+alter table public.chats enable row level security;
+drop policy if exists "own rows" on public.chats;
+create policy "own rows" on public.chats for all to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());

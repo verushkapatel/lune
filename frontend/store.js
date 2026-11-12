@@ -740,6 +740,37 @@ window.LuneStore = (function () {
     }
     return readLocal().scores[pieceKey] || null;
   }
+  /* ---------------- Lune AI chats (C8) ---------------- */
+  // Signed in, conversations sync to the chats table. Until that table exists
+  // (supabase/schema.sql, November 2026) chats simply stay in this browser.
+  let chatsMissing = false;
+  async function loadChats() {
+    if (!remote() || chatsMissing) return null;
+    const { data, error } = await client.from("chats").select("id,title,msgs,updated_at").order("updated_at", { ascending: false }).limit(50);
+    if (error) {
+      if (/chats|relation|schema cache|PGRST205|42P01/i.test(`${error.code} ${error.message}`)) chatsMissing = true;
+      return null;
+    }
+    return (data || []).map((r) => ({ id: r.id, title: r.title, msgs: Array.isArray(r.msgs) ? r.msgs : [], t: Date.parse(r.updated_at) || Date.now() }));
+  }
+  async function saveChats(convs) {
+    if (!remote() || chatsMissing || !convs?.length) return false;
+    const rows = convs.slice(0, 50).map((c) => ({
+      id: String(c.id).slice(0, 40),
+      title: String(c.title || "").slice(0, 80),
+      msgs: (c.msgs || []).slice(-40),
+      updated_at: new Date(c.t || Date.now()).toISOString(),
+    }));
+    const { error } = await client.from("chats").upsert(rows, { onConflict: "user_id,id" });
+    if (error && /chats|relation|schema cache|PGRST205|42P01/i.test(`${error.code} ${error.message}`)) chatsMissing = true;
+    return !error;
+  }
+  async function deleteChat(id) {
+    if (!remote() || chatsMissing) return false;
+    const { error } = await client.from("chats").delete().eq("id", id);
+    return !error;
+  }
+
   async function markPractised(pieceKey) {
     if (!(await getPiece(pieceKey))) return;
     await updatePiece(pieceKey, { last_practised_at: nowIso() });
@@ -1251,6 +1282,9 @@ window.LuneStore = (function () {
     ownerFeedback,
     listTasks,
     addTask,
+    loadChats,
+    saveChats,
+    deleteChat,
     updateTask,
     removeTask,
     prefs,
