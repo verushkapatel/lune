@@ -2302,6 +2302,30 @@ How to answer
       sendChat();
     });
     d.querySelector("#chat-mic").addEventListener("click", () => dictate("chat"));
+    // + : a score file, a PDF or a photo of the music (the camera on a phone)
+    const composer = d.querySelector("#chat-composer");
+    if (composer && !d.querySelector("#chat-attach")) {
+      const add = document.createElement("button");
+      add.type = "button";
+      add.id = "chat-attach";
+      add.className = "lc-tool lc-attach";
+      add.setAttribute("aria-label", "Add a score: MusicXML, PDF or a photo");
+      add.title = "Add a score: MusicXML, PDF or a photo";
+      add.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+      const input = document.createElement("input");
+      input.type = "file";
+      input.id = "chat-attach-file";
+      input.hidden = true;
+      input.accept = ".musicxml,.xml,.mxl,.pdf,image/*,application/vnd.recordare.musicxml+xml,application/vnd.recordare.musicxml";
+      composer.prepend(add);
+      composer.appendChild(input);
+      add.addEventListener("click", () => input.click());
+      input.addEventListener("change", () => {
+        const f = input.files?.[0];
+        input.value = "";
+        if (f) attachScore(f);
+      });
+    }
     d.querySelector("#chat-talk").addEventListener("click", () => openTalk({ title: "Lune AI", answer: (said) => chatAsk(said) }));
     return d;
   }
@@ -2344,6 +2368,89 @@ How to answer
       window.LuneFX?.orb(empty.querySelector(".ask-empty-orb"))?.setMode("idle");
     }
   }
+
+  /*
+   * A score added through Lune AI. MusicXML becomes a Lune piece at once (every
+   * feature, saved to the Repertoire). A photo or PDF cannot be read as notes in
+   * the browser, so Lune says so plainly and offers to send it to Lune's library
+   * queue to be transcribed. Sharing always asks first and can be declined.
+   */
+  let attached = null;
+  function sayInChat(text, actions = []) {
+    const log = chatLog();
+    log.push({ who: "lune", text, via: "model", t: Date.now() });
+    saveChat(log);
+    $("lune-chat")?.classList.remove("is-empty");
+    $("chat-log").querySelector(".ask-empty")?.remove();
+    $("chat-starters").innerHTML = "";
+    const el = chatLine("lune", text, { via: "model" });
+    richText(el, text);
+    if (actions.length) {
+      const row = document.createElement("div");
+      row.className = "la-replies la-actions";
+      row.innerHTML = actions.map(([act, label]) => `<button type="button" class="la-act" data-attach-act="${act}">${esc(label)}</button>`).join("");
+      el.appendChild(row);
+    }
+    $("chat-log").scrollTop = $("chat-log").scrollHeight;
+  }
+  async function attachScore(file) {
+    const log = chatLog();
+    log.push({ who: "you", text: `Added ${file.name}`, t: Date.now() });
+    saveChat(log);
+    $("lune-chat")?.classList.remove("is-empty");
+    $("chat-log").querySelector(".ask-empty")?.remove();
+    chatLine("you", `Added ${file.name}`);
+    const notation = /\.(musicxml|xml|mxl)$/i.test(file.name || "");
+    if (!notation) {
+      attached = { file, title: (file.name || "Score").replace(/\.[a-z0-9]+$/i, ""), composer: "", kind: /pdf/i.test(file.type || file.name) ? "pdf" : "photo" };
+      return sayInChat(
+        `I can't read notes from a ${attached.kind === "pdf" ? "PDF" : "photo"} yet, so I can't open it as a Lune score today. Two ways forward:\n- Share it with Lune's library so it can be transcribed and added for everyone. You'll find it in Lune once it's ready.\n- Or, if you have MuseScore (free), open the file there, export MusicXML, and add that here: it opens straight away with every feature.`,
+        [["share", "Share it with Lune's library"], ["private", "Not now"]]
+      );
+    }
+    try {
+      const xml = await LuneLite.readScoreFile(file);
+      const piece = LuneLite.analyze(xml, { filename: file.name });
+      const key = window.LunePractice?.keyFor?.(piece) || `upload-${Date.now().toString(36)}`;
+      piece.repKey = key;
+      await store().addPiece({ pieceKey: key, title: piece.title, composer: piece.composer || "", source: "upload", musicxml: xml });
+      const facts = window.LuneScoreFacts?.describe?.(window.LuneScoreFacts.read(xml)) || [];
+      attached = { file, piece, title: piece.title, composer: piece.composer || "", kind: "musicxml" };
+      sayInChat(
+        `**${piece.title}**${piece.composer ? ` by ${piece.composer}` : ""} is ready and in your Repertoire. ${facts.slice(0, 2).join(" ")}\n\nOpen it to see every note named, the fingering and the bars to watch, or ask me about it here.`,
+        [["open", "Open the score"], ["share", "Share it with Lune's library"]]
+      );
+    } catch (err) {
+      sayInChat(err?.message || "I couldn't read that file. Export it again as MusicXML and add it here.");
+    }
+  }
+  document.addEventListener("click", async (e) => {
+    const b = e.target.closest?.("[data-attach-act]");
+    if (!b || !attached) return;
+    const act = b.dataset.attachAct;
+    b.parentElement.querySelectorAll("button").forEach((x) => (x.disabled = true));
+    b.classList.add("on");
+    if (act === "open" && attached.piece) {
+      $("lune-chat")?.close?.();
+      await window.openPieceSession?.(attached.piece, { panel: "score" });
+    } else if (act === "private") {
+      sayInChat("Kept private. Nothing has been shared.");
+    } else if (act === "share") {
+      sayInChat(
+        "Thank you. One check first: Lune's library only takes music anyone may share. Is this piece out of copyright (for example, by a composer who died over 70 years ago), or your own arrangement?",
+        [["share-yes", "Yes, it's free to share"], ["share-no", "No, keep it private"]]
+      );
+    } else if (act === "share-no") {
+      sayInChat("Understood. It stays in your account only.");
+    } else if (act === "share-yes") {
+      try {
+        await store().contributeScore({ file: attached.file, title: attached.title, composer: attached.composer, kind: attached.kind });
+        sayInChat("Sent to Lune's library. Someone will check it before it is added for everyone. Thank you for helping Lune grow.");
+      } catch (err) {
+        sayInChat(err?.message || "I couldn't send it just now. Try again in a moment.");
+      }
+    }
+  });
 
   async function chatAsk(text) {
     const model = active();

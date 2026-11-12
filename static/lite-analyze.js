@@ -635,6 +635,8 @@ window.LuneLite = (function () {
     const hardSpots = ranked.slice(0, 5).map((d) => ({ ...d, isHard: true }));
     const base = (filename || "").replace(/\.(musicxml|xml|mxl)$/i, "").replace(/[_-]+/g, " ").trim();
     const title = parsed.title || base || "Your score";
+    // "Erik Satie(1866 – 1925)" in a file's credits is just "Erik Satie" in Lune
+    parsed.composer = String(parsed.composer || "").replace(/\s*\([^)]*\d{4}[^)]*\)\s*$/, "").replace(/\s+/g, " ").trim();
     return {
       kind: "score",
       opened: true,

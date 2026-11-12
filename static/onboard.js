@@ -1800,7 +1800,9 @@ window.LuneOnboard = (function () {
           const openAttrs = r.id
             ? `data-open-piece="${esc(r.id)}"`
             : `data-rec-q="${esc(r.query || r.title)}"`;
-          return `<button type="button" class="member-rec${i === 0 ? " member-rec-featured" : ""}" ${openAttrs}>
+          const face = window.luneFace?.(r.composer);
+          return `<button type="button" class="member-rec${i === 0 ? " member-rec-featured" : ""}${face ? " has-face" : ""}" ${openAttrs}>
+            ${face ? `<span class="member-rec-face" aria-hidden="true" style="background-image:url('${face}')"></span>` : ""}
             ${i === 0 ? `<span class="member-rec-role">${esc(role)}</span>` : ""}
             <span class="member-rec-title">${esc(r.title)}</span>
             <span class="member-rec-by">${esc(r.composer || "")}</span>
