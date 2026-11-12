@@ -2148,8 +2148,8 @@ body.is-panel-piano .piano-dock-label {
   scrollbar-width: thin;
 }
 @keyframes score-in {
-  from { opacity: 0.45; transform: translateY(4px); }
-  to { opacity: 1; transform: none; }
+  from { transform: translateY(4px); }
+  to { transform: none; }
 }
 /* White paper page with a crisp lit edge against the night frame */
 .score-page {
@@ -10023,7 +10023,7 @@ html[data-theme="light"] .fx-aurora i { mix-blend-mode: multiply; opacity: 0.1; 
 body.studio-compact.is-studio header.bar {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 8px 10px 8px 8px; min-height: 0;
 }
-body.studio-compact.is-studio header.bar > *:not(.st-btn):not(#studio-piece-quiet):not(#piece-tabs):not(.top-search):not(.results) { display: none !important; }
+body.studio-compact.is-studio header.bar > *:not(.st-btn):not(#studio-piece-quiet):not(#piece-tabs):not(#st-seg):not(.top-search):not(.results) { display: none !important; }
 body.studio-compact.is-studio header.bar .st-btn {
   display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 50%;
   border: 0; background: transparent; color: var(--text); cursor: pointer; flex: 0 0 auto; transition: background-color 0.2s, transform 0.15s;
@@ -12117,3 +12117,68 @@ html[data-theme="light"] .ask-form { background: transparent !important; }
 .work-dialog .work-more[open] summary { color: inherit; }
 .work-dialog .work-more-menu { position: absolute; bottom: calc(100% + 6px); left: 0; padding: 6px; border-radius: 12px; background: var(--panel, #161616); border: 1px solid rgba(127, 127, 127, 0.25); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35); white-space: nowrap; z-index: 2; }
 .work-dialog .work-reading { margin-top: 12px; }
+
+/* P1-16 to P1-18: phone studio — one segmented control on screen, tools docked at the bottom */
+#st-seg, #st-bottom { display: none; }
+body.studio-compact.is-studio header.bar > #st-seg {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  width: 100%; padding: 6px 12px 8px; box-sizing: border-box; order: 10;
+}
+body.studio-compact.is-studio header.bar > #st-seg { display: flex !important; }
+body.studio-compact.is-studio header.bar #piece-tabs,
+body.studio-compact.is-studio header.bar #piece-tabs:not([hidden]) { display: none !important; }
+.st-ask { white-space: nowrap; }
+.st-ask .lune-orb-sm { width: 18px; height: 18px; flex: 0 0 18px; }
+body.studio-compact.is-studio #btn-tell,
+body.studio-compact.is-studio #st-rail { display: none !important; }
+.st-seg-panels, .st-seg-anno {
+  display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px;
+  background: rgba(127, 127, 127, 0.14);
+}
+.st-seg-panels { flex: 1 1 auto; }
+.st-seg-panels button, .st-seg-anno button {
+  flex: 1 1 0; min-height: 36px; padding: 0 12px; border: 0; border-radius: 999px;
+  background: transparent; color: inherit; font: inherit; font-size: 15px; opacity: 0.72; cursor: pointer;
+}
+.st-seg-anno button { min-height: 30px; font-size: 13px; }
+.st-seg-panels button[aria-pressed="true"], .st-seg-anno button[aria-pressed="true"] {
+  background: #f5f5f7; color: #0a0a0a; opacity: 1;
+}
+.st-more {
+  min-height: 42px; padding: 0 16px; border-radius: 999px; border: 1px solid rgba(127, 127, 127, 0.35);
+  background: transparent; color: inherit; font: inherit; font-size: 15px; cursor: pointer;
+}
+.st-seg-anno { display: none; flex: 1 1 100%; }
+#st-seg.on-score .st-seg-anno { display: inline-flex; }
+body.studio-compact.is-studio #st-bottom {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 6px 14px 0; box-sizing: border-box; width: 100%;
+}
+.st-ask {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px;
+  border-radius: 999px; border: 1px solid rgba(127, 127, 127, 0.35); background: transparent;
+  color: inherit; font: inherit; font-size: 15px; cursor: pointer;
+}
+.st-tempo { display: inline-flex; align-items: center; gap: 2px; }
+.st-bbtn {
+  width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%;
+  border: 0; background: transparent; color: inherit; cursor: pointer;
+}
+.st-bbtn.on { background: rgba(127, 127, 127, 0.22); }
+.st-bpm { display: inline-flex; align-items: baseline; gap: 3px; min-width: 64px; justify-content: center; font-variant-numeric: tabular-nums; }
+.st-bpm b { font-weight: 500; font-size: 17px; }
+.st-bpm small { font-size: 12px; opacity: 0.7; }
+:root[data-theme="light"] .st-seg-panels button[aria-pressed="true"],
+:root[data-theme="light"] .st-seg-anno button[aria-pressed="true"] { background: #0a0a0a; color: #fff; }
+body.studio-compact.is-studio #companion-bar { flex-wrap: wrap; }
+
+/* P1-20: horizontal chip rows start inside the gutter and keep it while scrolling */
+.home-ask-chips, .ask-chips, .chat-starters {
+  scroll-padding-inline: 16px;
+  scroll-snap-type: x proximity;
+}
+@media (max-width: 700px) {
+  .home-ask-chips { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 8px; padding-inline: 16px; margin-inline: -16px; scrollbar-width: none; }
+  .home-ask-chips::-webkit-scrollbar { display: none; }
+  .home-ask-chips > * { flex: 0 0 auto; scroll-snap-align: start; }
+}

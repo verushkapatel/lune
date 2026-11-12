@@ -277,8 +277,110 @@ window.LuneStudioUI = (function () {
     paintRail();
   }
 
+  /**
+   * P1-16, P1-18: on a phone, Score / Explain / Piano sit on screen as one
+   * segmented control with More (the full menu) beside it; Notes / Fingers / Off
+   * sit under it while the score is showing. The tab strip's job is done by the
+   * title and the menu, so it is hidden here.
+   */
+  function injectSegments() {
+    const bar = document.querySelector("header.bar");
+    if (!bar || $("st-seg")) return;
+    const row = document.createElement("div");
+    row.id = "st-seg";
+    row.className = "st-seg";
+    row.innerHTML = `
+      <div class="st-seg-panels" role="group" aria-label="View">
+        <button type="button" data-p="score">Score</button>
+        <button type="button" data-p="explain">Explain</button>
+        <button type="button" data-p="piano">Piano</button>
+      </div>
+      <button type="button" class="st-more" aria-haspopup="dialog">More</button>
+      <div class="st-seg-anno" role="group" aria-label="Letters on the score">
+        <button type="button" data-a="notes">Notes</button>
+        <button type="button" data-a="fingers">Fingers</button>
+        <button type="button" data-a="off">Off</button>
+      </div>`;
+    bar.appendChild(row);
+    row.addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      if (b.dataset.p) press(`tab-${b.dataset.p}`);
+      else if (b.dataset.a) {
+        const r = $(`anno-${b.dataset.a}`);
+        if (r) {
+          r.checked = true;
+          r.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      } else if (b.classList.contains("st-more")) openMenu();
+      setTimeout(sync, 60);
+    });
+    const sync = () => {
+      const st = typeof state !== "undefined" ? state : {};
+      const panel = st.panel || "score";
+      const anno = st.scoreFingers ? "fingers" : st.scoreLetters ? "notes" : "off";
+      row.querySelectorAll("[data-p]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.p === panel ? "true" : "false"));
+      row.querySelectorAll("[data-a]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.a === anno ? "true" : "false"));
+      row.classList.toggle("on-score", panel === "score");
+    };
+    new MutationObserver(sync).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    document.querySelectorAll('input[name="score-anno"]').forEach((r) => r.addEventListener("change", () => setTimeout(sync, 0)));
+    sync();
+  }
+
+  /**
+   * P1-17: Ask Lune and the tempo live in the bottom bar on a phone instead of
+   * floating over the notes. Each button presses the studio's own control.
+   */
+  function injectBottom() {
+    const host = $("companion-bar");
+    if (!host || $("st-bottom")) return;
+    const row = document.createElement("div");
+    row.id = "st-bottom";
+    row.className = "st-bottom";
+    row.innerHTML = `
+      <button type="button" class="st-ask" data-b="ask"><span class="lune-orb-sm" aria-hidden="true"></span>Ask Lune</button>
+      <span class="st-tempo" role="group" aria-label="Tempo">
+        <button type="button" class="st-bbtn" data-b="metro" aria-pressed="false" aria-label="Metronome"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M8 20h8l-3.2-14h-1.6L8 20z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M10.2 11.5l5.2-3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+        <button type="button" class="st-bbtn" data-b="slower" aria-label="Slower"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 12h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+        <span class="st-bpm" aria-live="polite"><b>72</b><small>bpm</small></span>
+        <button type="button" class="st-bbtn" data-b="faster" aria-label="Faster"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 6v12M6 12h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+      </span>`;
+    host.prepend(row);
+    const slider = $("bpm-slider");
+    const paint = () => {
+      row.querySelector(".st-bpm b").textContent = $("bpm-readout")?.textContent || slider?.value || "";
+      row.querySelector(".st-bpm small").textContent = document.querySelector("#bpm-readout-btn .bpm-unit")?.textContent || "bpm";
+      const on = $("btn-metro")?.getAttribute("aria-pressed") === "true";
+      const m = row.querySelector('[data-b="metro"]');
+      m.setAttribute("aria-pressed", on ? "true" : "false");
+      m.classList.toggle("on", on);
+    };
+    row.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-b]");
+      if (!b) return;
+      const k = b.dataset.b;
+      if (k === "ask") window.LuneAsk?.open?.();
+      else if (k === "metro") press("btn-metro");
+      else if (slider) {
+        const v = Math.max(+slider.min || 40, Math.min(+slider.max || 160, (+slider.value || 72) + (k === "faster" ? 4 : -4)));
+        slider.value = String(v);
+        slider.dispatchEvent(new Event("input", { bubbles: true }));
+        slider.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      setTimeout(paint, 40);
+    });
+    const read = $("bpm-readout");
+    if (read) new MutationObserver(paint).observe(read, { childList: true, characterData: true, subtree: true });
+    if ($("btn-metro")) new MutationObserver(paint).observe($("btn-metro"), { attributes: true, attributeFilter: ["aria-pressed"] });
+    slider?.addEventListener("input", paint);
+    paint();
+  }
+
   function init() {
     apply();
+    injectSegments();
+    injectBottom();
     narrow.addEventListener?.("change", apply);
     injectTopBar();
     injectRail();

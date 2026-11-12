@@ -2276,15 +2276,33 @@ How to answer
       location.hash = "#/ai";
     }
   }
-  // Leaving #/ai for any other place closes the Lune AI page (P0-17).
-  window.addEventListener("hashchange", () => {
+  // Leaving #/ai for any other place closes the Lune AI page (P0-17), however the
+  // route changed: a link, Back and Forward, or the app showing another view.
+  const leaveAiPage = () => {
     if (location.hash === "#/ai") return;
     const d = document.getElementById("lune-chat");
     if (d?.open && d.classList.contains("is-page")) {
       aiReturn = null;
       d.close();
     }
-  });
+  };
+  window.addEventListener("hashchange", leaveAiPage);
+  window.addEventListener("popstate", leaveAiPage);
+  const wrapShowView = () => {
+    const show = window.showView;
+    if (typeof show !== "function" || show.__luneAi) return;
+    const wrapped = function (...args) {
+      const out = show.apply(this, args);
+      // the route's URL is updated just after the view is shown
+      setTimeout(leaveAiPage, 0);
+      return out;
+    };
+    wrapped.__luneAi = true;
+    window.showView = wrapped;
+  };
+  // app.js (which defines showView) runs after this file: wrap once the page has loaded
+  document.addEventListener("DOMContentLoaded", wrapShowView, { once: true });
+  window.addEventListener("load", wrapShowView, { once: true });
   /** The Lune AI page (#/ai): the same chat, full screen, with its history at the side. */
   function openChatPage() {
     const d = ensureChat();
