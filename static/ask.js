@@ -111,12 +111,18 @@ With each question you receive three short sections: "Score facts" (what Lune ha
 
 Facts and knowledge
 - Score facts and the pianist's own data are ground truth. Use them first.
+- When "about this piece" is given, it is checked history: prefer it to memory for dates, catalogue numbers and titles. Never give a catalogue or opus number you are not sure of.
 - You may also use well-established public knowledge about pieces, composers, history, technique and theory (for example: Clair de lune is the third movement of Debussy's Suite bergamasque, published in 1905). Say it plainly; do not hedge common knowledge.
 - Never invent bar numbers, notes, rhythms, fingerings or markings that are not in the score facts. If something about this score is not given, say so in one short clause and help with what you do know.
-- Fingering in the score facts is Lune's suggested fingering, not the edition's. Finger numbers: 1 thumb, 2 index, 3 middle, 4 ring, 5 little finger. Give fingering note by note, each note with its own number.
+- Fingering in the score facts is Lune's suggested fingering, not the edition's. Finger numbers: 1 thumb, 2 index, 3 middle, 4 ring, 5 little finger. Give fingering chord by chord, one line each, low note to high with the fingers in the same order (for example "F5–B♭5–F6: 1-2-5"); for a melody, group a few notes per line ("C5 D♭5 E♭5: 1 2 3"). Cover every note in the bar or name the beats you cover; never end with "and so on".
 - A bar's difficulty is exactly what "what makes it tricky" says. Never call a bar easy when it lists something, or hard when it says nothing in particular.
 - You cannot hear the pianist and have not heard any recording. Never claim otherwise.
 - The pianist's remarks are their own words, not score facts.
+
+Ask before you answer
+- If one missing detail would change your answer and nothing you were given settles it, ask for it instead of guessing: which piece, which bars, how long they have, what exactly goes wrong (notes, rhythm, speed, memory, hands together), or their level. Ask one short question that ends with a question mark, offer two or three likely answers on their own lines starting with "- " (a few words each), and stop. Do not answer and ask in the same reply.
+- Do not ask when the score facts, their practice or the conversation already answer it, when the question is simple and factual, or when you asked something in your last reply. When they have answered, give the full answer.
+- Example: "Make me a plan" with no time given: "How long do you have today?" then "- 10 minutes", "- 20 minutes", "- 45 minutes".
 
 How to answer
 - Open with the answer in one clear sentence. No filler ("Great question", "Sure"), never repeat the question.
@@ -124,7 +130,7 @@ How to answer
 - Specific beats generic. Not "practise slowly" but "Bar 37: left hand alone, three times at 60% tempo, then add the right hand for the first two beats only." Only say what the score facts support.
 - Practice plans: when the pianist gives a time, give numbered steps, each with the bars, the hands, a tempo and a number of minutes; the minutes must add up exactly to the time given.
 - The goal is exactly as stated (for example "4 days a week, 30 minutes each" is not daily).
-- Reply in the language of the question. In English, use British spelling (practise as a verb, practice as a noun, colour, licence) and write notes with signs (D♭, F♯), never Db or F#.
+- Reply in the language of the question. In English, use British spelling (practise as a verb, practice as a noun, colour, licence) even when the pianist writes "practice" as a verb and write notes with signs (D♭, F♯), never Db or F#.
 - Write names correctly: Clair de lune, Für Elise, Gymnopédie No. 1, Liebestraum No. 3.
 - Sight-reading is a different skill from learning a piece: keep going without stopping, read ahead, count, use easier material, and simulate the exam.
 - Be warm and encouraging without being sugary. If a question has nothing to do with music, say kindly that you are here for their piano playing and offer two piano things you could help with.
@@ -234,6 +240,7 @@ How to answer
         keySignature: facts?.key?.signature || null,
         keyChanges: facts?.keyChanges?.length ? facts.keyChanges.map((k) => ({ bar: k.bar, key: k.name, signature: k.signature })) : undefined,
         timeSignature: facts?.time || p.timeSignature || p.overview?.timeSignature || null,
+        aboutThisPiece: window.LunePieceNotes?.forPiece?.(p)?.history || undefined,
         printedTempo: facts?.tempo?.[0]?.mark || null,
         printedWords: facts?.words?.length ? facts.words.slice(0, 40) : undefined,
         // the printed marking says it best; the playback figure is only a fallback
@@ -350,7 +357,9 @@ How to answer
                 let piece = "";
                 try {
                   const j = JSON.parse(data);
-                  piece = j.response ?? j.token ?? j.text ?? "";
+                  // Workers AI streams either its own {response} or OpenAI-style chunks with an empty
+                  // response field; read whichever carries the words
+                  piece = j?.choices?.[0]?.delta?.content || j.response || j.token || j.text || "";
                   if (j.error) throw Object.assign(new Error(j.error), { userMessage: j.error });
                 } catch (e) {
                   if (e.userMessage) throw e;
@@ -1050,7 +1059,10 @@ How to answer
     el.removeAttribute("aria-busy");
     if (text) richText(el, text);
     else el.innerHTML = "";
-    if (text && !wasStopped) addPlanButtons(el);
+    if (text && !wasStopped) {
+      addPlanButtons(el);
+      addQuickReplies(el);
+    }
     return { text, stopped: wasStopped, error };
   }
 
@@ -1089,6 +1101,40 @@ How to answer
     save.dataset.plan = JSON.stringify(steps.map(({ li, step }) => ({ ...step, text: (li.firstChild?.textContent || li.textContent || "").trim().slice(0, 200) })));
     el.appendChild(save);
   }
+  /**
+   * When Lune asks a question and lists likely answers ("- 20 minutes"), the
+   * answers become buttons: one tap sends that reply.
+   */
+  function addQuickReplies(el) {
+    const kids = [...el.children];
+    const list = kids[kids.length - 1];
+    const ask = kids[kids.length - 2];
+    if (!list || list.tagName !== "UL" || !ask) return;
+    // a question, or a request for one detail ("I need to know how long you have")
+    const asking = /\?\s*$/.test(ask.textContent || "") || /\b(need to know|let me know|tell me|which (one|piece|bars?)|how long|how much time|what (level|grade))\b/i.test(ask.textContent || "");
+    if (!asking) return;
+    const items = [...list.querySelectorAll("li")].map((li) => li.textContent.trim().replace(/[.;]$/, "")).filter((t) => t && t.length <= 60);
+    if (items.length < 2 || items.length > 5) return;
+    const row = document.createElement("div");
+    row.className = "la-replies";
+    row.setAttribute("role", "group");
+    row.setAttribute("aria-label", "Quick replies");
+    row.innerHTML = items.map((t) => `<button type="button" class="la-reply">${esc(t)}</button>`).join("");
+    list.replaceWith(row);
+  }
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest?.(".la-reply");
+    if (!b) return;
+    const host = b.closest("dialog, .ask-lune, .lune-chat, #lune-chat, aside, section") || document;
+    const box = host.querySelector("textarea, input[type=text], input[type=search]");
+    const form = box?.closest("form");
+    if (!box || !form) return;
+    box.value = b.textContent;
+    box.dispatchEvent(new Event("input", { bubbles: true }));
+    b.parentElement.querySelectorAll(".la-reply").forEach((x) => (x.disabled = true));
+    b.classList.add("on");
+    form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+  });
   let planTimer = 0;
   document.addEventListener("click", (e) => {
     const start = e.target.closest?.(".la-plan-start");
@@ -1100,7 +1146,8 @@ How to answer
       const chat = $("lune-chat");
       if (chat?.open) chat.close();
       try {
-        if (typeof setStudioPanel === "function" && state.panel !== "score") setStudioPanel("score");
+        // the Score tab itself, which also draws the score when it is not on the page yet
+        if (state.panel !== "score") document.getElementById("tab-score")?.click();
         setBarSelection(bars, { open: false, primary: st.from });
         const marked = state.markedBpm || (typeof markedTempoBpm === "function" ? markedTempoBpm() : 72);
         const target = st.bpm || (st.pct ? Math.round((marked * st.pct) / 100) : null);
@@ -2052,7 +2099,7 @@ How to answer
   }
 
   /** What Chat with Lune knows: the pianist's Repertoire, plans, week and goal, and the open piece. */
-  async function buildChatContext(log) {
+  async function buildChatContext(log = [], question = "") {
     const prefs = store().prefs?.() || {};
     const pieces = await store().listPieces?.().catch(() => []) || [];
     const tasks = (store().listTasks?.() || []).slice(0, 12);
@@ -2079,6 +2126,18 @@ How to answer
     };
     // the piece on stage, or the one open in a tab, or the one last practised
     const p = state.piece || state.sessions?.[state.sessions.length - 1]?.piece || null;
+    // a bar named in the question ("why is bar 15 hard?") comes with its notes, fingering and difficulty
+    const named = [...String(question || "").matchAll(/\bbars?\s+(\d{1,3})(?:\s*(?:to|–|-|and)\s*(\d{1,3}))?/gi)];
+    if (p && p === state.piece && named.length) {
+      const nums = [...new Set(named.flatMap((m) => [Number(m[1]), m[2] ? Number(m[2]) : null]).filter((n) => n > 0))].slice(0, 2);
+      const details = [];
+      for (const n of nums) {
+        if (!debriefFor(n)) continue;
+        const one = await buildContext(n).catch(() => null);
+        if (one?.bar) details.push(one.bar);
+      }
+      if (details.length) ctx.barsAskedAbout = details;
+    }
     if (p) {
       const facts = window.LuneScoreFacts?.forPiece?.(p) || null;
       ctx.openPiece = {
@@ -2087,6 +2146,7 @@ How to answer
         key: facts?.key?.name || null,
         timeSignature: facts?.time || null,
         hardestBars: p === state.piece ? hardest(5) : undefined,
+        aboutThisPiece: window.LunePieceNotes?.forPiece?.(p)?.history || undefined,
       };
     } else if (pieces.length) {
       const last = [...pieces].sort((a, b) => String(b.last_practised_at || "").localeCompare(String(a.last_practised_at || "")))[0];
@@ -2253,10 +2313,23 @@ How to answer
     paintHistoryList();
     $("lune-chat")?.classList.toggle("is-empty", !!model && !log.length);
     $("chat-log").innerHTML = "";
-    for (const m of log) {
+    log.forEach((m, i) => {
       const el = chatLine(m.who, m.text, { via: m.via });
-      if (m.who === "lune" && m.via === "model") richText(el, m.text);
-    }
+      if (m.who === "lune" && m.via === "model") {
+        richText(el, m.text);
+        addPlanButtons(el);
+        // a question Lune asked earlier: its answers as pills, the one chosen marked
+        addQuickReplies(el);
+        const next = log[i + 1];
+        const row = el.querySelector(".la-replies");
+        if (row && next?.who === "you") {
+          row.querySelectorAll(".la-reply").forEach((b) => {
+            b.disabled = true;
+            if (b.textContent.trim().toLowerCase() === String(next.text).trim().toLowerCase()) b.classList.add("on");
+          });
+        }
+      }
+    });
     $("chat-locked").hidden = !!model;
     $("chat-form").hidden = !model;
     $("chat-clear").hidden = !log.length;
@@ -2286,7 +2359,7 @@ How to answer
     const mine = chatLine("you", text);
     // the answer's own row appears at once, thinks, then fills in as the words arrive
     const shown = chatLine("lune", "");
-    const res = await streamAnswer(shown, async ({ signal, onToken }) => model.answer(text, await buildChatContext(log.slice(0, -1)), { signal, onToken }));
+    const res = await streamAnswer(shown, async ({ signal, onToken }) => model.answer(text, await buildChatContext(log.slice(0, -1), text), { signal, onToken }));
     let answer = res.text;
     let via = "model";
     if (!answer && res.stopped) {

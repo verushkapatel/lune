@@ -5115,5 +5115,11 @@
   "text": "frederic-chopin-chopin-nocturne-op-9-no-2-e-flat-major.txt",
   "lines": 69,
   "note": "Braille music made automatically with music21, right hand then left hand, with some slurs and markings left out. Check with a braille music reader before relying on it."
+ },
+ "franz-liszt-liebestraum-no-3-in-a-major": {
+  "file": "franz-liszt-liebestraum-no-3-in-a-major.brf",
+  "text": "franz-liszt-liebestraum-no-3-in-a-major.txt",
+  "lines": 193,
+  "note": "Braille music made automatically with music21, right hand then left hand, with some slurs and markings left out. Check with a braille music reader before relying on it."
  }
 }

@@ -214,7 +214,10 @@ window.LuneLite = (function () {
             const hand = parts.length > 1 ? (pi === 0 ? "RH" : "LH") : staff >= 2 ? "LH" : "RH";
             const ties = [...el.children].filter((c) => c.nodeName === "tie").map((t) => t.getAttribute("type"));
             const name = `${step}${ACC[alter] ?? ""}${octave}`;
+            // the edition's own finger number, when it prints one
+            const printed = parseInt(el.getElementsByTagName("fingering")[0]?.textContent || "", 10);
             const note = {
+              edFinger: printed >= 1 && printed <= 5 ? printed : null,
               pitch: name,
               letter: name,
               midi,
@@ -330,13 +333,63 @@ window.LuneLite = (function () {
     rec(1, []);
     return res;
   }
+  /**
+   * The fingering a teacher writes for common shapes (low note to high, right
+   * hand; the left hand mirrors it): seconds on neighbouring fingers, thirds
+   * one finger apart (1-3, 2-4, 3-5), fourths 1-4 or 2-5, fifths and wider 1-5;
+   * triads 1-3-5 in root position and second inversion, 1-2-5 in first.
+   */
+  function canonicalGap(iv) {
+    if (iv <= 2) return 1;
+    if (iv <= 4) return 2;
+    if (iv <= 6) return 3;
+    return 4;
+  }
+  function shapePenalty(ord, asg, hand) {
+    const fingers = asg; // low note to high
+    const ivs = [];
+    for (let i = 1; i < ord.length; i++) ivs.push(ord[i].midi - ord[i - 1].midi);
+    let pen = 0;
+    if (ord.length === 2) {
+      const gap = Math.abs(fingers[1] - fingers[0]);
+      if (gap !== canonicalGap(ivs[0])) pen += 1.6;
+    } else if (ord.length === 3) {
+      const [a, b] = ivs;
+      const third = (x) => x === 3 || x === 4;
+      // finger numbers from the bottom note up, read for the right hand
+      const up = hand === "RH" ? fingers : fingers.map((f) => 6 - f);
+      let want = null;
+      if (third(a) && third(b)) want = [1, 3, 5];
+      else if (third(a) && b === 5) want = [1, 2, 5];
+      else if (a === 5 && third(b)) want = [1, 3, 5];
+      if (want && want.some((f, i) => f !== up[i])) pen += 1.6;
+    }
+    return pen;
+  }
+  let lastShape = null; // the previous chord in this hand: its intervals and fingers
   function solveChord(notes, hand) {
+    // a key written in two voices is one key: finger it once, then copy
+    const byKey = new Map();
+    for (const n of notes) {
+      if (!byKey.has(n.midi)) byKey.set(n.midi, []);
+      byKey.get(n.midi).push(n);
+    }
+    if ([...byKey.values()].some((g) => g.length > 1)) {
+      const unique = [...byKey.values()].map((g) => g[0]);
+      if (unique.length === 1) solveRun(unique, hand);
+      else solveChord(unique, hand);
+      for (const g of byKey.values()) for (const n of g.slice(1)) n.fingering = g[0].fingering;
+      return;
+    }
     const ord = [...notes].sort((a, b) => a.midi - b.midi).slice(0, 5);
     if (ord.length === 1) return solveRun(ord, hand);
+    const ivKey = ord.map((n, i) => (i ? n.midi - ord[i - 1].midi : 0)).join(",");
     let bestC = Infinity, bestA = null;
     for (const cand of combos(ord.length)) {
       const asg = hand === "RH" ? cand : [...cand].reverse();
-      let c = 0;
+      let c = shapePenalty(ord, asg, hand);
+      // the same shape again keeps the same fingers
+      if (lastShape && lastShape.hand === hand && lastShape.ivKey === ivKey && lastShape.asg.join() === asg.join()) c -= 0.5;
       ord.forEach((n, i) => (c += noteCost(n, asg[i])));
       const anchor = hand === "RH" ? asg[0] : asg[asg.length - 1];
       const outer = hand === "RH" ? asg[asg.length - 1] : asg[0];
@@ -356,7 +409,10 @@ window.LuneLite = (function () {
       }
       if (c < bestC) { bestC = c; bestA = asg; }
     }
-    if (bestA) ord.forEach((n, i) => (n.fingering = bestA[i]));
+    if (bestA) {
+      ord.forEach((n, i) => (n.fingering = bestA[i]));
+      lastShape = { hand, ivKey, asg: bestA };
+    }
   }
   function assignFingering(parsed) {
     const starts = new Map();
@@ -369,6 +425,7 @@ window.LuneLite = (function () {
       pos += i === 0 && parsed.pickup ? bar.ql || full : full;
     });
     for (const hand of ["RH", "LH"]) {
+      lastShape = null;
       const notes = [];
       for (const num of parsed.order) {
         const bar = parsed.bars.get(num);
@@ -406,6 +463,8 @@ window.LuneLite = (function () {
         run.push(n);
       }
       if (run.length) solveRun(run, hand);
+      // where the edition prints a finger, it wins: Lune never contradicts the page
+      for (const n of notes) if (n.edFinger) n.fingering = n.edFinger;
       // tied continuations repeat the held finger
       for (const num of parsed.order) {
         const list = hand === "RH" ? parsed.bars.get(num).rh : parsed.bars.get(num).lh;
@@ -421,7 +480,15 @@ window.LuneLite = (function () {
   /* ---------------- bar coaching ---------------- */
 
   const INTERVALS = ["unison", "minor 2nd", "major 2nd", "minor 3rd", "major 3rd", "perfect 4th", "tritone", "perfect 5th", "minor 6th", "major 6th", "minor 7th", "major 7th", "octave"];
-  const intervalName = (s) => (s <= 12 ? INTERVALS[s] : s === 24 ? "two octaves" : `${s} semitones`);
+  // beyond an octave, said the way a teacher says it: "an octave and a fifth", "three octaves"
+  const OCT = ["", "an octave", "two octaves", "three octaves", "four octaves", "five octaves"];
+  const intervalName = (s) => {
+    if (s <= 12) return INTERVALS[s];
+    const o = Math.floor(s / 12);
+    const rest = s % 12;
+    const base = OCT[o] || `${o} octaves`;
+    return rest ? `${base} and a ${INTERVALS[rest]}` : base;
+  };
   const handName = (h) => (h === "RH" ? "Right hand" : "Left hand");
   const onsets = (list) => {
     const g = [];
@@ -458,7 +525,7 @@ window.LuneLite = (function () {
         tags.push("leap");
         reasons.push("wide leaps");
         advice.push(
-          `${handName(hand)} leaps ${leapTo.midi < leapFrom.midi ? "down" : "up"} ${/^[aeiou]/i.test(intervalName(maxLeap)) ? "an" : "a"} ${intervalName(maxLeap)}: ${leapFrom.letter} to ${leapTo.letter}. Practise the jump silently first: eyes find ${leapTo.letter} before the hand leaves ${leapFrom.letter}, then add sound.`
+          `${handName(hand)} leaps ${leapTo.midi < leapFrom.midi ? "down" : "up"} ${maxLeap > 12 ? "" : /^[aeiou]/i.test(intervalName(maxLeap)) ? "an " : "a "}${intervalName(maxLeap)}: ${leapFrom.letter} to ${leapTo.letter}. Practise the jump silently first: eyes find ${leapTo.letter} before the hand leaves ${leapFrom.letter}, then add sound.`
         );
         lineAdvice[key].push(`${handName(hand)}: prepare leaps by looking at the landing note before you leave.`);
       }

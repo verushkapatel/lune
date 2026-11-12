@@ -1,0 +1,594 @@
+/* flats, sharps and naturals only: Garamond has none, so they come from a symbol font that sets them close */
+@font-face {
+  font-family: "Lune Accidentals";
+  src: local("Apple Symbols"), local("Segoe UI Symbol"), local("Noto Music"), local("Noto Sans Symbols 2"), local("DejaVu Sans");
+  unicode-range: U+266D-266F;
+  size-adjust: 118%;
+}
+/* ==========================================================================
+   Lune design layer (November 2026)
+
+   One system on top of the older layers: Apple's system typeface for the
+   interface, Apple's serif (New York) for titles, a calm reading column for
+   Lune AI, Apple's grey surfaces and separators, and one accent colour.
+   Loaded after styles.css and theme-light.css, so it wins without fighting.
+   ========================================================================== */
+
+:root {
+  /* EB Garamond for words, everywhere; the system face only for numbers that must line up */
+  --ui: "Lune Accidentals", "EB Garamond", "Cormorant Garamond", Garamond, "Iowan Old Style", Georgia, serif;
+  --display: "Lune Accidentals", "EB Garamond", "Cormorant Garamond", Garamond, Georgia, serif;
+  --nums: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  /* navy, in small doses */
+  --navy-deep: #16244a;
+  --navy-mid: #22386e;
+  --navy-hi: #9fb2e4;
+  --serif: var(--ui);
+  --garamond: var(--ui);
+  /* the older layers used a monospace font for labels and Lune AI's reading lines;
+     here every one of them speaks in the system typeface */
+  --mono: var(--ui);
+  --lune-blue-hi: rgba(235, 235, 245, 0.6);
+
+  /* dark (Apple's dark system colours) */
+  --d-bg: #000;
+  --d-surface: #1c1c1e;
+  --d-surface-2: #2c2c2e;
+  --d-surface-3: #3a3a3c;
+  --d-label: #f5f5f7;
+  --d-label-2: rgba(235, 235, 245, 0.66);
+  --d-label-3: rgba(235, 235, 245, 0.42);
+  --d-sep: rgba(84, 84, 88, 0.55);
+  /* the accent is the ink itself: white on dark, navy on light (set below) */
+  --accent: #f5f5f7;
+  --accent-ink: #000;
+  --accent-press: #d8d8dc;
+
+  --radius-s: 10px;
+  --radius-m: 14px;
+  --radius-l: 20px;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.18), 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+/* ---------- type ---------- */
+body, button, input, select, textarea, dialog {
+  font-family: var(--ui) !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  letter-spacing: -0.003em;
+}
+h1, h2, .member-title, .rep-title, #chat-h, .explain-title, #explain-title, .ask-empty-h, .chat-lead-h {
+  font-family: var(--display) !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.012em !important;
+}
+h3, .lp-h, .rep-card h3 { font-family: var(--ui) !important; font-weight: 600 !important; letter-spacing: -0.01em !important; }
+
+/* small labels: quiet sentence case, not shouting mono capitals */
+.about-kicker, .member-kicker, .member-next-k, .ai-scene-k, .sm-h, .coach-kicker, .chat-sub, .ask-where,
+.chapter-label, .auth-kicker, .rep-section h2 + .dim, .home-continue-k, .explain-era, #explain-era {
+  font-family: var(--ui) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  color: var(--d-label-2) !important;
+}
+
+/* ==========================================================================
+   Lune AI: a reading column, like a good chat app
+   ========================================================================== */
+.lune-chat { background: var(--d-bg) !important; }
+.lune-chat .chat-hist {
+  background: #0d0d0f !important;
+  border-right: 1px solid var(--d-sep) !important;
+}
+.lune-chat .ch-h { font-size: 13px !important; font-weight: 600; color: var(--d-label-2) !important; letter-spacing: 0 !important; text-transform: none !important; }
+.lune-chat .ch-new { border-radius: var(--radius-s) !important; font-size: 15px !important; font-weight: 500; }
+.lune-chat .ch-item > button { font-size: 14.5px !important; border-radius: var(--radius-s) !important; }
+.lune-chat .ch-item.on { background: var(--d-surface-2) !important; border-radius: var(--radius-s) !important; }
+
+.lune-chat .chat-head {
+  border-bottom: 1px solid transparent !important;
+  background: rgba(0, 0, 0, 0.72) !important;
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+}
+.lune-chat #chat-h { font-family: var(--ui) !important; font-size: 16px !important; font-weight: 600 !important; letter-spacing: -0.01em !important; text-transform: none !important; }
+.lune-chat #chat-h .fx-shiny { background: none !important; -webkit-text-fill-color: currentColor !important; color: var(--d-label) !important; }
+.lune-chat #chat-sub { font-size: 12px !important; font-weight: 500 !important; color: var(--d-label-3) !important; }
+
+/* the conversation: centred, 720 px, room above the composer */
+.lune-chat .chat-log {
+  padding: 28px max(20px, calc((100% - 720px) / 2)) 180px !important;
+  scroll-padding-bottom: 180px;
+}
+.lune-chat .chat-row { margin: 0 0 28px !important; max-width: none !important; }
+.lune-chat .chat-from-you { display: flex; justify-content: flex-end; }
+.lune-chat .chat-from-you .chat-bubble {
+  background: var(--d-surface-2) !important;
+  color: var(--d-label) !important;
+  border: 0 !important;
+  border-radius: 20px !important;
+  padding: 10px 16px !important;
+  max-width: min(78%, 560px);
+  font-size: 16px !important;
+  line-height: 1.45 !important;
+  font-family: var(--ui) !important;
+  box-shadow: none !important;
+}
+.lune-chat .chat-from-lune .chat-bubble,
+.lune-chat .chat-from-lune .chat-bubble * ,
+.lune-chat .chat-log p {
+  font-family: var(--ui) !important;
+  letter-spacing: -0.003em !important;
+  word-spacing: normal !important;
+}
+.lune-chat .chat-from-lune .chat-bubble {
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 !important;
+  color: var(--d-label) !important;
+  font-size: 16.5px !important;
+  line-height: 1.65 !important;
+  max-width: 100% !important;
+  text-align: left !important;
+  hyphens: none;
+}
+.lune-chat .chat-from-lune .chat-bubble p { margin: 0 0 0.85em !important; font-size: inherit !important; line-height: inherit !important; }
+.lune-chat .chat-from-lune .chat-bubble p:last-child { margin-bottom: 0 !important; }
+.lune-chat .chat-from-lune .chat-bubble ol,
+.lune-chat .chat-from-lune .chat-bubble ul { margin: 0.4em 0 0.9em !important; padding-left: 1.4em !important; }
+.lune-chat .chat-from-lune .chat-bubble li { margin: 0 0 0.55em !important; padding-left: 0.2em; line-height: 1.6 !important; }
+.lune-chat .chat-from-lune .chat-bubble li::marker { color: var(--d-label-2); font-weight: 600; }
+.lune-chat .chat-from-lune .chat-bubble strong { font-weight: 600 !important; }
+.lune-chat .la-bar {
+  color: inherit !important; text-decoration: underline; text-decoration-color: var(--d-label-3);
+  text-underline-offset: 3px; text-decoration-thickness: 1.5px; font: inherit !important; background: none; border: 0; padding: 0; cursor: pointer;
+}
+.lune-chat .la-bar:hover { text-decoration-color: var(--d-label); }
+
+/* answer tools: quiet until hovered */
+.lune-chat .ask-actions { margin-top: 10px !important; gap: 2px !important; opacity: 0.55; transition: opacity 0.15s ease; }
+.lune-chat .chat-row:hover .ask-actions, .lune-chat .ask-actions:focus-within { opacity: 1; }
+.lune-chat .lc-mini { width: 30px !important; height: 30px !important; border-radius: 8px !important; }
+.lune-chat .lc-mini:hover { background: var(--d-surface-2) !important; }
+
+/* quick replies: proper pills; once one is chosen the others step back */
+.la-replies { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 2px; }
+.la-reply {
+  min-height: 36px; padding: 0 16px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--d-sep); background: var(--d-surface); color: var(--d-label);
+  font: 500 15px/1 var(--ui) !important; transition: background 0.15s ease, border-color 0.15s ease;
+}
+.la-reply:hover { background: var(--d-surface-2); border-color: var(--d-surface-3); }
+.la-reply:disabled { cursor: default; opacity: 0.4; }
+.la-reply.on { opacity: 1 !important; background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.la-replies:has(.on) .la-reply:not(.on) { display: none; }
+
+/* plan steps */
+.la-plan-start {
+  margin-left: 10px !important; min-height: 28px !important; padding: 0 12px !important;
+  border-radius: 999px !important; border: 0 !important; background: var(--d-surface-2) !important;
+  color: var(--d-label) !important; font: 600 13px/28px var(--ui) !important;
+}
+.la-plan-start:hover { background: var(--d-surface-3) !important; }
+.la-plan-save {
+  margin-top: 6px !important; min-height: 36px !important; padding: 0 16px !important; border-radius: 999px !important;
+  background: var(--d-surface-2) !important; border: 0 !important; color: var(--d-label) !important; font: 500 15px var(--ui) !important;
+}
+
+/* the empty state */
+.lune-chat .ask-empty-h, .lune-chat .chat-lead-h { font-size: 30px !important; font-weight: 500 !important; }
+.lune-chat .chat-starters { justify-content: center; padding: 0 20px 12px !important; -webkit-mask-image: none !important; mask-image: none !important; flex-wrap: wrap !important; max-width: 760px; margin: 0 auto; }
+.lune-chat .chat-starters button {
+  border-radius: 999px !important; border: 1px solid var(--d-sep) !important; background: var(--d-surface) !important;
+  color: var(--d-label) !important; font: 500 14.5px var(--ui) !important; min-height: 36px !important; padding: 0 14px !important;
+}
+.lune-chat .chat-starters button:hover { background: var(--d-surface-2) !important; }
+
+/* the composer: one rounded field, centred on the column */
+.lune-chat .chat-form { max-width: 760px !important; margin: 0 auto !important; width: 100% !important; padding: 0 20px !important; box-sizing: border-box; }
+.lune-chat .lc-composer {
+  background: var(--d-surface) !important;
+  border: 1px solid var(--d-sep) !important;
+  border-radius: 26px !important;
+  box-shadow: var(--shadow-1) !important;
+  padding: 6px 6px 6px 18px !important;
+  min-height: 52px;
+  align-items: center !important;
+}
+.lune-chat .lc-composer:focus-within { border-color: var(--d-surface-3) !important; }
+.lune-chat .lc-composer textarea {
+  font: 400 16px/1.45 var(--ui) !important; color: var(--d-label) !important; background: transparent !important; padding: 9px 0 !important;
+}
+.lune-chat .lc-composer textarea::placeholder { color: var(--d-label-3) !important; }
+.lune-chat .lc-round { width: 38px !important; height: 38px !important; background: var(--accent) !important; color: var(--accent-ink) !important; box-shadow: none !important; }
+.lune-chat .chat-fine { font: 400 12px var(--ui) !important; color: var(--d-label-3) !important; text-align: center; max-width: 720px; margin: 8px auto 12px !important; }
+
+/* the same reading rules for Ask Lune beside the score */
+.ask-lune .ask-msg, .ask-lune .ask-from-lune .ask-msg, .ask-row .ask-msg:not(.ask-from-you) {
+  font-family: var(--ui) !important; font-size: 15.5px !important; line-height: 1.6 !important; letter-spacing: -0.003em !important;
+}
+.ask-lune .ask-from-you .ask-msg, .ask-row .ask-from-you {
+  background: var(--d-surface-2) !important; border-radius: 18px !important; border: 0 !important;
+}
+
+/* ==========================================================================
+   App surfaces: header, buttons, cards, sheets
+   ========================================================================== */
+header.bar {
+  background: rgba(0, 0, 0, 0.72) !important;
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--d-sep) !important;
+}
+.primary, button.primary, a.primary {
+  background: var(--accent) !important; color: var(--accent-ink) !important; border: 0 !important;
+  border-radius: 999px !important; font-weight: 600 !important; letter-spacing: -0.01em !important;
+  box-shadow: none !important;
+}
+.primary:hover { background: var(--accent-press) !important; }
+.quiet, button.quiet {
+  border-radius: 999px !important; font-weight: 500 !important;
+}
+
+/* dialogs and sheets */
+dialog.settings-dialog, dialog.work-dialog, .studio-menu {
+  font-family: var(--ui) !important;
+}
+.settings-row {
+  border-radius: var(--radius-m) !important; background: var(--d-surface) !important; border: 0 !important;
+}
+.settings-row:hover { background: var(--d-surface-2) !important; }
+.settings-row strong { font-weight: 600 !important; font-size: 15.5px !important; }
+.settings-row span { color: var(--d-label-2) !important; font-size: 13.5px !important; }
+
+/* ---------- Repertoire ---------- */
+.rep-section { border: 0 !important; }
+.rep-section h2 { font-size: 24px !important; margin-bottom: 12px !important; }
+.rep-card, .rep-plan-card {
+  background: var(--d-surface) !important;
+  border: 0 !important;
+  border-radius: var(--radius-l) !important;
+  box-shadow: none !important;
+  padding: 18px 20px !important;
+}
+.rep-card:hover { background: #222224 !important; }
+.rep-card h3, .rep-plan-card h3 { font-size: 18px !important; margin: 0 0 2px !important; }
+.rep-card-by { font-style: normal !important; color: var(--d-label-2) !important; font-size: 14px !important; }
+.rep-card-meta { color: var(--d-label-3) !important; font-size: 13px !important; }
+.rp-bar { height: 6px !important; border-radius: 3px !important; background: var(--d-surface-3) !important; overflow: hidden; }
+.rp-bar i { background: var(--accent) !important; border-radius: 3px; }
+.rep-add input, #rep-add-q {
+  border-radius: 12px !important; background: var(--d-surface) !important; border: 1px solid var(--d-sep) !important;
+  font: 400 16px var(--ui) !important; min-height: 44px;
+}
+.rep-empty { color: var(--d-label-2) !important; font-size: 15px !important; }
+.task-origin { font-size: 12px !important; font-weight: 600 !important; border-radius: 999px !important; }
+
+/* ---------- The piece: Explain ---------- */
+#explain-title, .explain-title { font-size: clamp(34px, 4.4vw, 52px) !important; line-height: 1.05 !important; }
+#explain-by { color: var(--d-label-2) !important; font-size: 17px !important; }
+#explain-hook { font-size: 19px !important; line-height: 1.5 !important; color: var(--d-label-2) !important; font-family: var(--ui) !important; }
+.chapter { border-top: 1px solid var(--d-sep) !important; padding-top: 28px !important; }
+.chapter-title { font-family: var(--display) !important; font-size: 26px !important; font-weight: 500 !important; letter-spacing: -0.01em !important; }
+.chapter-body, .chapter-body p, .chapter-body li { font-family: var(--ui) !important; font-size: 16.5px !important; line-height: 1.65 !important; color: rgba(245, 245, 247, 0.86) !important; }
+.chapter-body ul { padding-left: 1.2em !important; }
+.chapter-body li { margin-bottom: 0.4em; }
+
+/* ---------- The piece: score chrome ---------- */
+.score-tools .seg, .fx-seg, .sm-seg, .st-seg-panels, .st-seg-anno { background: rgba(118, 118, 128, 0.24) !important; }
+.studio-tab, .studio-tabs button { font-weight: 500 !important; }
+.coach, .coach-sheet { font-family: var(--ui) !important; }
+/* the bar panel is drawn light and inverted for dark mode (styles.css), so it keeps its own colours */
+.lp-grade { border-radius: 999px !important; font-weight: 600 !important; }
+.lp-tools button, .lp-ai-row button { border-radius: 999px !important; font-weight: 500 !important; }
+
+/* ---------- Toasts ---------- */
+.toast {
+  font: 500 14.5px/1.4 var(--ui) !important; border-radius: 14px !important; padding: 12px 16px !important;
+  background: rgba(44, 44, 46, 0.92) !important; color: var(--d-label) !important; border: 0 !important;
+  -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); box-shadow: var(--shadow-1) !important;
+}
+
+/* ==========================================================================
+   Light mode: Apple's light system colours
+   ========================================================================== */
+:root[data-theme="light"] {
+  --d-bg: #fff;
+  --d-surface: #f2f2f7;
+  --d-surface-2: #e9e9ee;
+  --d-surface-3: #d1d1d6;
+  --d-label: #000;
+  --d-label-2: rgba(60, 60, 67, 0.72);
+  --d-label-3: rgba(60, 60, 67, 0.5);
+  --d-sep: rgba(60, 60, 67, 0.2);
+  --accent: #14213d;
+  --accent-ink: #fff;
+  --accent-press: #0c1529;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+:root[data-theme="light"] .lune-chat .chat-hist { background: #f7f7f9 !important; }
+:root[data-theme="light"] .lune-chat .chat-head, :root[data-theme="light"] header.bar { background: rgba(255, 255, 255, 0.78) !important; }
+:root[data-theme="light"] .la-plan-start { color: #14213d !important; background: #e9ecf4 !important; }
+:root[data-theme="light"] .rep-card:hover { background: #ebebf0 !important; }
+:root[data-theme="light"] .chapter-body, :root[data-theme="light"] .chapter-body p, :root[data-theme="light"] .chapter-body li { color: rgba(0, 0, 0, 0.82) !important; }
+:root[data-theme="light"] .toast { background: rgba(255, 255, 255, 0.92) !important; }
+@media (prefers-reduced-motion: reduce) {
+  .lune-chat .ask-actions { transition: none; }
+}
+
+
+/* ---------- labels and reading lines from the older layers ---------- */
+/* section headings: Apple's large title style, with no extra eyebrow above */
+#rep-week-h, #rep-plan-h, #rep-list-h, #home-member .member-recs h2 {
+  font-family: var(--ui) !important; font-weight: 700 !important; font-size: 22px !important; letter-spacing: -0.02em !important;
+}
+#rep-week-h::before, #rep-plan-h::before, #rep-list-h::before, #home-member .member-recs h2::before { content: none !important; display: none !important; }
+/* small labels that remain: quiet, sentence case */
+.rep-sum-k, .wk-k, .po-st, .mh-phase, .mr-kicker, .member-rec-role, .lw-stage, .home-footer-line, .onboard-progress li.on em {
+  letter-spacing: 0.02em !important; font-weight: 600 !important; text-transform: none !important; font-size: 12.5px !important;
+}
+/* Lune AI's "reading" lines and note lists: normal text, normal spacing */
+.la .la-read, .la .la-line, :is(#ask-lune, #lune-chat, #home-member, body) .la :is(.la-read, .la-line, .la-line *, .la-read *),
+.po-sum, .hd-line, .wk-n {
+  font-family: var(--ui) !important; letter-spacing: -0.003em !important; word-spacing: normal !important;
+}
+.la .la-read { font-size: 13.5px !important; color: var(--d-label-3) !important; }
+.la .la-line { font-size: 15px !important; line-height: 1.6 !important; }
+.lune-chat .chat-head h2, .lune-chat .chat-id, .ask-title { letter-spacing: -0.01em !important; text-transform: none !important; font-size: 16px !important; font-weight: 600 !important; }
+.scrub-meta { font-variant-numeric: tabular-nums; letter-spacing: 0 !important; }
+
+
+/* ==========================================================================
+   Premium pass: no glows, no gradients, no electric blue. Quiet surfaces,
+   one ink, depth from spacing and type rather than effects.
+   ========================================================================== */
+:root { --lune-blue: var(--accent); --navy: var(--accent); --navy-ink: var(--accent-ink); --navy-line: var(--d-surface-3); }
+
+/* glows and coloured shadows, everywhere */
+.home-feat-device, body.is-home:not(.is-signed-in) .home-feat-device, #home-member .member-next, #home-member .member-rec:hover,
+.lune-chat[open], .lune-talk[open], dialog#ask-panel[open], .ask-panel[open], .hd, .hd-card, .mr-keys, .lc-send, .lc-round, .hd-send,
+#home-member .member-next .primary, #home-member .member-next button.primary {
+  box-shadow: none !important;
+}
+.lune-chat[open], .lune-talk[open], dialog#ask-panel[open], .ask-panel[open] {
+  background: var(--d-bg) !important; border: 1px solid var(--d-sep) !important;
+}
+:root[data-theme="light"] .lune-chat[open], :root[data-theme="light"] .lune-talk[open], :root[data-theme="light"] dialog#ask-panel[open], :root[data-theme="light"] .ask-panel[open] { background: #fff !important; }
+/* the animated rainbow ring around every text field */
+.lc-composer::before, .chat-form::before, .ask-form::before, #home-member .home-ask::before, .lp-askbar::before { display: none !important; content: none !important; }
+.fx-shiny { background: none !important; -webkit-text-fill-color: currentColor !important; animation: none !important; }
+
+/* header: Sign in is a quiet white pill; the landing nav never wraps */
+header.bar .bar-auth {
+  background: var(--accent) !important; color: var(--accent-ink) !important; border: 0 !important; box-shadow: none !important;
+  font: 600 14px var(--ui) !important; height: 34px !important; min-height: 34px !important;
+}
+html[data-theme="light"] header.bar .bar-auth { background: var(--accent) !important; color: var(--accent-ink) !important; }
+.lp-nav { flex-wrap: nowrap !important; gap: 2px !important; }
+.lp-nav a { white-space: nowrap !important; font: 500 14px var(--ui) !important; color: var(--d-label-2) !important; padding: 6px 12px !important; border-radius: 999px !important; }
+.lp-nav a:hover { color: var(--d-label) !important; }
+body.is-home:not(.is-signed-in) .lp-nav a.on { background: var(--d-surface-2) !important; color: var(--d-label) !important; }
+.lp-nav a.on::before { display: none !important; }
+.lp-nav-cta { background: var(--accent) !important; color: var(--accent-ink) !important; }
+@media (max-width: 1080px) { .lp-nav { display: none !important; } }
+
+/* buttons: one shape, two weights */
+.quiet, button.quiet { background: transparent !important; border: 1px solid var(--d-sep) !important; color: var(--d-label) !important; }
+.quiet:hover { background: var(--d-surface) !important; }
+.link-btn { color: var(--d-label-2) !important; }
+.link-btn:hover { color: var(--d-label) !important; }
+.hero-cta-alt { border: 1px solid var(--d-sep) !important; background: transparent !important; color: var(--d-label) !important; box-shadow: none !important; }
+
+/* progress and status: ink, not neon */
+.rp-bar i, #member-streak .po-bar i, .lw-bar i { background: var(--d-label) !important; box-shadow: none !important; }
+.wp-check[aria-pressed="true"] { background: var(--accent) !important; border-color: var(--accent) !important; color: var(--accent-ink) !important; }
+html body .onboard-progress li.done span { background: var(--d-label) !important; border-color: var(--d-label) !important; box-shadow: none !important; }
+.rep-sum { background: var(--d-surface) !important; border-left: 2px solid var(--d-surface-3) !important; }
+#home .mr-tonight .hd-tag { color: var(--d-label-2) !important; background: var(--d-surface-2) !important; }
+#home .mr-tonight .hd-send, .hd-send { background: var(--accent) !important; color: var(--accent-ink) !important; }
+.chat-starters button:hover, .ask-chips button:hover { border-color: var(--d-surface-3) !important; background: var(--d-surface-2) !important; }
+.lc-send, .lc-round { background: var(--accent) !important; color: var(--accent-ink) !important; }
+body.studio-compact.is-studio header.bar .st-play.on { background: var(--accent) !important; color: var(--accent-ink) !important; }
+.member-next-actions .primary { background: var(--accent) !important; color: var(--accent-ink) !important; }
+
+/* the landing piano: lit keys and falling notes in soft white, not electric blue */
+.mr-keys { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06) !important; }
+.mr-wk.is-lit, .mr-wk.is-hit { background: linear-gradient(to bottom, #e4e4e8 0%, #f6f6f8 40%, #fff 100%) !important; box-shadow: inset 0 -4px 0 #cfcfd4 !important; }
+.mr-bk.is-lit, .mr-bk.is-hit { background: linear-gradient(to bottom, #1a1a1c 0%, #3a3a3e 100%) !important; }
+.mr-n, .mr-n.mr-nb { background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0.78) 60%, #fff) !important; box-shadow: none !important; }
+.mr-ripple { border-color: rgba(255, 255, 255, 0.5) !important; }
+.home-footer-line, body.is-home:not(.is-signed-in) #home-guest > .home-footer .home-footer-line { color: var(--d-label-2) !important; }
+
+/* Lune AI's orb: a calm moon, not a glowing blue marble */
+.ask-empty-orb, .lune-orb-sm, .lune-orb { filter: grayscale(1) brightness(1.15) !important; box-shadow: none !important; }
+
+/* cards everywhere share one surface */
+#home-member .member-rec, #home-member .member-next, .hd-card, .ai-chapter .ai-scene, .home-feat-device {
+  background: var(--d-surface) !important; border: 1px solid var(--d-sep) !important; border-radius: var(--radius-l) !important;
+}
+#home-member .member-rec:hover { transform: none !important; background: var(--d-surface-2) !important; }
+
+/* light mode keeps the same restraint */
+:root[data-theme="light"] .mr-n, :root[data-theme="light"] .mr-n.mr-nb { background: linear-gradient(to bottom, rgba(20,33,61,0), rgba(20,33,61,0.7) 60%, #14213d) !important; }
+#hero .mr-n { background: rgba(245, 245, 247, 0.92) !important; box-shadow: none !important; }
+#hero .mr-n.mr-nb { background: #8e8e93 !important; }
+:root[data-theme="light"] #hero .mr-n { background: #14213d !important; }
+:root[data-theme="light"] #hero .mr-n.mr-nb { background: #8e8e93 !important; }
+html body .about-kicker, html body .home-feat-copy .about-kicker, html body .member-kicker, html body .ai-scene-k, html body .coach-kicker {
+  color: var(--d-label-2) !important; font: 600 13px var(--ui) !important; letter-spacing: 0 !important; text-transform: none !important;
+}
+
+/* the last periwinkle accents from the older layers */
+html body #home .mr-kicker, html body #home-guest .about-kicker, html body .mh-phase { color: var(--d-label-2) !important; }
+.hd-tag, .la .la-mark, .la .la-tag, .po-sum .la-tag, #member-streak .po-sum .la-tag, html body #home .mr-tonight .hd-tag { color: var(--d-label) !important; background: none !important; }
+.la-stage.done .la-dot { background: var(--d-label-2) !important; }
+#home-member .member-quick .mq svg { color: var(--d-label-2) !important; }
+html body .onboard-progress li.on span { border-color: var(--d-label) !important; box-shadow: inset -5px 0 0 0 var(--d-label) !important; }
+html body .onboard-progress li.on em { color: var(--d-label) !important; }
+.fx-aurora { display: none !important; }
+.lw-stage { background: none !important; -webkit-text-fill-color: currentColor !important; color: var(--d-label-2) !important; animation: none !important; }
+
+/* small capitals anywhere but the wordmark: sentence case, quiet grey */
+html body :is(.home-app-sub, .mr-hint, .sim-piano-meta, .piano-tut-kicker, .tut-rh, .tut-lh, .hello-kicker, .eyebrow,
+  .onboard-search-label, .lune-loader-text, .lune-tour-kicker, .search-go, dialog h3, .settings-dialog h3, .onboard-stage label) {
+  text-transform: none !important; letter-spacing: 0 !important; font-family: var(--ui) !important;
+  font-weight: 600 !important; font-size: 13px !important; color: var(--d-label-2) !important;
+}
+html body .settings-dialog h3, html body dialog h3 { margin: 22px 0 8px 4px !important; }
+
+/* inside the inverted bar panel, colours are written for light and flipped by its filter */
+html:not([data-theme="light"]) #coach .quiet, html:not([data-theme="light"]) #coach button.quiet {
+  color: #111 !important; border-color: rgba(0, 0, 0, 0.16) !important; background: transparent !important;
+}
+html:not([data-theme="light"]) #coach .quiet:hover { background: rgba(0, 0, 0, 0.05) !important; }
+html:not([data-theme="light"]) #coach .primary { background: #111 !important; color: #fff !important; }
+html:not([data-theme="light"]) #coach .link-btn { color: rgba(0, 0, 0, 0.6) !important; }
+
+html[data-theme="light"] body .lune-chat .chat-from-you .chat-bubble, html[data-theme="light"] body .ask-from-you .ask-msg {
+  background: #f2f2f7 !important; color: #000 !important; border: 0 !important; box-shadow: none !important;
+}
+html[data-theme="light"] body .lune-chat .lc-composer { background: #fff !important; }
+
+html body .lune-chat .chat-from-lune .chat-bubble li::marker, html body .la2 li::marker, html body .rich li::marker { color: #8e8e93 !important; }
+/* phones outside the studio: open pieces live in the menu, not squeezed into the header */
+@media (max-width: 700px) {
+  body:not(.is-studio) header.bar #piece-tabs { display: none !important; }
+}
+
+html body .wk-opts .wk-go, html body button.wk-go { background: var(--accent) !important; color: var(--accent-ink) !important; border-color: var(--accent) !important; }
+/* finger numbers in the bar panel: written for light, flipped in dark */
+html:not([data-theme="light"]) #coach .tone-finger { color: #2c2c2e !important; border-color: #2c2c2e !important; }
+html[data-theme="light"] .tone-finger { color: #14213d !important; border-color: #14213d !important; }
+
+/* Lune AI's empty state: the crescent and one large line, like a good chat app's greeting */
+html body .lune-chat .ask-empty { display: flex; flex-direction: column; align-items: center; gap: 18px; margin: auto 0 28px !important; }
+html body .lune-chat .ask-empty-orb {
+  width: 34px !important; height: 34px !important; min-height: 0 !important; filter: none !important; background: none !important;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='4 3 26 26'%3E%3Cpath d='M17.61 4.58A12 12 0 1 0 27.70 24.77A11.4 11.4 0 1 1 17.61 4.58Z'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='4 3 26 26'%3E%3Cpath d='M17.61 4.58A12 12 0 1 0 27.70 24.77A11.4 11.4 0 1 1 17.61 4.58Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  background-color: var(--d-label) !important; box-shadow: none !important; border: 0 !important;
+}
+html body .lune-chat .ask-empty-orb * { display: none !important; }
+html body .lune-chat .ask-empty-h {
+  font-family: var(--display) !important; font-size: clamp(28px, 3.4vw, 36px) !important; font-weight: 500 !important;
+  letter-spacing: -0.015em !important; color: var(--d-label) !important; margin: 0 !important; text-align: center;
+}
+
+/* the landing keyboard: a plain top edge, and keys that press in grey rather than glow blue */
+#hero .mr-keys::before { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 1px 0 rgba(255, 255, 255, 0.06) !important; }
+#hero .mr-k.mr-wk.is-lit, #hero .mr-k.mr-wk.is-hit { background: #e3e3e7 !important; box-shadow: inset 0 -4px 0 #c7c7cc !important; }
+#hero .mr-k.mr-bk.is-lit, #hero .mr-k.mr-bk.is-hit { background: #3a3a3e !important; box-shadow: inset 0 -3px 0 #1c1c1e !important; }
+
+
+/* ==========================================================================
+   Garamond everywhere, set to read comfortably, with hints of navy
+   ========================================================================== */
+/* Garamond's small x-height, evened out: every size reads like the size it says */
+html body, html body * { font-size-adjust: 0.47; }
+html body svg, html body svg *, html body #osmd *, html body .score-page * , html body .lune-kbd-host * { font-size-adjust: none; }
+html body { font-feature-settings: "kern", "liga", "onum" 0; }
+/* figures that line up: timers, tempo, counts */
+.scrub-meta, #scrub-time, .bpm-readout, .st-bpm b, .impact-num, .lp-proof dt, .rep-card-meta time { font-family: var(--nums) !important; font-variant-numeric: tabular-nums; font-size-adjust: none !important; }
+.lp-proof dt { font-family: var(--display) !important; font-weight: 400 !important; font-variant-numeric: lining-nums; }
+
+/* titles: Garamond at display weight, a touch of italic for the second line */
+h1, h2, .member-title, #explain-title, .chapter-title, .ask-empty-h { font-weight: 400 !important; letter-spacing: -0.01em !important; }
+#hero h1 .mr-l2, .mr-promise em, .home-feat-copy h2 em { font-style: italic; }
+h3, .rep-card h3, .rep-plan-card h3 { font-weight: 600 !important; letter-spacing: 0 !important; }
+
+/* buttons and labels in Garamond read best a little larger and a little bolder */
+.primary, .quiet, .bar-auth, .lp-nav a, .st-seg-panels button, .st-seg-anno button, .studio-tab, .la-reply, .chat-starters button,
+.settings-row strong, .ch-new, .ch-item > button, .lp-grade, .lp-tools button, .lp-ai-row button, .hero-cta-alt, .wk-opts button {
+  font-family: var(--ui) !important; font-weight: 500 !important; letter-spacing: 0.005em !important;
+}
+
+/* navy, sparingly: the account button, the send button, what is chosen, what is in progress */
+header.bar .bar-auth, html[data-theme="light"] header.bar .bar-auth {
+  background: var(--navy-mid) !important; color: #fff !important; border: 1px solid rgba(159, 178, 228, 0.28) !important;
+}
+header.bar .bar-auth:hover { background: #2a4482 !important; }
+.lune-chat .lc-round, .lc-send, .lc-round { background: var(--navy-mid) !important; color: #fff !important; }
+.la-reply.on { background: var(--navy-mid) !important; border-color: var(--navy-mid) !important; color: #fff !important; }
+.rp-bar i, #member-streak .po-bar i, .lw-bar i { background: var(--navy-hi) !important; }
+body:not(.studio-compact) .studio-seg .studio-tab[aria-selected="true"]::before { background: var(--navy-hi) !important; box-shadow: none !important; }
+.st-seg-panels button[aria-pressed="true"] { background: var(--navy-mid) !important; color: #fff !important; }
+.lune-chat .la-bar { text-decoration-color: rgba(159, 178, 228, 0.55) !important; }
+.lune-chat .la-bar:hover { text-decoration-color: var(--navy-hi) !important; }
+/* the small labels above sections: Garamond italic in soft navy */
+html body .about-kicker, html body .home-feat-copy .about-kicker, html body .member-kicker, html body #home .mr-kicker, html body #home-guest .about-kicker,
+html body .chapter-label, html body .explain-era, html body #explain-era, html body .auth-kicker, html body .mh-phase {
+  font-family: var(--ui) !important; font-style: italic !important; font-weight: 500 !important; font-size: 16px !important;
+  letter-spacing: 0 !important; text-transform: none !important; color: var(--navy-hi) !important;
+}
+/* a hairline of navy under the header, nowhere else */
+header.bar { border-bottom: 1px solid rgba(34, 56, 110, 0.55) !important; }
+
+/* light mode: deep navy for the same few things */
+html[data-theme="light"] .rp-bar i, html[data-theme="light"] #member-streak .po-bar i { background: var(--navy-mid) !important; }
+html[data-theme="light"] body .about-kicker, html[data-theme="light"] body .chapter-label, html[data-theme="light"] body .explain-era,
+html[data-theme="light"] body #explain-era, html[data-theme="light"] body .member-kicker, html[data-theme="light"] body .auth-kicker,
+html[data-theme="light"] body #home-guest .about-kicker, html[data-theme="light"] body .mh-phase { color: var(--navy-mid) !important; }
+html[data-theme="light"] header.bar { border-bottom-color: rgba(22, 36, 74, 0.18) !important; }
+
+/* signed-in home: the main action in white like every other primary, the Ask bar with the crescent */
+html body #home-member .member-next .primary, html body #home-member .member-next button.primary {
+  background: var(--accent) !important; color: var(--accent-ink) !important; border: 0 !important; box-shadow: none !important;
+}
+html body .home-ask .lune-orb-sm, html body .home-ask .lune-orb, html body #home-member .home-ask [class*="orb"] {
+  width: 18px !important; height: 18px !important; filter: none !important; box-shadow: none !important; border: 0 !important;
+  background: var(--navy-hi) !important;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='4 3 26 26'%3E%3Cpath d='M17.61 4.58A12 12 0 1 0 27.70 24.77A11.4 11.4 0 1 1 17.61 4.58Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='4 3 26 26'%3E%3Cpath d='M17.61 4.58A12 12 0 1 0 27.70 24.77A11.4 11.4 0 1 1 17.61 4.58Z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+html body .home-ask [class*="orb"] * { display: none !important; }
+html body #home-member .member-rec-role {
+  font-family: var(--ui) !important; font-style: italic !important; font-size: 14px !important; letter-spacing: 0 !important;
+  text-transform: none !important; color: var(--navy-hi) !important;
+}
+html body #home-member .home-ask .lc-round, html body #home-member .home-ask button[type="submit"] { background: var(--navy-mid) !important; color: #fff !important; box-shadow: none !important; }
+
+/* Repertoire cards: one clear action (Open, in navy), the rest as quiet words */
+html body #repertoire .rep-card .rep-card-actions .primary, html body .rep-card .primary {
+  background: var(--navy-mid) !important; color: #fff !important; border: 1px solid rgba(159, 178, 228, 0.28) !important; box-shadow: none !important;
+}
+html body .rep-card .rep-card-actions .quiet {
+  border: 0 !important; background: transparent !important; color: var(--d-label-2) !important; padding: 0 10px !important; min-height: 36px !important;
+}
+html body .rep-card .rep-card-actions .quiet:hover { color: var(--d-label) !important; background: var(--d-surface-2) !important; }
+html body .rep-card .rep-card-actions select {
+  font: 500 15px var(--ui) !important; border-radius: 999px !important; background: var(--d-surface-2) !important; border: 0 !important; color: var(--d-label) !important;
+}
+html body #home-member .member-next-k, html body #member-streak .wk-k, html body .member-week-k {
+  font-family: var(--ui) !important; font-style: italic !important; font-size: 15px !important; letter-spacing: 0 !important;
+  text-transform: none !important; color: var(--navy-hi) !important;
+}
+html[data-theme="light"] body .rep-card .primary { background: var(--navy-mid) !important; color: #fff !important; }
+
+/* Explain: reading and access as one quiet row, not a second panel competing with the title */
+html body #explain-access.access-card { background: none !important; border: 0 !important; padding: 0 !important; margin-top: 18px !important; box-shadow: none !important; }
+html body #explain-access .access-card-h { font: italic 500 16px var(--ui) !important; color: var(--navy-hi) !important; margin: 0 0 10px !important; letter-spacing: 0 !important; }
+html body #explain-access .access-card-grid { display: flex !important; flex-wrap: wrap; gap: 8px !important; }
+html body #explain-access .access-option {
+  display: inline-flex !important; align-items: center; min-height: 36px; padding: 0 14px !important; border-radius: 999px !important;
+  background: var(--d-surface) !important; border: 1px solid var(--d-sep) !important; width: auto !important;
+}
+html body #explain-access .access-option strong { font: 500 15px var(--ui) !important; color: var(--d-label) !important; }
+html body #explain-access .access-option span { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+html body #explain-access .access-option[aria-pressed="true"] { background: var(--navy-mid) !important; border-color: var(--navy-mid) !important; }
+html body #explain-access .access-option[hidden] { display: none !important; }
+html[data-theme="light"] body #explain-access .access-card-h { color: var(--navy-mid) !important; }
+
+/* one divider between the hero and the chapters, not two */
+html body #explain-chapters .chapter:first-child { border-top: 0 !important; padding-top: 8px !important; }
+
+/* suggestion chips: centred when they fit, scrolling from the left edge when they don't */
+html body #home-member .home-ask-chips, html body .home-ask-chips { justify-content: safe center !important; }
+@media (max-width: 700px) {
+  html body #home-member .home-ask-chips, html body .home-ask-chips {
+    justify-content: flex-start !important; flex-wrap: nowrap !important; overflow-x: auto !important;
+    margin-inline: -16px !important; padding-inline: 16px !important; scroll-padding-inline: 16px;
+  }
+}

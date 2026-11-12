@@ -1866,7 +1866,7 @@ window.LunePractice = (function () {
                   <div class="rp-bar" role="progressbar" aria-label="How much of ${esc(p.title)} you can play" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${prog?.pct ?? 0}"><i style="width:${prog?.pct ?? 0}%"></i></div>
                   <button type="button" class="link-btn rp-set" data-progress="${esc(p.piece_key)}">${prog ? esc(window.LunePlans.progressLabel(prog)) : "Mark progress"}</button>
                 </div>
-                ${sum ? `<p class="rep-sum"><span class="rep-sum-k">${sum.via === "model" ? "Lune AI" : "Last session"}</span> ${esc(sum.text)}</p>` : `<p class="rep-card-meta">Practised ${esc(ago(p.last_practised_at))}${n ? ` · ${n} note${n === 1 ? "" : "s"}` : ""}</p>`}
+                ${sum ? `<p class="rep-sum"><span class="rep-sum-k">${sum.via === "model" ? "Lune AI" : "Last session"}</span> ${esc(sum.text)}</p>` : `<p class="rep-card-meta">${p.last_practised_at ? `Practised ${esc(ago(p.last_practised_at))}` : "Not practised yet"}${n ? ` · ${n} note${n === 1 ? "" : "s"}` : ""}</p>`}
               </div>
               <div class="rep-card-actions">
                 <label class="visually-hidden" for="st-${esc(p.piece_key)}">Status</label>
@@ -2504,7 +2504,7 @@ window.LunePractice = (function () {
         ${window.LunePlans?.planMode?.() === "free" ? row("plan-week", "Plan my week", "Turn on a weekly plan") : row("plan-week", "Change my week’s plan", "Days, minutes and goal")}
         ${window.LunePlans?.planMode?.() === "free" ? "" : row("plan-free", "No schedule", "Play whenever it suits you")}
         ${signedIn ? row("week", "This week", "Your progress") : ""}
-        ${row("example-week", "How This week works", "A quick example")}
+        ${row("example-week", "How this week works", "A quick example")}
       </section>
       <section class="settings-sec" aria-labelledby="set-h-look">
         <h3 id="set-h-look">Look and access</h3>
@@ -2722,8 +2722,8 @@ window.LunePractice = (function () {
     const server = String(window.LUNE_CONFIG?.aiServer || "");
     if (!server) return "";
     const st = store.status();
-    const name = esc(window.LUNE_CONFIG?.aiModelName || "an open-weight model");
-    const where = ` ${name.replace(/ Instruct$/, "")}. It can be wrong.`;
+    // plain words here; which model answers is in Credits and licences
+    const where = " · it reads your score and can still be wrong.";
     if (st.mode === "cloud") {
       return `<h4 class="settings-sub">Lune AI</h4><p class="settings-note" id="set-account-ai" role="status"><strong>Lune AI is on</strong>${where}</p>`;
     }
