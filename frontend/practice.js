@@ -1,3 +1,13 @@
+
+/* A composer's portrait, when Lune has one: "Claude Debussy" → static/assets/composers/debussy.jpg */
+window.luneFace = (function () {
+  const FACES = new Set(["albeniz", "bach", "bartok", "beethoven", "brahms", "burgmuller", "busoni", "chopin", "clementi", "czerny", "debussy", "dvorak", "faure", "field", "franck", "gershwin", "gluck", "gottschalk", "granados", "grieg", "handel", "haydn", "joplin", "liszt", "macdowell", "mendelssohn", "moszkowski", "mozart", "mussorgsky", "pachelbel", "paderewski", "poulenc", "prokofiev", "purcell", "rachmaninoff", "ravel", "rimsky", "saint-saens", "satie", "scarlatti", "schubert", "schumann", "scriabin", "sibelius", "silhouette.svg", "tchaikovsky", "telemann", "vivaldi", "weber"]);
+  return (composer) => {
+    const words = String(composer || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z\s-]/g, " ").split(/\s+/).filter(Boolean);
+    for (const w of [...words].reverse()) if (FACES.has(w)) return `static/assets/composers/${w}.jpg?v=faces01`;
+    return "";
+  };
+})();
 /* Lune — Repertoire, bar notes (typed or spoken), review scheduling,
  * teacher assignment links, reading & access settings.
  *
@@ -3466,8 +3476,17 @@ window.LunePractice = (function () {
       // never leave the placeholder showing: fall back to the plainest next step
       n = { kind: "new", title: "Choose a piece to practise", why: "Search the catalogue or open a score of your own.", label: "Find a score" };
     }
-    const html = `<p class="member-next-k">Next</p>
+    if (!n.composer && n.title) {
+      try {
+        n.composer = (await store.listPieces()).find((p) => p.title === n.title)?.composer || "";
+      } catch {
+        /* no portrait, then */
+      }
+    }
+    const face = window.luneFace?.(n.composer);
+    const html = `${face ? `<span class="member-next-face" aria-hidden="true" style="background-image:url('${face}')"></span>` : ""}<p class="member-next-k">Next</p>
       <h2 id="member-next-h">${esc(n.title)}</h2>
+      ${n.composer ? `<p class="member-next-by">${esc(n.composer)}</p>` : ""}
       ${n.detail ? `<p class="member-next-detail">${esc(n.detail)}</p>` : ""}
       <p class="member-next-why">${esc(n.why)}</p>
       <div class="member-next-actions"><button type="button" class="primary" data-next-go>${esc(n.label)}</button>${

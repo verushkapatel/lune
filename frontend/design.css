@@ -856,3 +856,61 @@ html body header.bar .top-search { position: relative !important; display: flex 
 html body header.bar .top-search input { height: 38px !important; padding: 0 40px 0 16px !important; border-radius: 999px !important; font: 400 15.5px var(--ui) !important; }
 html body header.bar .top-search .search-go { position: absolute !important; right: 4px !important; top: 50% !important; transform: translateY(-50%) !important; width: 30px !important; height: 30px !important; min-width: 30px !important; }
 html body header.bar #btn-repertoire { height: 38px !important; min-height: 38px !important; padding: 0 14px !important; font: 500 15px var(--ui) !important; border-radius: 999px !important; }
+
+/* ==========================================================================
+   Signed-in home: Tonight's piece with its composer, suggestions as portraits
+   ========================================================================== */
+html body #home-member .member-next {
+  position: relative; overflow: hidden; min-height: 240px; padding: 30px 30px 26px !important;
+  background: linear-gradient(120deg, #0e1220 0%, #0b0b0e 55%) !important; border: 1px solid rgba(159, 178, 228, 0.16) !important;
+}
+html body #home-member .member-next-face {
+  position: absolute; inset: 0 0 0 auto; width: 48%; background-size: cover; background-position: center 20%;
+  filter: grayscale(1) contrast(1.05) brightness(0.85);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 55%); mask-image: linear-gradient(to right, transparent 0%, #000 55%);
+  opacity: 0.85; pointer-events: none;
+}
+html body #home-member .member-next > :not(.member-next-face) { position: relative; z-index: 1; max-width: 58%; }
+html body #home-member #member-next-h { font: 400 clamp(34px, 4vw, 48px)/1.04 var(--display) !important; margin: 4px 0 4px !important; color: #f5f5f7 !important; }
+html body #home-member .member-next-by { margin: 0 0 12px; font: italic 400 18px var(--ui); color: rgba(245, 245, 247, 0.7); }
+html body #home-member .member-next-why, html body #home-member .member-next-detail { font: 400 16px/1.5 var(--ui) !important; color: rgba(245, 245, 247, 0.72) !important; }
+html body #home-member .member-next .primary { min-height: 44px !important; padding: 0 24px !important; font-size: 16px !important; margin-top: 8px; }
+
+/* suggestions: portrait cards, like album covers */
+html body #home-member .member-recs-grid, html body #home-member .member-rec-grid, html body #home-member #member-recs > div:has(.member-rec) {
+  display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 14px !important;
+}
+html body #home-member .member-rec {
+  position: relative; overflow: hidden; display: flex !important; flex-direction: column; justify-content: flex-end; align-items: flex-start;
+  min-height: 210px; padding: 16px 16px 14px !important; text-align: left;
+  background: #121216 !important; border: 1px solid rgba(255, 255, 255, 0.07) !important; border-radius: 18px !important;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.35s ease !important;
+}
+html body #home-member .member-rec:hover { transform: translateY(-3px) !important; border-color: rgba(159, 178, 228, 0.35) !important; background: #121216 !important; }
+html body #home-member .member-rec-face {
+  position: absolute; inset: 0; background-size: cover; background-position: center 22%;
+  filter: grayscale(1) contrast(1.05) brightness(0.8); transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+html body #home-member .member-rec:hover .member-rec-face { transform: scale(1.04); }
+html body #home-member .member-rec.has-face::after {
+  content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0, 0, 0, 0.92) 0%, rgba(0, 0, 0, 0.35) 55%, rgba(0, 0, 0, 0.05) 100%);
+}
+html body #home-member .member-rec > :not(.member-rec-face) { position: relative; z-index: 1; }
+html body #home-member .member-rec-title { font: 500 20px/1.15 var(--display) !important; color: #fff !important; }
+html body #home-member .member-rec-by { font: italic 400 15px var(--ui) !important; color: rgba(255, 255, 255, 0.72) !important; margin-top: 3px; }
+html body #home-member .member-rec-role { margin-bottom: auto; align-self: flex-start; padding: 3px 10px; border-radius: 999px; background: rgba(22, 36, 74, 0.75); color: #dfe6fb !important; font-style: italic; }
+@media (max-width: 700px) {
+  html body #home-member .member-recs-grid, html body #home-member .member-rec-grid, html body #home-member #member-recs > div:has(.member-rec) {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important;
+  }
+  html body #home-member .member-rec { min-height: 180px; }
+  html body #home-member .member-next-face { width: 60%; opacity: 0.55; }
+  html body #home-member .member-next > :not(.member-next-face) { max-width: 78%; }
+}
+html body #home-member .member-rec { min-height: 210px !important; }
+html body #home-member .member-rec .member-rec-face {
+  position: absolute !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+  width: 100% !important; height: 100% !important; display: block !important; margin: 0 !important; z-index: 0 !important;
+}
+html body #home-member .member-rec.has-face::after { z-index: 0 !important; width: 100%; height: 100%; top: 0; left: 0; }
+@media (max-width: 700px) { html body #home-member .member-rec { min-height: 180px !important; } }
