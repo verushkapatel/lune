@@ -282,7 +282,7 @@ window.LunePlans = (function () {
     const today = DAYS[(new Date().getDay() + 6) % 7];
     return `<div class="wp">
       <p class="wp-goal">${esc(p.goal)}</p>
-      <p class="wp-by">${p.via === "schedule" ? "Your piano schedule" : p.via === "model" ? "Planned with Lune AI" : "Planned by Lune"} · about ${esc(p.mins)} min a day</p>
+      <p class="wp-by">${p.via === "schedule" ? "My schedule" : p.via === "model" ? "Planned with Lune AI" : "Planned by Lune"} · about ${esc(p.mins)} min a day</p>
       <ol class="wp-days">${p.days
         .map(
           (d) => `<li class="wp-day${d.day === today ? " today" : ""}${p.done?.[d.day] ? " done" : ""}">
@@ -313,7 +313,7 @@ window.LunePlans = (function () {
     const mins = Number(now?.mins) || Number(prefs.practiceMins) || 30;
     d.innerHTML = `<form method="dialog" class="wp-form" id="wp-form">
         <span class="lune-orb-sm" aria-hidden="true"></span>
-        <h2 id="wp-h">${now ? "Edit your piano schedule" : "Plan your piano schedule"}</h2>
+        <h2 id="wp-h">${now ? "Edit my schedule" : "Plan my schedule"}</h2>
         <label for="wp-goal">What do you want to get done this week?</label>
         <textarea id="wp-goal" rows="3" required maxlength="300" placeholder="e.g. Für Elise up to bar 30, hands together">${esc(now?.goal || "")}</textarea>
         <p class="wp-q">Which days?</p>

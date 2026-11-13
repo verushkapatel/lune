@@ -1,4 +1,4 @@
-/* Lune — Plan your piano schedule.
+/* Lune — Plan my schedule.
  *
  * One sheet, two steps. First the pianist says what they want: a goal, which
  * pieces and what to do with each (learn new bars, polish, keep fresh), which
@@ -197,7 +197,7 @@ window.LuneSchedule = (function () {
     ].slice(0, 4);
     const total = s.days.reduce((n, day) => n + minsFor(s, day), 0);
     d.innerHTML = `<div class="sch-in">
-      ${head("Plan your piano schedule", "Tell Lune what you want. You can fine-tune every day after.")}
+      ${head("Plan my schedule", "Tell Lune what you want. You can fine-tune every day after.")}
 
       <section class="sch-sec">
         <h3>What are you working towards?</h3>
@@ -272,7 +272,7 @@ window.LuneSchedule = (function () {
     const pcs = (s.pieces || []).filter((p) => p.on).length;
     const today = DAYS[(new Date().getDay() + 6) % 7];
     d.innerHTML = `<div class="sch-in sch-wide">
-      ${head("Your piano schedule", `${week.days.length} ${week.days.length === 1 ? "day" : "days"} · ${fmtMins(total)} this week${pcs ? ` · ${pcs} ${pcs === 1 ? "piece" : "pieces"}` : ""}`)}
+      ${head("My schedule", `${week.days.length} ${week.days.length === 1 ? "day" : "days"} · ${fmtMins(total)} this week${pcs ? ` · ${pcs} ${pcs === 1 ? "piece" : "pieces"}` : ""}`)}
       ${s.goal ? `<p class="sch-goal">${esc(s.goal)}</p>` : ""}
       <p class="sch-note sch-tune">Change any block: its minutes, its words or its place. Add your own.</p>
       <div class="sch-week">${week.days
@@ -302,7 +302,9 @@ window.LuneSchedule = (function () {
   }
   function grow(t) {
     t.style.height = "auto";
-    t.style.height = `${Math.min(140, t.scrollHeight)}px`;
+    const h = t.scrollHeight;
+    if (h) t.style.height = `${Math.min(140, h)}px`;
+    else requestAnimationFrame(() => t.scrollHeight && grow(t));
   }
 
   /* ---------------- events ---------------- */
@@ -444,17 +446,33 @@ window.LuneSchedule = (function () {
     }
   }
 
-  async function save(btn) {
-    const days = week.days.map((x) => ({ ...x, items: x.items.filter((it) => String(it.text || "").trim()), mins: sum(x.items) }));
+  /** Keep a week and the settings it was built from. */
+  function persist(st, builtDays) {
+    const days = builtDays.map((x) => ({ ...x, items: x.items.filter((it) => String(it.text || "").trim()) })).map((x) => ({ ...x, mins: sum(x.items) }));
     const avg = Math.round(days.reduce((n, x) => n + x.mins, 0) / Math.max(1, days.length));
-    const plan = { week: store()?.weekStartKey?.() || "", goal: s.goal || "This week’s practice", mins: avg, days, via: "schedule", done: plans()?.currentPlan?.()?.done || {}, at: new Date().toISOString() };
-    const { all, ...settings } = s;
-    btn.disabled = true;
-    btn.textContent = "Saving…";
+    const plan = { week: store()?.weekStartKey?.() || "", goal: st.goal || "This week’s practice", mins: avg, days, via: "schedule", done: plans()?.currentPlan?.()?.done || {}, at: new Date().toISOString() };
+    const { all, ...settings } = st;
     store()?.setPref?.("weekPlan", plan);
-    store()?.setPref?.("schedule", { ...settings, pieces: settings.pieces.map(({ key, title, focus, on }) => ({ key, title, focus, on })) });
+    store()?.setPref?.("schedule", { ...settings, pieces: (settings.pieces || []).map(({ key, title, focus, on }) => ({ key, title, focus, on })) });
     if (plans()?.planMode?.() !== "plan") plans()?.setPlanMode?.("plan");
     store()?.syncPrefs?.()?.catch?.(() => {});
+    document.dispatchEvent(new CustomEvent("lune:plan-mode", { detail: { mode: "plan" } }));
+    return plan;
+  }
+  /** Open the planner on a week already built (from Lune AI), ready to fine-tune. */
+  async function openWeek(st, days) {
+    const d = sheet();
+    s = st.all ? st : { ...(await load()), ...st };
+    week = { days: JSON.parse(JSON.stringify(days)), dirty: false };
+    if (!d.open) d.showModal();
+    paintWeek(); // after it opens, so each block's text is measured at its real size
+    d.scrollTop = 0;
+  }
+
+  async function save(btn) {
+    btn.disabled = true;
+    btn.textContent = "Saving…";
+    persist(s, week.days);
     if (signedIn()) {
       const idx = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
       try {
@@ -487,5 +505,5 @@ window.LuneSchedule = (function () {
     return true;
   }
 
-  return { open, build, rebuildForWeek, load };
+  return { open, openWeek, build, persist, rebuildForWeek, load, fmtMins: (m) => fmtMins(m) };
 })();

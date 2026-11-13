@@ -279,8 +279,8 @@ window.LuneImpact = (function () {
         streak.innerHTML = await piecesOverviewHtml();
       } else {
         streak.innerHTML = `<span class="wk-choose"><span class="wk-k">Your week</span>
-          <span class="wk-q">Should Lune build your piano schedule around your goal, or would you rather play whenever it suits you?</span>
-          <span class="wk-opts"><button type="button" class="quiet wk-go" data-wp-choose="plan">Plan your piano schedule</button><button type="button" class="quiet" data-wp-choose="free">No schedule</button></span></span>`;
+          <span class="wk-q">Should Lune build your schedule around your goal, or would you rather play whenever it suits you?</span>
+          <span class="wk-opts"><button type="button" class="quiet wk-go" data-wp-choose="plan">Plan my schedule</button><button type="button" class="quiet" data-wp-choose="free">No schedule</button></span></span>`;
       }
     }
 
@@ -823,7 +823,7 @@ window.LuneImpact = (function () {
         </div>
         ${
           p.items?.length
-            ? `<h2 class="impact-h3">This week’s plan: ${p.items.filter((x) => x.done).length} of ${p.items.length} done</h2><ul class="week-items">${p.items
+            ? `<h2 class="impact-h3">This week’s schedule: ${p.items.filter((x) => x.done).length} of ${p.items.length} done</h2><ul class="week-items">${p.items
                 .map(
                   (x) => `<li class="week-item ${x.done ? "is-done" : "is-left"}"><span class="week-status">${x.done ? "Done" : "To do"}</span><span class="week-what">${esc(itemLine(x))}</span></li>`
                 )

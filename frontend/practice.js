@@ -1579,7 +1579,7 @@ window.LunePractice = (function () {
         <section class="rep-section rep-week" aria-labelledby="rep-week-h">
           <div class="rep-today-head">
             <h2 id="rep-week-h">This week</h2>
-            <button type="button" class="quiet rep-plan-week" data-wp-open><span aria-hidden="true">＋</span> Plan your piano schedule</button>
+            <button type="button" class="quiet rep-plan-week" data-wp-open><span aria-hidden="true">＋</span> Plan my schedule</button>
           </div>
           <div id="rep-week-plan"></div>
         </section>
@@ -1805,12 +1805,12 @@ window.LunePractice = (function () {
       const bar = window.LuneImpact?.weekBarHtml ? `<div class="wk">${window.LuneImpact.weekBarHtml()}</div>` : "";
       const mode = window.LunePlans?.planMode?.();
       weekHost.innerHTML = mode === "free"
-        ? `<div class="rep-empty wk-choose-row"><p>No schedule. Practise whenever it suits you.</p><span class="wk-opts"><button type="button" class="quiet" data-wp-choose="plan">Plan your piano schedule</button></span></div>`
+        ? `<div class="rep-empty wk-choose-row"><p>No schedule. Practise whenever it suits you.</p><span class="wk-opts"><button type="button" class="quiet" data-wp-choose="plan">Plan my schedule</button></span></div>`
         : wp
           ? bar + window.LunePlans.planHtml(wp)
           : mode === "plan"
-            ? `<p class="rep-empty">Lune is making this week’s plan from your goal…</p>`
-            : `<div class="rep-empty wk-choose-row"><p>Lune can build your piano schedule around your goal, or you can play whenever it suits you.</p><span class="wk-opts"><button type="button" class="quiet wk-go" data-wp-choose="plan">Plan your piano schedule</button><button type="button" class="quiet" data-wp-choose="free">No schedule</button></span></div>`;
+            ? `<p class="rep-empty">Lune is building this week’s schedule from your goal…</p>`
+            : `<div class="rep-empty wk-choose-row"><p>Lune can build your schedule around your goal, or you can play whenever it suits you.</p><span class="wk-opts"><button type="button" class="quiet wk-go" data-wp-choose="plan">Plan my schedule</button><button type="button" class="quiet" data-wp-choose="free">No schedule</button></span></div>`;
       // P1-23: one "Plan my week" per card. The header button only appears once there is a plan to change.
       const headBtn = document.querySelector(".rep-plan-week[data-wp-open]");
       if (headBtn) {
@@ -2556,7 +2556,7 @@ window.LunePractice = (function () {
           <select id="set-mins" aria-describedby="set-mins-note">${[10, 15, 20, 30, 45, 60, 90].map((n) => `<option ${n === mins ? "selected" : ""}>${n}</option>`).join("")}</select>
         </div>
         <p class="settings-note" id="set-mins-note">Plans fit this. Lune never times you.</p>
-        ${window.LunePlans?.planMode?.() === "free" ? row("plan-week", "Plan your piano schedule", "Days, minutes, pieces, reminders") : row("plan-week", "Edit your piano schedule", "Days, minutes and goal")}
+        ${window.LunePlans?.planMode?.() === "free" ? row("plan-week", "Plan my schedule", "Days, minutes, pieces, reminders") : row("plan-week", "Edit my schedule", "Days, minutes and goal")}
         ${window.LunePlans?.planMode?.() === "free" ? "" : row("plan-free", "No schedule", "Play whenever it suits you")}
         ${signedIn ? row("week", "This week", "Your progress") : ""}
         ${signedIn ? row("daily-email", "Morning email from Lune", "Today’s practice in your inbox at 7 am") : ""}

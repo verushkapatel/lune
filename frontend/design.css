@@ -3206,3 +3206,85 @@ html[data-theme="light"] body #toast.toast { background: rgba(255, 255, 255, 0.9
 html body #lune-room.lr.is-leaving { animation: lr-out .22s ease both !important; pointer-events: none; }
 @keyframes lr-out { to { opacity: 0; transform: scale(0.99); } }
 @media (prefers-reduced-motion: reduce) { html body #lune-room.lr.is-leaving { animation: none !important; } }
+
+/* ==========================================================================
+   Lune AI's questions: one card per question, numbered answers, as ChatGPT asks
+   ========================================================================== */
+html body #lune-chat .qa-bubble { width: 100%; }
+html body #lune-chat .qa {
+  max-width: 560px; border: 1px solid var(--cc-line); border-radius: 18px; background: var(--cc-raise);
+  padding: 16px 16px 12px; margin: 2px 0; animation: qa-in .3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes qa-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+html body #lune-chat .qa-k { margin: 0 0 4px !important; font: 500 13px var(--ui) !important; color: var(--cc-dim) !important; }
+html body #lune-chat .qa-q { margin: 0 0 4px !important; font: 500 19px/1.35 var(--ui) !important; color: var(--cc-text) !important; }
+html body #lune-chat .qa-sub { margin: 0 0 4px !important; font: 400 15px var(--ui) !important; color: var(--cc-dim) !important; }
+html body #lune-chat .qa-opts { list-style: none !important; margin: 12px 0 0 !important; padding: 0 !important; display: grid; gap: 6px; }
+html body #lune-chat .qa-opts li { margin: 0 !important; padding: 0 !important; }
+html body #lune-chat .qa-opts li::marker { content: none; }
+html body #lune-chat .qa-opt, html body #lune-chat .qa-other {
+  width: 100%; min-height: 46px; display: flex; align-items: center; gap: 12px; padding: 8px 12px; box-sizing: border-box;
+  border: 1px solid var(--cc-line); border-radius: 12px; background: var(--cc-bg); color: var(--cc-text);
+  font: 400 16px/1.35 var(--ui); text-align: left; cursor: pointer; transition: background-color .12s ease, border-color .12s ease;
+}
+html body #lune-chat .qa-opt:hover:not(:disabled) { background: var(--cc-bubble); border-color: rgba(255, 255, 255, 0.14); }
+html[data-theme="light"] body #lune-chat .qa-opt:hover:not(:disabled) { border-color: rgba(0, 0, 0, 0.16); }
+html body #lune-chat .qa-n {
+  flex: none; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 7px;
+  background: var(--cc-bubble); color: var(--cc-dim); font: 500 13px var(--nums, var(--ui)); font-variant-numeric: tabular-nums;
+}
+html body #lune-chat .qa-t { flex: 1; min-width: 0; }
+html body #lune-chat .qa-opt[aria-pressed="true"] { border-color: var(--cc-accent); background: color-mix(in srgb, var(--cc-accent) 10%, var(--cc-bg)); }
+html body #lune-chat .qa-opt[aria-pressed="true"] .qa-n { background: var(--cc-accent); color: var(--cc-accent-ink); }
+html body #lune-chat .qa-tick { flex: none; width: 20px; height: 20px; border-radius: 6px; box-shadow: inset 0 0 0 1.5px var(--cc-faint); }
+html body #lune-chat .qa-opt[aria-pressed="true"] .qa-tick { background: var(--cc-accent); box-shadow: none; position: relative; }
+html body #lune-chat .qa-opt[aria-pressed="true"] .qa-tick::after { content: ""; position: absolute; left: 6px; top: 4px; width: 6px; height: 10px; border-right: 2px solid var(--cc-accent-ink); border-bottom: 2px solid var(--cc-accent-ink); transform: rotate(45deg); }
+html body #lune-chat .qa-other { cursor: text; padding-right: 6px; }
+html body #lune-chat .qa-other:focus-within { border-color: color-mix(in srgb, var(--cc-accent) 60%, transparent); }
+html body #lune-chat .qa-other input { flex: 1; min-width: 0; height: 30px; border: 0; outline: 0; background: transparent; color: var(--cc-text); font: 400 16px var(--ui); padding: 0; }
+html body #lune-chat .qa-other input::placeholder { color: var(--cc-faint); }
+html body #lune-chat .qa-go { flex: none; width: 32px; height: 32px; border: 0; border-radius: 8px; background: var(--cc-accent); color: var(--cc-accent-ink); display: grid; place-items: center; cursor: pointer; opacity: 0.35; transition: opacity .15s ease; }
+html body #lune-chat .qa-other:focus-within .qa-go, html body #lune-chat .qa-other:has(input:not(:placeholder-shown)) .qa-go { opacity: 1; }
+html body #lune-chat .qa-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+html body #lune-chat .qa-foot:empty { display: none; }
+html body #lune-chat .qa-skip { height: 36px; padding: 0 14px; border: 0; border-radius: 10px; background: transparent; color: var(--cc-dim); font: 500 15px var(--ui); cursor: pointer; }
+html body #lune-chat .qa-skip:hover { background: var(--cc-bubble); color: var(--cc-text); }
+html body #lune-chat .qa-done { height: 36px; padding: 0 18px; border: 0; border-radius: 10px; background: var(--cc-accent); color: var(--cc-accent-ink); font: 600 15px var(--ui); cursor: pointer; }
+html body #lune-chat .qa :is(button, input):focus-visible { outline: 2px solid var(--cc-accent); outline-offset: 2px; }
+/* answered: the card quietens, the choice stays visible */
+html body #lune-chat .qa.is-done { background: transparent; }
+html body #lune-chat .qa.is-done .qa-opt:not([aria-pressed="true"]), html body #lune-chat .qa.is-done .qa-other, html body #lune-chat .qa.is-done .qa-foot { display: none; }
+html body #lune-chat .qa.is-done .qa-opt { cursor: default; }
+html body #lune-chat .qa.is-done .qa-sub { display: none; }
+/* the finished schedule */
+html body #lune-chat .la-week { list-style: none !important; margin: 12px 0 14px !important; padding: 0 !important; border: 1px solid var(--cc-line); border-radius: 16px; overflow: hidden; max-width: 620px; }
+html body #lune-chat .la-week li { display: grid !important; grid-template-columns: 110px auto 1fr; gap: 4px 12px; padding: 12px 14px !important; margin: 0 !important; border-top: 1px solid var(--cc-line); font-size: 15.5px !important; line-height: 1.45 !important; }
+html body #lune-chat .la-week li:first-child { border-top: 0; }
+html body #lune-chat .la-week li::marker { content: none; }
+html body #lune-chat .la-week strong { font-weight: 500 !important; color: var(--cc-text) !important; }
+html body #lune-chat .la-week .la-wm { color: var(--cc-dim); font-variant-numeric: tabular-nums; }
+html body #lune-chat .la-week li > span:last-child { color: var(--cc-dim) !important; }
+html body #lune-chat .la-plan-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+html body #lune-chat .la-plan-actions .la-act { height: 40px !important; padding: 0 16px !important; border-radius: 10px !important; border: 1px solid var(--cc-line) !important; background: transparent !important; color: var(--cc-text) !important; font: 500 15px var(--ui) !important; }
+html body #lune-chat .la-plan-actions .la-act.primary { background: var(--cc-accent) !important; color: var(--cc-accent-ink) !important; border-color: transparent !important; }
+html body #lune-chat .la-planning { color: var(--cc-dim) !important; font-style: italic; }
+@media (max-width: 560px) {
+  html body #lune-chat .la-week li { grid-template-columns: 1fr auto; }
+  html body #lune-chat .la-week li > span:last-child { grid-column: 1 / -1; }
+}
+@media (prefers-reduced-motion: reduce) { html body #lune-chat .qa { animation: none; } }
+html body #lune-chat .chat-from-lune .chat-bubble .qa p.qa-k { margin: 0 0 4px !important; font: 500 13px var(--ui) !important; color: var(--cc-dim) !important; }
+html body #lune-chat .chat-from-lune .chat-bubble .qa p.qa-q { margin: 0 0 4px !important; font: 500 19px/1.35 var(--ui) !important; }
+html body #lune-chat .chat-from-lune .chat-bubble .qa p.qa-sub { margin: 0 !important; font: 400 15px/1.4 var(--ui) !important; color: var(--cc-dim) !important; }
+html body #lune-chat .chat-from-lune .chat-bubble .qa ol.qa-opts { margin: 12px 0 0 !important; padding: 0 !important; }
+html body #lune-chat .chat-from-lune .chat-bubble .qa ol.qa-opts > li { margin: 0 !important; padding: 0 !important; }
+html body #lune-chat .chat-from-lune .chat-bubble ul.la-week { padding: 0 !important; }
+html body #lune-chat .chat-from-lune .chat-bubble ul.la-week > li { margin: 0 !important; }
+html body #lune-chat .chat-bubble.qa-bubble, html body #lune-chat .chat-bubble .qa, html body #lune-chat .chat-bubble :is(.la-week, .la-plan-actions) { white-space: normal !important; }
+html body #lune-chat .chat-from-lune .chat-bubble .qa ol.qa-opts > li.qa-other { padding: 6px 6px 6px 12px !important; border: 1px dashed var(--cc-line) !important; background: transparent !important; }
+html body #lune-chat .chat-from-lune .chat-bubble .qa ol.qa-opts > li.qa-other:focus-within { border-style: solid !important; border-color: color-mix(in srgb, var(--cc-accent) 60%, transparent) !important; }
+html body #lune-chat .chat-from-lune .chat-bubble ul.la-week strong { font: 500 16px var(--ui) !important; font-style: normal !important; }
+html body #lune-chat .chat-from-lune .chat-bubble ul.la-week .la-wm { font: 400 15px var(--ui) !important; }
+html body #lune-chat .chat-from-lune .chat-bubble ul.la-week li > span:last-child { font: 400 15px/1.45 var(--ui) !important; }
+html body #lune-chat .chat-from-lune .chat-bubble ul.la-week > li { padding: 12px 16px !important; align-items: baseline; }
+html body .sch-item textarea { min-height: 2.9em; }
