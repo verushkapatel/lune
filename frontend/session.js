@@ -465,6 +465,7 @@ window.LuneSession = (function () {
       </div>
       <div class="lr-controls" id="lr-controls"></div>
       <p class="visually-hidden" id="lr-live" aria-live="polite"></p>`;
+    el.classList.remove("is-leaving");
     el.hidden = false;
     document.body.classList.add("lr-on");
     paintGoal(best != null && best > 0 ? `Last time you reached ${Math.round(LADDER[best] * 100)}%. Carry on from there.` : "Listen first, then play it yourself.");
@@ -717,7 +718,15 @@ window.LuneSession = (function () {
     const was = room;
     room = null;
     const el = $("lune-room");
-    if (el) el.hidden = true;
+    if (el) {
+      // the room settles away rather than vanishing
+      el.classList.add("is-leaving");
+      setTimeout(() => {
+        if (room) return; // reopened meanwhile
+        el.hidden = true;
+        el.classList.remove("is-leaving");
+      }, 220);
+    }
     document.body.classList.remove("lr-on");
     window.LunePiano?.setHandFilter?.(was.prevFilter || "both");
     try {

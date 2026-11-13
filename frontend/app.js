@@ -194,10 +194,15 @@ function toast(msg) {
   const el = $("toast");
   if (!el) return;
   el.textContent = msg;
-  el.hidden = false;
   clearTimeout(toast.t);
-  // long messages stay long enough to read
-  toast.t = setTimeout(() => (el.hidden = true), Math.max(2800, String(msg).length * 55));
+  clearTimeout(toast.h);
+  el.hidden = false;
+  requestAnimationFrame(() => el.classList.add("is-in"));
+  // long messages stay long enough to read; then it settles away instead of vanishing
+  toast.t = setTimeout(() => {
+    el.classList.remove("is-in");
+    toast.h = setTimeout(() => (el.hidden = true), 260);
+  }, Math.max(2800, String(msg).length * 55));
 }
 
 /* ---------- piano loader (shown while scores / samples load) ---------- */
