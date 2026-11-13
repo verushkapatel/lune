@@ -1,5 +1,5 @@
 // Tests for the morning email. Run: node workers/lune-ai/test-daily.mjs
-import { localNow, todayFromPlan, renderEmail, sendMorningEmails, unsubscribe } from "./src/daily.js";
+import { localNow, todayFromPlan, renderEmail, renderTeacherEmail, sendMorningEmails, unsubscribe } from "./src/daily.js";
 import { handle } from "./src/index.js";
 
 let pass = 0, fail = 0;
@@ -62,6 +62,29 @@ const bad = await unsubscribe(new Request("https://w.test/unsubscribe?t=../../et
 check("rejects a malformed token", (await bad.text()).includes("expired"));
 const routed = await handle(new Request(`https://w.test/unsubscribe?t=${token}`), env, fakeFetch);
 check("worker routes /unsubscribe", routed.status === 200);
+
+// the teacher's pre-lesson summary
+const studio = { students: [{ id: "s1", name: "Meera, Grade 5" }, { id: "s2", name: "Aarav" }], assignments: [{ id: "A1b2C3d4E5", sid: "s1", t: "Clair de lune", bars: [1, 2, 3, 4] }, { id: "Z9y8X7w6V5", sid: "s2", t: "Für Elise", bars: [9] }] };
+const ck = [
+  { assignment_id: "A1b2C3d4E5", who: "Meera", ratings: { 1: "good", 3: "hard" }, created_at: "2026-11-12T17:00:00Z" },
+  { assignment_id: "A1b2C3d4E5", who: "Meera", ratings: { 1: "okay", 3: "again" }, created_at: "2026-11-10T17:00:00Z" },
+];
+const tm = renderTeacherEmail({ name: "Ms Rao", local: { day: "Sun", hour: 18 }, studio, checkins: ck, now: new Date("2026-11-13T18:00:00Z"), unsubscribeUrl: "https://x.test/u" });
+check("teacher summary names each student by first name", tm?.text.includes("Meera:") && tm.text.includes("Aarav:"), tm?.text);
+check("teacher summary: days practised and bars still hard", /2 days of practice/.test(tm.text) && /Start with bar 3: still hard/.test(tm.text), tm.text);
+check("teacher summary: homework not opened", /Aarav: Hasn’t opened the homework on Für Elise/.test(tm.text));
+check("no students, no email", renderTeacherEmail({ name: "", local: { day: "Sun", hour: 18 }, studio: {}, checkins: [], unsubscribeUrl: "u" }) === null);
+// chosen days: a teacher who picked Sunday gets nothing on Friday
+const sent2 = [];
+const ff = async (url, opts = {}) => {
+  const u = String(url);
+  const ok = (body) => new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+  if (u.includes("/rest/v1/daily_emails?enabled")) return ok([{ user_id: "t1", send_hour: 7, tz: "Europe/Paris", token, last_sent: null, kind: "teacher", days: [0] }]);
+  if (u.includes("api.resend.com")) { sent2.push(1); return ok({}); }
+  return ok([]);
+};
+await sendMorningEmails(env, ff, t);
+check("respects the chosen days", sent2.length === 0);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

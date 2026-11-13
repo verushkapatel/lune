@@ -109,11 +109,67 @@ export function renderEmail({ name, local, today, due, pieces, note, unsubscribe
   return { subject, html, text };
 }
 
+/** The check-ins for a teacher's homework, newest first (service key; the table is closed to everyone else). */
+async function checkinsFor(env, ids, fetchImpl) {
+  const ok = ids.filter((x) => /^[A-Za-z0-9]{8,24}$/.test(String(x))).slice(0, 100);
+  if (!ok.length) return [];
+  const r = await fetchImpl(`${env.SUPABASE_URL}/rest/v1/assignment_checkins?assignment_id=in.(${ok.join(",")})&select=assignment_id,who,ratings,created_at&order=created_at.desc&limit=400`, { headers: admin(env) });
+  return r.ok ? r.json() : [];
+}
+
+/** The teacher's pre-lesson summary: each student's week, the bars still hard, the homework not yet touched. */
+export function renderTeacherEmail({ name, local, studio, checkins, now = new Date(), unsubscribeUrl }) {
+  const students = Array.isArray(studio.students) ? studio.students : [];
+  const assignments = Array.isArray(studio.assignments) ? studio.assignments : [];
+  if (!students.length && !assignments.length) return null;
+  const weekAgo = now.getTime() - 7 * 86400000;
+  const first = (n) => String(n || "").split(/[,\s]/)[0];
+  const lines = [];
+  for (const s of students) {
+    const mine = assignments.filter((a) => a.sid === s.id);
+    if (!mine.length) continue;
+    const rows = checkins.filter((c) => mine.some((a) => a.id === c.assignment_id));
+    const days = new Set(rows.filter((r) => Date.parse(r.created_at) > weekAgo).map((r) => String(r.created_at).slice(0, 10))).size;
+    const last = {};
+    for (const r of [...rows].reverse()) for (const [b, g] of Object.entries(r.ratings || {})) last[b] = String(g);
+    const hard = Object.entries(last).filter(([, g]) => /again|hard/i.test(g)).map(([b]) => b);
+    const good = Object.entries(last).filter(([, g]) => !/again|hard/i.test(g)).map(([b]) => b);
+    const piece = mine[0].t;
+    lines.push({
+      who: s.name,
+      line: rows.length
+        ? `${days} ${days === 1 ? "day" : "days"} of practice this week on ${piece}.${hard.length ? ` Start with ${hard.length === 1 ? "bar" : "bars"} ${hard.join(", ")}: still hard.` : ""}${good.length ? ` ${good.length === 1 ? "Bar" : "Bars"} ${good.join(", ")} now feel good.` : ""}`
+        : `Hasn’t opened the homework on ${piece} yet. Check the link works on their phone.`,
+    });
+  }
+  if (!lines.length) return null;
+  const serif = "'EB Garamond', Garamond, Georgia, 'Times New Roman', serif";
+  const dayName = { Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday", Fri: "Friday", Sat: "Saturday", Sun: "Sunday" }[local.day] || "Today";
+  const subject = `Before your lessons: ${lines.length} ${lines.length === 1 ? "student" : "students"}`;
+  const html = `<!doctype html><html lang="en-GB"><body style="margin:0;padding:0;background:#f4f4f6;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f6;"><tr><td align="center" style="padding:32px 16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:18px;">
+<tr><td style="padding:36px 36px 8px;font-family:${serif};color:#16244a;font-size:14px;letter-spacing:4px;text-transform:uppercase;">&#9790; Lune · Studio</td></tr>
+<tr><td style="padding:8px 36px 0;font-family:${serif};color:#111114;font-size:30px;line-height:1.15;">${name ? `Good ${local.hour < 12 ? "morning" : local.hour < 18 ? "afternoon" : "evening"}, ${esc(name)}.` : "Before your lessons."}</td></tr>
+<tr><td style="padding:10px 36px 0;font-family:${serif};color:#3a3a40;font-size:18px;line-height:1.55;">Here is where each student stands this ${esc(dayName)}.</td></tr>
+<tr><td style="padding:14px 36px 0;">${lines
+    .map((l) => `<p style="margin:0;padding:14px 0;border-top:1px solid #ececf0;font-family:${serif};color:#111114;font-size:18px;line-height:1.45;"><strong style="font-weight:600;">${esc(first(l.who))}</strong><br><span style="color:#3a3a40;">${esc(l.line)}</span></p>`)
+    .join("")}</td></tr>
+<tr><td style="padding:24px 36px 36px;"><a href="https://lune.page/" style="display:inline-block;background:#111114;color:#ffffff;text-decoration:none;font-family:${serif};font-size:17px;padding:12px 26px;border-radius:999px;">Open your Studio</a></td></tr>
+</table>
+<p style="max-width:560px;margin:18px auto 0;font-family:${serif};color:#8a8a93;font-size:13px;line-height:1.5;">You get this because you turned on Lune’s pre-lesson summary. <a href="${esc(unsubscribeUrl)}" style="color:#8a8a93;">Unsubscribe</a> any time.</p>
+</td></tr></table></body></html>`;
+  const text = `Before your lessons.\n\n${lines.map((l) => `${first(l.who)}: ${l.line}`).join("\n\n")}\n\nOpen your Studio: https://lune.page/\n\nUnsubscribe: ${unsubscribeUrl}`;
+  return { subject, html, text };
+}
+
 /** Each hour: everyone whose morning it is, once a day. */
 export async function sendMorningEmails(env, fetchImpl = fetch, now = new Date()) {
   if (!env.RESEND_API_KEY || !env.SUPABASE_SERVICE_ROLE_KEY) return { sent: 0, skipped: "not configured" };
   const h = admin(env);
-  const res = await fetchImpl(`${env.SUPABASE_URL}/rest/v1/daily_emails?enabled=eq.true&select=user_id,send_hour,tz,token,last_sent&limit=2000`, { headers: h });
+  let res = await fetchImpl(`${env.SUPABASE_URL}/rest/v1/daily_emails?enabled=eq.true&select=user_id,send_hour,tz,token,last_sent,kind,days&limit=2000`, { headers: h });
+  // before the kind and days columns exist
+  if (!res.ok) res = await fetchImpl(`${env.SUPABASE_URL}/rest/v1/daily_emails?enabled=eq.true&select=user_id,send_hour,tz,token,last_sent&limit=2000`, { headers: h });
   if (!res.ok) return { sent: 0, skipped: `list ${res.status}` };
   const rows = await res.json();
   let sent = 0;
@@ -121,13 +177,23 @@ export async function sendMorningEmails(env, fetchImpl = fetch, now = new Date()
     if (sent >= MAX_PER_RUN) break;
     const local = localNow(row.tz, now);
     if (local.hour !== Number(row.send_hour ?? 7) || row.last_sent === local.date) continue;
+    const dayIndex = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(local.day);
+    if (Array.isArray(row.days) && row.days.length && !row.days.map(Number).includes(dayIndex)) continue;
     try {
       const facts = await factsFor(env, row, fetchImpl, now);
       if (!facts.email) continue;
-      const today = todayFromPlan(facts.prefs, local.day);
-      const note = await noteFor(env, facts, today, local);
       const unsubscribeUrl = `${publicUrl(env)}/unsubscribe?t=${encodeURIComponent(row.token)}`;
-      const mail = renderEmail({ name: facts.name, local, today, due: facts.due, pieces: facts.pieces, note, unsubscribeUrl });
+      let mail;
+      if (row.kind === "teacher") {
+        const studio = facts.prefs?.teacherStudio || {};
+        const checkins = await checkinsFor(env, (studio.assignments || []).map((a) => a.id), fetchImpl);
+        mail = renderTeacherEmail({ name: facts.prefs?.teacherName || facts.name, local, studio, checkins, now, unsubscribeUrl });
+        if (!mail) continue; // nothing to say: no email
+      } else {
+        const today = todayFromPlan(facts.prefs, local.day);
+        const note = await noteFor(env, facts, today, local);
+        mail = renderEmail({ name: facts.name, local, today, due: facts.due, pieces: facts.pieces, note, unsubscribeUrl });
+      }
       const out = await fetchImpl("https://api.resend.com/emails", {
         method: "POST",
         headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },

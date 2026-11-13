@@ -606,9 +606,14 @@ window.LuneOnboard = (function () {
       <p class="auth-kicker">Lune</p>
       <p class="invite-soft-banner" id="auth-invite-banner" hidden>Invited by a pianist on Lune</p>
       <h2 id="auth-title">Sign in</h2>
-      <p class="create-account-story">Free forever — no payments, no ads. One email. We send an 8-digit code — no password.</p>
+      <p class="create-account-story">Free while Lune is in pilot. No ads. One email, and we send an 8-digit code: no password.</p>
       <form class="auth-form" id="create-account-form">
         <div class="auth-step" id="auth-step-email">
+          <fieldset class="auth-role">
+            <legend>I’m using Lune as</legend>
+            <label><input type="radio" name="auth-role" value="student" checked><span>A student</span></label>
+            <label><input type="radio" name="auth-role" value="teacher"><span>A teacher</span></label>
+          </fieldset>
           <label for="create-email">Email</label>
           <input id="create-email" type="email" autocomplete="email" required placeholder="you@example.com">
           <button type="submit" class="primary auth-submit" id="auth-send-btn">Email me a code</button>
@@ -625,7 +630,7 @@ window.LuneOnboard = (function () {
         </div>
       </form>
       <p class="auth-msg dim" id="create-account-msg" aria-live="polite"></p>
-      <p class="auth-foot dim">Under 13? Ask a parent or guardian first. No ads. No tracking. No payments.</p>`;
+      <p class="auth-foot dim">Under 13? Ask a parent or guardian first. No ads. No tracking.</p>`;
     document.body.appendChild(account);
 
     const keep = document.createElement("dialog");
@@ -727,6 +732,9 @@ window.LuneOnboard = (function () {
 
   async function onCreateSubmit(e) {
     e.preventDefault();
+    // student or teacher: remembered now, and it travels with the account once signed in
+    const picked = document.querySelector('#create-account-dialog input[name="auth-role"]:checked')?.value;
+    if (picked) store()?.setPref?.("role", picked);
     const msg = $("create-account-msg");
     const codeStep = $("auth-step-code");
     const verifying = codeStep && !codeStep.hidden;
@@ -1724,8 +1732,12 @@ window.LuneOnboard = (function () {
 
     if (!authed) {
       // Guests keep the marketing landing; leave #home-continue alone for practice.js.
+      const studio = document.getElementById("home-studio");
+      if (studio) studio.hidden = true;
       return;
     }
+    // teachers: the Studio is their home
+    if (window.LuneStudio?.takeOver?.()) return;
 
     const prefs = store()?.prefs() || {};
     // Ensure recommendations exist from prefs / draft answers.

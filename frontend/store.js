@@ -807,7 +807,7 @@ window.LuneStore = (function () {
     const { data, error } = await client.from("daily_emails").select("enabled, send_hour, tz").eq("user_id", session.user.id).maybeSingle();
     return error ? null : data || { enabled: false };
   }
-  async function setDailyEmail(enabled, { hour = 7 } = {}) {
+  async function setDailyEmail(enabled, { hour = 7, kind = null, days = null } = {}) {
     if (!remote()) throw new Error("Sign in with your email first, then Lune can write to you each morning.");
     let tz = "Europe/London";
     try {
@@ -815,7 +815,14 @@ window.LuneStore = (function () {
     } catch {
       /* the default zone */
     }
-    const { error } = await client.from("daily_emails").upsert({ user_id: session.user.id, enabled: !!enabled, send_hour: hour, tz }, { onConflict: "user_id" });
+    const row = { user_id: session.user.id, enabled: !!enabled, send_hour: hour, tz };
+    if (kind) row.kind = kind;
+    if (Array.isArray(days)) row.days = days;
+    let { error } = await client.from("daily_emails").upsert(row, { onConflict: "user_id" });
+    // before the kind and days columns exist: the plain morning email still saves
+    if (error && (kind || days) && /kind|days|column/i.test(error.message || "")) {
+      ({ error } = await client.from("daily_emails").upsert({ user_id: session.user.id, enabled: !!enabled, send_hour: hour, tz }, { onConflict: "user_id" }));
+    }
     if (error) throw new Error(/daily_emails|relation|schema cache|PGRST205|42P01/i.test(`${error.code} ${error.message}`) ? "Morning emails aren't switched on for Lune yet." : "Couldn't save that just now. Try again in a moment.");
     return true;
   }
@@ -1135,6 +1142,9 @@ window.LuneStore = (function () {
       "pieceProgress",
       "pieceSummaries",
       "weekPlan",
+      "role",
+      "teacherName",
+      "teacherStudio",
     ];
     const out = {};
     for (const k of keys) if (p[k] !== undefined) out[k] = p[k];

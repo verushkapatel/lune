@@ -233,6 +233,8 @@ How to answer
       focusBars: bars,
       notesOnBars: (hw.notes || []).filter((n) => !bar || n.b === Number(bar)).map((n) => ({ bar: n.b, note: n.x })),
       thisBarIsAssigned: bar ? bars.includes(Number(bar)) : undefined,
+      targetTempo: hw.tb ? `${hw.tu || "♩"} = ${hw.tb}` : undefined,
+      goal: hw.goal || undefined,
       howToUse:
         "This is the teacher's homework and outranks everything else in this section. Keep to the teacher's note and wording; work on the focus bars first; when a plan is asked for, start with the focus bars; never contradict the teacher. Mention the teacher's note naturally, without quoting it in full every time.",
     };
@@ -2537,6 +2539,22 @@ How to answer
   });
 
   async function chatAsk(text) {
+    // "email me a summary every Sunday at 6 pm": Lune sets it up, no model needed
+    const mail = window.LuneStudio?.parseEmailRequest?.(text);
+    if (mail && $("chat-log")) {
+      const log = chatLog();
+      log.push({ who: "you", text, t: Date.now() });
+      $("chat-starters").innerHTML = "";
+      $("lune-chat")?.classList.remove("is-empty");
+      $("chat-log").querySelector(".ask-empty")?.remove();
+      chatLine("you", text);
+      const said = await window.LuneStudio.applyEmailRequest(mail);
+      chatLine("lune", said);
+      log.push({ who: "lune", text: said, via: "note", t: Date.now() });
+      saveChat(log);
+      paintHistoryList();
+      return said;
+    }
     const model = active();
     if (!model) return paintChat();
     if (writing) return "";

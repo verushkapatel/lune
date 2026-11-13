@@ -387,3 +387,13 @@ revoke all on function public.assignment_checkin(text, text, jsonb) from public;
 revoke all on function public.assignment_progress(text) from public;
 grant execute on function public.assignment_checkin(text, text, jsonb) to anon, authenticated;
 grant execute on function public.assignment_progress(text) to anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Added November 2026: teachers' pre-lesson summary, and chosen days.
+-- One row per account still: a student gets the morning practice email, a
+-- teacher the pre-lesson summary, on the days they pick (0 = Sunday).
+alter table public.daily_emails add column if not exists kind text not null default 'student';
+alter table public.daily_emails drop constraint if exists daily_emails_kind_check;
+alter table public.daily_emails add constraint daily_emails_kind_check check (kind in ('student', 'teacher'));
+alter table public.daily_emails add column if not exists days smallint[] not null default '{0,1,2,3,4,5,6}';
+grant select (kind, days) on public.daily_emails to authenticated;

@@ -93,7 +93,8 @@ window.LunePlans = (function () {
     } catch {
       asked = [];
     }
-    const notes = ((await store().listNotes(s.key).catch(() => [])) || []).filter((n) => Date.parse(n.created_at) >= s.start - 1000);
+    // the pianist's own remarks: a teacher's notes, copied in with homework, are not theirs
+    const notes = ((await store().listNotes(s.key).catch(() => [])) || []).filter((n) => Date.parse(n.created_at) >= s.start - 1000 && n.source !== "teacher");
     const bars = [...new Set([...asked.map((h) => h.bar), ...notes.map((n) => n.bar), ...played].filter((b) => b > 0))].sort((a, b) => a - b);
     let text = "";
     let via = "rules";
