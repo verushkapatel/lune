@@ -1267,3 +1267,15 @@ body.ls-on #help-body .lp-rate { display: none !important; }
   -webkit-mask: radial-gradient(circle, transparent 58%, #000 59%); mask: radial-gradient(circle, transparent 58%, #000 59%);
 }
 .ls-clock b { position: relative; z-index: 1; }
+
+/* ---------- signed-in: no blue haze; Practise with Lune is the main action ---------- */
+html body.is-signed-in main#home#home.home, html body.is-repertoire main#home#home.home, html body[data-mode="repertoire"] main#home#home.home { background: #000 !important; background-image: none !important; }
+html[data-theme="light"] body main#home#home.home { background: #fff !important; background-image: none !important; }
+html body #home-member .member-next .ls-home {
+  display: inline-flex !important; align-items: center; gap: 8px;
+}
+html body #home-member .member-next-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+/* the Next card uses its full width when there is no portrait beside it */
+html body #home-member .member-next:not(:has(img)) > * { max-width: 34em !important; }
+html body #home-member .member-next h2 { margin-bottom: 10px !important; text-wrap: balance; }
+html body #home-member .member-next .member-next-why { margin-bottom: 22px !important; line-height: 1.55; }

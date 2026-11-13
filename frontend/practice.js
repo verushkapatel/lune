@@ -3521,8 +3521,10 @@ window.LunePractice = (function () {
       ${n.composer ? `<p class="member-next-by">${esc(n.composer)}</p>` : ""}
       ${n.detail ? `<p class="member-next-detail">${esc(n.detail)}</p>` : ""}
       <p class="member-next-why">${esc(n.why)}</p>
-      <div class="member-next-actions"><button type="button" class="primary" data-next-go>${esc(n.label)}</button>${
-        n.kind !== "new" ? `<button type="button" class="quiet ls-home" data-next-session>Practise with Lune</button>` : ""
+      <div class="member-next-actions">${
+        n.kind !== "new"
+          ? `<button type="button" class="primary ls-home" data-next-session><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>Practise with Lune</button><button type="button" class="quiet" data-next-go>${esc(n.label)}</button>`
+          : `<button type="button" class="primary" data-next-go>${esc(n.label)}</button>`
       }${
         n.kind === "new" ? `<button type="button" class="quiet" data-open-piece="debussy-clair-de-lune" data-open-panel="score">Try Clair de lune</button>` : ""
       }</div>`;
