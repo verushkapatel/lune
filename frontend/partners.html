@@ -219,7 +219,7 @@
 
   <script>
     // One place for the contact details: the booking button appears once a link is set.
-    const LUNE_CONTACT = { email: "verushka@lune.page", calendly: "" };
+    const LUNE_CONTACT = { email: "verushka@lune.page", calendly: "https://calendly.com/verushka-theskywardproject/30min" };
     for (const a of document.querySelectorAll("[data-calendly]")) {
       if (LUNE_CONTACT.calendly) { a.href = LUNE_CONTACT.calendly; a.hidden = false; }
     }
