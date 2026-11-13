@@ -3116,67 +3116,171 @@ window.LunePractice = (function () {
   }
   function assignmentUrl(payload) {
     const base = LUNE_ON_PAGES
-      ? (location.hostname.includes("lune.page") ? `${location.origin}/` : "https://verushkapatel.github.io/lune/")
+      ? (location.hostname.includes("lune.page") ? `${location.origin}/` : "https://lune.page/")
       : `${location.origin}${location.pathname}`;
     return `${base}#/assign/${b64urlEncode(payload)}`;
   }
+  /* homework the teacher sent from this device, so opening the link again shows its progress */
+  const SENT = "lune.homework.sent";
+  const DONE = "lune.homework.done";
+  const QUEUE = "lune.homework.queue";
+  /** Check-ins that could not be sent yet: try them again quietly. */
+  async function flushCheckins() {
+    const q = readJSON(QUEUE, []);
+    if (!q.length) return;
+    const left = [];
+    for (const c of q) {
+      try {
+        await store.checkIn(c.aid, c.who, c.ratings);
+      } catch {
+        left.push(c);
+      }
+    }
+    writeJSON(QUEUE, left);
+  }
+  const readJSON = (k, d) => {
+    try {
+      return JSON.parse(localStorage.getItem(k) || "null") ?? d;
+    } catch {
+      return d;
+    }
+  };
+  const writeJSON = (k, v) => {
+    try {
+      localStorage.setItem(k, JSON.stringify(v));
+    } catch {
+      /* private mode: it lasts for this visit */
+    }
+  };
+  const newId = () => {
+    const a = new Uint8Array(12);
+    crypto.getRandomValues(a);
+    const abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    return Array.from(a, (x) => abc[x % 62]).join("");
+  };
+  const capital = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+
+  /** The message a teacher pastes into WhatsApp: WhatsApp shows *stars* as bold. */
+  function whatsAppText(a, url) {
+    const lines = [
+      "🎹 *Piano Practice Assignment*",
+      `*Piece:* ${a.t}${a.c ? ` – ${a.c}` : ""}`,
+      `*Focus Bars:* ${capital(barsText(a.bars))}`,
+    ];
+    if (a.m) lines.push(`*Teacher's Note:* "${a.m}"`);
+    lines.push("", "Open interactive score (no login needed):", url);
+    return lines.join("\n");
+  }
+
+  /** Teacher shorthand into one clear, kind sentence: Lune AI when it is on, simple rules otherwise. */
+  function polishByRules(raw) {
+    let t = ` ${String(raw || "").trim()} `;
+    const swaps = [
+      [/\blh\b/gi, "left hand"], [/\brh\b/gi, "right hand"], [/\bht\b/gi, "hands together"], [/\bhs\b/gi, "hands separately"],
+      [/\bb(?:ar)?s?\.?\s*(\d+)\s*[-–]\s*(\d+)/gi, "bars $1 to $2"], [/\bb\.?\s?(\d+)\b/gi, "bar $1"], [/\bmm?\.?\s*(\d{2,3})\b/gi, "at $1 on the metronome"],
+      [/\bslow\b/gi, "slowly"], [/\bw\//gi, "with "], [/\bpedal\b/gi, "the pedal"], [/\bpp\b/g, "very softly"], [/\bff\b/g, "very loudly"],
+      [/\s+&\s+/g, " and "], [/\s{2,}/g, " "],
+    ];
+    for (const [a, b] of swaps) t = t.replace(a, b);
+    t = t.trim().replace(/[.!\s]+$/, "");
+    if (!t) return "";
+    if (!/^(please|try|play|practise|practice|keep|listen|count|start|use|go)\b/i.test(t)) t = `Practise ${t.charAt(0).toLowerCase()}${t.slice(1)}`;
+    t = t.replace(/^Practise (left|right) hand (\w)/i, (_, h, c) => `Practise the ${h.toLowerCase()}-hand ${c}`);
+    return `${capital(t)}. You’ve got this.`;
+  }
+  async function polishNote(raw, piece, bars) {
+    const text = String(raw || "").trim();
+    if (!text) return "";
+    try {
+      if (window.LuneAsk?.modelConnected?.()) {
+        const out = await window.LuneAsk.askModel(
+          `A piano teacher wrote this shorthand note for a student about ${barsText(bars)} of ${titleFor(piece)}: "${text}". Rewrite it as ONE clear, encouraging sentence addressed to the student. Keep every musical instruction (hands, bars, tempo, dynamics); add nothing new. Reply with the sentence only.`,
+          { piece: { title: titleFor(piece), composer: composerFor(piece) } }
+        );
+        const one = String(out || "").replace(/^["“]|["”]$/g, "").split(/\n/)[0].trim();
+        if (one && one.length < 300) return one;
+      }
+    } catch {
+      /* the rules below do it */
+    }
+    return polishByRules(text);
+  }
+
   async function openAssignDialog(bars) {
     const piece = state.piece;
     if (!piece) return;
     const d = dialog("assign-dialog");
     if (piece.local) {
-      d.innerHTML = `${closeRow}<h2>Assign to a student</h2>
-        <p>Assignment links work for pieces in Lune’s library. This score was uploaded from your device, so send your student the file too and ask them to upload it — then share your notes in person.</p>`;
+      d.innerHTML = `${closeRow}<h2>Homework</h2>
+        <p class="as-sub">Homework links work for pieces in Lune’s library. This score came from your device, so send your student the file too.</p>`;
       d.showModal();
       return;
     }
     const key = keyFor(piece);
     const mine = (await notesFor(key)).filter((n) => bars.includes(n.bar));
     const savedName = store.prefs().teacherName || "";
-    d.innerHTML = `${closeRow}<h2>Assign to a student</h2>
-      <p>${esc(titleFor(piece))} · <strong>${esc(barsText(bars))}</strong></p>
-      <form class="lp-assign" autocomplete="off">
-        <label for="as-name">Your name (as the student knows you)</label>
-        <input id="as-name" maxlength="40" value="${esc(savedName)}" placeholder="e.g. Ms Rao">
-        <label for="as-msg">Instructions</label>
-        <textarea id="as-msg" rows="3" maxlength="400" placeholder="e.g. Hands separately at 60, then together. Watch the thumb in bar 13."></textarea>
-        ${mine.length ? `<label class="lp-switch"><input type="checkbox" id="as-notes" checked><span><strong>Include my ${mine.length} bar note${mine.length === 1 ? "" : "s"}</strong><small>${mine.map((n) => esc(n.body)).slice(0, 3).join(" · ")}</small></span></label>` : ""}
-        <button type="submit" class="primary" id="as-create">Create link</button>
+    d.innerHTML = `${closeRow}<h2>Homework</h2>
+      <p class="as-sub">${esc(titleFor(piece))} · ${esc(capital(barsText(bars)))}</p>
+      <form class="as-form" autocomplete="off">
+        <div class="as-field"><label for="as-name">From</label><input id="as-name" maxlength="40" value="${esc(savedName)}" placeholder="Your name, as your student knows you"></div>
+        <div class="as-field">
+          <div class="as-label"><label for="as-msg">Note</label><button type="button" class="as-polish" id="as-polish" aria-label="Polish the note into one clear sentence"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M12 3l2 5.5L19.5 10 14 12l-2 5.5L10 12 4.5 10 10 8.5z" fill="currentColor"/></svg>Polish</button></div>
+          <textarea id="as-msg" rows="3" maxlength="400" placeholder="e.g. lh jumps bar 15 slow"></textarea>
+        </div>
+        ${mine.length ? `<label class="as-row"><span>Include my ${mine.length} bar note${mine.length === 1 ? "" : "s"}</span><input type="checkbox" id="as-notes" role="switch" checked><span class="as-sw" aria-hidden="true"></span></label>` : ""}
+        <button type="submit" class="primary as-make" id="as-create">Create homework</button>
       </form>
-      <div class="lp-assign-out" hidden>
-        <input id="as-url" readonly aria-label="Assignment link">
-        <div class="lp-row"><button type="button" class="quiet" id="as-copy">Copy link</button><button type="button" class="quiet" id="as-share" hidden>Share…</button></div>
-        <p class="dim">The link holds the assignment itself — nothing is uploaded. Anyone with it sees these bars and notes.</p>
+      <div class="as-out" hidden>
+        <div class="as-actions">
+          <button type="button" class="primary" id="as-wa"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 19l1.2-3.6A7.5 7.5 0 1 1 9 18.3z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>Copy for WhatsApp</button>
+          <button type="button" class="quiet" id="as-copy">Copy link</button>
+          <button type="button" class="quiet as-share" id="as-share" aria-label="Share" hidden><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 15V4m0 0L8 8m4-4l4 4M5 13v6h14v-6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        </div>
+        <p class="as-foot">Open the link yourself any time to see when it’s been practised. No accounts for you or your student.</p>
       </div>`;
-    d.querySelector("form.lp-assign").addEventListener("submit", (e) => {
+    const msg = d.querySelector("#as-msg");
+    d.querySelector("#as-polish").addEventListener("click", async (e) => {
+      const b = e.currentTarget;
+      if (!msg.value.trim()) return msg.focus();
+      b.disabled = true;
+      b.classList.add("is-busy");
+      try {
+        const out = await polishNote(msg.value, piece, bars);
+        if (out) msg.value = out.slice(0, 400);
+      } finally {
+        b.disabled = false;
+        b.classList.remove("is-busy");
+        msg.focus();
+      }
+    });
+    d.querySelector("form.as-form").addEventListener("submit", (e) => {
       e.preventDefault();
       const by = d.querySelector("#as-name").value.trim().slice(0, 40);
-      const msg = d.querySelector("#as-msg").value.trim().slice(0, 400);
+      const m = msg.value.trim().slice(0, 400);
       store.setPref("teacherName", by);
       const notes = d.querySelector("#as-notes")?.checked ? mine.map((n) => ({ b: n.bar, x: n.body.slice(0, 300) })) : [];
-      const payload = { v: 1, p: key, t: titleFor(piece).slice(0, 120), c: composerFor(piece).slice(0, 80), by, m: msg, bars, notes };
+      const id = newId();
+      const payload = { v: 1, id, p: key, t: titleFor(piece).slice(0, 120), c: composerFor(piece).slice(0, 80), by, m, bars, notes };
       const url = assignmentUrl(payload);
-      const out = d.querySelector(".lp-assign-out");
-      out.hidden = false;
-      d.querySelector("#as-url").value = url;
-      const create = d.querySelector("#as-create");
-      if (create) create.className = "quiet";
-      const copy = d.querySelector("#as-copy");
-      if (copy) copy.className = "primary";
+      writeJSON(SENT, [{ id, key, t: payload.t, bars, by, m, at: new Date().toISOString() }, ...readJSON(SENT, [])].slice(0, 60));
+      d.querySelector("form.as-form").hidden = true;
+      d.querySelector(".as-out").hidden = false;
+      const copy = async (text, done) => {
+        try {
+          await navigator.clipboard.writeText(text);
+          toast(done);
+        } catch {
+          toast("Couldn’t copy. Press and hold to copy instead.");
+        }
+      };
+      d.querySelector("#as-wa").onclick = () => copy(whatsAppText(payload, url), "Copied for WhatsApp");
+      d.querySelector("#as-copy").onclick = () => copy(url, "Link copied");
       const share = d.querySelector("#as-share");
       if (navigator.share) {
         share.hidden = false;
-        share.onclick = () => navigator.share({ title: `Practice: ${payload.t}`, text: msg || `Practise ${barsText(bars)}`, url }).catch(() => {});
+        share.onclick = () => navigator.share({ title: `Practice: ${payload.t}`, text: whatsAppText(payload, "").trim(), url }).catch(() => {});
       }
-      d.querySelector("#as-copy").onclick = async () => {
-        try {
-          await navigator.clipboard.writeText(url);
-          toast("Link copied");
-        } catch {
-          d.querySelector("#as-url").select();
-          toast("Select the link and copy it");
-        }
-      };
+      setTimeout(() => d.querySelector("#as-wa")?.focus(), 30);
     });
     d.showModal();
   }
@@ -3195,8 +3299,10 @@ window.LunePractice = (function () {
       key: String(a.p).slice(0, 120),
       title: String(a.t || ""),
       composer: String(a.c || ""),
+      id: /^[A-Za-z0-9]{8,24}$/.test(String(a.id || "")) ? String(a.id) : null,
       by: String(a.by || "").slice(0, 40),
       message: String(a.m || "").slice(0, 400),
+      raw: a,
       bars: a.bars.map(Number).filter((n) => n >= 0 && n < 5000).slice(0, 64),
       notes: (a.notes || []).slice(0, 64).map((n) => ({ b: Number(n.b), x: String(n.x || "").slice(0, 300) })),
     };
@@ -3215,57 +3321,175 @@ window.LunePractice = (function () {
       }
     }
   }
+  const GRADE_WORD = { again: "Hard", hard: "Hard", okay: "Okay", good: "Good", strong: "Good" };
+  const when = (iso) => {
+    try {
+      return new Date(iso).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    } catch {
+      return "";
+    }
+  };
+  /** How each assigned bar went for this student, from their own ratings on this device. */
+  async function ratingsFor(a) {
+    const out = {};
+    try {
+      const cards = await store.listCards(a.key);
+      for (const c of cards) if (a.bars.includes(Number(c.bar)) && c.last_grade) out[c.bar] = String(c.last_grade).toLowerCase();
+    } catch {
+      /* no ratings yet */
+    }
+    return out;
+  }
+  /** "Hard 15 · Good 16, 17" from a check-in's ratings. */
+  function ratingLine(r) {
+    const by = {};
+    for (const [bar, g] of Object.entries(r || {})) (by[GRADE_WORD[g] || capital(g)] ||= []).push(Number(bar));
+    return ["Hard", "Okay", "Good"].filter((k) => by[k]).map((k) => `${k} ${by[k].sort((x, y) => x - y).join(", ")}`).join(" · ");
+  }
+
   function showAssignmentBanner() {
     if (!assignment) return;
     let el = $("lp-assign-banner");
     if (!el) {
       el = document.createElement("div");
       el.id = "lp-assign-banner";
-      el.className = "lp-banner";
+      el.className = "lp-banner hw";
       el.setAttribute("role", "region");
-      el.setAttribute("aria-label", "Assignment from your teacher");
       $("panel-score")?.prepend(el);
     }
+    const a = assignment;
+    flushCheckins();
+    const sent = a.id ? readJSON(SENT, []).find((x) => x.id === a.id) : null;
+    const done = a.id ? readJSON(DONE, {})[a.id] : null;
+    el.setAttribute("aria-label", sent ? "Your homework and its progress" : "Homework from your teacher");
     el.hidden = false;
-    el.innerHTML = `<div class="lp-banner-text">
-        <p class="lp-banner-k">Assignment${assignment.by ? ` from ${esc(assignment.by)}` : ""}</p>
-        <p>${assignment.message ? esc(assignment.message) : `Practise ${esc(barsText(assignment.bars))}.`}</p>
-        ${(assignment.message || "").length > 90 ? `<button type="button" class="lp-banner-more" data-x="more">More</button>` : ""}
-        <div class="lp-banner-bars">${assignment.bars.map((b) => `<button type="button" class="rep-bar" data-bar="${b}">Bar ${b}</button>`).join("")}</div>
-      </div>
-      <div class="lp-banner-actions">
-        <button type="button" class="primary" data-x="save">Save to my Repertoire</button>
-        <button type="button" class="icon-btn lp-banner-hide" data-x="dismiss" aria-label="Hide assignment" title="Hide">
-          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-        </button>
-      </div>`;
+    const bars = `<div class="hw-bars">${a.bars.map((b) => `<button type="button" class="hw-bar" data-bar="${b}" aria-label="Go to bar ${b}">${b}</button>`).join("")}</div>`;
+    const hide = `<button type="button" class="hw-x" data-x="dismiss" aria-label="Hide" title="Hide"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>`;
+    if (sent) {
+      // the teacher, opening their own link: what has happened since
+      el.innerHTML = `<div class="hw-main">
+          <p class="hw-k">Your homework · sent ${esc(when(sent.at).split(",")[0] || "")}</p>
+          <p class="hw-note">${a.message ? esc(a.message) : `Practise ${esc(barsText(a.bars))}.`}</p>
+          ${bars}
+          <div class="hw-progress" aria-live="polite"><p class="hw-dim">Checking for practice…</p></div>
+        </div>
+        <div class="hw-side"><button type="button" class="quiet" data-x="wa">Copy for WhatsApp</button>${hide}</div>`;
+      Promise.race([
+        Promise.resolve(store.assignmentProgress?.(a.id)).catch(() => null),
+        new Promise((r) => setTimeout(() => r(null), 8000)),
+      ]).then((rows) => {
+        const box = el.querySelector(".hw-progress");
+        if (!box) return;
+        if (!rows || !rows.length) {
+          box.innerHTML = `<p class="hw-dim">Not marked practised yet. It shows here as soon as it is.</p>`;
+          return;
+        }
+        box.innerHTML = `<ul class="hw-list">${rows
+          .slice(0, 5)
+          .map((r) => `<li><span class="hw-who">${esc(r.who || "Your student")}</span><span class="hw-when">practised ${esc(when(r.created_at))}</span>${ratingLine(r.ratings) ? `<span class="hw-rate">${esc(ratingLine(r.ratings))}</span>` : ""}</li>`)
+          .join("")}</ul>`;
+      });
+    } else {
+      el.innerHTML = `<div class="hw-main">
+          <p class="hw-k">Homework${a.by ? ` from ${esc(a.by)}` : ""}</p>
+          <p class="hw-note">${a.message ? esc(a.message) : `Practise ${esc(barsText(a.bars))}.`}</p>
+          ${bars}
+          <form class="hw-check" hidden>
+            <label class="visually-hidden" for="hw-name">Your first name (optional)</label>
+            <input id="hw-name" maxlength="40" autocomplete="given-name" placeholder="Your first name (optional)">
+            <button type="submit" class="primary">Done</button>
+          </form>
+          <p class="hw-done" aria-live="polite"${done ? "" : " hidden"}>${
+            done
+              ? readJSON(QUEUE, []).some((q) => q.aid === a.id)
+                ? `Practised ${esc(when(done))}. Saved on this device until it can be sent.`
+                : `Practised ${esc(when(done))}. ${a.by ? esc(a.by) : "Your teacher"} can see it.`
+              : ""
+          }</p>
+        </div>
+        <div class="hw-side">
+          ${a.id ? `<button type="button" class="primary" data-x="check">${done ? "Practised again" : "Mark practised"}</button>` : ""}
+          <button type="button" class="quiet" data-x="save">Save</button>
+          ${hide}
+        </div>`;
+    }
+    el.onsubmit = async (e) => {
+      e.preventDefault();
+      const f = e.target.closest(".hw-check");
+      if (!f) return;
+      const who = f.querySelector("#hw-name").value.trim().slice(0, 40);
+      try {
+        localStorage.setItem("lune.student.name", who);
+      } catch {
+        /* fine */
+      }
+      const go = f.querySelector("button");
+      go.disabled = true;
+      const ratings = await ratingsFor(a);
+      const msg = el.querySelector(".hw-done");
+      try {
+        await store.checkIn(a.id, who, ratings);
+        const at = new Date().toISOString();
+        writeJSON(DONE, { ...readJSON(DONE, {}), [a.id]: at });
+        msg.textContent = `Practised ${when(at)}. ${a.by || "Your teacher"} can see it.`;
+      } catch {
+        // kept on this device and sent the next time the homework is opened
+        writeJSON(QUEUE, [...readJSON(QUEUE, []).filter((q) => q.aid !== a.id), { aid: a.id, who, ratings }].slice(-20));
+        writeJSON(DONE, { ...readJSON(DONE, {}), [a.id]: new Date().toISOString() });
+        msg.textContent = `Saved on this device. It reaches ${a.by || "your teacher"} the next time you open this homework online.`;
+      }
+      f.hidden = true;
+      msg.hidden = false;
+      const b = el.querySelector('[data-x="check"]');
+      if (b) {
+        b.hidden = false;
+        b.textContent = "Practised again";
+      }
+    };
     el.onclick = async (e) => {
       const b = e.target.closest("button");
-      if (!b) return;
+      if (!b || b.type === "submit") return;
       if (b.dataset.bar) {
         setBarSelection([Number(b.dataset.bar)], { open: true });
         scrollToBar(Number(b.dataset.bar));
-      } else if (b.dataset.x === "more") {
-        el.classList.toggle("is-open");
-        b.textContent = el.classList.contains("is-open") ? "Less" : "More";
       } else if (b.dataset.x === "dismiss") el.hidden = true;
-      else if (b.dataset.x === "save") {
+      else if (b.dataset.x === "wa") {
+        try {
+          await navigator.clipboard.writeText(whatsAppText(a.raw, assignmentUrl(a.raw)));
+          toast("Copied for WhatsApp");
+        } catch {
+          toast("Couldn’t copy just now");
+        }
+      } else if (b.dataset.x === "check") {
+        const f = el.querySelector(".hw-check");
+        f.hidden = false;
+        b.hidden = true;
+        el.querySelector(".hw-done").hidden = true;
+        let name = "";
+        try {
+          name = localStorage.getItem("lune.student.name") || "";
+        } catch {
+          /* fine */
+        }
+        const input = f.querySelector("#hw-name");
+        input.value = name;
+        input.focus();
+      } else if (b.dataset.x === "save") {
         b.disabled = true;
         try {
-          const key = assignment.key;
-          await store.addPiece({ piece_key: key, title: assignment.title || titleFor(state.piece), composer: assignment.composer || composerFor(state.piece) });
-          const who = assignment.by ? `${assignment.by}: ` : "";
-          if (assignment.message) await store.addNote({ pieceKey: key, bar: assignment.bars[0] || 0, body: `${who}${assignment.message}`.slice(0, 500), tags: tagsFor(assignment.message), source: "teacher" });
-          for (const n of assignment.notes) await store.addNote({ pieceKey: key, bar: n.b, body: `${who}${n.x}`.slice(0, 500), tags: tagsFor(n.x), source: "teacher" });
-          for (const bar of assignment.bars) await store.queueBar(key, bar);
+          const key = a.key;
+          await store.addPiece({ piece_key: key, title: a.title || titleFor(state.piece), composer: a.composer || composerFor(state.piece) });
+          const who = a.by ? `${a.by}: ` : "";
+          if (a.message) await store.addNote({ pieceKey: key, bar: a.bars[0] || 0, body: `${who}${a.message}`.slice(0, 500), tags: tagsFor(a.message), source: "teacher" });
+          for (const n of a.notes) await store.addNote({ pieceKey: key, bar: n.b, body: `${who}${n.x}`.slice(0, 500), tags: tagsFor(n.x), source: "teacher" });
+          for (const bar of a.bars) await store.queueBar(key, bar);
           repertoireKeys.add(key);
           syncAddButtons();
           await notesFor(key, { fresh: true });
-          assignment = null;
           paintScoreMarks();
-          el.hidden = true;
           refreshBadge();
-          toast("Saved — open Repertoire to turn notes into a plan");
+          b.textContent = "Saved";
+          toast("Saved to your Repertoire");
         } catch (err) {
           b.disabled = false;
           toast(err.message);
@@ -3693,6 +3917,8 @@ window.LunePractice = (function () {
     refreshBadge,
     b64urlEncode,
     b64urlDecode,
+    /** The teacher's homework open on this score, if any: its note, bars and teacher. */
+    homework: () => (assignment && assignment.key === keyFor(state.piece) ? { by: assignment.by, note: assignment.message, bars: assignment.bars.slice(), notes: assignment.notes.slice() } : null),
     __test: { wordsToNumber, barsText },
   };
 })();

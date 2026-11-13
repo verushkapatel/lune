@@ -219,6 +219,34 @@ How to answer
   }
 
   /** Everything Lune knows that is relevant to this question, as plain data. */
+  /**
+   * The teacher's homework, when it is open on this score: high-priority guidance.
+   * The instruction travels with it, so the model lines its steps up with the teacher.
+   */
+  function homeworkContext(bar = null) {
+    const hw = P()?.homework?.();
+    if (!hw) return null;
+    const bars = hw.bars || [];
+    return {
+      from: hw.by || "the pianist's teacher",
+      note: hw.note || null,
+      focusBars: bars,
+      notesOnBars: (hw.notes || []).filter((n) => !bar || n.b === Number(bar)).map((n) => ({ bar: n.b, note: n.x })),
+      thisBarIsAssigned: bar ? bars.includes(Number(bar)) : undefined,
+      howToUse:
+        "This is the teacher's homework and outranks everything else in this section. Keep to the teacher's note and wording; work on the focus bars first; when a plan is asked for, start with the focus bars; never contradict the teacher. Mention the teacher's note naturally, without quoting it in full every time.",
+    };
+  }
+  /** One line for Lune's built-in answers when the bar is homework. */
+  function homeworkLine(bar) {
+    const hw = P()?.homework?.();
+    if (!hw || (bar && !hw.bars.includes(Number(bar)))) return "";
+    const who = hw.by || "Your teacher";
+    const own = (hw.notes || []).find((n) => bar && n.b === Number(bar))?.x;
+    const said = own || hw.note;
+    return said ? `${who} asked: “${said}” Start there.` : `${who} set this bar as homework.`;
+  }
+
   async function buildContext(bar) {
     const p = state.piece || {};
     const key = keyFor();
@@ -262,6 +290,8 @@ How to answer
         .map((h) => ({ question: h.q, answer: h.a })),
       fingeringNote: FINGERING_NOTE,
     };
+    const hw = homeworkContext(bar);
+    if (hw) ctx.teacherAssignment = hw;
     // bars the pianist keeps finding hard (from their own ratings)
     const struggling = cards.filter((c) => (c.lapses || 0) >= 2 || /again|hard/i.test(String(c.last_grade || ""))).map((c) => c.bar);
     if (struggling.length) ctx.barsRatedHardOrAgain = [...new Set(struggling)].sort((a, b) => a - b).slice(0, 12);
@@ -590,7 +620,8 @@ How to answer
     } catch {
       /* no history yet */
     }
-    const picked = (bars.length ? bars : [...new Set([...struggling, ...hardest(3).map((h) => h.bar)])]).slice(0, 5).sort((a, b) => a - b);
+    const hw = P()?.homework?.();
+    const picked = (bars.length ? bars : [...new Set([...(hw?.bars || []), ...struggling, ...hardest(3).map((h) => h.bar)])]).slice(0, 5).sort((a, b) => a - b);
     if (!picked.length) return "Open a score with notes first, then ask me for a plan.";
     let remarks = [];
     try {
@@ -599,6 +630,7 @@ How to answer
       /* no remarks yet */
     }
     const steps = [{ kind: "hear", title: "Hear it once", detail: "Listen to these bars before you play them." }];
+    if (hw && picked.some((b) => hw.bars.includes(b))) steps.unshift({ kind: "teacher", title: `${hw.by || "Your teacher"}’s homework`, detail: hw.note || `Focus on ${hw.bars.length === 1 ? `bar ${hw.bars[0]}` : `bars ${hw.bars.join(", ")}`}.` });
     for (const b of picked) {
       const d = debriefFor(b);
       const tip = first(d?.advice, 1)[0] || "Hands separately, slowly, then together.";
@@ -802,6 +834,8 @@ How to answer
     if (!a) {
       note = fallbackNote(failure);
       a = act.fallback ? (await reply(act.fallback)).a : "Lune’s built-in answers can’t summarise practice. This week shows the days, bars and ratings instead.";
+      const hwl = act.bar ? homeworkLine(forBar) : "";
+      if (hwl && act.fallback) a = `${hwl}\n\n${a}`;
       if (said) {
         richText(said, a);
         setSrc(said, "rules");
@@ -1909,10 +1943,14 @@ How to answer
         said.dataset.via = "model";
       } else {
         out.note = [out.note, fallbackNote(res.error)].filter(Boolean).join(" ");
+        const hwl = out.saved !== "plan" ? homeworkLine(forBar) : "";
+        if (hwl) out.a = `${hwl}\n\n${out.a}`;
         richText(said, out.a);
         setSrc(said, "rules");
       }
     } else {
+      const hwl = out.question && out.saved !== "plan" ? homeworkLine(out.bar || selectedBarsSorted()[0] || null) : "";
+      if (hwl) out.a = `${hwl}\n\n${out.a}`;
       // every answer says where it came from: the score through Lune's rules, or a language model
       said = line("lune", out.a, { src: out.question ? "rules" : "lune" });
     }
@@ -2126,8 +2164,10 @@ How to answer
     const box = $("chat-hist-list");
     if (!box) return;
     const st = chatStore();
-    box.innerHTML = st.convs.length
-      ? st.convs
+    // empty chats ("New chat" with nothing said) are not history
+    const convs = st.convs.filter((c) => (c.msgs || []).some((m) => m.who === "you"));
+    box.innerHTML = convs.length
+      ? convs
           .map(
             (c) => `<div class="ch-item${c.id === st.cur ? " on" : ""}"><button type="button" data-conv="${esc(c.id)}">${esc(c.title || "New chat")}</button><button type="button" class="ch-del" data-conv-del="${esc(c.id)}" aria-label="Delete “${esc(c.title)}”">${ICON.close}</button></div>`
           )
@@ -2174,6 +2214,11 @@ How to answer
         if (one?.bar) details.push(one.bar);
       }
       if (details.length) ctx.barsAskedAbout = details;
+    }
+    // the teacher's homework on the open piece guides every chat answer, bar named or not
+    if (p && p === state.piece) {
+      const hwc = homeworkContext();
+      if (hwc) ctx.teacherAssignment = hwc;
     }
     if (p) {
       const facts = window.LuneScoreFacts?.forPiece?.(p) || null;
@@ -2554,9 +2599,10 @@ How to answer
   const PLAN_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const PLAN_DAY_NAMES = { Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday", Fri: "Friday", Sat: "Saturday", Sun: "Sunday" };
 
-  function plannerSay(html, replies = []) {
+  function plannerSay(html, replies = [], ownHint = "Type your answer…") {
     const bubble = chatLine("lune", "");
-    bubble.innerHTML = String(html).replace(/>\s+</g, "><").trim() + (replies.length ? `<div class="la-replies" role="group" aria-label="Quick replies">${replies.map((r) => `<button type="button" class="la-reply">${esc(r)}</button>`).join("")}</div>` : "");
+    const own = replies.length ? `<button type="button" class="la-own" data-own="${esc(ownHint)}"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>Type my own</button>` : "";
+    bubble.innerHTML = String(html).replace(/>\s+</g, "><").trim() + (replies.length ? `<div class="la-replies" role="group" aria-label="Quick replies">${replies.map((r) => `<button type="button" class="la-reply">${esc(r)}</button>`).join("")}${own}</div>` : "");
     const log = chatLog();
     log.push({ who: "lune", text: bubble.textContent.replace(/\s+/g, " ").trim(), via: "note", t: Date.now() });
     saveChat(log);
@@ -2612,26 +2658,41 @@ How to answer
     } catch {
       pieces = [];
     }
-    const goals = [...pieces.map((p) => `Learn more of ${String(p.title).replace(/\s*\(.*\)$/, "").slice(0, 34)}`), "Fix my hardest bars", "Get a piece ready to perform"].slice(0, 4);
-    plannerSay(`<p>Let’s plan your week. <strong>What do you want to get done by Sunday?</strong></p>`, goals);
+    // "Liebestraum no. 3 in A-flat major, S. 541" → "Liebestraum no. 3"
+    const short = (t) => {
+      let x = String(t || "").split(/\s*[,(:–—]\s*|\s+-\s+/)[0].replace(/\s+in\s+[A-G](?:[-‐ ]?(?:flat|sharp|♭|♯))?\s+(?:major|minor)\b.*$/i, "").trim();
+      // a bare form name ("Nocturne") keeps its opus so it means one piece
+      const op = String(t || "").match(/\b(Op\.?\s*\d+[a-z]?(?:,?\s*No\.?\s*\d+)?|BWV\s*\d+|K\.?\s*\d+|S\.?\s*\d+)/i);
+      if (!/\d/.test(x) && op) x = `${x} ${op[1].replace(/,\s*/, " ")}`;
+      if (x.length > 30) x = `${x.slice(0, 29).replace(/\s+\S*$/, "")}…`;
+      return x;
+    };
+    const goals = [...new Set(pieces.map((p) => `Learn more of ${short(p.title)}`))].concat(["Fix my hardest bars", "Get a piece ready to perform"]).slice(0, 4);
+    plannerSay(`<p>Let’s plan your week. <strong>What do you want to get done by Sunday?</strong></p><p class="la-sub">Pick one, or type exactly what you want, like “Clair de lune up to bar 27, hands together”.</p>`, goals, "Type what you want to get done this week…");
     setTimeout(() => $("chat-input")?.focus({ preventScroll: true }), 120);
   }
 
   async function plannerReply(text) {
     const p = planner;
     if (!p) return;
+    // the question is answered: its replies settle, and the box goes back to its own hint
+    document.querySelectorAll("#chat-log .la-replies").forEach((row) => {
+      row.classList.add("is-done");
+      row.querySelectorAll("button").forEach((x) => (x.disabled = true));
+    });
+    if ($("chat-input")) $("chat-input").placeholder = "Ask anything about piano…";
     plannerHeard(text);
     if (p.step === "goal") {
       p.goal = text.slice(0, 300);
       p.step = "days";
-      return plannerSay(`<p>Good goal. <strong>Which days can you practise?</strong></p>`, ["Every day", "Weekdays", "Mon, Wed, Fri", "Weekends"]);
+      return plannerSay(`<p>Good goal. <strong>Which days can you practise?</strong></p>`, ["Every day", "Weekdays", "Mon, Wed, Fri", "Weekends"], "Type your days, like “Tue, Thu, Sat”…");
     }
     if (p.step === "days") {
       const days = parsePlanDays(text);
       if (!days.length) return plannerSay(`<p>Which days, for example “Mon, Wed, Fri” or “weekdays”?</p>`, ["Every day", "Weekdays", "Mon, Wed, Fri", "Weekends"]);
       p.days = days;
       p.step = "mins";
-      return plannerSay(`<p>${days.length === 7 ? "Every day" : days.map((d) => PLAN_DAY_NAMES[d]).join(", ")}. <strong>About how long each day?</strong></p>`, ["15 minutes", "20 minutes", "30 minutes", "45 minutes", "1 hour"]);
+      return plannerSay(`<p>${days.length === 7 ? "Every day" : days.map((d) => PLAN_DAY_NAMES[d]).join(", ")}. <strong>About how long each day?</strong></p>`, ["15 minutes", "20 minutes", "30 minutes", "45 minutes", "1 hour"], "Type how long, like “25 minutes”…");
     }
     if (p.step === "mins") {
       const mins = parsePlanMins(text);
@@ -2648,6 +2709,7 @@ How to answer
       }
       wait.closest(".chat-row")?.remove();
       planner = null;
+      if ($("chat-input")) $("chat-input").placeholder = "Ask anything about piano…";
       if (!plan) return plannerSay(`<p>I couldn’t make the plan just now. Try again in a moment.</p>`);
       document.dispatchEvent(new CustomEvent("lune:plan-mode", { detail: { mode: "plan" } }));
       const rows = plan.days
@@ -2668,6 +2730,18 @@ How to answer
       return;
     }
   }
+
+  // "Type my own": the box takes the answer, with a hint of what to write
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest?.(".la-own");
+    if (!b) return;
+    const box = $("chat-input");
+    if (!box) return;
+    box.placeholder = b.dataset.own || "Type your answer…";
+    box.focus();
+    // not "on": that class means a reply was chosen, and hides the others
+    b.classList.add("is-typing");
+  });
 
   // "Email me each morning", wherever it is offered
   document.addEventListener("click", async (e) => {

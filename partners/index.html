@@ -11,8 +11,8 @@
   <meta property="og:title" content="Partner with Lune">
   <meta property="og:description" content="Piano scores that explain themselves. Free while in pilot, and looking for partners and investors.">
   <meta property="og:url" content="https://lune.page/partners/">
-  <meta property="og:image" content="https://lune.page/static/assets/og.png?v=lune73">
-  <link rel="icon" href="../static/assets/favicon.svg?v=lune73" type="image/svg+xml">
+  <meta property="og:image" content="https://lune.page/static/assets/og.png?v=lune75">
+  <link rel="icon" href="../static/assets/favicon.svg?v=lune75" type="image/svg+xml">
   <link rel="preload" href="../static/assets/fonts/ebgaramond-var.woff2" as="font" type="font/woff2" crossorigin>
   <style>
     @font-face { font-family: "EB Garamond"; src: url("../static/assets/fonts/ebgaramond-var.woff2") format("woff2"); font-weight: 400 800; font-style: normal; font-display: swap; }
@@ -70,6 +70,13 @@
     .section { padding: 0 0 104px; }
     .section > p { color: var(--soft); max-width: 36em; margin: 0 0 40px; }
 
+    .brief-list { margin: 8px 0 0; border-top: 1px solid var(--line); }
+    .brief-list > div { display: grid; grid-template-columns: 220px 1fr; gap: 24px; padding: 26px 0; border-bottom: 1px solid var(--line); }
+    .brief-list dt { font-style: italic; color: var(--navy-hi); font-size: 20px; }
+    .brief-list dd { margin: 0; font-size: 20px; line-height: 1.55; color: var(--soft); max-width: 40em; }
+    .brief-contact { display: flex; flex-wrap: wrap; gap: 10px; }
+    .brief-contact .btn { min-height: 44px; font-size: 17px; }
+    @media (max-width: 820px) { .brief-list > div { grid-template-columns: 1fr; gap: 6px; } }
     .ways { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
     .way { background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 30px 28px 28px; display: flex; flex-direction: column; }
     .way h3 { font-weight: 400; font-size: 27px; margin: 0 0 10px; }
@@ -154,6 +161,17 @@
       <div><b>Free</b><span>for every pianist in the pilot</span></div>
     </section>
 
+    <section class="section brief" aria-labelledby="brief-h">
+      <p class="kicker rise">The founder brief</p>
+      <h2 class="rise" id="brief-h">Lune, in four lines.</h2>
+      <dl class="brief-list">
+        <div class="rise"><dt>The problem</dt><dd>Most piano practice happens alone, between lessons, with a page that doesn’t explain itself. For blind and low-vision musicians, almost all classical sheet music is printed for sighted readers only.</dd></div>
+        <div class="rise"><dt>The proof</dt><dd>Built solo by a pianist who is still at school. Live at lune.page: 3,700+ interactive scores from 220 composers, hands split and fingered automatically, an AI teacher (Llama 3.3) that reads the bar in front of you, offline use, and 835 scores as braille music files.</dd></div>
+        <div class="rise"><dt>Access</dt><dd>Free for everyone during the pilot, so teachers, students and schools for blind and partially sighted pupils can start without asking anyone for a budget.</dd></div>
+        <div class="rise"><dt>Contact</dt><dd class="brief-contact"><button type="button" class="btn main brief-copy" data-copy="verushka@lune.page"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><span>verushka@lune.page</span></button><a class="btn" href="../#/debussy-clair-de-lune/score">Try Clair de lune</a></dd></div>
+      </dl>
+    </section>
+
     <section class="section">
       <p class="kicker rise">Three ways in</p>
       <h2 class="rise">Work with me on Lune.</h2>
@@ -198,7 +216,7 @@
       </blockquote>
       <div class="rise">
         <p class="kicker">The maker</p>
-        <p>I’m Verushka, fifteen, an ABRSM Grade 7 pianist. Sight reading and fingering used to stall my practice, so I built Lune: open a score, hear it, see letter names or finger numbers, and work the bars that will not sit yet.</p>
+        <p>I’m Verushka, sixteen, an ABRSM Grade 7 pianist. Sight reading and fingering used to stall my practice, so I built Lune: open a score, hear it, see letter names or finger numbers, and work the bars that will not sit yet.</p>
         <p>Lune has a free catalogue, braille music, an AI teacher that reads the bar in front of you, and it works offline. The next step is getting it into the hands of many more pianists and teachers, and that needs partners.</p>
       </div>
     </section>
@@ -242,6 +260,20 @@
   </footer>
 
   <script>
+    // the email copies in one tap, and says so
+    for (const b of document.querySelectorAll("[data-copy]")) {
+      b.addEventListener("click", async () => {
+        const label = b.querySelector("span");
+        try {
+          await navigator.clipboard.writeText(b.dataset.copy);
+          label.textContent = "Email copied";
+        } catch {
+          location.href = `mailto:${b.dataset.copy}`;
+          return;
+        }
+        setTimeout(() => (label.textContent = b.dataset.copy), 1800);
+      });
+    }
     // One place for the contact details: the booking button appears once a link is set.
     const LUNE_CONTACT = { email: "verushka@lune.page", calendly: "https://calendly.com/verushka-theskywardproject/30min" };
     for (const a of document.querySelectorAll("[data-calendly]")) {

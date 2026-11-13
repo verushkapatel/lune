@@ -115,6 +115,7 @@ window.LuneStudioUI = (function () {
       if (act === "tour") setTimeout(() => window.LuneTour?.start({ force: true }), 250);
       if (act === "ask") window.LuneAsk?.open?.();
       if (act === "ai") window.LuneAsk?.goAiPage?.();
+      if (act === "walk") setTimeout(() => window.LuneWalk?.open?.(), 120);
       if (act === "home") press("btn-home");
       if (act === "signin") press("btn-bar-auth");
       if (keepOpen) setTimeout(paint, 60);
@@ -135,6 +136,27 @@ window.LuneStudioUI = (function () {
     const saved = $("btn-bookmark")?.getAttribute("aria-pressed") === "true";
     const esc = (s) => String(s || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
     const sessions = (st.sessions || []).filter((s) => s.piece || s.lazy);
+    const svg = (d) => `<svg class="sm-ic" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="${d}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    const I = {
+      keys: svg("M3 6h18v12H3zM8 6v7M12 6v7M16 6v7"),
+      letters: svg("M4 18l5-12 5 12M6 14h6M15 18v-6a3 3 0 0 1 6 0v6M15 15h6"),
+      pedal: svg("M6 18h12M8 18l2-9h4l2 9M10 9V6h4v3"),
+      braille: svg("M8 6.5h.01M8 12h.01M8 17.5h.01M16 6.5h.01M16 12h.01"),
+      down: svg("M12 5v12m0 0l-5-5m5 5l5-5"),
+      ask: svg("M12 3a9 9 0 1 0 9 9M12 3a6.5 6.5 0 0 1 0 13"),
+      chat: svg("M5 5h14v10H9l-4 4z"),
+      walk: svg("M4 13v-1a8 8 0 0 1 16 0v1M4 13h3v6H4zM17 13h3v6h-3z"),
+      save: svg("M7 4h10v16l-5-4-5 4z"),
+      saved: svg("M7 4h10v16l-5-4-5 4zM9.5 10l2 2 3.5-4"),
+      share: svg("M12 15V4m0 0L8 8m4-4l4 4M5 13v6h14v-6"),
+      tour: svg("M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5z"),
+      settings: svg("M4 7h10M18 7h2M4 12h4M12 12h8M4 17h12M20 17h0M16 5v4M10 10v4M18 15v4"),
+      home: svg("M4 11l8-7 8 7v9h-5v-6H9v6H4z"),
+      chev: '<svg class="sm-chev" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    };
+    const row = (act, label, icon) => `<button type="button" class="sm-row" data-m="${act}">${icon}<span class="sm-l">${label}</span><span class="sm-trail">${I.chev}</span></button>`;
+    const sw = (act, on, label, icon) =>
+      `<button type="button" class="sm-row" data-m="${act}" role="switch" aria-checked="${!!on}">${icon}<span class="sm-l">${label}</span><span class="sm-sw" aria-hidden="true"></span></button>`;
     const seg = (act, value, items) =>
       `<div class="sm-seg" role="group">${items
         .map(([v, label]) => `<button type="button" data-m="${act}" data-v="${v}" aria-pressed="${v === value}">${label}</button>`)
@@ -156,20 +178,26 @@ window.LuneStudioUI = (function () {
       </div>
       <p class="sm-h">On the score</p>
       ${seg("anno", anno, [["notes", "Notes"], ["fingers", "Fingers"], ["off", "Off"]])}
-      <div class="sm-toggles">
-        <button type="button" data-m="kbd" aria-pressed="${kbd}">Piano keys</button>
-        <button type="button" data-m="access" aria-pressed="${easy}">Easy-read letters</button>
-        <button type="button" data-m="pedal" aria-pressed="${document.getElementById("btn-pedal")?.getAttribute("aria-pressed") === "true"}">Pedal marks</button>
-        ${braille && !braille.hidden ? `<a class="sm-link" href="${esc(braille.getAttribute("href"))}" download>Braille music</a>` : ""}
+      <div class="sm-group">
+        ${sw("kbd", kbd, "Piano keys", I.keys)}
+        ${sw("access", easy, "Easy-read letters", I.letters)}
+        ${sw("pedal", document.getElementById("btn-pedal")?.getAttribute("aria-pressed") === "true", "Pedal marks", I.pedal)}
+        ${braille && !braille.hidden ? `<a class="sm-row" href="${esc(braille.getAttribute("href"))}" download>${I.braille}<span class="sm-l">Braille music</span><span class="sm-trail">${I.down}</span></a>` : ""}
       </div>
-      <div class="sm-actions">
-        <button type="button" data-m="ask"><span class="lune-orb-sm" aria-hidden="true"></span>Ask Lune</button>
-        <button type="button" data-m="ai">Lune AI chat</button>
-        <button type="button" data-m="save">${saved ? "Saved" : "Save"}</button>
-        <button type="button" data-m="share">Share</button>
-        <button type="button" data-m="tour">Show me around</button>
-        <button type="button" data-m="settings">Settings</button>
-        <button type="button" data-m="home">Home</button>
+      <p class="sm-h">Lune</p>
+      <div class="sm-group">
+        ${row("ask", "Ask Lune", I.ask)}
+        ${row("ai", "Lune AI chat", I.chat)}
+        ${row("walk", "Audio walkthrough", I.walk)}
+      </div>
+      <div class="sm-group">
+        ${row("save", saved ? "Saved" : "Save", saved ? I.saved : I.save)}
+        ${row("share", "Share", I.share)}
+      </div>
+      <div class="sm-group">
+        ${row("tour", "Show me around", I.tour)}
+        ${row("settings", "Settings", I.settings)}
+        ${row("home", "Home", I.home)}
       </div>
       ${document.body.classList.contains("is-signed-in") ? "" : `<button type="button" class="sm-signin" data-m="signin">Sign in</button>`}`;
   }

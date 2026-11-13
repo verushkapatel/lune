@@ -784,6 +784,23 @@ window.LuneStore = (function () {
     return true;
   }
 
+  /* ---------------- homework check-ins: no account on either side ---------------- */
+  // Two database functions do all of it: one records a check-in for an assignment id,
+  // the other reads that one assignment's check-ins. The table itself is closed.
+  async function checkIn(aid, who, ratings) {
+    await init();
+    if (!client) throw new Error("offline");
+    const { error } = await client.rpc("assignment_checkin", { aid: String(aid), who: String(who || "").slice(0, 40), ratings: ratings || {} });
+    if (error) throw new Error(/function|schema cache|PGRST202|42883/i.test(`${error.code} ${error.message}`) ? "not-ready" : "failed");
+    return true;
+  }
+  async function assignmentProgress(aid) {
+    await init();
+    if (!client) return null;
+    const { data, error } = await client.rpc("assignment_progress", { aid: String(aid) });
+    return error ? null : data || [];
+  }
+
   /* ---------------- the morning email (opt-in; unsubscribe from the email itself) ---------------- */
   async function dailyEmail() {
     if (!remote()) return null;
@@ -1318,6 +1335,8 @@ window.LuneStore = (function () {
     contributeScore,
     dailyEmail,
     setDailyEmail,
+    checkIn,
+    assignmentProgress,
     saveChats,
     deleteChat,
     updateTask,
