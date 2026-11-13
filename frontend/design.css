@@ -1778,3 +1778,90 @@ html body.lp-contrast .hw .hw-bar { background: #fff; color: #000; box-shadow: i
   html body .hw .hw-side button:not(.hw-x) { min-height: 40px; }
   html body #lp-assign-banner.hw { gap: 12px; padding: 14px 16px; }
 }
+
+/* ---------- Practise with Lune: the lesson card ---------- */
+html body #lune-session.ls2 {
+  position: fixed; z-index: 60; left: 50%; bottom: max(12px, env(safe-area-inset-bottom)); top: auto; right: auto; translate: -50% 0; transform: none;
+  width: min(440px, calc(100vw - 24px)); box-sizing: border-box; padding: 18px 20px 20px; border-radius: 28px; border: 0;
+  background: rgba(16, 18, 26, 0.92); backdrop-filter: saturate(1.5) blur(24px); -webkit-backdrop-filter: saturate(1.5) blur(24px);
+  color: #f5f5f7; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 30px 80px -24px rgba(0, 0, 0, 0.9); font-family: var(--ui); animation: ls2-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes ls2-in { from { opacity: 0; translate: -50% 14px; } to { opacity: 1; translate: -50% 0; } }
+html body #lune-session.ls2[hidden] { display: none !important; }
+html body .ls2 .ls2-head { display: flex; align-items: center; gap: 12px; }
+html body .ls2 h2 { margin: 0; font: 500 17px var(--ui); color: #f5f5f7; }
+html body .ls2 .ls2-dots { display: inline-flex; gap: 5px; margin-left: auto; }
+html body .ls2 .ls2-dots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255, 255, 255, 0.18); }
+html body .ls2 .ls2-dots i.done { background: var(--navy-hi); }
+html body .ls2 .ls2-dots i.on { background: #f5f5f7; width: 18px; border-radius: 4px; }
+html body .ls2 .ls2-x { width: 32px; height: 32px; flex: none; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; background: rgba(255, 255, 255, 0.08); color: rgba(245, 245, 247, 0.75); cursor: pointer; position: relative; }
+html body .ls2 .ls2-x::after { content: ""; position: absolute; inset: -6px; }
+html body .ls2 .ls2-x:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
+html body .ls2 .ls2-bar { margin: 16px 0 10px; text-align: center; font: 400 52px/1 var(--display); letter-spacing: -0.02em; color: #f5f5f7; }
+html body .ls2 .ls2-trail { display: flex; justify-content: center; gap: 6px; margin: 0 0 16px; }
+html body .ls2 .ls2-trail span { padding: 5px 12px; border-radius: 999px; font-size: 14px; color: rgba(245, 245, 247, 0.4); background: transparent; transition: background 0.25s ease, color 0.25s ease; }
+html body .ls2 .ls2-trail span.on { background: rgba(159, 178, 228, 0.16); color: #f5f5f7; }
+html body .ls2 .ls2-trail span.done { color: var(--navy-hi); }
+html body .ls2 .ls2-trail span.done::before { content: "✓ "; }
+html body .ls2 .ls2-say { margin: 0 0 20px; min-height: 2.9em; text-align: center; font: 400 18px/1.45 var(--ui); color: rgba(245, 245, 247, 0.88); text-wrap: balance; }
+html body .ls2 .ls2-live { display: inline-flex; align-items: center; gap: 8px; color: var(--navy-hi); }
+html body .ls2 .ls2-live svg { animation: ls2-pulse 1.2s ease-in-out infinite; }
+@keyframes ls2-pulse { 50% { opacity: 0.35; } }
+html body .ls2 .ls2-transport { display: flex; align-items: center; justify-content: center; gap: 14px; }
+html body .ls2 .ls2-btn { width: 52px; height: 52px; flex: none; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; background: rgba(255, 255, 255, 0.07); color: #f5f5f7; cursor: pointer; transition: background 0.2s ease, transform 0.12s ease; }
+html body .ls2 .ls2-btn:hover { background: rgba(255, 255, 255, 0.13); }
+html body .ls2 .ls2-main { flex: 1; max-width: 240px; min-height: 56px; padding: 0 22px; border: 0; border-radius: 999px; background: #f5f5f7; color: #0b0d14; font: 500 17px var(--ui); cursor: pointer; box-shadow: 0 10px 30px -12px rgba(159, 178, 228, 0.5); transition: transform 0.12s ease, background 0.2s ease; }
+html body .ls2 .ls2-main:hover { background: #fff; }
+html body .ls2 .ls2-quiet { min-height: 56px; padding: 0 22px; border: 0; border-radius: 999px; background: rgba(255, 255, 255, 0.07); color: #f5f5f7; font: 400 17px var(--ui); cursor: pointer; }
+html body .ls2 :is(.ls2-btn, .ls2-main, .ls2-quiet):active { transform: scale(0.96); }
+html body .ls2 .ls2-grades { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; padding: 3px; border-radius: 14px; background: rgba(118, 118, 128, 0.24); }
+html body .ls2 .ls2-grades button { min-height: 46px; border: 0; border-radius: 11px; background: transparent; color: rgba(245, 245, 247, 0.85); font: 400 15px var(--ui); cursor: pointer; transition: background 0.2s ease; }
+html body .ls2 .ls2-grades button:hover { background: rgba(255, 255, 255, 0.08); }
+html body .ls2 .ls2-grades button.on { background: #f5f5f7; color: #0b0d14; }
+html body .ls2 :is(.ls2-btn, .ls2-main, .ls2-quiet, .ls2-x, .ls2-grades button):focus-visible { outline: 2px solid #9fb2e4; outline-offset: 3px; }
+@media (min-width: 900px) {
+  html body #lune-session.ls2 { left: auto; right: 16px; top: 72px; bottom: auto; translate: none; width: 360px; animation-name: ls2-side; }
+  @keyframes ls2-side { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+  html body.ls-on.is-panel-score .studio-dock, html body.ls-on.is-panel-score #piano-dock, html body.ls-on.is-panel-score .score-pane { padding-right: 392px !important; box-sizing: border-box; }
+}
+html body.lp-contrast #lune-session.ls2 { background: #fff; color: #000; box-shadow: 0 0 0 3px #000; backdrop-filter: none; }
+html body.lp-contrast .ls2 :is(h2, .ls2-bar, .ls2-say) { color: #000; }
+html body.lp-contrast .ls2 .ls2-main { background: #000; color: #fff; }
+html body.lp-contrast .ls2 :is(.ls2-btn, .ls2-quiet, .ls2-x) { background: #fff; color: #000; box-shadow: inset 0 0 0 2px #000; }
+html body.lp-contrast .ls2 .ls2-grades { background: #fff; box-shadow: inset 0 0 0 2px #000; }
+html body.lp-contrast .ls2 .ls2-grades button { color: #000; }
+html[data-theme="light"] body:not(.lp-contrast) #lune-session.ls2 { background: rgba(251, 251, 253, 0.94); color: #111; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 30px 70px -24px rgba(0, 0, 0, 0.3); }
+html[data-theme="light"] body:not(.lp-contrast) .ls2 :is(h2, .ls2-bar, .ls2-say) { color: #111; }
+html[data-theme="light"] body:not(.lp-contrast) .ls2 .ls2-main { background: #111; color: #fff; }
+html[data-theme="light"] body:not(.lp-contrast) .ls2 :is(.ls2-btn, .ls2-quiet) { background: rgba(0, 0, 0, 0.05); color: #111; }
+html[data-theme="light"] body:not(.lp-contrast) .ls2 .ls2-grades button { color: #111; }
+/* during a lesson the play bar stays on desktop; on a phone the card sits where it was */
+@media (min-width: 900px) { html body.ls-on #companion-bar { visibility: visible !important; } }
+/* the lesson, seamless: each step fades in, the bar number settles, the demo draws a line as it plays */
+html body .ls2 .ls2-body { animation: ls2-swap 0.32s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes ls2-swap { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+html body .ls2 .ls2-bar.is-new { animation: ls2-settle 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes ls2-settle { from { opacity: 0; transform: scale(0.96); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+html body .ls2 .ls2-meter { height: 2px; margin: -4px auto 18px; width: 60%; border-radius: 2px; background: rgba(255, 255, 255, 0.06); overflow: hidden; opacity: 0; transition: opacity 0.3s ease; }
+html body .ls2 .ls2-meter.on { opacity: 1; }
+html body .ls2 .ls2-meter i { display: block; height: 100%; background: var(--navy-hi); transform: scaleX(0); transform-origin: left; transition: transform 0.08s linear; }
+html body .ls2 .ls2-nice { color: #f5f5f7; }
+html body .ls2 .ls2-tick { display: inline-grid; place-items: center; width: 26px; height: 26px; margin-right: 6px; border-radius: 50%; background: var(--navy-mid); color: #fff; font-size: 14px; vertical-align: 1px; animation: ls2-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@keyframes ls2-pop { from { transform: scale(0.4); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { html body .ls2 :is(.ls2-body, .ls2-bar.is-new, .ls2-tick) { animation: none; } }
+html body.lp-contrast .ls2 .ls2-meter { background: #ddd; } html body.lp-contrast .ls2 .ls2-meter i { background: #000; }
+html[data-theme="light"] body:not(.lp-contrast) .ls2 .ls2-nice { color: #111; }
+
+/* the score toolbar: one main action. Ask Lune joins the quiet controls; Practise with Lune leads */
+html body .score-tools #btn-tell, html body .score-tools .lp-ask-btn, html body .score-tools [data-ask-lune] { background: transparent !important; color: #f5f5f7 !important; box-shadow: none !important; }
+html body .lp-tools-bar #btn-tell.lp-tool { background: transparent !important; color: #f5f5f7 !important; box-shadow: none !important; border: 0 !important; }
+html body .lp-tools-bar #btn-tell.lp-tool:hover { background: rgba(255, 255, 255, 0.08) !important; }
+html[data-theme="light"] body .lp-tools-bar #btn-tell.lp-tool { color: #111 !important; }
+/* no blue haze anywhere in the app: Repertoire and the page behind it sit on plain night */
+html body.is-repertoire, html body.is-repertoire main#repertoire#repertoire.repertoire, html body main#repertoire#repertoire { background-image: none !important; background-color: #000 !important; }
+html[data-theme="light"] body.is-repertoire, html[data-theme="light"] body main#repertoire#repertoire { background-color: #fff !important; }
+/* Explain: the four reading and access options as an even two-by-two grid */
+html body #explain-access .access-card-grid { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px !important; max-width: 520px; }
+html body #explain-access .access-option { width: 100% !important; justify-content: flex-start !important; padding: 0 16px !important; }
+html body #explain-access .access-option[hidden] { display: none !important; }
+@media (max-width: 420px) { html body #explain-access .access-card-grid { grid-template-columns: 1fr; } }

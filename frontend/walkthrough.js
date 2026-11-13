@@ -282,6 +282,8 @@ window.LuneWalk = (function () {
   function highlight(n) {
     try {
       setBarSelection([n], { open: false, primary: n });
+      window.LunePractice?.scrollToBar?.(n);
+      for (const ms of [450, 1200]) setTimeout(() => walk.open && walk.bar === n && window.LunePractice?.scrollToBar?.(n), ms);
     } catch {
       /* the score is not on the page */
     }
