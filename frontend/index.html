@@ -22,26 +22,26 @@
   <meta property="og:title" content="Lune — so practice feels right again">
   <meta property="og:description" content="Piano scores that explain themselves: every note named, every hard bar made clear. 3,700+ free scores, braille music, works offline.">
   <meta property="og:url" content="https://lune.page/">
-  <meta property="og:image" content="https://lune.page/static/assets/og.png?v=lune95">
+  <meta property="og:image" content="https://lune.page/static/assets/og.png?v=lune96">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="Lune — so practice feels right again">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Lune — so practice feels right again">
   <meta name="twitter:description" content="Piano scores that explain themselves: every note named, every hard bar made clear. Free.">
-  <meta name="twitter:image" content="https://lune.page/static/assets/og.png?v=lune95">
+  <meta name="twitter:image" content="https://lune.page/static/assets/og.png?v=lune96">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Lune">
-  <link rel="icon" href="static/assets/favicon.svg?v=lune95" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=lune95">
+  <link rel="icon" href="static/assets/favicon.svg?v=lune96" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=lune96">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="preload" href="static/assets/fonts/ebgaramond-var.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="static/assets/fonts/ebgaramond-italic-var.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="static/styles.css?v=lune95">
-  <link rel="stylesheet" href="static/theme-light.css?v=lune95">
-  <link rel="stylesheet" href="static/design.css?v=lune95">
+  <link rel="stylesheet" href="static/styles.css?v=lune96">
+  <link rel="stylesheet" href="static/theme-light.css?v=lune96">
+  <link rel="stylesheet" href="static/design.css?v=lune96">
   <script>window.luneSearchIndexJson = () => window.__luneSearchIndex || (window.__luneSearchIndex = fetch(window.luneUrl ? window.luneUrl("/static/search-index.json?v=catalog03") : "static/search-index.json?v=catalog03").then((r) => (r.ok ? r.json() : null)).catch(() => null));</script>
 </head>
 <body>
@@ -241,7 +241,7 @@
           </p>
           <p class="fine-print home-footer-legal">
             <button type="button" class="link-btn" data-open-credits>Credits and licences</button> ·
-            <button type="button" class="link-btn" data-open-credits="privacy">Privacy</button> ·
+            <a class="link-btn" href="privacy/">Privacy</a> ·
             <a href="partners/">Partners and investors</a> ·
             free while in pilot
           </p>
@@ -690,7 +690,7 @@
         <p class="home-footer-word" aria-hidden="true"><svg viewBox="0 0 40 40" focusable="false"><g stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><line x1="5" y1="26" x2="10.07" y2="26"/><line x1="27.93" y1="26" x2="35" y2="26"/><line x1="5" y1="30" x2="35" y2="30"/><line x1="5" y1="34" x2="35" y2="34"/></g><path fill="currentColor" d="M17.61 4.58A12 12 0 1 0 27.70 24.77A11.4 11.4 0 1 1 17.61 4.58Z"/></svg>lune</p>
         <p class="fine-print home-footer-legal">
           <button type="button" class="link-btn" data-open-credits>Credits and licences</button> ·
-          <button type="button" class="link-btn" data-open-credits="privacy">Privacy</button> ·
+          <a class="link-btn" href="privacy/">Privacy</a> ·
           <a href="mailto:info@lune.page?subject=Lune%20feedback" id="footer-feedback" data-open-feedback="pianist">Feedback</a> ·
           <a href="partners/">Partners and investors</a> ·
           free while in pilot
@@ -969,19 +969,7 @@
       <li><a href="https://opensheetmusicdisplay.org/" target="_blank" rel="noopener">OpenSheetMusicDisplay</a> (BSD-3-Clause) with <a href="https://www.vexflow.com/" target="_blank" rel="noopener">VexFlow</a> (MIT) · <a href="https://tonejs.github.io/" target="_blank" rel="noopener">Tone.js</a> (MIT) · <a href="https://mozilla.github.io/pdf.js/" target="_blank" rel="noopener">pdf.js</a> (Apache-2.0) · <a href="https://github.com/undercasetype/Fraunces" target="_blank" rel="noopener">Fraunces</a>, <a href="https://github.com/sharanda/manrope" target="_blank" rel="noopener">Manrope</a>, <a href="https://github.com/octaviopardo/EBGaramond12" target="_blank" rel="noopener">EB Garamond</a> and <a href="https://github.com/JetBrains/JetBrainsMono" target="_blank" rel="noopener">JetBrains Mono</a> typefaces (SIL Open Font License 1.1).</li>
     </ul>
     <h3 id="credits-privacy">Privacy</h3>
-    <ul>
-      <li>No cookies, no analytics, no ads. Lune never sells or shares anything about you.</li>
-      <li>Your Repertoire, bar notes and review dates are saved in your own browser. If you choose to make an account, they’re stored in Lune’s database (Supabase) under your email address, locked so only you can read them. You can download or delete everything from the Account panel at any time.</li>
-      <li>Scores you upload are read inside your browser. They leave your device only if you add them to your Repertoire while signed in, and then only into your private storage.</li>
-      <li>The microphone (Ask Lune, voice remarks) is used only while you ask Lune to listen. Audio is analysed in the browser and never recorded or uploaded; voice notes may use your browser’s built-in speech recognition, which can be provided by its maker (for example Google in Chrome, Apple in Safari).</li>
-      <li>Under 13? Ask a parent or guardian before making an account.</li>
-      <li>Lune AI (for people with an account): when you ask it something, your question, the score facts for that bar or piece, and your remarks, ratings and plans for that piece are sent to Lune’s server on Cloudflare, which passes them to the model (run by Cloudflare Workers AI) and sends back the answer. Lune’s server does not store or log them; Cloudflare describes its own handling in its Workers AI terms. Your questions, answers and chats are saved only in this browser. Signed out, Lune AI is off.</li>
-      <li>Ask Lune’s built-in answers are worked out on your device and nothing you ask is sent anywhere. If you connect a local model in Settings (for example Ollama on your own computer), your question, the score facts for that bar, your remarks, ratings and plans for that piece go to the address you entered and nowhere else. With a model on your own computer, that address is your own machine. If you ever enter an address on another computer, that data is sent there.</li>
-      <li>Remarks, ratings, plans and your Repertoire stay in this browser unless you sign in; signed in, they are stored under your account. A share only ever contains the text shown in “What will be shared”, which you can edit first.</li>
-      <li>The reading study records only a participant code, answers and timings — never names.</li>
-      <li>Feedback you send from the Feedback form is emailed to Lune’s maker through FormSubmit (formsubmit.co) and may be kept in Lune’s database. It holds only what you type and the choices you tick; the form never asks for your email address.</li>
-      <li>When you press play, piano sounds load from tonejs.github.io; the site is hosted at lune.page.</li>
-    </ul>
+    <p>No ads, no analytics, nothing sold. What Lune keeps, who helps run it and how to delete it are on the <a href="privacy/">Privacy page</a>.</p>
     <h3>Contact</h3>
     <p>Questions, corrections, feedback or takedown requests: <a href="mailto:info@lune.page?subject=Lune%20feedback">info@lune.page</a>
       · <a href="https://github.com/verushkapatel/lune/issues" target="_blank" rel="noopener">GitHub issues</a>.</p>
@@ -989,37 +977,37 @@
   <div class="toast" id="toast" hidden></div>
   <script defer src="static/vendor/opensheetmusicdisplay.min.js"></script>
   <script defer src="static/vendor/Tone.js"></script>
-  <script defer src="static/piano.js?v=lune95"></script>
-  <script defer src="static/annotate.js?v=lune95"></script>
-  <script defer src="static/lite-analyze.js?v=lune95"></script>
-  <script defer src="static/fetch-score.js?v=lune95"></script>
-  <script defer src="static/lyric-lane.js?v=lune95"></script>
-  <script defer src="static/menu.js?v=lune95"></script>
-  <script defer src="static/lune-fx.js?v=lune95"></script>
-  <script defer src="static/lune-config.js?v=lune95"></script>
-  <script defer src="static/store.js?v=lune95"></script>
-  <script defer src="static/onboard.js?v=lune95"></script>
-  <script defer src="static/impact.js?v=lune95"></script>
-  <script defer src="static/feedback.js?v=lune95"></script>
-  <script defer src="static/ai-device.js?v=lune95"></script>
-  <script defer src="static/ask.js?v=lune95"></script>
-  <script defer src="static/markings.js?v=lune95"></script>
-  <script defer src="static/plans.js?v=lune95"></script>
-  <script defer src="static/schedule.js?v=lune95"></script>
-  <script defer src="static/score-facts.js?v=lune95"></script>
-  <script defer src="static/piece-notes.js?v=lune95"></script>
-  <script defer src="static/app.js?v=lune95"></script>
-  <script defer src="static/studio-ui.js?v=lune95"></script>
-  <script defer src="static/landing-score.js?v=lune95"></script>
-  <script defer src="static/moonrise.js?v=lune95"></script>
-  <script defer src="static/practice.js?v=lune95"></script>
-  <script defer src="static/study.js?v=lune95"></script>
-  <script defer src="static/install.js?v=lune95"></script>
-  <script defer src="static/hero-demo.js?v=lune95"></script>
-  <script defer src="static/tour.js?v=lune95"></script>
-  <script defer src="static/report.js?v=lune95"></script>
-  <script defer src="static/session.js?v=lune95"></script>
-  <script defer src="static/studio.js?v=lune95"></script>
-  <script defer src="static/walkthrough.js?v=lune95"></script>
+  <script defer src="static/piano.js?v=lune96"></script>
+  <script defer src="static/annotate.js?v=lune96"></script>
+  <script defer src="static/lite-analyze.js?v=lune96"></script>
+  <script defer src="static/fetch-score.js?v=lune96"></script>
+  <script defer src="static/lyric-lane.js?v=lune96"></script>
+  <script defer src="static/menu.js?v=lune96"></script>
+  <script defer src="static/lune-fx.js?v=lune96"></script>
+  <script defer src="static/lune-config.js?v=lune96"></script>
+  <script defer src="static/store.js?v=lune96"></script>
+  <script defer src="static/onboard.js?v=lune96"></script>
+  <script defer src="static/impact.js?v=lune96"></script>
+  <script defer src="static/feedback.js?v=lune96"></script>
+  <script defer src="static/ai-device.js?v=lune96"></script>
+  <script defer src="static/ask.js?v=lune96"></script>
+  <script defer src="static/markings.js?v=lune96"></script>
+  <script defer src="static/plans.js?v=lune96"></script>
+  <script defer src="static/schedule.js?v=lune96"></script>
+  <script defer src="static/score-facts.js?v=lune96"></script>
+  <script defer src="static/piece-notes.js?v=lune96"></script>
+  <script defer src="static/app.js?v=lune96"></script>
+  <script defer src="static/studio-ui.js?v=lune96"></script>
+  <script defer src="static/landing-score.js?v=lune96"></script>
+  <script defer src="static/moonrise.js?v=lune96"></script>
+  <script defer src="static/practice.js?v=lune96"></script>
+  <script defer src="static/study.js?v=lune96"></script>
+  <script defer src="static/install.js?v=lune96"></script>
+  <script defer src="static/hero-demo.js?v=lune96"></script>
+  <script defer src="static/tour.js?v=lune96"></script>
+  <script defer src="static/report.js?v=lune96"></script>
+  <script defer src="static/session.js?v=lune96"></script>
+  <script defer src="static/studio.js?v=lune96"></script>
+  <script defer src="static/walkthrough.js?v=lune96"></script>
 </body>
 </html>

@@ -2086,11 +2086,12 @@ window.LunePractice = (function () {
     const st = store.status();
     const privacy = `<h3>Privacy</h3>
       <ul>
-        <li>An account stores your email address, the pieces in your Repertoire, your bar notes, practice plans and listening stumbles — nothing else.</li>
+        <li>An account stores your email address and your practice: your Repertoire, bar notes and ratings, plans and schedule, Lune AI chats and, for teachers, your Studio. The Privacy page lists it all.</li>
         <li>When cloud sync is on, your rows are locked to your account. Nothing is sold, shared or used for ads.</li>
         <li>Microphone audio for voice notes and listening is processed in your browser. Lune never records or uploads audio.</li>
         <li>Under 13? Ask a parent or guardian before making an account. You can download or delete everything at any time.</li>
-      </ul>`;
+      </ul>
+      <p class="settings-note">Everything Lune keeps, in full: <a href="privacy/">Privacy</a>.</p>`;
     if (!st.signedIn) {
       d.innerHTML = `${closeRow}<h2>Sign in to keep Lune</h2>
         <p>Explore first — then sign in with email (no password) so repertoire, notes and plans stay with you.</p>
@@ -2803,6 +2804,8 @@ window.LunePractice = (function () {
 
   /** The privacy statement on a page of its own (the same text as in Credits). */
   function openPrivacy() {
+    location.href = "privacy/";
+    return;
     const d = dialog("privacy-dialog");
     const list = document.querySelector("#credits-privacy + ul")?.outerHTML || "";
     d.innerHTML = `${closeRow}<h2>Privacy</h2>${list}<p class="settings-note">Questions about your data: <a href="mailto:info@lune.page">info@lune.page</a>.</p>`;
@@ -3095,6 +3098,8 @@ window.LunePractice = (function () {
   }
 
   function openCreditsPrivacy() {
+    location.href = "privacy/";
+    return;
     const b = document.querySelector('[data-open-credits="privacy"]');
     if (b) b.click();
     else {

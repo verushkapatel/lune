@@ -11,5 +11,6 @@ rsync -a --exclude sw.js --exclude manifest.webmanifest --exclude manifest.json 
 cp frontend/index.html "$SITE/index.html"
 cp frontend/sw.js frontend/manifest.webmanifest "$SITE/"
 mkdir -p "$SITE/partners" && cp frontend/partners.html "$SITE/partners/index.html"
+mkdir -p "$SITE/privacy" && cp frontend/privacy.html "$SITE/privacy/index.html"
 grep -o 'v=lune[0-9]*' frontend/index.html | head -1 | cut -d= -f2 > "$SITE/deploy-stamp.txt"
 echo "Synced frontend into $SITE (stamp $(cat "$SITE/deploy-stamp.txt"))"

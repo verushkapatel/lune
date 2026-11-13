@@ -566,7 +566,7 @@ How to answer
     const m = active();
     if (m === providers.endpoint) return `Answers come from ${aiSettings().model.replace(/:latest$/, "")} on your own computer and can be wrong. Nothing leaves it.`;
     if (m === providers.device) return "Answers are written in this browser and can be wrong. Nothing leaves this device.";
-    return "Lune AI can be wrong. Lune’s server stores none of it; this chat stays in this browser.";
+    return "Lune AI can be wrong. Lune’s server keeps none of your questions; your chats are saved to your account.";
   }
 
   /*
