@@ -1407,3 +1407,120 @@ html body #lune-talk .lt-ring.r3 { z-index: 0; opacity: 0.62 !important; filter:
 html body #lune-talk .lt-ring.r2 { z-index: 1; }
 html body #lune-talk .lt-moon { z-index: 2 !important; position: relative; }
 html body #lune-talk .lt-orb[data-mode="listening"] .lt-ring.r3 { opacity: 0.85 !important; }
+
+/* ==========================================================================
+   Hero, final: keynote restraint. Smaller, tighter type in moonlit silver,
+   a light badge, slim buttons, room to breathe, and one signature moment:
+   a sheen of moonlight that passes across the headline.
+   ========================================================================== */
+html body #hero .mr-moon { --size: min(11vw, 12vh, 118px) !important; margin-bottom: clamp(18px, 3.2vh, 34px) !important;
+  filter: drop-shadow(0 0 40px rgba(170, 190, 255, 0.35)) drop-shadow(0 0 120px rgba(90, 120, 220, 0.25)) !important; }
+html body #hero .lp-pilot {
+  border: 0 !important; background: rgba(255, 255, 255, 0.06) !important; padding: 7px 16px 7px 12px !important; margin: 0 0 26px !important;
+  font-size: 15px !important; color: rgba(245, 245, 247, 0.62) !important; gap: 10px !important; backdrop-filter: blur(12px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+html body #hero .lp-pilot a { border: 0 !important; color: #f5f5f7 !important; }
+html body #hero .lp-pilot a::after { content: " →"; color: var(--navy-hi); }
+html body #hero .lp-pilot i { width: 6px !important; height: 6px !important; }
+
+html body #hero h1.mr-h, html body #hero h1.mr-h .mr-l1, html body #hero h1.mr-h .mr-l2 {
+  font-size: clamp(42px, 5.4vw, 82px) !important; line-height: 1.02 !important; letter-spacing: -0.022em !important;
+}
+html body #hero h1.mr-h { margin: 0 !important; }
+/* moonlit silver, with a sheen that crosses once as the page opens, then every few seconds, slowly */
+html body #hero h1.mr-h .mr-l1, html body #hero h1.mr-h .mr-l2 {
+  background: linear-gradient(100deg, #c9cfdc 0%, #ffffff 38%, #ffffff 46%, #dfe6ff 50%, #ffffff 54%, #ffffff 62%, #b9c1d3 100%) !important;
+  background-size: 250% 100% !important; background-position: 100% 0; -webkit-background-clip: text !important; background-clip: text !important;
+  -webkit-text-fill-color: transparent !important; color: transparent !important;
+  animation: mr-word 1.3s cubic-bezier(0.22, 1, 0.36, 1) both, lune-sheen 9s ease-in-out 1.8s infinite !important;
+}
+html body #hero h1.mr-h .mr-l1 { animation-delay: 0.45s, 1.8s !important; }
+html body #hero h1.mr-h .mr-l2 { animation-delay: 0.7s, 2.1s !important; padding-bottom: 0.08em; }
+@keyframes lune-sheen { 0% { background-position: 100% 0; } 28%, 100% { background-position: 0% 0; } }
+
+html body #hero .mr-sub { font-size: clamp(18px, 1.45vw, 21px) !important; line-height: 1.5 !important; max-width: 31em !important; margin-top: 22px !important; color: rgba(245, 245, 247, 0.62) !important; }
+html body #hero .hero-cta { margin-top: 34px !important; gap: 12px !important; }
+html body #hero .hero-cta button { min-height: 46px !important; padding: 0 24px !important; font-size: 17px !important; border-radius: 999px !important; }
+html body #hero .hero-cta .hero-cta-main { background: #f5f5f7 !important; color: #000 !important; box-shadow: 0 8px 30px -10px rgba(170, 190, 255, 0.45) !important; }
+html body #hero .hero-cta .hero-cta-alt { background: rgba(255, 255, 255, 0.06) !important; border: 0 !important; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12) !important; color: #f5f5f7 !important; }
+html body #hero .hero-cta .hero-cta-alt:hover { background: rgba(255, 255, 255, 0.11) !important; }
+html body #hero .mr-hint { font-size: 13px !important; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(245, 245, 247, 0.38) !important; }
+/* moonlight pooling behind the words, so the type sits in light rather than on a flat sky */
+html body #hero .mr-inner::before { content: ""; position: absolute; z-index: -1; left: 50%; top: 38%; width: min(900px, 90vw); height: 420px; translate: -50% -50%;
+  background: radial-gradient(closest-side, rgba(60, 86, 170, 0.22), transparent 70%); pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { html body #hero h1.mr-h .mr-l1, html body #hero h1.mr-h .mr-l2 { animation: none !important; background-position: 50% 0; } }
+html[data-theme="light"] body #hero h1.mr-h .mr-l1, html[data-theme="light"] body #hero h1.mr-h .mr-l2 { -webkit-text-fill-color: currentColor !important; background: none !important; }
+/* the logo: crescent and wordmark on one optical centre line, at every state (also while the page is still loading) */
+html body header.bar #btn-home.brand { display: inline-flex !important; align-items: center !important; gap: 12px !important; line-height: 1 !important; }
+html body header.bar #btn-home.brand .lune-mark { width: 17px !important; height: 17px !important; margin: 0 !important; transform: translateY(-0.5px); }
+html body header.bar #btn-home.brand .brand-name { line-height: 1 !important; padding-top: 2px; letter-spacing: 0.34em; }
+
+/* ---------- Lune AI on the phone, as Claude's iPhone app: greeting in the open space,
+   suggestions in one swipeable row, the message box at the bottom under the thumb ---------- */
+@media (max-width: 600px) {
+  html body #lune-chat.is-page.is-empty .chat-main { justify-content: flex-start !important; padding-bottom: max(12px, env(safe-area-inset-bottom)) !important; }
+  html body #lune-chat.is-page.is-empty #chat-log { flex: 1 1 auto !important; display: flex !important; align-items: center; justify-content: center; width: 100% !important; padding: 0 24px !important; }
+  html body #lune-chat.is-empty .ask-empty { flex-direction: column !important; gap: 14px !important; padding: 0 !important; }
+  html body #lune-chat.is-empty .ask-empty-orb { width: 34px !important; height: 34px !important; }
+  html body #lune-chat.is-empty .ask-empty-h { font-size: 30px !important; text-align: center; max-width: 11em; text-wrap: balance; }
+  html body #lune-chat.is-page.is-empty #chat-starters {
+    order: 3 !important; display: flex !important; flex-wrap: nowrap !important; justify-content: flex-start !important; overflow-x: auto !important;
+    width: 100% !important; max-width: none !important; padding: 0 16px 10px !important; margin: 0 !important; gap: 8px !important; scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 16px, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(90deg, transparent 0, #000 16px, #000 calc(100% - 24px), transparent);
+  }
+  html body #lune-chat.is-page.is-empty #chat-starters::-webkit-scrollbar { display: none; }
+  html body #lune-chat.is-page.is-empty #chat-starters button { flex: 0 0 auto !important; white-space: nowrap; min-height: 40px; padding: 0 16px !important; text-align: left; }
+  html body #lune-chat.is-page #chat-form { order: 4 !important; width: auto !important; margin: 0 12px !important; padding: 0 !important; }
+  html body #lune-chat .lc-composer { min-height: 96px !important; border-radius: 22px !important; }
+  html body #lune-chat.is-page #chat-fine { order: 5 !important; position: static !important; margin: 8px 20px 0 !important; font-size: 11px !important; line-height: 1.4; }
+}
+/* phone home: the chip row fades at the edge instead of being chopped; the Next card's two actions match */
+@media (max-width: 600px) {
+  html body #home-ask-chips { scrollbar-width: none; justify-content: flex-start !important; -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent); padding-right: 28px !important; }
+  html body #home-ask-chips::-webkit-scrollbar { display: none; }
+  html body #home-member .member-next-actions { display: grid !important; grid-template-columns: 1fr 1fr; gap: 10px !important; }
+  html body #home-member .member-next-actions > button { width: 100% !important; min-height: 46px; justify-content: center; padding: 0 12px !important; margin: 0 !important; }
+}
+
+/* ---------- every button: Garamond carries extra room above its letters, so text sat high in pills and
+   arrows sat low beside it. Trimming the font box to the letters centres both exactly. ---------- */
+@supports (text-box: trim-both cap alphabetic) {
+  html body button, html body .btn, html body a.primary, html body a.quiet, html body .lp-pilot, html body .rep-chip, html body .access-option strong {
+    text-box: trim-both cap alphabetic;
+  }
+}
+html body button svg, html body .btn svg { flex: none; vertical-align: middle; }
+@media (max-width: 600px) {
+  html body #home-member .member-next-actions > button { white-space: nowrap; font-size: 16px !important; }
+}
+
+/* ---------- Plan my week, inside Lune AI ---------- */
+html body .lune-chat .la-week { list-style: none; margin: 14px 0 16px !important; padding: 0 !important; border-top: 1px solid rgba(255, 255, 255, 0.1); }
+html body .lune-chat .la-week li { display: grid; grid-template-columns: 7.5em 1fr; gap: 12px; padding: 11px 0 !important; border-bottom: 1px solid rgba(255, 255, 255, 0.08); margin: 0 !important; }
+html body .lune-chat .la-week li strong { font-weight: 500; color: var(--navy-hi); font-style: italic; }
+html body .lune-chat .la-week li span { color: rgba(245, 245, 247, 0.86); }
+html body .lune-chat .la-plan-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+html body .lune-chat .la-plan-actions .la-act { min-height: 40px; padding: 0 18px; border-radius: 999px; font: 400 16px var(--ui); border: 0; cursor: pointer;
+  background: rgba(255, 255, 255, 0.08); color: #f5f5f7; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12); }
+html body .lune-chat .la-plan-actions .la-act.primary { background: #f5f5f7; color: #000; box-shadow: none; }
+html body .lune-chat .la-plan-actions .la-act.on { background: var(--navy-mid); color: #fff; box-shadow: none; }
+html body .lune-chat .la-planning { color: rgba(245, 245, 247, 0.6); font-style: italic; animation: la-pulse 1.6s ease-in-out infinite; }
+@keyframes la-pulse { 50% { opacity: 0.45; } }
+html body .lune-chat .la-replies { margin-top: 12px; }
+@media (max-width: 600px) { html body .lune-chat .la-week li { grid-template-columns: 1fr; gap: 2px; } }
+html[data-theme="light"] body .lune-chat .la-week, html[data-theme="light"] body .lune-chat .la-week li { border-color: rgba(0, 0, 0, 0.1); }
+html[data-theme="light"] body .lune-chat .la-week li strong { color: var(--navy-mid); }
+html[data-theme="light"] body .lune-chat .la-week li span { color: rgba(0, 0, 0, 0.8); }
+html[data-theme="light"] body .lune-chat .la-plan-actions .la-act { background: rgba(0, 0, 0, 0.05); color: #111; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12); }
+html[data-theme="light"] body .lune-chat .la-plan-actions .la-act.primary { background: #111; color: #fff; }
+/* the Lune AI top bar: close and history at the left edge, the title centred, voice at the right; solid, so answers scroll beneath it cleanly */
+html body #lune-chat.is-page .chat-head { display: grid !important; grid-template-columns: 1fr auto 1fr !important; align-items: center !important; padding: 8px 12px !important;
+  background: rgba(0, 0, 0, 0.82) !important; backdrop-filter: saturate(1.4) blur(18px) !important; -webkit-backdrop-filter: saturate(1.4) blur(18px) !important; z-index: 5; }
+html body #lune-chat.is-page .chat-head .chat-lead { justify-self: start; display: flex; gap: 2px; }
+html body #lune-chat.is-page .chat-head .chat-id { justify-self: center; width: auto !important; }
+html body #lune-chat.is-page .chat-head .chat-id h2 { margin: 0 !important; }
+html body #lune-chat.is-page .chat-head .ask-head-end { justify-self: end; }
+html[data-theme="light"] body #lune-chat.is-page .chat-head { background: rgba(255, 255, 255, 0.85) !important; }
+html body #lune-chat .chat-bubble .la-week + p, html body #lune-chat .chat-bubble > p + p { margin-top: 10px; }
+html body #lune-chat.is-page .chat-head { max-width: none !important; width: auto !important; margin: 0 !important; }

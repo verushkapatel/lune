@@ -25,3 +25,8 @@ ALLOWED_ORIGINS = "https://lune.page,https://www.lune.page,https://verushkapatel
 name = "PER_ACCOUNT"
 namespace_id = "1001"
 simple = { limit = 10, period = 60 }
+
+# The morning email: once an hour, Lune writes to everyone whose 7 am it is.
+# Inert until RESEND_API_KEY and SUPABASE_SERVICE_ROLE_KEY are set as secrets.
+[triggers]
+crons = ["0 * * * *"]

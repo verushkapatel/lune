@@ -1,3 +1,4 @@
+import { sendMorningEmails, unsubscribe } from "./daily.js";
 /* Lune AI: the server side of Ask Lune for people with a Lune account.
  *
  * A Cloudflare Worker. It answers with an open-weight model on Cloudflare
@@ -303,6 +304,8 @@ export function plainStream(stream) {
 
 export async function handle(req, env, fetchImpl = fetch) {
   const url = new URL(req.url);
+  // the morning email's unsubscribe link and Gmail's one-click Unsubscribe
+  if (url.pathname === "/unsubscribe") return unsubscribe(req, env, fetchImpl);
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(req, env) });
   if (req.method === "GET" && url.pathname === "/health") return json(req, env, 200, { ok: true, model: env.MODEL });
   const routes = ["/ask", "/transcribe", "/speak"];
@@ -400,4 +403,8 @@ export async function handle(req, env, fetchImpl = fetch) {
   }
 }
 
-export default { fetch: (req, env) => handle(req, env) };
+export default {
+  fetch: (req, env) => handle(req, env),
+  // every hour: the morning email for everyone whose 7 am it is (does nothing until its secrets are set)
+  scheduled: (event, env, ctx) => ctx.waitUntil(sendMorningEmails(env)),
+};

@@ -320,3 +320,26 @@ on conflict (id) do nothing;
 drop policy if exists "upload a shared score" on storage.objects;
 create policy "upload a shared score" on storage.objects for insert to authenticated
   with check (bucket_id = 'contributions' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ---------------------------------------------------------------------------
+-- Added November 2026: the morning email. A pianist turns it on (it is never on
+-- by default); the Lune AI worker writes each one from their own plan, pieces
+-- and the bars due back, and sends it at about 7 am in their time zone. Every
+-- email carries a one-click unsubscribe (Gmail shows it beside the sender),
+-- which uses the private token below and needs no sign-in.
+create table if not exists public.daily_emails (
+  user_id uuid primary key references auth.users (id) on delete cascade default auth.uid(),
+  enabled boolean not null default false,
+  send_hour smallint not null default 7 check (send_hour between 0 and 23),
+  tz text not null default 'Europe/London' check (char_length(tz) <= 64),
+  token uuid not null default gen_random_uuid() unique,
+  last_sent date,
+  updated_at timestamptz not null default now()
+);
+alter table public.daily_emails enable row level security;
+drop policy if exists "my morning email" on public.daily_emails;
+create policy "my morning email" on public.daily_emails for all to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+-- the token is for the unsubscribe link only: signed-in clients can read every column but it
+revoke select on public.daily_emails from authenticated, anon;
+grant select (user_id, enabled, send_hour, tz, last_sent, updated_at) on public.daily_emails to authenticated;

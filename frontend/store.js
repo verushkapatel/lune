@@ -784,6 +784,25 @@ window.LuneStore = (function () {
     return true;
   }
 
+  /* ---------------- the morning email (opt-in; unsubscribe from the email itself) ---------------- */
+  async function dailyEmail() {
+    if (!remote()) return null;
+    const { data, error } = await client.from("daily_emails").select("enabled, send_hour, tz").eq("user_id", session.user.id).maybeSingle();
+    return error ? null : data || { enabled: false };
+  }
+  async function setDailyEmail(enabled, { hour = 7 } = {}) {
+    if (!remote()) throw new Error("Sign in with your email first, then Lune can write to you each morning.");
+    let tz = "Europe/London";
+    try {
+      tz = Intl.DateTimeFormat().resolvedOptions().timeZone || tz;
+    } catch {
+      /* the default zone */
+    }
+    const { error } = await client.from("daily_emails").upsert({ user_id: session.user.id, enabled: !!enabled, send_hour: hour, tz }, { onConflict: "user_id" });
+    if (error) throw new Error(/daily_emails|relation|schema cache|PGRST205|42P01/i.test(`${error.code} ${error.message}`) ? "Morning emails aren't switched on for Lune yet." : "Couldn't save that just now. Try again in a moment.");
+    return true;
+  }
+
   async function markPractised(pieceKey) {
     if (!(await getPiece(pieceKey))) return;
     await updatePiece(pieceKey, { last_practised_at: nowIso() });
@@ -1297,6 +1316,8 @@ window.LuneStore = (function () {
     addTask,
     loadChats,
     contributeScore,
+    dailyEmail,
+    setDailyEmail,
     saveChats,
     deleteChat,
     updateTask,

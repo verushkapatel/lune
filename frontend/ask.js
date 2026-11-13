@@ -2120,6 +2120,9 @@ How to answer
     paintChat();
   }
   function paintHistoryList() {
+    // signed in, chats are kept in the account; otherwise only in this browser
+    const foot = document.querySelector("#lune-chat .ch-foot");
+    if (foot) foot.textContent = window.LuneStore?.status?.()?.mode === "cloud" ? "Saved to your Lune account." : "Saved only in this browser.";
     const box = $("chat-hist-list");
     if (!box) return;
     const st = chatStore();
@@ -2296,6 +2299,7 @@ How to answer
         return;
       }
       if (e.target.closest?.("[data-chat-new]")) {
+        planner = null;
         saveChat([]);
         paintChat();
         if (!wide()) hist(false);
@@ -2328,6 +2332,7 @@ How to answer
       if (!text || writing) return;
       input.value = "";
       fitChat();
+      if (planner) return plannerReply(text);
       chatAsk(text);
     };
     const fitChat = wireComposer("chat", sendChat);
@@ -2539,6 +2544,147 @@ How to answer
     return answer;
   }
 
+  /*
+   * Plan my week, as a conversation. Lune asks three things (what you want to
+   * get done, which days, how long), each with replies you can tap, then writes
+   * the week with the model, saves it as this week's plan and offers to email
+   * you each morning. Anything can be typed instead of tapped.
+   */
+  let planner = null;
+  const PLAN_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const PLAN_DAY_NAMES = { Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday", Fri: "Friday", Sat: "Saturday", Sun: "Sunday" };
+
+  function plannerSay(html, replies = []) {
+    const bubble = chatLine("lune", "");
+    bubble.innerHTML = String(html).replace(/>\s+</g, "><").trim() + (replies.length ? `<div class="la-replies" role="group" aria-label="Quick replies">${replies.map((r) => `<button type="button" class="la-reply">${esc(r)}</button>`).join("")}</div>` : "");
+    const log = chatLog();
+    log.push({ who: "lune", text: bubble.textContent.replace(/\s+/g, " ").trim(), via: "note", t: Date.now() });
+    saveChat(log);
+    $("chat-log").scrollTop = $("chat-log").scrollHeight;
+    return bubble;
+  }
+  function plannerHeard(text) {
+    chatLine("you", text);
+    const log = chatLog();
+    log.push({ who: "you", text, t: Date.now() });
+    saveChat(log);
+  }
+  function parsePlanDays(text) {
+    const t = String(text).toLowerCase();
+    if (/every ?day|daily|all week|7 days|seven days/.test(t)) return [...PLAN_DAYS];
+    if (/week ?days|weekdays|monday to friday|mon(day)?\s*-\s*fri/.test(t)) return PLAN_DAYS.slice(0, 5);
+    if (/week ?ends?/.test(t)) return ["Sat", "Sun"];
+    const named = PLAN_DAYS.filter((d) => new RegExp(`\\b${d.toLowerCase()}`).test(t));
+    if (named.length) return named;
+    const n = Number((t.match(/\b([1-7])\b|\b(one|two|three|four|five|six|seven)\b/) || []).slice(1).find(Boolean));
+    const words = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7 };
+    const count = n || words[(t.match(/\b(one|two|three|four|five|six|seven)\b/) || [])[1]] || 0;
+    // spread n days across the week: 3 → Mon, Wed, Fri
+    const spread = { 1: ["Sat"], 2: ["Tue", "Sat"], 3: ["Mon", "Wed", "Fri"], 4: ["Mon", "Tue", "Thu", "Sat"], 5: PLAN_DAYS.slice(0, 5), 6: PLAN_DAYS.slice(0, 6), 7: [...PLAN_DAYS] };
+    return spread[count] || [];
+  }
+  function parsePlanMins(text) {
+    const t = String(text).toLowerCase();
+    const h = t.match(/(\d+(?:\.\d+)?)\s*(h|hour|hr)/);
+    if (h) return Math.round(Number(h[1]) * 60);
+    if (/an hour|one hour/.test(t)) return 60;
+    if (/half an hour/.test(t)) return 30;
+    const m = t.match(/(\d{1,3})/);
+    return m ? Math.max(5, Math.min(180, Number(m[1]))) : 0;
+  }
+
+  async function planWeek() {
+    goAiPage();
+    if (!active()) {
+      // no Lune AI on this device yet: the short form still makes a plan
+      return window.LunePlans?.openWizard?.();
+    }
+    await new Promise((r) => setTimeout(r, 80));
+    saveChat([]);
+    paintChat();
+    $("chat-starters").innerHTML = "";
+    $("lune-chat")?.classList.remove("is-empty");
+    $("chat-log").querySelector(".ask-empty")?.remove();
+    planner = { step: "goal" };
+    let pieces = [];
+    try {
+      pieces = ((await window.LuneStore?.listPieces?.()) || []).filter((p) => (p.status || "learning") !== "ready").slice(0, 2);
+    } catch {
+      pieces = [];
+    }
+    const goals = [...pieces.map((p) => `Learn more of ${String(p.title).replace(/\s*\(.*\)$/, "").slice(0, 34)}`), "Fix my hardest bars", "Get a piece ready to perform"].slice(0, 4);
+    plannerSay(`<p>Let’s plan your week. <strong>What do you want to get done by Sunday?</strong></p>`, goals);
+    setTimeout(() => $("chat-input")?.focus({ preventScroll: true }), 120);
+  }
+
+  async function plannerReply(text) {
+    const p = planner;
+    if (!p) return;
+    plannerHeard(text);
+    if (p.step === "goal") {
+      p.goal = text.slice(0, 300);
+      p.step = "days";
+      return plannerSay(`<p>Good goal. <strong>Which days can you practise?</strong></p>`, ["Every day", "Weekdays", "Mon, Wed, Fri", "Weekends"]);
+    }
+    if (p.step === "days") {
+      const days = parsePlanDays(text);
+      if (!days.length) return plannerSay(`<p>Which days, for example “Mon, Wed, Fri” or “weekdays”?</p>`, ["Every day", "Weekdays", "Mon, Wed, Fri", "Weekends"]);
+      p.days = days;
+      p.step = "mins";
+      return plannerSay(`<p>${days.length === 7 ? "Every day" : days.map((d) => PLAN_DAY_NAMES[d]).join(", ")}. <strong>About how long each day?</strong></p>`, ["15 minutes", "20 minutes", "30 minutes", "45 minutes", "1 hour"]);
+    }
+    if (p.step === "mins") {
+      const mins = parsePlanMins(text);
+      if (!mins) return plannerSay(`<p>Roughly how many minutes a day?</p>`, ["15 minutes", "20 minutes", "30 minutes", "45 minutes", "1 hour"]);
+      p.mins = mins;
+      p.step = "making";
+      const wait = plannerSay(`<p class="la-planning">Planning your week around your pieces and the bars that need you…</p>`);
+      let plan = null;
+      try {
+        if (window.LunePlans?.planMode?.() !== "plan") window.LunePlans?.setPlanMode?.("plan");
+        plan = await window.LunePlans?.makePlan?.({ goal: p.goal, days: p.days, mins: p.mins });
+      } catch {
+        plan = null;
+      }
+      wait.closest(".chat-row")?.remove();
+      planner = null;
+      if (!plan) return plannerSay(`<p>I couldn’t make the plan just now. Try again in a moment.</p>`);
+      document.dispatchEvent(new CustomEvent("lune:plan-mode", { detail: { mode: "plan" } }));
+      const rows = plan.days
+        .map((d) => `<li><strong>${PLAN_DAY_NAMES[d.day] || d.day}</strong><span>${d.items.map((i) => esc(i.text)).join(" · ")}</span></li>`)
+        .join("");
+      const emailOn = await window.LuneStore?.dailyEmail?.().catch?.(() => null);
+      const bubble = plannerSay(
+        `<p>Here is your week, ${p.mins} minutes a day, aiming for: <em>${esc(p.goal)}</em>.</p><ul class="la-week">${rows}</ul>
+         <p>It’s saved in your Repertoire, and each day I’ll bring back the bars that need you.</p>
+         <div class="la-plan-actions"><button type="button" class="la-act primary" data-plan-open>Open my week</button>${
+           emailOn && !emailOn.enabled ? `<button type="button" class="la-act" data-daily-email>Email me each morning</button>` : ""
+         }<button type="button" class="la-act" data-plan-again>Change something</button></div>`
+      );
+      bubble.querySelector("[data-plan-open]")?.addEventListener("click", () => {
+        location.hash = "#/repertoire";
+      });
+      bubble.querySelector("[data-plan-again]")?.addEventListener("click", () => planWeek());
+      return;
+    }
+  }
+
+  // "Email me each morning", wherever it is offered
+  document.addEventListener("click", async (e) => {
+    const b = e.target.closest?.("[data-daily-email]");
+    if (!b) return;
+    b.disabled = true;
+    try {
+      await window.LuneStore.setDailyEmail(true);
+      b.textContent = "Morning emails on";
+      b.classList.add("on");
+      window.toast?.("Each morning Lune will email you today’s practice. Unsubscribe any time from the email.");
+    } catch (err) {
+      b.disabled = false;
+      window.toast?.(err?.message || "Couldn’t turn on the morning email. Sign in first.");
+    }
+  });
+
   /** Ask a question on the Lune AI page, in a new chat. */
   async function askOnPage(text) {
     goAiPage();
@@ -2700,5 +2846,5 @@ How to answer
   for (const task of Object.keys(TASKS)) LuneAIProvider[task] = (bar, ...args) => LuneAIProvider.run(task, bar, ...args);
   window.LuneAIProvider = LuneAIProvider;
 
-  return { planButtons: addPlanButtons, explainMarking, openTalk, openChatPage, goAiPage, askOnPage, chatStore, askModel: async (q, ctx) => { const m = active(); return m ? m.answer(q, ctx) : null; }, openChat, paintAiHome, buildChatContext, open, close, ask, historyFor, onSelection, buildContext, aiSettings, SYSTEM_PROMPT, TASKS, MODEL_ACTIONS, runTask, paintNews, voice, modelConnected: () => !!active(), deviceOfferHtml, turnOnDeviceAI, testModel: () => providers.endpoint.answer("Reply with the single word: ready", { test: true }) };
+  return { planWeek, planButtons: addPlanButtons, explainMarking, openTalk, openChatPage, goAiPage, askOnPage, chatStore, askModel: async (q, ctx) => { const m = active(); return m ? m.answer(q, ctx) : null; }, openChat, paintAiHome, buildChatContext, open, close, ask, historyFor, onSelection, buildContext, aiSettings, SYSTEM_PROMPT, TASKS, MODEL_ACTIONS, runTask, paintNews, voice, modelConnected: () => !!active(), deviceOfferHtml, turnOnDeviceAI, testModel: () => providers.endpoint.answer("Reply with the single word: ready", { test: true }) };
 })();

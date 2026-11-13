@@ -448,7 +448,9 @@ window.LunePlans = (function () {
   document.addEventListener("click", (e) => {
     if (e.target.closest?.("[data-wp-open], [data-wp-new], [data-wp-choose='plan']")) {
       e.preventDefault();
-      openWizard();
+      // with Lune AI: a conversation that asks, plans and saves; without it, the short form
+      if (window.LuneAsk?.planWeek && window.LuneAsk.modelConnected?.()) window.LuneAsk.planWeek();
+      else openWizard();
     }
     if (e.target.closest?.("[data-wp-free], [data-wp-choose='free']")) {
       e.preventDefault();

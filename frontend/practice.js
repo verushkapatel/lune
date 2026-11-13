@@ -2549,6 +2549,7 @@ window.LunePractice = (function () {
         ${window.LunePlans?.planMode?.() === "free" ? row("plan-week", "Plan my week", "Turn on a weekly plan") : row("plan-week", "Change my week’s plan", "Days, minutes and goal")}
         ${window.LunePlans?.planMode?.() === "free" ? "" : row("plan-free", "No schedule", "Play whenever it suits you")}
         ${signedIn ? row("week", "This week", "Your progress") : ""}
+        ${signedIn ? row("daily-email", "Morning email from Lune", "Today’s practice in your inbox at 7 am") : ""}
         ${row("tour", "Show me around", "Three steps on a real score")}
         ${row("example-week", "How this week works", "A quick example")}
       </section>
@@ -2751,7 +2752,25 @@ window.LunePractice = (function () {
         }
       }
       else if (act === "chat") window.LuneAsk?.goAiPage?.();
-      else if (act === "plan-week") window.LunePlans?.openWizard?.();
+      else if (act === "plan-week") {
+        d.close?.();
+        if (window.LuneAsk?.planWeek && window.LuneAsk.modelConnected?.()) window.LuneAsk.planWeek();
+        else window.LunePlans?.openWizard?.();
+      }
+      else if (act === "daily-email") {
+        (async () => {
+          const cur = await window.LuneStore?.dailyEmail?.().catch(() => null);
+          const on = !cur?.enabled;
+          try {
+            await window.LuneStore.setDailyEmail(on);
+            const span = d.querySelector('[data-set="daily-email"] span');
+            if (span) span.textContent = on ? "On: each morning at 7 am. Tap to turn off" : "Off. Tap to get today’s practice each morning";
+            window.toast?.(on ? "Lune will email you each morning. Unsubscribe any time from the email." : "Morning emails are off");
+          } catch (err) {
+            window.toast?.(err?.message || "Couldn’t change that just now");
+          }
+        })();
+      }
       else if (act === "plan-free") { window.LunePlans?.setPlanMode?.("free"); d.close?.(); }
       else if (act === "upload") $("file")?.click();
       else if (act === "feedback") window.LuneFeedback?.open?.();
