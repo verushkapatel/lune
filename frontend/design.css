@@ -1279,3 +1279,15 @@ html body #home-member .member-next-actions { display: flex; flex-wrap: wrap; ga
 html body #home-member .member-next:not(:has(img)) > * { max-width: 34em !important; }
 html body #home-member .member-next h2 { margin-bottom: 10px !important; text-wrap: balance; }
 html body #home-member .member-next .member-next-why { margin-bottom: 22px !important; line-height: 1.55; }
+
+/* ---------- landing: free while in pilot, and the way to partners ---------- */
+html body .lp-pilot { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 22px; padding: 6px 14px; border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px; font-size: 15px; color: rgba(245, 245, 247, 0.72); background: rgba(0, 0, 0, 0.28); backdrop-filter: blur(10px); }
+html body .lp-pilot i { width: 7px; height: 7px; border-radius: 50%; background: var(--navy-hi); box-shadow: 0 0 0 4px rgba(159, 178, 228, 0.2); }
+html body .lp-pilot a { color: #f5f5f7; text-decoration: none; border-bottom: 1px solid var(--navy-hi); }
+html body .lp-partner-line { margin-top: 28px !important; font-size: 17px; color: rgba(245, 245, 247, 0.6); }
+html body .lp-partner-line a { color: inherit; border-bottom: 1px solid var(--navy-hi); text-decoration: none; }
+html[data-theme="light"] body .lp-pilot { color: rgba(0, 0, 0, 0.7); background: rgba(255, 255, 255, 0.6); border-color: rgba(0, 0, 0, 0.12); }
+html[data-theme="light"] body .lp-pilot a { color: #111; border-color: var(--navy-mid); }
+html[data-theme="light"] body .lp-partner-line { color: rgba(0, 0, 0, 0.6); }
+@media (max-width: 480px) { html body .lp-pilot { font-size: 14px; } }
