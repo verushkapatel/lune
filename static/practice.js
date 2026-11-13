@@ -1579,7 +1579,7 @@ window.LunePractice = (function () {
         <section class="rep-section rep-week" aria-labelledby="rep-week-h">
           <div class="rep-today-head">
             <h2 id="rep-week-h">This week</h2>
-            <button type="button" class="quiet rep-plan-week" data-wp-open><span aria-hidden="true">＋</span> Plan your piano schedule</button>
+            <button type="button" class="quiet rep-plan-week" data-wp-open><span aria-hidden="true">＋</span> Plan my schedule</button>
           </div>
           <div id="rep-week-plan"></div>
         </section>
@@ -1805,12 +1805,12 @@ window.LunePractice = (function () {
       const bar = window.LuneImpact?.weekBarHtml ? `<div class="wk">${window.LuneImpact.weekBarHtml()}</div>` : "";
       const mode = window.LunePlans?.planMode?.();
       weekHost.innerHTML = mode === "free"
-        ? `<div class="rep-empty wk-choose-row"><p>No schedule. Practise whenever it suits you.</p><span class="wk-opts"><button type="button" class="quiet" data-wp-choose="plan">Plan your piano schedule</button></span></div>`
+        ? `<div class="rep-empty wk-choose-row"><p>No schedule. Practise whenever it suits you.</p><span class="wk-opts"><button type="button" class="quiet" data-wp-choose="plan">Plan my schedule</button></span></div>`
         : wp
           ? bar + window.LunePlans.planHtml(wp)
           : mode === "plan"
-            ? `<p class="rep-empty">Lune is making this week’s plan from your goal…</p>`
-            : `<div class="rep-empty wk-choose-row"><p>Lune can build your piano schedule around your goal, or you can play whenever it suits you.</p><span class="wk-opts"><button type="button" class="quiet wk-go" data-wp-choose="plan">Plan your piano schedule</button><button type="button" class="quiet" data-wp-choose="free">No schedule</button></span></div>`;
+            ? `<p class="rep-empty">Lune is building this week’s schedule from your goal…</p>`
+            : `<div class="rep-empty wk-choose-row"><p>Lune can build your schedule around your goal, or you can play whenever it suits you.</p><span class="wk-opts"><button type="button" class="quiet wk-go" data-wp-choose="plan">Plan my schedule</button><button type="button" class="quiet" data-wp-choose="free">No schedule</button></span></div>`;
       // P1-23: one "Plan my week" per card. The header button only appears once there is a plan to change.
       const headBtn = document.querySelector(".rep-plan-week[data-wp-open]");
       if (headBtn) {
@@ -2035,6 +2035,12 @@ window.LunePractice = (function () {
   }
 
   function showRepertoire({ push = true } = {}) {
+    // the Repertoire belongs to an account
+    if (window.LuneOnboard && !LuneOnboard.signedIn?.()) {
+      if (location.hash === "#/repertoire") history.replaceState(null, "", `${location.pathname}${location.search}#/`);
+      LuneOnboard.requireSignIn?.("Sign in to keep a Repertoire. It’s free while Lune is in pilot.");
+      return;
+    }
     if (window.LuneOnboard && !LuneOnboard.requireUnlock()) return;
     ensureRepertoireView();
     stopAll();
@@ -2086,11 +2092,12 @@ window.LunePractice = (function () {
     const st = store.status();
     const privacy = `<h3>Privacy</h3>
       <ul>
-        <li>An account stores your email address, the pieces in your Repertoire, your bar notes, practice plans and listening stumbles — nothing else.</li>
+        <li>An account stores your email address and your practice: your Repertoire, bar notes and ratings, plans and schedule, Lune AI chats and, for teachers, your Studio. The Privacy page lists it all.</li>
         <li>When cloud sync is on, your rows are locked to your account. Nothing is sold, shared or used for ads.</li>
         <li>Microphone audio for voice notes and listening is processed in your browser. Lune never records or uploads audio.</li>
         <li>Under 13? Ask a parent or guardian before making an account. You can download or delete everything at any time.</li>
-      </ul>`;
+      </ul>
+      <p class="settings-note">Everything Lune keeps, in full: <a href="privacy/">Privacy</a>.</p>`;
     if (!st.signedIn) {
       d.innerHTML = `${closeRow}<h2>Sign in to keep Lune</h2>
         <p>Explore first — then sign in with email (no password) so repertoire, notes and plans stay with you.</p>
@@ -2555,7 +2562,7 @@ window.LunePractice = (function () {
           <select id="set-mins" aria-describedby="set-mins-note">${[10, 15, 20, 30, 45, 60, 90].map((n) => `<option ${n === mins ? "selected" : ""}>${n}</option>`).join("")}</select>
         </div>
         <p class="settings-note" id="set-mins-note">Plans fit this. Lune never times you.</p>
-        ${window.LunePlans?.planMode?.() === "free" ? row("plan-week", "Plan your piano schedule", "Days, minutes, pieces, reminders") : row("plan-week", "Edit your piano schedule", "Days, minutes and goal")}
+        ${window.LunePlans?.planMode?.() === "free" ? row("plan-week", "Plan my schedule", "Days, minutes, pieces, reminders") : row("plan-week", "Edit my schedule", "Days, minutes and goal")}
         ${window.LunePlans?.planMode?.() === "free" ? "" : row("plan-free", "No schedule", "Play whenever it suits you")}
         ${signedIn ? row("week", "This week", "Your progress") : ""}
         ${signedIn ? row("daily-email", "Morning email from Lune", "Today’s practice in your inbox at 7 am") : ""}
@@ -2803,6 +2810,8 @@ window.LunePractice = (function () {
 
   /** The privacy statement on a page of its own (the same text as in Credits). */
   function openPrivacy() {
+    location.href = "privacy/";
+    return;
     const d = dialog("privacy-dialog");
     const list = document.querySelector("#credits-privacy + ul")?.outerHTML || "";
     d.innerHTML = `${closeRow}<h2>Privacy</h2>${list}<p class="settings-note">Questions about your data: <a href="mailto:info@lune.page">info@lune.page</a>.</p>`;
@@ -3095,6 +3104,8 @@ window.LunePractice = (function () {
   }
 
   function openCreditsPrivacy() {
+    location.href = "privacy/";
+    return;
     const b = document.querySelector('[data-open-credits="privacy"]');
     if (b) b.click();
     else {
@@ -3929,7 +3940,7 @@ window.LunePractice = (function () {
     const face = window.luneFace?.(n.composer);
     const html = `${face ? `<span class="member-next-face" aria-hidden="true" style="background-image:url('${face}')"></span>` : ""}<p class="member-next-k">Next</p>
       <h2 id="member-next-h">${esc(n.title)}</h2>
-      ${n.composer ? `<p class="member-next-by">${esc(n.composer)}</p>` : ""}
+      ${n.composer ? `<p class="member-next-by">${esc(String(n.composer).replace(/(\S)\(/, "$1 ("))}</p>` : ""}
       ${n.detail ? `<p class="member-next-detail">${esc(n.detail)}</p>` : ""}
       <p class="member-next-why">${esc(n.why)}</p>
       <div class="member-next-actions">${

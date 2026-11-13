@@ -2001,6 +2001,36 @@ window.LuneOnboard = (function () {
     return false;
   }
 
+  /*
+   * Without an account, anyone can open a score (Clair de lune included), hear
+   * it, see every note named and try the practice room. Lune AI and the
+   * Repertoire are for people who sign in: tapping either asks them to.
+   */
+  const GATED_AI = '#btn-tell, .st-ask, .lp-askbar, [data-lp="ask"], [data-lp="ask-talk"], [data-lp="ask-mic"], .lp-ai-row button, [data-ask-piece], [data-plan-schedule], [data-signin-ai]';
+  const GATED_REP = '#btn-repertoire, [data-go-rep], [data-lp-add], [data-wp-open], [data-wp-new], [data-wp-choose="plan"]';
+  document.addEventListener(
+    "click",
+    (e) => {
+      if (signedIn()) return;
+      const ai = e.target.closest?.(GATED_AI);
+      const rep = !ai && e.target.closest?.(GATED_REP);
+      if (!ai && !rep) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      requireSignIn(ai ? "Sign in to use Lune AI. It’s free while Lune is in pilot." : "Sign in to keep a Repertoire. It’s free while Lune is in pilot.");
+    },
+    true
+  );
+  document.addEventListener(
+    "focusin",
+    (e) => {
+      if (signedIn() || !e.target.closest?.("#lp-ask-input")) return;
+      e.target.blur();
+      requireSignIn("Sign in to use Lune AI. It’s free while Lune is in pilot.");
+    },
+    true
+  );
+
   /**
    * Every library piece opens without an account — Clair de lune included, so
    * a first visit can see the real studio. Sign-in keeps plans and syncs them.

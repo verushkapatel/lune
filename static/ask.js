@@ -566,7 +566,7 @@ How to answer
     const m = active();
     if (m === providers.endpoint) return `Answers come from ${aiSettings().model.replace(/:latest$/, "")} on your own computer and can be wrong. Nothing leaves it.`;
     if (m === providers.device) return "Answers are written in this browser and can be wrong. Nothing leaves this device.";
-    return "Lune AI can be wrong. Lune’s server stores none of it; this chat stays in this browser.";
+    return "Lune AI can be wrong. Lune’s server keeps none of your questions; your chats are saved to your account.";
   }
 
   /*
@@ -2053,6 +2053,7 @@ How to answer
 
   const CHAT_KEY = "lune.chat.v1";
   const CHAT_STARTERS = [
+    "Plan my schedule",
     "What should I practise today?",
     "Summarise my week",
     "Make me a 20 minute plan",
@@ -2556,6 +2557,11 @@ How to answer
   });
 
   async function chatAsk(text) {
+    // "plan my week", "plan my schedule": the four questions, not a free answer
+    if (!planner && /^\s*(plan|make|build|set up)\s+(me\s+)?(my|a)\s+(practice\s+)?(week|schedule|weekly plan|practice schedule)\b/i.test(String(text || ""))) {
+      planWeek();
+      return "";
+    }
     // "send Meera her homework every Monday at 5 pm" (teachers), or
     // "email me a summary every Sunday at 6 pm": Lune sets it up, no model needed
     const hw = window.LuneStudio?.parseHomeworkRequest?.(text);
@@ -2680,11 +2686,95 @@ How to answer
     return m ? Math.max(5, Math.min(180, Number(m[1]))) : 0;
   }
 
+  /*
+   * Plan my schedule, in four questions. Each question is a card, as ChatGPT
+   * asks them: the question, numbered answers to tap (or press 1–9), a line to
+   * type something else, and Skip. The answers build the same timed week as the
+   * schedule planner, which can then fine-tune it block by block.
+   */
+  const PLAN_INCLUDE = [
+    ["warmup", "Warm-up"],
+    ["technique", "Scales and technique"],
+    ["sight", "Sight-reading"],
+    ["hardFirst", "Hard bars first"],
+  ];
+  function plannerAsk({ n, total, q, sub = "", options = [], multi = false, other = "Something else…", skip = "" }) {
+    const bubble = chatLine("lune", "");
+    bubble.classList.add("qa-bubble");
+    bubble.innerHTML = `<div class="qa" role="group" aria-label="${esc(q)}" data-multi="${multi ? 1 : 0}" data-skip="${esc(skip)}">
+      <p class="qa-k">Question ${n} of ${total}</p>
+      <p class="qa-q">${esc(q)}</p>
+      ${sub ? `<p class="qa-sub">${esc(sub)}</p>` : ""}
+      <ol class="qa-opts">${options
+        .map(
+          (o, i) => `<li><button type="button" class="qa-opt" data-v="${esc(o)}" aria-pressed="false"><span class="qa-n" aria-hidden="true">${i + 1}</span><span class="qa-t">${esc(o)}</span>${multi ? '<span class="qa-tick" aria-hidden="true"></span>' : ""}</button></li>`
+        )
+        .join("")}
+        <li class="qa-other"><span class="qa-n" aria-hidden="true">${options.length + 1}</span><input type="text" maxlength="200" placeholder="${esc(other)}" aria-label="${esc(other)}"><button type="button" class="qa-go" aria-label="Send"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></li>
+      </ol>
+      <div class="qa-foot">${skip ? `<button type="button" class="qa-skip">Skip</button>` : ""}${multi ? `<button type="button" class="qa-done">Continue</button>` : ""}</div>
+    </div>`;
+    const log = chatLog();
+    log.push({ who: "lune", text: q, via: "note", t: Date.now() });
+    saveChat(log);
+    $("chat-log").scrollTop = $("chat-log").scrollHeight;
+    setTimeout(() => bubble.querySelector(".qa-opt")?.focus({ preventScroll: true }), 60);
+    return bubble;
+  }
+  function qaAnswer(card, text) {
+    if (!card || card.classList.contains("is-done") || !String(text || "").trim()) return;
+    card.classList.add("is-done");
+    card.querySelectorAll("button, input").forEach((x) => (x.disabled = true));
+    plannerReply(String(text).trim());
+  }
+  document.addEventListener("click", (e) => {
+    const card = e.target.closest?.(".qa");
+    if (!card || card.classList.contains("is-done")) return;
+    const opt = e.target.closest(".qa-opt");
+    if (opt) {
+      if (card.dataset.multi === "1") {
+        opt.setAttribute("aria-pressed", opt.getAttribute("aria-pressed") === "true" ? "false" : "true");
+        return;
+      }
+      opt.setAttribute("aria-pressed", "true");
+      return qaAnswer(card, opt.dataset.v);
+    }
+    if (e.target.closest(".qa-go")) return qaAnswer(card, card.querySelector(".qa-other input").value);
+    if (e.target.closest(".qa-skip")) return qaAnswer(card, card.dataset.skip);
+    if (e.target.closest(".qa-done")) {
+      const picked = [...card.querySelectorAll('.qa-opt[aria-pressed="true"]')].map((b) => b.dataset.v);
+      const typed = card.querySelector(".qa-other input").value.trim();
+      return qaAnswer(card, [...picked, typed].filter(Boolean).join(", ") || "None of these");
+    }
+    if (e.target.closest(".qa-other")) card.querySelector(".qa-other input")?.focus();
+  });
+  document.addEventListener("keydown", (e) => {
+    const card = [...document.querySelectorAll("#chat-log .qa:not(.is-done)")].pop();
+    if (!card) return;
+    if (e.target.matches?.(".qa-other input") && e.key === "Enter") {
+      e.preventDefault();
+      if (card.dataset.multi === "1") return card.querySelector(".qa-done")?.click();
+      return qaAnswer(card, e.target.value);
+    }
+    if (e.target.closest?.("input, textarea, [contenteditable]") || e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = Number(e.key);
+    if (k >= 1 && k <= 9) {
+      const opts = card.querySelectorAll(".qa-opt");
+      if (k <= opts.length) {
+        e.preventDefault();
+        opts[k - 1].click();
+      } else if (k === opts.length + 1) {
+        e.preventDefault();
+        card.querySelector(".qa-other input")?.focus();
+      }
+    }
+  });
+
   async function planWeek() {
     goAiPage();
     if (!active()) {
-      // no Lune AI on this device yet: the short form still makes a plan
-      return window.LunePlans?.openWizard?.();
+      // no Lune AI here: the planner sheet asks the same things
+      return window.LuneSchedule ? window.LuneSchedule.open() : window.LunePlans?.openWizard?.();
     }
     await new Promise((r) => setTimeout(r, 80));
     saveChat([]);
@@ -2702,75 +2792,111 @@ How to answer
     // "Liebestraum no. 3 in A-flat major, S. 541" → "Liebestraum no. 3"
     const short = (t) => {
       let x = String(t || "").split(/\s*[,(:–—]\s*|\s+-\s+/)[0].replace(/\s+in\s+[A-G](?:[-‐ ]?(?:flat|sharp|♭|♯))?\s+(?:major|minor)\b.*$/i, "").trim();
-      // a bare form name ("Nocturne") keeps its opus so it means one piece
       const op = String(t || "").match(/\b(Op\.?\s*\d+[a-z]?(?:,?\s*No\.?\s*\d+)?|BWV\s*\d+|K\.?\s*\d+|S\.?\s*\d+)/i);
       if (!/\d/.test(x) && op) x = `${x} ${op[1].replace(/,\s*/, " ")}`;
       if (x.length > 30) x = `${x.slice(0, 29).replace(/\s+\S*$/, "")}…`;
       return x;
     };
     const goals = [...new Set(pieces.map((p) => `Learn more of ${short(p.title)}`))].concat(["Fix my hardest bars", "Get a piece ready to perform"]).slice(0, 4);
-    plannerSay(`<p>Let’s plan your week. <strong>What do you want to get done by Sunday?</strong></p><p class="la-sub">Pick one, or type exactly what you want, like “Clair de lune up to bar 27, hands together”.</p>`, goals, "Type what you want to get done this week…");
-    setTimeout(() => $("chat-input")?.focus({ preventScroll: true }), 120);
+    const intro = chatLine("lune", "");
+    intro.classList.add("qa-bubble");
+    intro.innerHTML = "<p>Let’s plan your schedule. Four quick questions, then you can fine-tune every day.</p>";
+    plannerAsk({ n: 1, total: 4, q: "What do you want to get done this week?", sub: "Pick one, or type exactly what you want.", options: goals, other: "e.g. Clair de lune up to bar 27, hands together" });
   }
 
   async function plannerReply(text) {
     const p = planner;
     if (!p) return;
-    // the question is answered: its replies settle, and the box goes back to its own hint
-    document.querySelectorAll("#chat-log .la-replies").forEach((row) => {
-      row.classList.add("is-done");
-      row.querySelectorAll("button").forEach((x) => (x.disabled = true));
+    // an answer typed in the main box settles the open card too
+    document.querySelectorAll("#chat-log .qa:not(.is-done)").forEach((c) => {
+      c.classList.add("is-done");
+      c.querySelectorAll("button, input").forEach((x) => (x.disabled = true));
     });
     if ($("chat-input")) $("chat-input").placeholder = "Ask anything about piano…";
     plannerHeard(text);
     if (p.step === "goal") {
       p.goal = text.slice(0, 300);
       p.step = "days";
-      return plannerSay(`<p>Good goal. <strong>Which days can you practise?</strong></p>`, ["Every day", "Weekdays", "Mon, Wed, Fri", "Weekends"], "Type your days, like “Tue, Thu, Sat”…");
+      return plannerAsk({ n: 2, total: 4, q: "Which days can you practise?", options: ["Every day", "Weekdays", "Mon, Wed, Fri", "Weekends"], other: "e.g. Tue, Thu, Sat" });
     }
     if (p.step === "days") {
       const days = parsePlanDays(text);
-      if (!days.length) return plannerSay(`<p>Which days, for example “Mon, Wed, Fri” or “weekdays”?</p>`, ["Every day", "Weekdays", "Mon, Wed, Fri", "Weekends"]);
+      if (!days.length) return plannerAsk({ n: 2, total: 4, q: "Which days? For example “Mon, Wed, Fri” or “weekdays”.", options: ["Every day", "Weekdays", "Mon, Wed, Fri", "Weekends"], other: "e.g. Tue, Thu, Sat" });
       p.days = days;
       p.step = "mins";
-      return plannerSay(`<p>${days.length === 7 ? "Every day" : days.map((d) => PLAN_DAY_NAMES[d]).join(", ")}. <strong>About how long each day?</strong></p>`, ["15 minutes", "20 minutes", "30 minutes", "45 minutes", "1 hour"], "Type how long, like “25 minutes”…");
+      return plannerAsk({ n: 3, total: 4, q: "About how long each day?", options: ["15 minutes", "20 minutes", "30 minutes", "45 minutes", "1 hour"], other: "e.g. 25 minutes" });
     }
     if (p.step === "mins") {
       const mins = parsePlanMins(text);
-      if (!mins) return plannerSay(`<p>Roughly how many minutes a day?</p>`, ["15 minutes", "20 minutes", "30 minutes", "45 minutes", "1 hour"]);
+      if (!mins) return plannerAsk({ n: 3, total: 4, q: "Roughly how many minutes a day?", options: ["15 minutes", "20 minutes", "30 minutes", "45 minutes", "1 hour"], other: "e.g. 25 minutes" });
       p.mins = mins;
+      p.step = "include";
+      return plannerAsk({ n: 4, total: 4, q: "What should every session include?", sub: "Choose any, then Continue.", options: PLAN_INCLUDE.map(([, l]) => l), multi: true, other: "Anything else, e.g. scales in D♭", skip: "Just my pieces" });
+    }
+    if (p.step === "include") {
+      const low = text.toLowerCase();
+      const include = { warmup: /warm/.test(low), technique: /scale|technique|arpeggio/.test(low), sight: /sight/.test(low), hardFirst: /hard/.test(low) };
       p.step = "making";
-      const wait = plannerSay(`<p class="la-planning">Planning your week around your pieces and the bars that need you…</p>`);
-      let plan = null;
+      const wait = chatLine("lune", "");
+      wait.classList.add("qa-bubble");
+      wait.innerHTML = `<p class="la-planning">Building your schedule around your pieces and the bars that need you…</p>`;
+      let st = null;
+      let days = null;
       try {
-        if (window.LunePlans?.planMode?.() !== "plan") window.LunePlans?.setPlanMode?.("plan");
-        plan = await window.LunePlans?.makePlan?.({ goal: p.goal, days: p.days, mins: p.mins });
+        st = await window.LuneSchedule.load();
+        st.goal = p.goal;
+        st.days = p.days;
+        st.mins = p.mins;
+        st.perDay = null;
+        st.include = include;
+        days = await window.LuneSchedule.build(st);
+        // something typed beyond the four choices goes in as a block on each day
+        const extra = text.split(/,\s*/).filter((t) => t && !PLAN_INCLUDE.some(([, l]) => l.toLowerCase() === t.toLowerCase()) && !/^(none of these|just my pieces)$/i.test(t)).join(", ");
+        if (extra) for (const d of days) d.items.splice(Math.min(1, d.items.length), 0, { kind: "custom", mins: 5, text: extra.charAt(0).toUpperCase() + extra.slice(1) });
+        window.LuneSchedule.persist(st, days);
       } catch {
-        plan = null;
+        days = null;
       }
       wait.closest(".chat-row")?.remove();
       planner = null;
-      if ($("chat-input")) $("chat-input").placeholder = "Ask anything about piano…";
-      if (!plan) return plannerSay(`<p>I couldn’t make the plan just now. Try again in a moment.</p>`);
-      document.dispatchEvent(new CustomEvent("lune:plan-mode", { detail: { mode: "plan" } }));
-      const rows = plan.days
-        .map((d) => `<li><strong>${PLAN_DAY_NAMES[d.day] || d.day}</strong><span>${d.items.map((i) => esc(i.text)).join(" · ")}</span></li>`)
+      if (!days) {
+        const b = chatLine("lune", "");
+        b.innerHTML = "<p>I couldn’t build the schedule just now. Try again in a moment.</p>";
+        return;
+      }
+      const F = window.LuneSchedule.fmtMins;
+      const rows = days
+        .map((d) => `<li><strong>${PLAN_DAY_NAMES[d.day] || d.day}</strong><span class="la-wm">${F(d.items.reduce((n, i) => n + (Number(i.mins) || 0), 0))}</span><span>${d.items.map((i) => `${i.mins} min ${esc(i.text.split(/[:.]/)[0])}`).join(" · ")}</span></li>`)
         .join("");
       const emailOn = await window.LuneStore?.dailyEmail?.().catch?.(() => null);
-      const bubble = plannerSay(
-        `<p>Here is your week, ${p.mins} minutes a day, aiming for: <em>${esc(p.goal)}</em>.</p><ul class="la-week">${rows}</ul>
-         <p>It’s saved in your Repertoire, and each day I’ll bring back the bars that need you.</p>
-         <div class="la-plan-actions"><button type="button" class="la-act primary" data-plan-open>Open my week</button>${
-           emailOn && !emailOn.enabled ? `<button type="button" class="la-act" data-daily-email>Email me each morning</button>` : ""
-         }<button type="button" class="la-act" data-plan-again>Change something</button></div>`
-      );
+      const bubble = chatLine("lune", "");
+      bubble.classList.add("qa-bubble");
+      bubble.innerHTML = `<p>Here is your schedule: ${p.days.length === 7 ? "every day" : p.days.map((d) => PLAN_DAY_NAMES[d]).join(", ")}, about ${p.mins} minutes, aiming for <em>${esc(p.goal)}</em>.</p><ul class="la-week">${rows}</ul>
+         <p>It’s saved. Each new week is built the same way, and the bars that need you come first.</p>
+         <div class="la-plan-actions"><button type="button" class="la-act primary" data-plan-tune>Fine-tune it</button><button type="button" class="la-act" data-plan-open>Open my schedule</button>${
+           emailOn && !emailOn.enabled ? `<button type="button" class="la-act" data-daily-email>Email me each practice day</button>` : ""
+         }</div>`;
+      const log = chatLog();
+      log.push({ who: "lune", text: `Your schedule is saved: ${p.days.length} days, about ${p.mins} minutes, aiming for ${p.goal}.`, via: "note", t: Date.now() });
+      saveChat(log);
+      bubble.querySelector("[data-plan-tune]")?.addEventListener("click", () => window.LuneSchedule.openWeek(st, days));
       bubble.querySelector("[data-plan-open]")?.addEventListener("click", () => {
+        $("lune-chat")?.close?.();
         location.hash = "#/repertoire";
       });
-      bubble.querySelector("[data-plan-again]")?.addEventListener("click", () => planWeek());
+      $("chat-log").scrollTop = $("chat-log").scrollHeight;
       return;
     }
   }
+
+  // "Plan my schedule", wherever it is offered: the four questions with Lune AI, the planner sheet without
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest?.("[data-plan-schedule]");
+    if (!b) return;
+    e.preventDefault();
+    if (active()) planWeek();
+    else window.LuneSchedule?.open?.();
+  });
 
   // "Type my own": the box takes the answer, with a hint of what to write
   document.addEventListener("click", (e) => {
@@ -2859,6 +2985,11 @@ How to answer
 
   /** Go to the Lune AI page: its own address, so it can be bookmarked and Back leaves it. */
   let aiReturn = null;
+  // where the reader was before #/ai, so a guest who is asked to sign in stays there
+  let lastPlace = location.hash !== "#/ai" ? location.hash : "";
+  window.addEventListener("hashchange", () => {
+    if (location.hash !== "#/ai") lastPlace = location.hash;
+  });
   function goAiPage() {
     if (location.hash === "#/ai") openChatPage();
     else {
@@ -2895,6 +3026,12 @@ How to answer
   window.addEventListener("load", wrapShowView, { once: true });
   /** The Lune AI page (#/ai): the same chat, full screen, with its history at the side. */
   function openChatPage() {
+    // Lune AI belongs to an account
+    if (window.LuneOnboard && !window.LuneOnboard.signedIn?.()) {
+      if (location.hash === "#/ai") window.history.replaceState(null, "", `${location.pathname}${location.search}${aiReturn || lastPlace || "#/"}`);
+      window.LuneOnboard.requireSignIn?.("Sign in to use Lune AI. It’s free while Lune is in pilot.");
+      return;
+    }
     const d = ensureChat();
     d.classList.add("is-page");
     d.classList.toggle("hist-open", wide());
