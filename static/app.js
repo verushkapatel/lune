@@ -3208,6 +3208,13 @@ function syncPlayButton() {
       : "Play";
   const aria =
     label === "Pause" ? "Pause" : label === "Resume" ? "Resume" : "Play";
+  const hearBtn = $("btn-hear");
+  if (hearBtn) {
+    const on = LunePiano.isPlaying();
+    hearBtn.classList.toggle("is-playing", on);
+    const want = on ? "Stop" : selectedBarsSorted().length > 1 ? "Play bars" : "Play bar";
+    if (hearBtn.textContent !== want) hearBtn.textContent = want;
+  }
   const playBtn = $("btn-play-range");
   if (playBtn && playBtn.textContent !== label) {
     playBtn.textContent = label;

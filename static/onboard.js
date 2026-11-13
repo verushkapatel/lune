@@ -611,8 +611,8 @@ window.LuneOnboard = (function () {
         <div class="auth-step" id="auth-step-email">
           <fieldset class="auth-role">
             <legend>I’m using Lune as</legend>
-            <label><input type="radio" name="auth-role" value="student" checked><span>A student</span></label>
-            <label><input type="radio" name="auth-role" value="teacher"><span>A teacher</span></label>
+            <label><input type="radio" name="auth-role" value="student" checked><span><b>Student or independent pianist</b><small>Practise your pieces with Lune</small></span></label>
+            <label><input type="radio" name="auth-role" value="teacher"><span><b>Piano teacher</b><small>Everything above, plus students and homework</small></span></label>
           </fieldset>
           <label for="create-email">Email</label>
           <input id="create-email" type="email" autocomplete="email" required placeholder="you@example.com">

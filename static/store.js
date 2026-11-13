@@ -801,6 +801,58 @@ window.LuneStore = (function () {
     return error ? null : data || [];
   }
 
+  /* ---------------- homework by email, on the teacher's schedule ---------------- */
+  const HW_MISSING = /homework_mail|relation|schema cache|PGRST205|42P01/i;
+  async function homeworkMail() {
+    if (!remote()) return [];
+    const { data, error } = await client
+      .from("homework_mail")
+      .select("student_key, student_name, email, days, send_hour, tz, enabled, last_sent")
+      .eq("teacher_id", session.user.id);
+    return error ? [] : data || [];
+  }
+  async function setHomeworkMail(studentKey, { name = "", email = "", days = [1], hour = 17, on = true } = {}) {
+    if (!remote()) throw new Error("Sign in first, then Lune can email your students their homework.");
+    let tz = "Europe/London";
+    try {
+      tz = Intl.DateTimeFormat().resolvedOptions().timeZone || tz;
+    } catch {
+      /* the default zone */
+    }
+    const row = {
+      teacher_id: session.user.id,
+      student_key: String(studentKey),
+      student_name: String(name || "").slice(0, 60),
+      email: String(email || "").trim().slice(0, 254),
+      days: (Array.isArray(days) && days.length ? days : [1]).map(Number).filter((d) => d >= 0 && d < 7),
+      send_hour: Math.max(0, Math.min(23, Number(hour) || 0)),
+      tz,
+      enabled: !!on,
+      updated_at: nowIso(),
+    };
+    const { error } = await client.from("homework_mail").upsert(row, { onConflict: "teacher_id,student_key" });
+    if (error) throw new Error(HW_MISSING.test(`${error.code} ${error.message}`) ? "Homework emails aren’t switched on for Lune yet." : /check|violat/i.test(error.message || "") ? "That email address doesn’t look right." : "Couldn’t save that just now. Try again in a moment.");
+    return true;
+  }
+  async function removeHomeworkMail(studentKey) {
+    if (!remote()) return;
+    await client.from("homework_mail").delete().eq("teacher_id", session.user.id).eq("student_key", String(studentKey));
+  }
+  /** Email one student their latest homework now (Lune AI's server sends it). */
+  async function sendHomeworkNow(studentKey, assignment) {
+    const base = String(window.LUNE_CONFIG?.aiServer || "").replace(/\/+$/, "");
+    const token = await accessToken();
+    if (!base || !token) throw new Error("Sign in first, then Lune can email your students.");
+    const res = await fetch(`${base}/homework/send`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ student: String(studentKey), assignment }),
+    });
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok || !out.ok) throw new Error(out.error || "Couldn’t send it just now. Try again in a moment.");
+    return out;
+  }
+
   /* ---------------- the morning email (opt-in; unsubscribe from the email itself) ---------------- */
   async function dailyEmail() {
     if (!remote()) return null;
@@ -1345,6 +1397,10 @@ window.LuneStore = (function () {
     contributeScore,
     dailyEmail,
     setDailyEmail,
+    homeworkMail,
+    setHomeworkMail,
+    removeHomeworkMail,
+    sendHomeworkNow,
     checkIn,
     assignmentProgress,
     saveChats,

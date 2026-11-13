@@ -371,6 +371,7 @@ document.addEventListener("click", (e) => {
     if (g.over) return;
     g.over = true;
     clearTimeout(g.cap);
+    clearTimeout(g.wait);
     g.btn.classList.remove("is-busy");
     g.btn.removeAttribute("aria-busy");
   };
@@ -379,9 +380,18 @@ document.addEventListener("click", (e) => {
     const g = arming;
     if (g && !g.over) {
       g.set.add(p);
-      if (!g.btn.classList.contains("is-busy")) {
-        g.btn.classList.add("is-busy");
-        g.btn.setAttribute("aria-busy", "true");
+      // only a wait the eye would notice shows the moon; quick work never flickers the label
+      if (!g.wait && !g.btn.classList.contains("is-busy")) {
+        g.wait = setTimeout(() => {
+          if (g.over || !g.btn.isConnected) return;
+          try {
+            g.btn.style.setProperty("--busy-c", getComputedStyle(g.btn).color);
+          } catch {
+            /* default colour */
+          }
+          g.btn.classList.add("is-busy");
+          g.btn.setAttribute("aria-busy", "true");
+        }, 450);
       }
       const end = () => {
         g.set.delete(p);
@@ -395,7 +405,7 @@ document.addEventListener("click", (e) => {
   window.fetch = wrapped;
   document.addEventListener("click", (e) => {
     const btn = e.target.closest?.("button");
-    if (!btn || btn.closest(".lune-kbd, #osmd, .lp-nav, .studio-seg")) return;
+    if (!btn || btn.closest(".lune-kbd, #osmd, .lp-nav, .studio-seg, #lune-room, #companion-bar, #st-bottom, .help-actions, [data-no-busy]")) return;
     const g = { btn, set: new Set(), over: false };
     arming = g;
     setTimeout(() => { if (arming === g) arming = null; }, 600);
