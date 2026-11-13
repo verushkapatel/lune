@@ -2828,3 +2828,156 @@ html:not([data-theme="light"]) body #home #hero.home-hero.mr-hero {
 }
 html:not([data-theme="light"]) body #home #hero.mr-hero::after { background: radial-gradient(520px circle at var(--mx) var(--my), rgba(221, 229, 242, 0.05), transparent 70%) !important; }
 html:not([data-theme="light"]) body :is(.home-guest, .lp-show, .lp-tile, #morning, .home-section) { --navy-deep: #212120; }
+
+/* anything lit in the pale blue reads in dark ink */
+html:not([data-theme="light"]) body #explain-access .access-option[aria-pressed="true"],
+html:not([data-theme="light"]) body #explain-access .access-option[aria-pressed="true"] :is(strong, span, b, i),
+html:not([data-theme="light"]) body .ls-grades button.on,
+html:not([data-theme="light"]) body .lp-viz-notes span.on, html:not([data-theme="light"]) body .lp-viz-notes span.on * { color: #10131a !important; -webkit-text-fill-color: #10131a !important; }
+html:not([data-theme="light"]) body #explain-access .access-option[aria-pressed="true"] span { opacity: 0.72; }
+/* switches: a dark knob on the pale track */
+html:not([data-theme="light"]) body :is(.lw-row input:checked + .lw-sw, .studio-menu .sm-row[aria-checked="true"] .sm-sw, #assign-dialog .as-row input:checked + .as-sw, .sd-switch input:checked + .sd-sw)::after,
+html:not([data-theme="light"]) body :is(.lw-row input:checked + .lw-sw, .studio-menu .sm-row[aria-checked="true"] .sm-sw, #assign-dialog .as-row input:checked + .as-sw, .sd-switch input:checked + .sd-sw)::before { background: #10131a !important; }
+html:not([data-theme="light"]) body .sd2-switch input:checked + .sd2-sw { background: #dde5f2; }
+html:not([data-theme="light"]) body .sd2-switch input:checked + .sd2-sw::after { background: #191918; box-shadow: none; }
+html:not([data-theme="light"]) body :is(.lw-row input:checked + .lw-sw, .studio-menu .sm-row[aria-checked="true"] .sm-sw, #assign-dialog .as-row input:checked + .as-sw, .sd-switch input:checked + .sd-sw)::after { background: #191918 !important; box-shadow: none !important; }
+
+/* ==========================================================================
+   Plan your piano schedule
+   ========================================================================== */
+html body dialog.sch {
+  --s-bg: #1e1e1d; --s-card: #262624; --s-raise: #2e2e2c; --s-line: rgba(255, 255, 255, 0.08); --s-text: #ecebe6; --s-dim: #a3a199; --s-faint: #74726b;
+  --s-accent: #dde5f2; --s-ink: #10131a;
+  width: min(640px, calc(100vw - 24px)); max-width: none; max-height: min(92vh, 960px); padding: 0; border: 0; border-radius: 24px; overflow-y: auto; overscroll-behavior: contain;
+  background: var(--s-bg); color: var(--s-text); box-shadow: 0 0 0 1px var(--s-line), 0 40px 100px -30px rgba(0, 0, 0, 0.85);
+  scrollbar-width: thin; scrollbar-color: var(--s-raise) transparent; animation: sch-in .32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+html[data-theme="light"] body dialog.sch { --s-bg: #faf9f5; --s-card: #ffffff; --s-raise: #f0efe9; --s-line: rgba(0, 0, 0, 0.08); --s-text: #1f1e1c; --s-dim: #6f6d66; --s-faint: #9a988f; --s-accent: #1d2b52; --s-ink: #ffffff; }
+html body dialog.sch:has(.sch-wide) { width: min(1040px, calc(100vw - 24px)); }
+html body dialog.sch::backdrop { background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+@keyframes sch-in { from { opacity: 0; transform: translateY(12px) scale(0.985); } to { opacity: 1; transform: none; } }
+html body .sch-in { padding: 26px 26px 0; }
+html body .sch-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
+html body .sch-head h2 { margin: 0; font: 400 30px/1.15 var(--display); color: var(--s-text); letter-spacing: -0.01em; }
+html body .sch-sub { margin: 6px 0 0; font: 400 15.5px/1.45 var(--ui); color: var(--s-dim); }
+html body .sch-x { flex: none; width: 32px; height: 32px; border: 0; border-radius: 50%; background: var(--s-raise); color: var(--s-dim); display: grid; place-items: center; cursor: pointer; }
+html body .sch-x:hover { color: var(--s-text); }
+html body .sch-sec { margin-top: 22px; }
+html body .sch-sec h3 { margin: 0 0 10px 2px; font: 600 14px var(--ui); color: var(--s-dim); letter-spacing: 0; text-transform: none; }
+html body .sch textarea#sch-goal {
+  width: 100%; box-sizing: border-box; resize: none; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--s-line); background: var(--s-card);
+  color: var(--s-text); font: 400 17px/1.45 var(--ui); outline: none; transition: border-color .15s ease;
+}
+html body .sch textarea#sch-goal:focus { border-color: color-mix(in srgb, var(--s-accent) 50%, transparent); }
+html body .sch textarea::placeholder { color: var(--s-faint); }
+html body .sch-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+html body .sch-chips button { height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--s-line); background: transparent; color: var(--s-dim); font: 400 14px var(--ui); cursor: pointer; transition: background-color .15s ease, color .15s ease; }
+html body .sch-chips button:hover { background: var(--s-raise); color: var(--s-text); }
+
+html body .sch-pieces { list-style: none; margin: 0; padding: 0; border-radius: 16px; background: var(--s-card); overflow: hidden; }
+html body .sch-pieces li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; flex-wrap: wrap; }
+html body .sch-pieces li + li { border-top: 1px solid var(--s-line); }
+html body .sch-check { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1 1 200px; cursor: pointer; }
+html body .sch-check input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+html body .sch-box { flex: none; width: 22px; height: 22px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--s-faint); display: grid; place-items: center; transition: background-color .15s ease, box-shadow .15s ease; }
+html body .sch-check input:checked + .sch-box { background: var(--s-accent); box-shadow: none; }
+html body .sch-check input:checked + .sch-box::after { content: ""; width: 10px; height: 6px; border-left: 2px solid var(--s-ink); border-bottom: 2px solid var(--s-ink); transform: translateY(-1px) rotate(-45deg); }
+html body .sch-check input:focus-visible + .sch-box { outline: 2px solid var(--s-accent); outline-offset: 2px; }
+html body .sch-pt { display: flex; flex-direction: column; min-width: 0; font: 500 16px/1.3 var(--ui); color: var(--s-text); }
+html body .sch-pt small { font: 400 13.5px var(--ui); color: var(--s-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html body .sch-pieces li:not(.is-on) .sch-pt { color: var(--s-dim); }
+
+html body .sch-seg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; padding: 3px; border-radius: 11px; background: var(--s-raise); }
+html body .sch-seg button { height: 32px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: var(--s-dim); font: 500 14px var(--ui); cursor: pointer; white-space: nowrap; transition: background-color .15s ease, color .15s ease; }
+html body .sch-seg button[aria-checked="true"] { background: var(--s-accent); color: var(--s-ink); }
+html body .sch-seg button:disabled { opacity: 0.4; cursor: default; }
+html body .sch-seg-wide { display: grid; width: 100%; box-sizing: border-box; margin-bottom: 10px; }
+
+html body .sch-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+html body .sch-days button { height: 46px; border: 0; border-radius: 12px; background: var(--s-card); color: var(--s-dim); font: 500 15px var(--ui); cursor: pointer; transition: background-color .15s ease, color .15s ease, transform .1s ease; }
+html body .sch-days button[aria-pressed="true"] { background: var(--s-accent); color: var(--s-ink); }
+html body .sch-days button:active { transform: scale(0.96); }
+
+html body .sch-rows { list-style: none; margin: 0; padding: 0; border-radius: 16px; background: var(--s-card); overflow: hidden; }
+html body .sch-rows > li { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; padding: 8px 14px; font: 400 16px var(--ui); color: var(--s-text); }
+html body .sch-rows > li + li { border-top: 1px solid var(--s-line); }
+html body .sch-rows > li[hidden] { display: none; }
+html body .sch-rows select { height: 36px; border: 0; border-radius: 10px; padding: 0 10px; background: var(--s-raise); color: var(--s-text); font: 400 15px var(--ui); }
+html body .sch-step { display: inline-flex; align-items: center; gap: 2px; padding: 3px; border-radius: 11px; background: var(--s-raise); }
+html body .sch-step button { width: 30px; height: 30px; border: 0; border-radius: 8px; background: transparent; color: var(--s-text); font: 400 18px/1 var(--ui); cursor: pointer; }
+html body .sch-step button:hover:not(:disabled) { background: var(--s-card); }
+html body .sch-step button:disabled { opacity: 0.3; cursor: default; }
+html body .sch-step output { min-width: 62px; text-align: center; font: 500 14px var(--nums, var(--ui)); color: var(--s-text); font-variant-numeric: tabular-nums; }
+html body .sch-toggle { display: flex; align-items: center; justify-content: space-between; gap: 14px; width: 100%; cursor: pointer; }
+html body .sch-toggle > span:first-child { display: flex; flex-direction: column; gap: 2px; font: 400 16px var(--ui); color: var(--s-text); }
+html body .sch-toggle small { font: 400 13.5px var(--ui); color: var(--s-faint); }
+html body .sch-toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+html body .sch-sw { flex: none; position: relative; width: 46px; height: 28px; border-radius: 999px; background: rgba(120, 120, 128, 0.32); transition: background-color .2s ease; }
+html body .sch-sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #f5f5f2; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3); transition: transform .2s cubic-bezier(0.22, 1, 0.36, 1), background-color .2s ease; }
+html body .sch-toggle input:checked + .sch-sw { background: var(--s-accent); }
+html body .sch-toggle input:checked + .sch-sw::after { transform: translateX(18px); background: var(--s-ink); box-shadow: none; }
+html body .sch-toggle input:focus-visible + .sch-sw { outline: 2px solid var(--s-accent); outline-offset: 2px; }
+html body .sch-note { margin: 10px 2px 0; font: 400 14px/1.5 var(--ui); color: var(--s-faint); }
+
+html body .sch-foot {
+  position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 8px; margin: 26px -26px 0; padding: 14px 26px calc(14px + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--s-bg) 88%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-top: 1px solid var(--s-line);
+}
+html body .sch-primary, html body .sch-quiet { height: 46px; padding: 0 22px; border: 0; border-radius: 12px; font: 600 15.5px var(--ui); cursor: pointer; transition: background-color .15s ease, transform .1s ease; }
+html body .sch-primary { background: var(--s-accent); color: var(--s-ink); }
+html body .sch-primary:disabled { opacity: 0.45; cursor: default; }
+html body .sch-quiet { background: var(--s-raise); color: var(--s-text); font-weight: 500; }
+html body :is(.sch-primary, .sch-quiet):active { transform: scale(0.98); }
+html body .sch :is(button, select, textarea):focus-visible { outline: 2px solid var(--s-accent); outline-offset: 2px; }
+
+/* the week, block by block */
+html body .sch-goal { margin: 14px 0 0; font: italic 400 18px/1.4 var(--display); color: var(--s-text); }
+html body .sch-tune { margin-top: 4px; }
+html body .sch-week { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; margin-top: 18px; }
+html body .sch-day { display: flex; flex-direction: column; border-radius: 18px; background: var(--s-card); padding: 14px 14px 10px; box-shadow: inset 0 0 0 1px var(--s-line); }
+html body .sch-day.is-today { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--s-accent) 55%, transparent); }
+html body .sch-day header { display: flex; align-items: baseline; justify-content: space-between; margin: 0 2px 10px; }
+html body .sch-day h3 { margin: 0; font: 500 18px var(--ui); color: var(--s-text); display: flex; align-items: center; gap: 8px; }
+html body .sch-day h3 span { font: 600 11.5px var(--ui); padding: 2px 8px; border-radius: 999px; background: var(--s-accent); color: var(--s-ink); }
+html body .sch-dt { margin: 0; font: 500 14px var(--nums, var(--ui)); color: var(--s-dim); font-variant-numeric: tabular-nums; }
+html body .sch-day ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+html body .sch-item { position: relative; display: grid; grid-template-columns: 1fr auto; grid-template-areas: "top top" "text text" ". step"; gap: 4px 8px; padding: 10px 10px 8px 14px; border-radius: 12px; background: var(--s-raise); }
+html body .sch-item::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: var(--s-faint); opacity: 0.5; }
+html body .sch-item.k-learn::before { background: #9ec5a8; opacity: 1; }
+html body .sch-item.k-polish::before { background: #e3b48c; opacity: 1; }
+html body .sch-item.k-fresh::before, html body .sch-item.k-perform::before { background: var(--s-accent); opacity: 1; }
+html body .sch-item-top { grid-area: top; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+html body .sch-kind { font: 600 12.5px var(--ui); color: var(--s-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html body .sch-ops { display: inline-flex; gap: 2px; opacity: 0.55; transition: opacity .15s ease; }
+html body .sch-item:hover .sch-ops, html body .sch-item:focus-within .sch-ops { opacity: 1; }
+html body .sch-ops button { width: 26px; height: 26px; border: 0; border-radius: 7px; background: transparent; color: var(--s-dim); display: grid; place-items: center; cursor: pointer; }
+html body .sch-ops button:hover:not(:disabled) { background: var(--s-card); color: var(--s-text); }
+html body .sch-ops button:disabled { opacity: 0.25; cursor: default; }
+html body .sch-item textarea { grid-area: text; width: 100%; box-sizing: border-box; resize: none; padding: 2px 0; border: 0; background: transparent; color: var(--s-text); font: 400 15.5px/1.45 var(--ui); outline: none; overflow: hidden; }
+html body .sch-item .sch-step { grid-area: step; justify-self: end; background: var(--s-card); padding: 2px; }
+html body .sch-item .sch-step button { width: 26px; height: 26px; font-size: 16px; }
+html body .sch-item .sch-step output { min-width: 54px; font-size: 13px; }
+html body .sch-add { margin-top: 8px; align-self: flex-start; height: 34px; padding: 0 12px; border: 0; border-radius: 10px; background: transparent; color: var(--s-dim); font: 500 14px var(--ui); cursor: pointer; }
+html body .sch-add:hover { background: var(--s-raise); color: var(--s-text); }
+
+@media (max-width: 600px) {
+  html body dialog.sch, html body dialog.sch:has(.sch-wide) { width: 100vw; max-height: 94vh; margin: auto 0 0; border-radius: 22px 22px 0 0; }
+  html body .sch-in { padding: 20px 16px 0; }
+  html body .sch-foot { margin: 22px -16px 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
+  html body .sch-foot button { flex: 1; }
+  html body .sch-head h2 { font-size: 26px; }
+  html body .sch-pieces .sch-seg { width: 100%; }
+  html body .sch-week { grid-template-columns: 1fr; }
+  html body .sch-days button { height: 42px; font-size: 14px; }
+}
+@media (prefers-reduced-motion: reduce) { html body dialog.sch { animation: none; } }
+
+/* the saved schedule, with its minutes */
+html body .wp-dmins { margin-left: 8px; font: 500 13px var(--nums, var(--ui)); color: var(--d-label-3, #74726b); font-variant-numeric: tabular-nums; }
+html body .wp-min { display: inline-block; min-width: 46px; margin-right: 6px; font: 500 12.5px var(--nums, var(--ui)); color: var(--d-label-2, #a3a199); font-variant-numeric: tabular-nums; }
+html body .wp-day ul { list-style: none !important; padding-left: 0 !important; margin: 6px 0 0 !important; display: grid; gap: 4px; }
+html body .wp-day ul li { display: flex; align-items: baseline; gap: 4px; font: 400 15px/1.45 var(--ui); color: var(--d-label-2, #a3a199); }
+html body .wp-day ul li::marker { content: none; }
+html body .wp-day ul li strong { color: var(--d-label, #ecebe6); font-weight: 500; }
+html body .wp-day.today { box-shadow: inset 0 0 0 1.5px rgba(221, 229, 242, 0.45) !important; }
+html body .wp-day.done ul li { opacity: 0.55; }

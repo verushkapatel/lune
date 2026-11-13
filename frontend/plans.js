@@ -259,7 +259,9 @@ window.LunePlans = (function () {
     const n = Math.max(1, Math.min(7, Number(prefs.practiceDays) || 4));
     const spread = { 1: [0], 2: [0, 3], 3: [0, 2, 4], 4: [0, 1, 3, 4], 5: [0, 1, 2, 3, 4], 6: [0, 1, 2, 3, 4, 5], 7: [0, 1, 2, 3, 4, 5, 6] }[n];
     const goal = prefs.dreamPiece?.title ? `Toward ${prefs.dreamPiece.title}, with steady work on your Repertoire` : "Steady work on the pieces in your Repertoire";
-    ensuring = makePlan({ goal, days: spread.map((i) => DAYS[i]), mins: Number(prefs.practiceMins) || 30 })
+    // set up with the schedule planner: each new week is built the same way
+    const made = prefs.schedule && window.LuneSchedule ? window.LuneSchedule.rebuildForWeek() : makePlan({ goal, days: spread.map((i) => DAYS[i]), mins: Number(prefs.practiceMins) || 30 });
+    ensuring = made
       .then(() => true)
       .catch(() => false)
       .finally(() => { ensuring = null; });
@@ -280,17 +282,17 @@ window.LunePlans = (function () {
     const today = DAYS[(new Date().getDay() + 6) % 7];
     return `<div class="wp">
       <p class="wp-goal">${esc(p.goal)}</p>
-      <p class="wp-by">${p.via === "model" ? "Planned with Lune AI" : "Planned by Lune"} · ${esc(p.mins)} min a day</p>
+      <p class="wp-by">${p.via === "schedule" ? "Your piano schedule" : p.via === "model" ? "Planned with Lune AI" : "Planned by Lune"} · about ${esc(p.mins)} min a day</p>
       <ol class="wp-days">${p.days
         .map(
           (d) => `<li class="wp-day${d.day === today ? " today" : ""}${p.done?.[d.day] ? " done" : ""}">
             <button type="button" class="wp-check" data-wp-day="${d.day}" aria-pressed="${!!p.done?.[d.day]}" aria-label="${DAY_NAMES[d.day]} done"></button>
-            <div><p class="wp-dname">${DAY_NAMES[d.day]}${d.day === today ? " · today" : ""}</p>
-            <ul>${d.items.map((it) => `<li>${it.title ? `<strong>${esc(it.title)}</strong> · ` : ""}${esc(it.text)}</li>`).join("")}</ul></div>
+            <div><p class="wp-dname">${DAY_NAMES[d.day]}${d.day === today ? " · today" : ""}${d.items.some((it) => it.mins) ? `<span class="wp-dmins">${d.items.reduce((n, it) => n + (Number(it.mins) || 0), 0)} min</span>` : ""}</p>
+            <ul>${d.items.map((it) => `<li>${it.mins ? `<span class="wp-min">${esc(it.mins)} min</span>` : ""}${it.title ? `<strong>${esc(it.title)}</strong> · ` : ""}${esc(it.text)}</li>`).join("")}</ul></div>
           </li>`
         )
         .join("")}</ol>
-      <div class="wp-actions"><button type="button" class="quiet" data-wp-new>Change plan</button><button type="button" class="quiet" data-wp-share>Share plan</button><button type="button" class="link-btn" data-wp-free>Practise without a schedule</button></div>
+      <div class="wp-actions"><button type="button" class="quiet" data-wp-new>Edit schedule</button><button type="button" class="quiet" data-wp-share>Share plan</button><button type="button" class="link-btn" data-wp-free>Practise without a schedule</button></div>
     </div>`;
   }
 
@@ -311,7 +313,7 @@ window.LunePlans = (function () {
     const mins = Number(now?.mins) || Number(prefs.practiceMins) || 30;
     d.innerHTML = `<form method="dialog" class="wp-form" id="wp-form">
         <span class="lune-orb-sm" aria-hidden="true"></span>
-        <h2 id="wp-h">${now ? "Change this week’s plan" : "Plan my week"}</h2>
+        <h2 id="wp-h">${now ? "Edit your piano schedule" : "Plan your piano schedule"}</h2>
         <label for="wp-goal">What do you want to get done this week?</label>
         <textarea id="wp-goal" rows="3" required maxlength="300" placeholder="e.g. Für Elise up to bar 30, hands together">${esc(now?.goal || "")}</textarea>
         <p class="wp-q">Which days?</p>
@@ -449,8 +451,8 @@ window.LunePlans = (function () {
   document.addEventListener("click", (e) => {
     if (e.target.closest?.("[data-wp-open], [data-wp-new], [data-wp-choose='plan']")) {
       e.preventDefault();
-      // with Lune AI: a conversation that asks, plans and saves; without it, the short form
-      if (window.LuneAsk?.planWeek && window.LuneAsk.modelConnected?.()) window.LuneAsk.planWeek();
+      // the schedule planner: every choice, then every block fine-tuned
+      if (window.LuneSchedule) window.LuneSchedule.open();
       else openWizard();
     }
     if (e.target.closest?.("[data-wp-free], [data-wp-choose='free']")) {
