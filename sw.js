@@ -81,7 +81,9 @@ self.addEventListener("fetch", (event) => {
   if (req.headers.has("authorization") || req.headers.has("range")) return;
   if (req.url.startsWith(ROOT + "api/")) return; // local Python server: always live
   if (req.url.includes("deploy-stamp.txt")) return; // the update check must see the server
-  const key = req.mode === "navigate" ? ROOT : req.url;
+  // the app shell is cached under the root; other pages (the partners page) under their own address
+  const isShell = req.mode === "navigate" && /^\/?(index\.html)?$/.test(req.url.slice(ROOT.length).split(/[?#]/)[0]);
+  const key = isShell ? ROOT : req.mode === "navigate" ? req.url.split(/[?#]/)[0] : req.url;
 
   event.respondWith(
     (async () => {
