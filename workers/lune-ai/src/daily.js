@@ -16,12 +16,12 @@ import { runModel, british } from "./index.js";
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DAY_NAMES = { Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday", Fri: "Friday", Sat: "Saturday", Sun: "Sunday" };
 const MAX_PER_RUN = 90; // Resend's free plan sends 100 a day
-const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+export const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
-function admin(env) {
+export function admin(env) {
   return { apikey: env.SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`, "Content-Type": "application/json" };
 }
-const publicUrl = (env) => String(env.PUBLIC_URL || "https://lune-ai.verushkapatel4.workers.dev").replace(/\/$/, "");
+export const publicUrl = (env) => String(env.PUBLIC_URL || "https://lune-ai.verushkapatel4.workers.dev").replace(/\/$/, "");
 
 /** The hour, the date and the weekday where the pianist lives. */
 export function localNow(tz, now = new Date()) {
@@ -110,7 +110,7 @@ export function renderEmail({ name, local, today, due, pieces, note, unsubscribe
 }
 
 /** The check-ins for a teacher's homework, newest first (service key; the table is closed to everyone else). */
-async function checkinsFor(env, ids, fetchImpl) {
+export async function checkinsFor(env, ids, fetchImpl) {
   const ok = ids.filter((x) => /^[A-Za-z0-9]{8,24}$/.test(String(x))).slice(0, 100);
   if (!ok.length) return [];
   const r = await fetchImpl(`${env.SUPABASE_URL}/rest/v1/assignment_checkins?assignment_id=in.(${ok.join(",")})&select=assignment_id,who,ratings,created_at&order=created_at.desc&limit=400`, { headers: admin(env) });

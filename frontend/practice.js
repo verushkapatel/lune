@@ -2558,7 +2558,7 @@ window.LunePractice = (function () {
         ${window.LunePlans?.planMode?.() === "free" ? "" : row("plan-free", "No schedule", "Play whenever it suits you")}
         ${signedIn ? row("week", "This week", "Your progress") : ""}
         ${signedIn ? row("daily-email", "Morning email from Lune", "Today’s practice in your inbox at 7 am") : ""}
-        ${signedIn ? row("role", window.LuneStudio?.role?.() === "teacher" ? "Using Lune as a teacher" : "Using Lune as a student", window.LuneStudio?.role?.() === "teacher" ? "Switch to the student home" : "Switch to the teacher Studio") : ""}
+        ${signedIn ? row("role", window.LuneStudio?.role?.() === "teacher" ? "Using Lune as a teacher" : "Using Lune as a student or independent pianist", window.LuneStudio?.role?.() === "teacher" ? "Switch to the pianist home" : "Switch to the teacher Studio") : ""}
         ${row("tour", "Show me around", "Three steps on a real score")}
         ${row("example-week", "How this week works", "A quick example")}
       </section>
@@ -3312,6 +3312,8 @@ window.LunePractice = (function () {
         <button type="submit" class="primary as-make" id="as-create">Create homework</button>
       </form>
       <div class="as-out" hidden>
+        <button type="button" class="primary as-mail" id="as-mail" hidden></button>
+        <p class="as-mail-note" id="as-mail-note" hidden></p>
         <div class="as-actions">
           <button type="button" class="primary" id="as-wa"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 19l1.2-3.6A7.5 7.5 0 1 1 9 18.3z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>Copy for WhatsApp</button>
           <button type="button" class="quiet" id="as-copy">Copy link</button>
@@ -3377,6 +3379,34 @@ window.LunePractice = (function () {
           toast("Couldn’t copy. Press and hold to copy instead.");
         }
       };
+      // the student has a homework email: one tap sends it now (their schedule sends it again later)
+      const mailBtn = d.querySelector("#as-mail");
+      const mailNote = d.querySelector("#as-mail-note");
+      const mailTo = sid ? window.LuneStudio?.mailFor?.(sid) : null;
+      if (mailBtn && mailTo?.email && mailTo.enabled !== false) {
+        mailBtn.hidden = false;
+        mailBtn.textContent = `Email it to ${forName || "them"} now`;
+        if (mailNote) {
+          mailNote.hidden = false;
+          mailNote.textContent = mailTo.line ? `${mailTo.line}. Or share the link below.` : "Or share the link below.";
+        }
+        mailBtn.onclick = async () => {
+          mailBtn.disabled = true;
+          mailBtn.textContent = "Sending…";
+          try {
+            await window.LuneStudio.emailNow(sid);
+            mailBtn.textContent = `Sent to ${forName || "your student"}`;
+            mailBtn.classList.add("is-sent");
+          } catch (err) {
+            mailBtn.disabled = false;
+            mailBtn.textContent = `Email it to ${forName || "them"} now`;
+            toast(err?.message || "Couldn’t send it just now.");
+          }
+        };
+      } else if (mailNote && sid) {
+        mailNote.hidden = false;
+        mailNote.textContent = `Add ${forName || "this student"}’s email in your Studio and Lune can send homework for you, daily or weekly.`;
+      }
       d.querySelector("#as-wa").onclick = () => copy(whatsAppText(payload, url), "Copied for WhatsApp");
       d.querySelector("#as-copy").onclick = () => copy(url, "Link copied");
       const share = d.querySelector("#as-share");

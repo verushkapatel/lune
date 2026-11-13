@@ -61,7 +61,88 @@ window.LuneStudio = (function () {
     const d = data();
     d.students = d.students.filter((s) => s.id !== id);
     save(d);
+    if (mailRows.has(id)) {
+      mailRows.delete(id);
+      Promise.resolve(store()?.removeHomeworkMail?.(id)).catch(() => {});
+    }
   }
+  function updateStudent(id, name) {
+    const clean = String(name || "").trim().replace(/\s+/g, " ").slice(0, 60);
+    const d = data();
+    const s = d.students.find((x) => x.id === id);
+    if (!s || !clean) return null;
+    s.name = clean;
+    save(d);
+    return s;
+  }
+
+  /* ---------------- homework by email: each student's address and schedule ---------------- */
+
+  const mailRows = new Map(); // student id → { email, days, send_hour, enabled }
+  let mailLoad = null;
+  function loadMail(force = false) {
+    if (mailLoad && !force) return mailLoad;
+    mailLoad = Promise.race([Promise.resolve(store()?.homeworkMail?.()), new Promise((r) => setTimeout(() => r(null), 6000))])
+      .then((rows) => {
+        if (Array.isArray(rows)) {
+          mailRows.clear();
+          for (const r of rows) mailRows.set(r.student_key, r);
+        }
+        return mailRows;
+      })
+      .catch(() => mailRows);
+    return mailLoad;
+  }
+  const hourText = (h) => (h === 0 ? "midnight" : h === 12 ? "noon" : h < 12 ? `${h} am` : `${h - 12} pm`);
+  function scheduleLine(r) {
+    if (!r) return "";
+    const days = (r.days || [1]).map(Number).sort();
+    const at = hourText(Number(r.send_hour ?? 17));
+    if (days.length === 7) return `every day at ${at}`;
+    if (days.length === 5 && !days.includes(0) && !days.includes(6)) return `on weekdays at ${at}`;
+    return `${days.map((d) => `${DAY_NAMES[d]}s`).join(" and ")} at ${at}`.replace(/^/, "on ");
+  }
+  /** For the homework dialog: may Lune email this student now? */
+  function mailFor(sid) {
+    const r = mailRows.get(sid);
+    if (!r) return null;
+    return { email: r.email, enabled: r.enabled !== false, line: r.enabled !== false ? `Lune also emails it ${scheduleLine(r)}` : "" };
+  }
+  async function setStudentMail(sid, { email, freq, day = 1, hour = 17 }) {
+    const st = data().students.find((x) => x.id === sid);
+    if (!st) return "That student isn’t in your Studio.";
+    const was = mailRows.get(sid);
+    if (!email || freq === "off") {
+      if (was) {
+        try {
+          await store()?.removeHomeworkMail?.(sid);
+        } catch {
+          /* already gone */
+        }
+        mailRows.delete(sid);
+      }
+      return null;
+    }
+    if (was && was.enabled === false && was.email === email) return `${split(st.name).first} unsubscribed from homework emails, so Lune won’t send them any more.`;
+    const days = freq === "daily" ? [0, 1, 2, 3, 4, 5, 6] : [Number(day)];
+    try {
+      await store()?.setHomeworkMail?.(sid, { name: split(st.name).first, email, days, hour, on: true });
+    } catch (err) {
+      return err?.message || "Couldn’t save that just now.";
+    }
+    mailRows.set(sid, { student_key: sid, email, days, send_hour: hour, enabled: true });
+    return null;
+  }
+  /** "Email it now": the newest homework for one student, sent by Lune's server. */
+  async function emailNow(sid) {
+    try {
+      await store()?.syncPrefs?.(); // the server reads the homework from the saved Studio
+    } catch {
+      /* it may already be saved */
+    }
+    return store()?.sendHomeworkNow?.(sid);
+  }
+
   /** Called by the homework builder when a teacher creates a link. */
   function recordAssignment(a) {
     const d = data();
@@ -206,6 +287,80 @@ window.LuneStudio = (function () {
     return req.on ? `Done. I’ll email you today’s practice ${emailLine(req).toLowerCase()}. Unsubscribe any time from the email.` : "Done. No more practice emails.";
   }
 
+  /*
+   * From Lune AI: "send Meera her homework every Monday at 5pm",
+   * "email Aarav's homework daily at 7 to aarav@example.com", "email Meera her homework now",
+   * "stop emailing Aarav homework". Teachers only; null when it isn't one of these.
+   */
+  function parseHomeworkRequest(text) {
+    if (role() !== "teacher") return null;
+    const t = String(text || "");
+    const low = t.toLowerCase();
+    if (!/\bhomework\b/.test(low) || !/\b(send|sends|sending|e-?mail|e-?mails|e-?mailing|mail)\b/.test(low)) return null;
+    const reEsc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const student = data().students.find((x) => {
+      const f = split(x.name).first.toLowerCase();
+      return f && new RegExp(`\\b${reEsc(f)}('s)?\\b`).test(low);
+    });
+    const email = (t.match(/[^@\s<>,;:]+@[^@\s<>,;:]+\.[a-z]{2,}/i) || [])[0] || "";
+    if (/\b(stop|don'?t|no more|turn off|cancel|no longer)\b/.test(low)) return { student, freq: "off" };
+    const repeat = /every|daily|each|weekly|week ?days?|mondays|tuesdays|wednesdays|thursdays|fridays|saturdays|sundays/.test(low);
+    if (!repeat && /\b(now|right away|straight away|today)\b/.test(low)) return { student, now: true, email };
+    let freq = "weekly";
+    let day = 1;
+    if (/every ?day|daily|each day|every (morning|evening|night)/.test(low)) freq = "daily";
+    else {
+      const i = DAYS.findIndex((d) => new RegExp(`\\b${d.toLowerCase()}`).test(low));
+      if (i >= 0) day = i;
+    }
+    let hour = 17;
+    const m = low.replace(email.toLowerCase(), " ").match(/\b(?:at\s*)?(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)?/);
+    if (m && Number(m[1]) <= 23) {
+      hour = Number(m[1]);
+      if (/p/.test(m[3] || "") && hour < 12) hour += 12;
+      if (/a/.test(m[3] || "") && hour === 12) hour = 0;
+      if (!m[3] && hour >= 1 && hour <= 7) hour += 12; // "at 5" after school, not before dawn
+    } else if (/morning/.test(low)) hour = 7;
+    else if (/evening|night/.test(low)) hour = 18;
+    else if (/afternoon|after school/.test(low)) hour = 16;
+    return { student, freq, day, hour, email };
+  }
+  async function applyHomeworkRequest(req) {
+    if (!req.student) {
+      const names = data().students.map((x) => split(x.name).first);
+      return names.length ? `Which student? I have ${names.join(", ")} in your Studio. Ask again with their name.` : "Add the student in your Studio first, then ask me again with their name.";
+    }
+    const id = req.student.id;
+    const first = split(req.student.name).first;
+    await loadMail();
+    const have = mailRows.get(id);
+    if (req.freq === "off") {
+      await setStudentMail(id, { email: "", freq: "off" });
+      paint();
+      return `Done. Lune won’t email ${first} homework any more. You can still share it by link.`;
+    }
+    const email = req.email || have?.email || "";
+    if (!email) return `I need ${first}’s email (or a parent’s) first. Say, for example: “send ${first} their homework every Monday at 5 pm to name@example.com”, or add it on ${first}’s card in your Studio.`;
+    if (req.now) {
+      if (!have || req.email) {
+        const problem = await setStudentMail(id, { email, freq: "weekly", day: new Date().getDay(), hour: 17 });
+        if (problem) return problem;
+      }
+      if (!data().assignments.some((a) => a.sid === id)) return `${first} has no homework yet. Send some from a score first, then I’ll email it.`;
+      try {
+        await emailNow(id);
+      } catch (err) {
+        return err?.message || "Couldn’t send it just now.";
+      }
+      paint();
+      return `Sent. ${first} has the newest homework in their inbox now.`;
+    }
+    const problem = await setStudentMail(id, { email, freq: req.freq, day: req.day, hour: req.hour });
+    if (problem) return problem;
+    paint();
+    return `Done. Lune will email ${first} the newest homework ${scheduleLine(mailRows.get(id))}${req.email ? `, to ${email}` : ""}. Change it any time on ${first}’s card in your Studio, or ask me.`;
+  }
+
   /* ---------------- the Studio page ---------------- */
 
   function host() {
@@ -309,13 +464,11 @@ window.LuneStudio = (function () {
         <div class="sd2-head"><h2 id="sd2-students-h">Students</h2></div>
         <div class="sd2-grid" id="sd2-students">
           ${d.students.map((s) => studentCard(s)).join("")}
-          <form class="sd2-card sd2-add" autocomplete="off" id="sd2-add">
+          <button type="button" class="sd2-card sd2-add" id="sd2-add" data-sd="student">
             <span class="sd2-av sd2-av-add" aria-hidden="true">+</span>
-            <label for="sd2-add-name" class="sd2-add-k">Add a student</label>
-            <input id="sd2-add-name" maxlength="60" placeholder="Name, level  e.g. Aarav, Grade 3">
-            <button type="submit" class="sd2-quiet">Add</button>
-            <p class="sd2-add-note">Students never need an account.</p>
-          </form>
+            <span class="sd2-add-k">Add a student</span>
+            <span class="sd2-add-note">Name, level and, if you like, an email for homework. Students never need an account.</span>
+          </button>
         </div>
       </section>
 
@@ -341,6 +494,14 @@ window.LuneStudio = (function () {
       </section>
       <p class="sd2-foot"><button type="button" class="sd2-link" data-sd="tour">Take the Studio tour</button></p>`;
 
+    // each student's homework email
+    loadMail().then(() => {
+      if (!el.isConnected) return;
+      for (const s of d.students) {
+        const line = el.querySelector(`[data-student="${s.id}"] .sd2-mailline`);
+        if (line) line.innerHTML = mailLineHtml(s);
+      }
+    });
     // each student's week, as the check-ins arrive
     const snaps = await Promise.all(d.students.map((s) => snapshot(s).then((snap) => ({ s, snap }))));
     if (!el.isConnected) return;
@@ -391,11 +552,15 @@ window.LuneStudio = (function () {
         <header>
           <span class="sd2-av" aria-hidden="true">${esc(p.first.charAt(0).toUpperCase())}</span>
           <div class="sd2-who"><h3>${esc(p.name)}</h3>${p.level ? `<p>${esc(p.level)}</p>` : ""}</div>
+          <button type="button" class="sd2-x sd2-edit" data-sd="student" data-id="${s.id}" aria-label="Edit ${esc(p.name)}" title="Edit">
+            <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+          </button>
           <button type="button" class="sd2-x" data-sd="remove" data-id="${s.id}" aria-label="Remove ${esc(p.name)}" title="Remove">
             <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
           </button>
         </header>
         <p class="sd2-status">…</p>
+        <p class="sd2-mailline">${mailLineHtml(s)}</p>
         <div class="sd2-chips" aria-label="Bars: still hard, and feeling good"></div>
         <footer>
           <button type="button" class="sd2-quiet" data-sd="prep" data-id="${s.id}">Lesson plan</button>
@@ -403,6 +568,128 @@ window.LuneStudio = (function () {
         </footer>
         <div class="sd2-prep" hidden aria-live="polite"></div>
       </article>`;
+  }
+
+  function mailLineHtml(s) {
+    const r = mailRows.get(s.id);
+    const first = esc(split(s.name).first);
+    const icon = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M4 6.5h16v11H4zM4.5 7l7.5 6 7.5-6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+    if (!r) return `${icon}<button type="button" class="sd2-link" data-sd="student" data-id="${s.id}">Add an email for automatic homework</button>`;
+    if (r.enabled === false) return `${icon}<span>${first} unsubscribed from homework emails</span>`;
+    const hasHw = data().assignments.some((a) => a.sid === s.id);
+    return `${icon}<span>Homework emailed ${esc(scheduleLine(r))}</span>${hasHw ? `<button type="button" class="sd2-link" data-sd="mail-now" data-id="${s.id}">Email now</button>` : ""}`;
+  }
+
+  /* ---------------- a student: name, level, and their homework email ---------------- */
+
+  async function openStudentSheet(sid = "") {
+    await loadMail();
+    const st = data().students.find((x) => x.id === sid) || null;
+    const p = st ? split(st.name) : { name: "", level: "" };
+    const r = st ? mailRows.get(st.id) : null;
+    const freq = !r ? "weekly" : (r.days || []).length >= 7 ? "daily" : "weekly";
+    const day = r && (r.days || []).length < 7 ? Number(r.days[0]) : 1;
+    const hour = r ? Number(r.send_hour) : 17;
+    let d = $("sd2-student");
+    if (!d) {
+      d = document.createElement("dialog");
+      d.id = "sd2-student";
+      d.className = "sd2-sheet";
+      d.setAttribute("aria-labelledby", "sd2-student-h");
+      document.body.appendChild(d);
+      d.addEventListener("click", (e) => {
+        if (e.target === d || e.target.closest("[data-close]")) d.close();
+      });
+      d.addEventListener("input", () => syncStudentSheet(d));
+      d.addEventListener("change", () => syncStudentSheet(d));
+      d.addEventListener("submit", onStudentSubmit);
+    }
+    d.dataset.sid = st?.id || "";
+    d.innerHTML = `
+      <form class="sd2-sheet-in sd2-stu" method="dialog" autocomplete="off" novalidate>
+        <header><h2 id="sd2-student-h">${st ? esc(p.name) : "Add a student"}</h2><button type="button" class="sd2-x" data-close aria-label="Close"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button></header>
+        <div class="sd2-pair">
+          <label class="sd2-field"><span>Name</span><input name="name" maxlength="40" required value="${esc(p.name)}" placeholder="Meera" autocomplete="off"></label>
+          <label class="sd2-field"><span>Level</span><input name="level" maxlength="20" value="${esc(p.level)}" placeholder="Grade 5" autocomplete="off"></label>
+        </div>
+        <label class="sd2-field"><span>Email for homework <i>the student’s or a parent’s · optional</i></span><input name="email" type="email" maxlength="254" value="${esc(r?.email || "")}" placeholder="name@example.com" autocomplete="off" inputmode="email"></label>
+        <div class="sd2-sched" ${r?.enabled === false ? "data-off" : ""}>
+          <p class="sd2-sched-k">Send their homework</p>
+          <div class="sd2-seg" role="radiogroup" aria-label="How often">
+            ${[["weekly", "Once a week"], ["daily", "Every day"], ["off", "Don’t email"]].map(([v, l]) => `<label><input type="radio" name="freq" value="${v}"${(r ? (r.enabled === false ? "off" : freq) : "weekly") === v ? " checked" : ""}><span>${l}</span></label>`).join("")}
+          </div>
+          <div class="sd2-sched-when">
+            <label class="sd2-field sd2-day"><span>On</span><select name="day">${DAY_NAMES.map((n, i) => ({ n, i })).slice(1).concat([{ n: "Sunday", i: 0 }]).map(({ n, i }) => `<option value="${i}"${i === day ? " selected" : ""}>${n}</option>`).join("")}</select></label>
+            <label class="sd2-field"><span>At</span><select name="hour">${Array.from({ length: 24 }, (_, h) => `<option value="${h}"${h === hour ? " selected" : ""}>${String(h).padStart(2, "0")}:00</option>`).join("")}</select></label>
+          </div>
+          <p class="sd2-sched-note" id="sd2-sched-note"></p>
+        </div>
+        <p class="sd2-err" id="sd2-stu-err" role="alert"></p>
+        <footer class="sd2-stu-act"><button type="button" class="sd2-quiet" data-close>Cancel</button><button type="submit" class="sd2-primary" id="sd2-stu-save">${st ? "Save" : "Add student"}</button></footer>
+      </form>`;
+    syncStudentSheet(d);
+    d.showModal();
+    setTimeout(() => d.querySelector(st ? 'input[name="email"]' : 'input[name="name"]')?.focus(), 40);
+  }
+  function syncStudentSheet(d) {
+    const f = d.querySelector("form");
+    if (!f) return;
+    const email = f.email.value.trim();
+    const freq = f.freq.value;
+    const sched = f.querySelector(".sd2-sched");
+    const unsub = sched.hasAttribute("data-off");
+    sched.classList.toggle("is-dim", !email || unsub);
+    f.querySelectorAll('input[name="freq"], select').forEach((x) => (x.disabled = !email || unsub));
+    f.querySelector(".sd2-sched-when").hidden = freq === "off";
+    f.querySelector(".sd2-day").hidden = freq !== "weekly";
+    const first = f.name.value.trim().split(/\s+/)[0] || "they";
+    const at = hourText(Number(f.hour.value));
+    $("sd2-sched-note").textContent = unsub
+      ? `${first} unsubscribed from homework emails, so Lune won’t send them any more.`
+      : !email
+        ? "Add an email and Lune sends their newest homework for you, with a link that opens just those bars."
+        : freq === "off"
+          ? "No emails. You can still share homework by link or WhatsApp."
+          : freq === "daily"
+            ? `Every day at ${at}, Lune emails ${first} their newest homework.`
+            : `Every ${DAY_NAMES[Number(f.day.value)]} at ${at}, Lune emails ${first} the week’s homework.`;
+  }
+  async function onStudentSubmit(e) {
+    e.preventDefault();
+    const d = e.target.closest("dialog");
+    const f = e.target;
+    const err = $("sd2-stu-err");
+    const name = f.name.value.trim().replace(/[,]/g, " ").replace(/\s+/g, " ");
+    const level = f.level.value.trim().replace(/[,]/g, " ");
+    const email = f.email.value.trim();
+    if (!name) {
+      err.textContent = "Add their name.";
+      return f.name.focus();
+    }
+    if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      err.textContent = "That email address doesn’t look right.";
+      return f.email.focus();
+    }
+    const btn = $("sd2-stu-save");
+    btn.disabled = true;
+    const full = level ? `${name}, ${level}` : name;
+    const st = d.dataset.sid ? updateStudent(d.dataset.sid, full) : addStudent(full);
+    if (!st) {
+      btn.disabled = false;
+      err.textContent = "Couldn’t save that.";
+      return;
+    }
+    const problem = await setStudentMail(st.id, { email, freq: email ? f.freq.value : "off", day: Number(f.day.value), hour: Number(f.hour.value) });
+    btn.disabled = false;
+    if (problem) {
+      d.dataset.sid = st.id;
+      err.textContent = problem;
+      paint();
+      return;
+    }
+    d.close();
+    paint();
+    window.toast?.(d.dataset.sid ? "Saved" : `${name} added`);
   }
 
   function homeworkRow(a, d) {
@@ -615,6 +902,23 @@ window.LuneStudio = (function () {
     if (!b) return;
     const act = b.dataset.sd;
     if (act === "send") return openSendSheet(b.dataset.id || "");
+    if (act === "student") return openStudentSheet(b.dataset.id || "");
+    if (act === "mail-now") {
+      const s = data().students.find((x) => x.id === b.dataset.id);
+      if (!s) return;
+      b.disabled = true;
+      b.textContent = "Sending…";
+      try {
+        await emailNow(s.id);
+        b.textContent = "Sent";
+        window.toast?.(`Homework emailed to ${split(s.name).first}`);
+      } catch (err) {
+        b.disabled = false;
+        b.textContent = "Email now";
+        window.toast?.(err?.message || "Couldn’t send it just now.");
+      }
+      return;
+    }
     if (act === "ask") return window.LuneAsk?.goAiPage?.();
     if (act === "tour") {
       try {
@@ -669,7 +973,7 @@ window.LuneStudio = (function () {
     }
   }
   function onSubmit(e) {
-    const f = e.target.closest("#sd2-add");
+    const f = e.target.closest("form#sd2-add");
     if (!f) return;
     e.preventDefault();
     const input = f.querySelector("input");
@@ -749,6 +1053,12 @@ window.LuneStudio = (function () {
         ];
         if (!d0.assignments.some((a) => a.id === "demoMeera01")) d0.assignments.push({ id: "demoMeera01", sid: "demomeera", key: "claude-debussy-claire-de-lune", t: "Clair de lune", c: "Claude Debussy", bars: [1, 2, 3, 4], m: "Keep the right hand singing over a very quiet left hand.", tb: "♩. = 44", goal: "clean3", at: ago(5), url: "" });
         d0.email = d0.email?.on ? d0.email : { on: true, days: [0], hour: 18 };
+        // homework emails, kept in this tab only
+        const pm = new Map([["demomeera", { student_key: "demomeera", student_name: "Meera", email: "meera.parent@example.com", days: [1], send_hour: 17, enabled: true }]]);
+        S.homeworkMail = async () => [...pm.values()];
+        S.setHomeworkMail = async (k, o) => void pm.set(k, { student_key: k, student_name: o.name, email: o.email, days: o.days, send_hour: o.hour, enabled: true });
+        S.removeHomeworkMail = async (k) => void pm.delete(k);
+        S.sendHomeworkNow = async () => new Promise((r) => setTimeout(() => r({ ok: true }), 700));
         save(d0);
         // sample check-ins for the sample homework, so the Studio shows a real week
         const real = S.assignmentProgress?.bind(S);
@@ -768,5 +1078,5 @@ window.LuneStudio = (function () {
     /* not a preview */
   }
 
-  return { previewingStudent: () => previewRole === "student", role, setRole, takeOver, paint, data, addStudent, recordAssignment, prepareLesson, parseEmailRequest, applyEmailRequest, emailLine };
+  return { previewingStudent: () => previewRole === "student", role, setRole, takeOver, paint, data, addStudent, recordAssignment, prepareLesson, parseEmailRequest, applyEmailRequest, emailLine, mailFor, emailNow, loadMail, openStudentSheet, parseHomeworkRequest, applyHomeworkRequest };
 })();

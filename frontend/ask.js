@@ -2327,6 +2327,18 @@ How to answer
       if (open) paintHistoryList();
     };
     d.querySelector("#chat-hist-btn").addEventListener("click", () => hist(!d.classList.contains("hist-open")));
+    // phones: the list is a drawer; tapping the conversation beside it closes it, and so does going narrow
+    d.querySelector(".chat-main")?.addEventListener(
+      "click",
+      (e) => {
+        if (wide() || !d.classList.contains("hist-open") || e.target.closest("#chat-hist-btn")) return;
+        e.preventDefault();
+        e.stopPropagation();
+        hist(false);
+      },
+      true
+    );
+    window.matchMedia("(min-width: 900px)").addEventListener?.("change", (m) => d.classList.contains("is-page") && hist(m.matches));
     d.querySelector("#chat-clear").addEventListener("click", () => {
       saveChat([]);
       paintChat();
@@ -2424,7 +2436,12 @@ How to answer
     $("lune-chat")?.classList.toggle("is-empty", !!model && !log.length);
     $("chat-log").innerHTML = "";
     log.forEach((m, i) => {
-      const el = chatLine(m.who, m.text, { via: m.via });
+      // older saved planner questions carried their tap-replies as text: keep just the question
+      let said = m.text;
+      if (m.who === "lune" && m.via === "note") {
+        said = String(said || "").replace(/([?.])[^?.]*Type my own$/, "$1").replace(/([?.!”])(?=[A-Z“])/g, "$1 ");
+      }
+      const el = chatLine(m.who, said, { via: m.via });
       if (m.who === "lune" && m.via === "model") {
         richText(el, m.text);
         addPlanButtons(el);
@@ -2539,16 +2556,18 @@ How to answer
   });
 
   async function chatAsk(text) {
+    // "send Meera her homework every Monday at 5 pm" (teachers), or
     // "email me a summary every Sunday at 6 pm": Lune sets it up, no model needed
-    const mail = window.LuneStudio?.parseEmailRequest?.(text);
-    if (mail && $("chat-log")) {
+    const hw = window.LuneStudio?.parseHomeworkRequest?.(text);
+    const mail = hw ? null : window.LuneStudio?.parseEmailRequest?.(text);
+    if ((hw || mail) && $("chat-log")) {
       const log = chatLog();
       log.push({ who: "you", text, t: Date.now() });
       $("chat-starters").innerHTML = "";
       $("lune-chat")?.classList.remove("is-empty");
       $("chat-log").querySelector(".ask-empty")?.remove();
       chatLine("you", text);
-      const said = await window.LuneStudio.applyEmailRequest(mail);
+      const said = hw ? await window.LuneStudio.applyHomeworkRequest(hw) : await window.LuneStudio.applyEmailRequest(mail);
       chatLine("lune", said);
       log.push({ who: "lune", text: said, via: "note", t: Date.now() });
       saveChat(log);
@@ -2622,7 +2641,11 @@ How to answer
     const own = replies.length ? `<button type="button" class="la-own" data-own="${esc(ownHint)}"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>Type my own</button>` : "";
     bubble.innerHTML = String(html).replace(/>\s+</g, "><").trim() + (replies.length ? `<div class="la-replies" role="group" aria-label="Quick replies">${replies.map((r) => `<button type="button" class="la-reply">${esc(r)}</button>`).join("")}${own}</div>` : "");
     const log = chatLog();
-    log.push({ who: "lune", text: bubble.textContent.replace(/\s+/g, " ").trim(), via: "note", t: Date.now() });
+    // the history keeps the question, not the buttons under it (they'd read as one run-on line)
+    const said = document.createElement("div");
+    said.innerHTML = String(html).replace(/<\/(p|div|li|h\d)>/g, "</$1> ");
+    said.querySelectorAll("button").forEach((x) => x.remove());
+    log.push({ who: "lune", text: said.textContent.replace(/\s+/g, " ").trim(), via: "note", t: Date.now() });
     saveChat(log);
     $("chat-log").scrollTop = $("chat-log").scrollHeight;
     return bubble;
@@ -2874,7 +2897,7 @@ How to answer
   function openChatPage() {
     const d = ensureChat();
     d.classList.add("is-page");
-    if (wide()) d.classList.add("hist-open");
+    d.classList.toggle("hist-open", wide());
     openChat();
   }
   function openChat() {

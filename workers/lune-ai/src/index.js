@@ -1,4 +1,5 @@
 import { sendMorningEmails, unsubscribe } from "./daily.js";
+import { sendHomeworkEmails, sendHomeworkNow, homeworkUnsubscribe } from "./homework.js";
 /* Lune AI: the server side of Ask Lune for people with a Lune account.
  *
  * A Cloudflare Worker. It answers with an open-weight model on Cloudflare
@@ -306,9 +307,10 @@ export async function handle(req, env, fetchImpl = fetch) {
   const url = new URL(req.url);
   // the morning email's unsubscribe link and Gmail's one-click Unsubscribe
   if (url.pathname === "/unsubscribe") return unsubscribe(req, env, fetchImpl);
+  if (url.pathname === "/homework/unsubscribe") return homeworkUnsubscribe(req, env, fetchImpl);
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(req, env) });
   if (req.method === "GET" && url.pathname === "/health") return json(req, env, 200, { ok: true, model: env.MODEL });
-  const routes = ["/ask", "/transcribe", "/speak"];
+  const routes = ["/ask", "/transcribe", "/speak", "/homework/send"];
   if (req.method !== "POST" || !routes.includes(url.pathname)) return json(req, env, 404, { error: "Not found" });
 
   const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
@@ -319,6 +321,12 @@ export async function handle(req, env, fetchImpl = fetch) {
   if (env.PER_ACCOUNT?.limit) {
     const { success } = await env.PER_ACCOUNT.limit({ key: user.id });
     if (!success) return json(req, env, 429, { error: "That is a lot of questions at once. Try again in a minute." });
+  }
+
+  if (url.pathname === "/homework/send") {
+    const body = await req.json().catch(() => ({}));
+    const out = await sendHomeworkNow(env, user, body, fetchImpl);
+    return json(req, env, out.status, out.body);
   }
 
   if (url.pathname === "/transcribe") {
@@ -406,5 +414,6 @@ export async function handle(req, env, fetchImpl = fetch) {
 export default {
   fetch: (req, env) => handle(req, env),
   // every hour: the morning email for everyone whose 7 am it is (does nothing until its secrets are set)
-  scheduled: (event, env, ctx) => ctx.waitUntil(sendMorningEmails(env)),
+  // and each student whose homework time it is, on their teacher's schedule
+  scheduled: (event, env, ctx) => ctx.waitUntil(Promise.allSettled([sendMorningEmails(env), sendHomeworkEmails(env)])),
 };

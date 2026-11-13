@@ -397,3 +397,33 @@ alter table public.daily_emails drop constraint if exists daily_emails_kind_chec
 alter table public.daily_emails add constraint daily_emails_kind_check check (kind in ('student', 'teacher'));
 alter table public.daily_emails add column if not exists days smallint[] not null default '{0,1,2,3,4,5,6}';
 grant select (kind, days) on public.daily_emails to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Added November 2026: homework by email, on the teacher's schedule.
+-- A teacher may add a student's (or a parent's) email and choose when Lune
+-- sends that student their latest homework: every day, or on chosen days, at
+-- an hour in the teacher's time zone. One row per student. Only the student's
+-- name as the teacher typed it, the address and the schedule are kept; the row
+-- goes when the teacher removes the student or the student unsubscribes
+-- (one tap, no sign-in, with the private token below).
+create table if not exists public.homework_mail (
+  teacher_id uuid not null references auth.users (id) on delete cascade default auth.uid(),
+  student_key text not null check (student_key ~ '^[a-z0-9]{6,24}$'),
+  student_name text not null default '' check (char_length(student_name) <= 60),
+  email text not null check (char_length(email) <= 254 and email ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$'),
+  days smallint[] not null default '{1}',
+  send_hour smallint not null default 17 check (send_hour between 0 and 23),
+  tz text not null default 'Europe/London' check (char_length(tz) <= 64),
+  enabled boolean not null default true,
+  token uuid not null default gen_random_uuid() unique,
+  last_sent date,
+  updated_at timestamptz not null default now(),
+  primary key (teacher_id, student_key)
+);
+alter table public.homework_mail enable row level security;
+drop policy if exists "my students' homework mail" on public.homework_mail;
+create policy "my students' homework mail" on public.homework_mail for all to authenticated
+  using (teacher_id = auth.uid()) with check (teacher_id = auth.uid());
+revoke select on public.homework_mail from authenticated, anon;
+grant select (teacher_id, student_key, student_name, email, days, send_hour, tz, enabled, last_sent, updated_at) on public.homework_mail to authenticated;
+grant insert, update, delete on public.homework_mail to authenticated;

@@ -81,7 +81,7 @@ h3, .lp-h, .rep-card h3 { font-family: var(--ui) !important; font-weight: 600 !i
    ========================================================================== */
 .lune-chat { background: var(--d-bg) !important; }
 .lune-chat .chat-hist {
-  background: #0d0d0f !important;
+  background: var(--g-card, #0d0d0f) !important;
   border-right: 1px solid var(--d-sep) !important;
 }
 .lune-chat .ch-h { font-size: 13px !important; font-weight: 600; color: var(--d-label-2) !important; letter-spacing: 0 !important; text-transform: none !important; }
@@ -440,13 +440,6 @@ html body :is(.home-app-sub, .mr-hint, .sim-piano-meta, .piano-tut-kicker, .tut-
 }
 html body .settings-dialog h3, html body dialog h3 { margin: 22px 0 8px 4px !important; }
 
-/* inside the inverted bar panel, colours are written for light and flipped by its filter */
-html:not([data-theme="light"]) #coach .quiet, html:not([data-theme="light"]) #coach button.quiet {
-  color: #111 !important; border-color: rgba(0, 0, 0, 0.16) !important; background: transparent !important;
-}
-html:not([data-theme="light"]) #coach .quiet:hover { background: rgba(0, 0, 0, 0.05) !important; }
-html:not([data-theme="light"]) #coach .primary { background: #111 !important; color: #fff !important; }
-html:not([data-theme="light"]) #coach .link-btn { color: rgba(0, 0, 0, 0.6) !important; }
 
 html[data-theme="light"] body .lune-chat .chat-from-you .chat-bubble, html[data-theme="light"] body .ask-from-you .ask-msg {
   background: #f2f2f7 !important; color: #000 !important; border: 0 !important; box-shadow: none !important;
@@ -460,8 +453,6 @@ html body .lune-chat .chat-from-lune .chat-bubble li::marker, html body .la2 li:
 }
 
 html body .wk-opts .wk-go, html body button.wk-go { background: var(--accent) !important; color: var(--accent-ink) !important; border-color: var(--accent) !important; }
-/* finger numbers in the bar panel: written for light, flipped in dark */
-html:not([data-theme="light"]) #coach .tone-finger { color: #2c2c2e !important; border-color: #2c2c2e !important; }
 html[data-theme="light"] .tone-finger { color: #14213d !important; border-color: #14213d !important; }
 
 /* Lune AI's empty state: the crescent and one large line, like a good chat app's greeting */
@@ -507,14 +498,14 @@ h3, .rep-card h3, .rep-plan-card h3 { font-weight: 600 !important; letter-spacin
 
 /* navy, sparingly: the account button, the send button, what is chosen, what is in progress */
 header.bar .bar-auth, html[data-theme="light"] header.bar .bar-auth {
-  background: var(--navy-mid) !important; color: #fff !important; border: 1px solid rgba(159, 178, 228, 0.28) !important;
+  background: var(--navy-mid) !important; color: var(--on-navy, #fff) !important; border: 1px solid rgba(159, 178, 228, 0.28) !important;
 }
 header.bar .bar-auth:hover { background: #2a4482 !important; }
-.lune-chat .lc-round, .lc-send, .lc-round { background: var(--navy-mid) !important; color: #fff !important; }
-.la-reply.on { background: var(--navy-mid) !important; border-color: var(--navy-mid) !important; color: #fff !important; }
+.lune-chat .lc-round, .lc-send, .lc-round { background: var(--navy-mid) !important; color: var(--on-navy, #fff) !important; }
+.la-reply.on { background: var(--navy-mid) !important; border-color: var(--navy-mid) !important; color: var(--on-navy, #fff) !important; }
 .rp-bar i, #member-streak .po-bar i, .lw-bar i { background: var(--navy-hi) !important; }
 body:not(.studio-compact) .studio-seg .studio-tab[aria-selected="true"]::before { background: var(--navy-hi) !important; box-shadow: none !important; }
-.st-seg-panels button[aria-pressed="true"] { background: var(--navy-mid) !important; color: #fff !important; }
+.st-seg-panels button[aria-pressed="true"] { background: var(--navy-mid) !important; color: var(--on-navy, #fff) !important; }
 .lune-chat .la-bar { text-decoration-color: rgba(159, 178, 228, 0.55) !important; }
 .lune-chat .la-bar:hover { text-decoration-color: var(--navy-hi) !important; }
 /* the small labels above sections: Garamond italic in soft navy */
@@ -548,11 +539,11 @@ html body #home-member .member-rec-role {
   font-family: var(--ui) !important; font-style: italic !important; font-size: 14px !important; letter-spacing: 0 !important;
   text-transform: none !important; color: var(--navy-hi) !important;
 }
-html body #home-member .home-ask .lc-round, html body #home-member .home-ask button[type="submit"] { background: var(--navy-mid) !important; color: #fff !important; box-shadow: none !important; }
+html body #home-member .home-ask .lc-round, html body #home-member .home-ask button[type="submit"] { background: var(--navy-mid) !important; color: var(--on-navy, #fff) !important; box-shadow: none !important; }
 
 /* Repertoire cards: one clear action (Open, in navy), the rest as quiet words */
 html body #repertoire .rep-card .rep-card-actions .primary, html body .rep-card .primary {
-  background: var(--navy-mid) !important; color: #fff !important; border: 1px solid rgba(159, 178, 228, 0.28) !important; box-shadow: none !important;
+  background: var(--navy-mid) !important; color: var(--on-navy, #fff) !important; border: 1px solid rgba(159, 178, 228, 0.28) !important; box-shadow: none !important;
 }
 html body .rep-card .rep-card-actions .quiet {
   border: 0 !important; background: transparent !important; color: var(--d-label-2) !important; padding: 0 10px !important; min-height: 36px !important;
@@ -565,7 +556,7 @@ html body #home-member .member-next-k, html body #member-streak .wk-k, html body
   font-family: var(--ui) !important; font-style: italic !important; font-size: 15px !important; letter-spacing: 0 !important;
   text-transform: none !important; color: var(--navy-hi) !important;
 }
-html[data-theme="light"] body .rep-card .primary { background: var(--navy-mid) !important; color: #fff !important; }
+html[data-theme="light"] body .rep-card .primary { background: var(--navy-mid) !important; color: var(--on-navy, #fff) !important; }
 
 /* Explain: reading and access as one quiet row, not a second panel competing with the title */
 html body #explain-access.access-card { background: none !important; border: 0 !important; padding: 0 !important; margin-top: 18px !important; box-shadow: none !important; }
@@ -615,7 +606,7 @@ html body #home-member .home-ask-chips, html body .home-ask-chips { justify-cont
 .hd2-chord sup { font: 600 11px var(--nums); color: var(--navy-hi); margin-left: 3px; vertical-align: super; font-size-adjust: none; }
 .hd2-q {
   margin: 0 0 12px auto; width: fit-content; max-width: 80%; padding: 8px 14px; border-radius: 16px 16px 4px 16px;
-  background: var(--navy-mid); color: #fff; font: 400 16px/1.4 var(--ui);
+  background: var(--navy-mid); color: var(--on-navy, #fff); font: 400 16px/1.4 var(--ui);
   opacity: 0; transform: translateY(6px); transition: opacity 0.5s ease 0.2s, transform 0.5s ease 0.2s;
 }
 .hero-demo.is-asking .hd2-q, .hero-demo.is-done .hd2-q { opacity: 1; transform: none; }
@@ -647,9 +638,9 @@ html[data-theme="light"] .hd2-chord, html[data-theme="light"] .hd2-steps li { ba
 html[data-theme="light"] .hd2-chord b, html[data-theme="light"] .hd2-piece { color: #111; }
 html[data-theme="light"] .hd2-a { color: rgba(0, 0, 0, 0.82); }
 html[data-theme="light"] .hd2-chord sup, html[data-theme="light"] .hd2-tag { color: var(--navy-mid); }
-html[data-theme="light"] .hd2-steps i { background: var(--navy-mid); color: #fff; }
+html[data-theme="light"] .hd2-steps i { background: var(--navy-mid); color: var(--on-navy, #fff); }
 /* the product moment, right under the hero */
-.demo-moment { padding: 96px 16px 72px; text-align: center; background: #000; }
+.demo-moment { padding: 96px 16px 72px; text-align: center; background: var(--g-bg, #000); }
 .demo-moment h2 { margin: 6px auto 0; max-width: 18ch; font-size: clamp(32px, 4.2vw, 52px) !important; line-height: 1.08; color: var(--d-label); }
 .demo-moment .hero-demo { margin-top: 44px; }
 html[data-theme="light"] .demo-moment { background: #fff; }
@@ -717,7 +708,7 @@ html[data-theme="light"] .lt-card { background: rgba(255, 255, 255, 0.95); borde
 html[data-theme="light"] .lt-title { color: #111; }
 html[data-theme="light"] .lt-body { color: rgba(0, 0, 0, 0.75); }
 html[data-theme="light"] .lt-count { color: var(--navy-mid); }
-html[data-theme="light"] .lt-next { background: var(--navy-mid); color: #fff; }
+html[data-theme="light"] .lt-next { background: var(--navy-mid); color: var(--on-navy, #fff); }
 @media (prefers-reduced-motion: reduce) { .lt-ring, .lt-card { transition: none; animation: none; } }
 
 /* the bar panel's Ask box: crescent instead of the glowing ball; navy send button.
@@ -730,7 +721,7 @@ html body #coach .lune-orb-sm, html body #coach [class*="orb"] {
 }
 html body #coach [class*="orb"] * { display: none !important; }
 html:not([data-theme="light"]) body #coach .lc-round, html:not([data-theme="light"]) body #coach .lc-send { background: #c3d0f2 !important; color: #000 !important; }
-html[data-theme="light"] body #coach .lc-round, html[data-theme="light"] body #coach .lc-send { background: var(--navy-mid) !important; color: #fff !important; }
+html[data-theme="light"] body #coach .lc-round, html[data-theme="light"] body #coach .lc-send { background: var(--navy-mid) !important; color: var(--on-navy, #fff) !important; }
 
 /* ==========================================================================
    Header, Apple-simple: open-piece tabs belong to the studio only; a guest on
@@ -780,7 +771,7 @@ html body aside#ask-lune.ask-lune {
   top: 0 !important; right: 0 !important; bottom: 0 !important; left: auto !important;
   width: min(440px, 100vw) !important; height: 100dvh !important; max-height: none !important;
   border-radius: 0 !important; margin: 0 !important; transform: none !important;
-  background: #000 !important; border: 0 !important; border-left: 1px solid var(--d-sep) !important;
+  background: var(--g-bg, #000) !important; border: 0 !important; border-left: 1px solid var(--d-sep) !important;
   box-shadow: -30px 0 80px -20px rgba(0, 0, 0, 0.8) !important; z-index: 1200 !important;
   display: flex !important; flex-direction: column !important;
 }
@@ -831,7 +822,7 @@ html body #ask-lune .lc-composer {
   padding: 5px 5px 5px 16px !important; min-height: 50px; align-items: center !important; box-shadow: none !important;
 }
 html body #ask-lune .lc-composer textarea { font: 400 16px/1.45 var(--ui) !important; color: var(--d-label) !important; background: transparent !important; }
-html body #ask-lune .lc-round { width: 38px !important; height: 38px !important; background: var(--navy-mid) !important; color: #fff !important; box-shadow: none !important; }
+html body #ask-lune .lc-round { width: 38px !important; height: 38px !important; background: var(--navy-mid) !important; color: var(--on-navy, #fff) !important; box-shadow: none !important; }
 /* when Lune AI is open, the bar panel beneath it steps aside */
 body:has(#ask-lune:not([hidden])) #coach { visibility: hidden; }
 @media (max-width: 700px) {
@@ -846,7 +837,7 @@ html[data-theme="light"] body aside#ask-lune.ask-lune { background: #fff !import
 }
 .la-act:hover { background: var(--d-surface-2); }
 .la-act:disabled { opacity: 0.4; cursor: default; }
-.la-act.on { opacity: 1 !important; background: var(--navy-mid); border-color: var(--navy-mid); color: #fff; }
+.la-act.on { opacity: 1 !important; background: var(--navy-mid); border-color: var(--navy-mid); color: var(--on-navy, #fff); }
 .la-actions:has(.on) .la-act:not(.on) { display: none; }
 html body .lune-chat .lc-attach { width: 36px; height: 36px; border-radius: 50%; color: var(--d-label-2); flex: none; margin-left: -8px; }
 html body .lune-chat .lc-attach:hover { color: var(--d-label); background: var(--d-surface-2); }
@@ -883,10 +874,10 @@ html body #home-member .member-recs-grid, html body #home-member .member-rec-gri
 html body #home-member .member-rec {
   position: relative; overflow: hidden; display: flex !important; flex-direction: column; justify-content: flex-end; align-items: flex-start;
   min-height: 210px; padding: 16px 16px 14px !important; text-align: left;
-  background: #121216 !important; border: 1px solid rgba(255, 255, 255, 0.07) !important; border-radius: 18px !important;
+  background: var(--g-card, #121216) !important; border: 1px solid rgba(255, 255, 255, 0.07) !important; border-radius: 18px !important;
   transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.35s ease !important;
 }
-html body #home-member .member-rec:hover { transform: translateY(-3px) !important; border-color: rgba(159, 178, 228, 0.35) !important; background: #121216 !important; }
+html body #home-member .member-rec:hover { transform: translateY(-3px) !important; border-color: rgba(159, 178, 228, 0.35) !important; background: var(--g-card, #121216) !important; }
 html body #home-member .member-rec-face {
   position: absolute; inset: 0; background-size: cover; background-position: center 22%;
   filter: grayscale(1) contrast(1.05) brightness(0.8); transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
@@ -932,7 +923,7 @@ html body .rep-face {
 html body .rep-face-letter { display: grid; place-items: center; filter: none; background: linear-gradient(140deg, #1d2a50, #0d0f18); font: italic 400 38px var(--display); color: #dfe6fb; }
 html body .rep-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 8px; }
 html body .rep-chip { padding: 3px 10px; border-radius: 999px; font: 500 13.5px var(--ui); background: var(--d-surface-2); color: var(--d-label-2); }
-html body .rep-chip-due { background: var(--navy-mid); color: #fff; }
+html body .rep-chip-due { background: var(--navy-mid); color: var(--on-navy, #fff); }
 html body .rep-chip-ok { color: #cfe8d6; background: rgba(48, 120, 80, 0.22); }
 html body .rep-sum { border-left: 2px solid var(--navy-mid) !important; background: transparent !important; padding: 2px 0 2px 12px !important; margin-top: 10px !important; font: 400 15.5px/1.5 var(--ui); color: var(--d-label-2); }
 html body .rep-sum-k { display: block; font: italic 500 14px var(--ui) !important; letter-spacing: 0 !important; text-transform: none !important; color: var(--navy-hi) !important; }
@@ -1061,7 +1052,7 @@ html body #home-member > canvas.lune-stars, html body #home-member .mh-moon,
 html body #home-member #member-today, html body #home-member #mh-phase,
 html body #home-member .member-quick, html body #home-member .member-ai,
 html body #home-member #member-feedback { display: none !important; }
-html body #home-member { background: #000 !important; }
+html body #home-member { background: var(--g-bg, #000) !important; }
 html body #home-member .member-hero { padding-top: clamp(64px, 14vh, 140px) !important; max-width: 720px; margin: 0 auto; }
 html body #home-member #member-greeting {
   display: flex; align-items: center; justify-content: center; gap: 14px; margin: 0 0 30px !important;
@@ -1076,7 +1067,7 @@ html body #home-member #member-greeting::before {
 html body #home-member form#home-ask.home-ask {
   display: grid !important; grid-template-columns: 1fr auto auto; align-items: end; gap: 6px;
   min-height: 116px; padding: 18px 12px 12px 20px !important; border-radius: 24px !important;
-  background: #141416 !important; border: 1px solid rgba(255, 255, 255, 0.09) !important; box-shadow: 0 20px 50px -24px rgba(0, 0, 0, 0.9) !important;
+  background: var(--g-card, #141416) !important; border: 1px solid rgba(255, 255, 255, 0.09) !important; box-shadow: 0 20px 50px -24px rgba(0, 0, 0, 0.9) !important;
 }
 html body #home-member form#home-ask:focus-within { border-color: rgba(159, 178, 228, 0.35) !important; }
 html body #home-member form#home-ask .home-ask-orb { display: none !important; }
@@ -1086,13 +1077,13 @@ html body #home-member form#home-ask input#home-ask-input {
 }
 html body #home-member form#home-ask input#home-ask-input::placeholder { color: rgba(245, 245, 247, 0.42) !important; }
 html body #home-member form#home-ask .lc-tool { grid-column: 2; width: 38px; height: 38px; }
-html body #home-member form#home-ask .lc-round { grid-column: 3; width: 38px !important; height: 38px !important; background: var(--navy-mid) !important; color: #fff !important; box-shadow: none !important; }
+html body #home-member form#home-ask .lc-round { grid-column: 3; width: 38px !important; height: 38px !important; background: var(--navy-mid) !important; color: var(--on-navy, #fff) !important; box-shadow: none !important; }
 html body #home-member .home-ask-chips { margin: 14px 0 0 !important; justify-content: safe center !important; }
 html body #home-member .home-ask-chips button {
   min-height: 36px !important; padding: 0 16px !important; border-radius: 999px !important; background: transparent !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important; color: rgba(245, 245, 247, 0.8) !important; font: 500 15px var(--ui) !important;
 }
-html body #home-member .home-ask-chips button:hover { background: #141416 !important; color: #fff !important; }
+html body #home-member .home-ask-chips button:hover { background: var(--g-card, #141416) !important; color: #fff !important; }
 /* rhythm below the box */
 html body #home-member #member-next { margin-top: 64px !important; }
 html body #home-member #member-streak { margin-top: 14px !important; }
@@ -1139,7 +1130,7 @@ html body #help-body .lp-h { font: 600 17px var(--ui) !important; letter-spacing
 
 /* home suggestions: clean text cards, no portrait on every piece (only tonight's piece keeps its composer) */
 html body #home-member .member-rec .member-rec-face, html body #home-member .member-rec.has-face::after { display: none !important; }
-html body #home-member .member-rec { min-height: 0 !important; padding: 18px 18px 16px !important; justify-content: flex-start !important; background: #121216 !important; }
+html body #home-member .member-rec { min-height: 0 !important; padding: 18px 18px 16px !important; justify-content: flex-start !important; background: var(--g-card, #121216) !important; }
 html body #home-member .member-rec-title { font: 500 19px/1.2 var(--display) !important; color: #f5f5f7 !important; }
 html body #home-member .member-rec-by { color: rgba(245, 245, 247, 0.6) !important; }
 html body #home-member .member-rec-role { margin-bottom: 8px !important; }
@@ -1251,12 +1242,12 @@ html body #ask-lune:not(:has(#ask-log .ask-row)) #ask-chips { order: 4; margin-b
 .ls-grades button.on { background: var(--navy-mid); border-color: var(--navy-mid); }
 body.ls-on #companion-bar, body.ls-on #st-bottom { visibility: hidden; }
 /* the entry button above the score: navy, the one way to start */
-html body #btn-session.ls-start { background: var(--navy-mid) !important; color: #fff !important; border: 0 !important; border-radius: 999px !important; }
+html body #btn-session.ls-start { background: var(--navy-mid) !important; color: var(--on-navy, #fff) !important; border: 0 !important; border-radius: 999px !important; }
 html body #btn-session svg { width: 14px !important; height: 14px !important; }
 @media (max-width: 560px) { .ls-panel { bottom: 12px; padding: 14px 16px 16px; } .ls-bar { font-size: 26px; } }
 @media (prefers-reduced-motion: reduce) { .ls-panel { animation: none; } }
 html body .score-tools #btn-session, html body #btn-session.lp-tool.ls-start {
-  background: var(--navy-mid) !important; color: #fff !important; border: 0 !important; border-radius: 999px !important; padding: 0 14px !important; min-height: 34px !important;
+  background: var(--navy-mid) !important; color: var(--on-navy, #fff) !important; border: 0 !important; border-radius: 999px !important; padding: 0 14px !important; min-height: 34px !important;
 }
 /* during a session the session asks how it went; the bar panel doesn't ask twice */
 body.ls-on #help-body .lp-rate { display: none !important; }
@@ -1269,7 +1260,7 @@ body.ls-on #help-body .lp-rate { display: none !important; }
 .ls-clock b { position: relative; z-index: 1; }
 
 /* ---------- signed-in: no blue haze; Practise with Lune is the main action ---------- */
-html body.is-signed-in main#home#home.home, html body.is-repertoire main#home#home.home, html body[data-mode="repertoire"] main#home#home.home { background: #000 !important; background-image: none !important; }
+html body.is-signed-in main#home#home.home, html body.is-repertoire main#home#home.home, html body[data-mode="repertoire"] main#home#home.home { background: var(--g-bg, #000) !important; background-image: none !important; }
 html[data-theme="light"] body main#home#home.home { background: #fff !important; background-image: none !important; }
 html body #home-member .member-next .ls-home {
   display: inline-flex !important; align-items: center; gap: 8px;
@@ -1350,7 +1341,7 @@ html body #lune-chat.is-empty .ask-empty-h { font: 400 clamp(32px, 3.4vw, 44px)/
 html body #lune-chat .lc-composer {
   display: grid !important; grid-template-columns: auto 1fr auto auto; grid-template-areas: "input input input input" "attach . mic talk";
   align-items: center; row-gap: 4px; column-gap: 6px; min-height: 112px; padding: 14px 12px 10px 16px !important;
-  border-radius: 24px !important; background: #17171a !important; border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 24px !important; background: var(--g-card, #17171a) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important;
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 18px 50px -24px rgba(0, 0, 0, 0.9) !important; transition: border-color .2s ease, box-shadow .2s ease;
 }
 html body #lune-chat .lc-composer:focus-within { border-color: rgba(159, 178, 228, 0.42) !important; box-shadow: 0 0 0 4px rgba(34, 56, 110, 0.35), 0 18px 50px -24px rgba(0, 0, 0, 0.9) !important; }
@@ -1366,7 +1357,7 @@ html[data-theme="light"] body #lune-chat .lc-composer { background: #fff !import
 html[data-theme="light"] body #lune-chat .ch-empty, html[data-theme="light"] body #lune-chat .ch-foot { color: rgba(0, 0, 0, 0.45) !important; }
 
 /* ---------- voice mode: a living orb, not a radar ---------- */
-html body dialog#lune-talk.lune-talk[open] { background: #000 !important; }
+html body dialog#lune-talk.lune-talk[open] { background: var(--g-bg, #000) !important; }
 @property --lt-a { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
 html body #lune-talk .lt-orb { width: min(300px, 66vw) !important; height: min(300px, 66vw) !important; }
 html body #lune-talk .lt-ring { border: 0 !important; animation: none; }
@@ -1504,7 +1495,7 @@ html body .lune-chat .la-plan-actions { display: flex; flex-wrap: wrap; gap: 8px
 html body .lune-chat .la-plan-actions .la-act { min-height: 40px; padding: 0 18px; border-radius: 999px; font: 400 16px var(--ui); border: 0; cursor: pointer;
   background: rgba(255, 255, 255, 0.08); color: #f5f5f7; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12); }
 html body .lune-chat .la-plan-actions .la-act.primary { background: #f5f5f7; color: #000; box-shadow: none; }
-html body .lune-chat .la-plan-actions .la-act.on { background: var(--navy-mid); color: #fff; box-shadow: none; }
+html body .lune-chat .la-plan-actions .la-act.on { background: var(--navy-mid); color: var(--on-navy, #fff); box-shadow: none; }
 html body .lune-chat .la-planning { color: rgba(245, 245, 247, 0.6); font-style: italic; animation: la-pulse 1.6s ease-in-out infinite; }
 @keyframes la-pulse { 50% { opacity: 0.45; } }
 html body .lune-chat .la-replies { margin-top: 12px; }
@@ -1513,7 +1504,7 @@ html[data-theme="light"] body .lune-chat .la-week, html[data-theme="light"] body
 html[data-theme="light"] body .lune-chat .la-week li strong { color: var(--navy-mid); }
 html[data-theme="light"] body .lune-chat .la-week li span { color: rgba(0, 0, 0, 0.8); }
 html[data-theme="light"] body .lune-chat .la-plan-actions .la-act { background: rgba(0, 0, 0, 0.05); color: #111; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12); }
-html[data-theme="light"] body .lune-chat .la-plan-actions .la-act.primary { background: #111; color: #fff; }
+html[data-theme="light"] body .lune-chat .la-plan-actions .la-act.primary { background: var(--g-card, #111); color: #fff; }
 /* the Lune AI top bar: close and history at the left edge, the title centred, voice at the right; solid, so answers scroll beneath it cleanly */
 html body #lune-chat.is-page .chat-head { display: grid !important; grid-template-columns: 1fr auto 1fr !important; align-items: center !important; padding: 8px 12px !important;
   background: rgba(0, 0, 0, 0.82) !important; backdrop-filter: saturate(1.4) blur(18px) !important; -webkit-backdrop-filter: saturate(1.4) blur(18px) !important; z-index: 5; }
@@ -1571,7 +1562,7 @@ html body .lp-mail-body { margin: 0 0 14px !important; font: 400 17px/1.55 var(-
 html body .lp-mail-tasks { margin: 0 0 18px; padding: 0; list-style: none; counter-reset: t; }
 html body .lp-mail-tasks li { counter-increment: t; padding: 10px 0; border-top: 1px solid #ececf0; font: 400 17px var(--ui); color: #111114; }
 html body .lp-mail-tasks li::before { content: counter(t); color: #7d90c8; font-style: italic; margin-right: 12px; }
-html body .lp-mail-cta { display: inline-block; background: #111114; color: #fff; border-radius: 999px; padding: 11px 22px; font: 400 16px var(--ui); }
+html body .lp-mail-cta { display: inline-block; background: var(--g-card, #111114); color: #fff; border-radius: 999px; padding: 11px 22px; font: 400 16px var(--ui); }
 @media (max-width: 860px) {
   html body .lp-mail { grid-template-columns: 1fr; padding-inline: 16px; }
   html body .lp-mail-note { transform: none; padding: 22px 20px; }
@@ -1656,15 +1647,15 @@ html body.lp-contrast .lw-panel h2, html body.lp-contrast .lw-panel .lw-barnum, 
 html body.lp-contrast .lw-piece, html body.lp-contrast .lw-range, html body.lp-contrast .lw-panel .lw-barnum i { color: #222; }
 html body.lp-contrast .lw-status { color: #000; font-weight: 600; }
 html body.lp-contrast .lw-btn { box-shadow: inset 0 0 0 2px #000; }
-html body.lp-contrast .lw-btn.lw-main { background: #000; color: #fff; box-shadow: none; }
+html body.lp-contrast .lw-btn.lw-main { background: var(--g-bg, #000); color: #fff; box-shadow: none; }
 html body.lp-contrast .lw-seg { background: #fff; box-shadow: inset 0 0 0 2px #000; }
 html body.lp-contrast .lw-seg label { color: #000; }
-html body.lp-contrast .lw-seg label:has(input:checked) { background: #000; color: #fff; }
+html body.lp-contrast .lw-seg label:has(input:checked) { background: var(--g-bg, #000); color: #fff; }
 html body.lp-contrast .lw-range input { background: #fff; color: #000; box-shadow: inset 0 0 0 2px #000; }
 html body.lp-contrast .lw-close { background: #fff; color: #000; box-shadow: inset 0 0 0 2px #000; }
 html[data-theme="light"] body:not(.lp-contrast) .lw-panel { background: rgba(251, 251, 253, 0.94); color: #111; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 30px 70px -24px rgba(0, 0, 0, 0.3); }
 html[data-theme="light"] body:not(.lp-contrast) :is(.lw-panel h2, .lw-barnum, .lw-row, .lw-btn) { color: #111; }
-html[data-theme="light"] body:not(.lp-contrast) .lw-btn.lw-main { background: #111; color: #fff; }
+html[data-theme="light"] body:not(.lp-contrast) .lw-btn.lw-main { background: var(--g-card, #111); color: #fff; }
 html[data-theme="light"] body:not(.lp-contrast) .lw-seg label { color: rgba(0, 0, 0, 0.7); }
 html[data-theme="light"] body:not(.lp-contrast) .lw-seg label:has(input:checked) { background: #fff; color: #111; }
 html[data-theme="light"] body:not(.lp-contrast) .lw-range input { color: #111; }
@@ -1826,13 +1817,13 @@ html body .ls2 :is(.ls2-btn, .ls2-main, .ls2-quiet, .ls2-x, .ls2-grades button):
 }
 html body.lp-contrast #lune-session.ls2 { background: #fff; color: #000; box-shadow: 0 0 0 3px #000; backdrop-filter: none; }
 html body.lp-contrast .ls2 :is(h2, .ls2-bar, .ls2-say) { color: #000; }
-html body.lp-contrast .ls2 .ls2-main { background: #000; color: #fff; }
+html body.lp-contrast .ls2 .ls2-main { background: var(--g-bg, #000); color: #fff; }
 html body.lp-contrast .ls2 :is(.ls2-btn, .ls2-quiet, .ls2-x) { background: #fff; color: #000; box-shadow: inset 0 0 0 2px #000; }
 html body.lp-contrast .ls2 .ls2-grades { background: #fff; box-shadow: inset 0 0 0 2px #000; }
 html body.lp-contrast .ls2 .ls2-grades button { color: #000; }
 html[data-theme="light"] body:not(.lp-contrast) #lune-session.ls2 { background: rgba(251, 251, 253, 0.94); color: #111; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 30px 70px -24px rgba(0, 0, 0, 0.3); }
 html[data-theme="light"] body:not(.lp-contrast) .ls2 :is(h2, .ls2-bar, .ls2-say) { color: #111; }
-html[data-theme="light"] body:not(.lp-contrast) .ls2 .ls2-main { background: #111; color: #fff; }
+html[data-theme="light"] body:not(.lp-contrast) .ls2 .ls2-main { background: var(--g-card, #111); color: #fff; }
 html[data-theme="light"] body:not(.lp-contrast) .ls2 :is(.ls2-btn, .ls2-quiet) { background: rgba(0, 0, 0, 0.05); color: #111; }
 html[data-theme="light"] body:not(.lp-contrast) .ls2 .ls2-grades button { color: #111; }
 /* during a lesson the play bar stays on desktop; on a phone the card sits where it was */
@@ -1846,10 +1837,10 @@ html body .ls2 .ls2-meter { height: 2px; margin: -4px auto 18px; width: 60%; bor
 html body .ls2 .ls2-meter.on { opacity: 1; }
 html body .ls2 .ls2-meter i { display: block; height: 100%; background: var(--navy-hi); transform: scaleX(0); transform-origin: left; transition: transform 0.08s linear; }
 html body .ls2 .ls2-nice { color: #f5f5f7; }
-html body .ls2 .ls2-tick { display: inline-grid; place-items: center; width: 26px; height: 26px; margin-right: 6px; border-radius: 50%; background: var(--navy-mid); color: #fff; font-size: 14px; vertical-align: 1px; animation: ls2-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+html body .ls2 .ls2-tick { display: inline-grid; place-items: center; width: 26px; height: 26px; margin-right: 6px; border-radius: 50%; background: var(--navy-mid); color: var(--on-navy, #fff); font-size: 14px; vertical-align: 1px; animation: ls2-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
 @keyframes ls2-pop { from { transform: scale(0.4); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { html body .ls2 :is(.ls2-body, .ls2-bar.is-new, .ls2-tick) { animation: none; } }
-html body.lp-contrast .ls2 .ls2-meter { background: #ddd; } html body.lp-contrast .ls2 .ls2-meter i { background: #000; }
+html body.lp-contrast .ls2 .ls2-meter { background: #ddd; } html body.lp-contrast .ls2 .ls2-meter i { background: var(--g-bg, #000); }
 html[data-theme="light"] body:not(.lp-contrast) .ls2 .ls2-nice { color: #111; }
 
 /* the score toolbar: one main action. Ask Lune joins the quiet controls; Practise with Lune leads */
@@ -1858,7 +1849,7 @@ html body .lp-tools-bar #btn-tell.lp-tool { background: transparent !important; 
 html body .lp-tools-bar #btn-tell.lp-tool:hover { background: rgba(255, 255, 255, 0.08) !important; }
 html[data-theme="light"] body .lp-tools-bar #btn-tell.lp-tool { color: #111 !important; }
 /* no blue haze anywhere in the app: Repertoire and the page behind it sit on plain night */
-html body.is-repertoire, html body.is-repertoire main#repertoire#repertoire.repertoire, html body main#repertoire#repertoire { background-image: none !important; background-color: #000 !important; }
+html body.is-repertoire, html body.is-repertoire main#repertoire#repertoire.repertoire, html body main#repertoire#repertoire { background-image: none !important; background-color: var(--g-bg, #000) !important; }
 html[data-theme="light"] body.is-repertoire, html[data-theme="light"] body main#repertoire#repertoire { background-color: #fff !important; }
 /* Explain: the four reading and access options as an even two-by-two grid */
 html body #explain-access .access-card-grid { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px !important; max-width: 520px; }
@@ -1956,7 +1947,7 @@ html body .lr :is(button):focus-visible { outline: 2px solid #9fb2e4; outline-of
 /* perfected */
 html body .lr .lr-done { position: absolute; inset: 0; max-width: none; display: grid; place-items: center; background: rgba(4, 5, 7, 0.72); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); animation: lr-in 0.4s ease both; }
 html body .lr .lr-done-in { width: min(460px, calc(100vw - 32px)); text-align: center; }
-html body .lr .lr-done-mark { display: inline-grid; place-items: center; width: 72px; height: 72px; border-radius: 50%; background: var(--navy-mid); color: #fff; font-size: 34px; box-shadow: 0 0 60px rgba(159, 178, 228, 0.45); animation: ls2-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+html body .lr .lr-done-mark { display: inline-grid; place-items: center; width: 72px; height: 72px; border-radius: 50%; background: var(--navy-mid); color: var(--on-navy, #fff); font-size: 34px; box-shadow: 0 0 60px rgba(159, 178, 228, 0.45); animation: ls2-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
 html body .lr .lr-done h3 { margin: 22px 0 8px; font: 400 34px/1.1 var(--display); color: #fff; }
 html body .lr .lr-done p { margin: 0 0 26px; font-size: 17px; line-height: 1.5; color: rgba(245, 245, 247, 0.7); }
 html body .lr .lr-done-act { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
@@ -1981,8 +1972,8 @@ html body .lr .lr-done-act button { min-width: 180px; }
 html body.lp-contrast #lune-room.lr { background: #fff; color: #000; }
 html body.lp-contrast .lr :is(h2, .lr-n b, .lr-goal-line strong, .lr-done h3) { color: #000; }
 html body.lp-contrast .lr .lr-chip { background: #fff; box-shadow: inset 0 0 0 2px #000; }
-html body.lp-contrast .lr .lr-chip.on { background: #000; } html body.lp-contrast .lr .lr-chip.on .lr-n b { color: #fff; }
-html body.lp-contrast .lr .lr-main, html body.lp-contrast .lr .lr-step.on { background: #000; color: #fff; }
+html body.lp-contrast .lr .lr-chip.on { background: var(--g-bg, #000); } html body.lp-contrast .lr .lr-chip.on .lr-n b { color: #fff; }
+html body.lp-contrast .lr .lr-main, html body.lp-contrast .lr .lr-step.on { background: var(--g-bg, #000); color: #fff; }
 
 /* ---------- the score page, with less on it ---------- */
 html body.is-studio header.bar :is(#piece-tab-new, #btn-bookmark, #btn-share) { display: none !important; }
@@ -2271,7 +2262,7 @@ html body .sd2-note { margin: 8px 0 0 !important; font-size: 14px; color: rgba(2
 html body .sd2-foot { text-align: center; font-size: 15px; }
 
 /* send homework: the sheet */
-html body dialog.sd2-sheet { width: min(480px, calc(100vw - 24px)); padding: 0; border: 0; border-radius: 26px; background: #0f121b; color: #f5f5f7; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 40px 90px -30px rgba(0, 0, 0, 0.9); }
+html body dialog.sd2-sheet { width: min(480px, calc(100vw - 24px)); padding: 0; border: 0; border-radius: 26px; background: var(--g-card, #0f121b); color: #f5f5f7; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 40px 90px -30px rgba(0, 0, 0, 0.9); }
 html body dialog.sd2-sheet::backdrop { background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(6px); }
 html body .sd2-sheet-in { padding: 22px 22px 20px; }
 html body .sd2-sheet header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
@@ -2308,7 +2299,7 @@ html body .sd2-tour-k { margin: 0 0 6px; font-size: 13px; color: #5b6aa0; font-s
 html body .sd2-tour-card h3 { margin: 0 0 6px !important; font: 400 24px var(--display) !important; color: #111114 !important; }
 html body .sd2-tour-card p:not(.sd2-tour-k) { margin: 0 0 16px; font-size: 16px; line-height: 1.5; color: #3a3a40; }
 html body .sd2-tour-act { display: flex; justify-content: flex-end; gap: 8px; }
-html body .sd2-tour-card .sd2-primary { background: #111114; color: #fff; min-height: 40px; padding: 0 18px; font-size: 15px; box-shadow: none; }
+html body .sd2-tour-card .sd2-primary { background: var(--g-card, #111114); color: #fff; min-height: 40px; padding: 0 18px; font-size: 15px; box-shadow: none; }
 html body .sd2-tour-card .sd2-quiet { background: rgba(0, 0, 0, 0.06); color: #111114; }
 
 @media (max-width: 640px) {
@@ -2323,3 +2314,510 @@ html body .sd2-tour-card .sd2-quiet { background: rgba(0, 0, 0, 0.06); color: #1
   html body .sd2-guide { left: 12px; right: 12px; translate: none; }
 }
 @media (prefers-reduced-motion: reduce) { html body :is(.sd2-tour-ring, .sd2-tour-card, .sd2-prep, .sd2-guide) { transition: none; animation: none; } }
+
+/* ==========================================================================
+   Bar panel, drawn dark on purpose (no colour flip): actions first, then
+   how to practise it, how it went, the notes, and a quiet Ask Lune field
+   ========================================================================== */
+html body #coach {
+  --cp-bg: #0f1118; --cp-raise: rgba(255, 255, 255, 0.055); --cp-raise-2: rgba(255, 255, 255, 0.1);
+  --cp-line: rgba(255, 255, 255, 0.08); --cp-text: #f2f2f5; --cp-dim: rgba(235, 235, 245, 0.64);
+  --cp-faint: rgba(235, 235, 245, 0.4); --cp-accent: #c9d5f5; --cp-accent-ink: #0b0d14;
+  filter: none !important; background: var(--cp-bg) !important; color: var(--cp-text) !important;
+  border: 0 !important; border-left: 1px solid var(--cp-line) !important; box-shadow: none !important;
+  border-radius: 0 !important;
+}
+html[data-theme="light"] body #coach {
+  --cp-bg: #ffffff; --cp-raise: #f3f3f6; --cp-raise-2: #e9e9ee; --cp-line: rgba(0, 0, 0, 0.08);
+  --cp-text: #1c1c1e; --cp-dim: rgba(60, 60, 67, 0.72); --cp-faint: rgba(60, 60, 67, 0.46);
+  --cp-accent: #1d2b52; --cp-accent-ink: #ffffff;
+}
+html body #coach [hidden] { display: none !important; }
+html body #coach .coach-sheet { background: transparent !important; }
+html body #coach .coach-head { order: 0; padding: 22px 22px 14px !important; border: 0 !important; align-items: flex-start !important; }
+html body #coach .coach-kicker { display: none !important; }
+html body #coach .coach-title { font: 500 30px/1.1 var(--display, var(--ui)) !important; color: var(--cp-text) !important; letter-spacing: -0.01em !important; margin: 0 !important; }
+html body #coach .coach-diff {
+  background: none !important; border: 0 !important; padding: 0 !important; margin: 6px 0 0 !important;
+  font: 400 14px/1.3 var(--ui) !important; color: var(--cp-dim) !important; text-transform: none !important; letter-spacing: 0 !important;
+}
+html body #coach .coach-diff::first-letter { text-transform: uppercase; }
+html body #coach .coach-close {
+  width: 32px !important; height: 32px !important; min-height: 0 !important; border-radius: 50% !important; padding: 0 !important;
+  background: var(--cp-raise) !important; color: var(--cp-dim) !important; border: 0 !important; display: grid !important; place-items: center !important;
+}
+html body #coach .coach-close:hover { background: var(--cp-raise-2) !important; color: var(--cp-text) !important; }
+html body #coach .coach-close svg { width: 14px !important; height: 14px !important; }
+html body #coach .coach-handle { background: var(--cp-raise-2) !important; }
+
+/* Play and Practise sit right under the title */
+html body #coach .help-actions {
+  order: 1; display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px !important;
+  padding: 0 22px 18px !important; margin: 0 !important; border: 0 !important; background: transparent !important; box-shadow: none !important;
+  position: static !important;
+}
+html body #coach .help-actions > button:not([hidden]) {
+  height: 44px !important; min-height: 44px !important; border-radius: 12px !important; padding: 0 14px !important; margin: 0 !important;
+  font: 600 15px var(--ui) !important; letter-spacing: 0 !important; border: 0 !important; box-shadow: none !important;
+  display: inline-flex !important; align-items: center !important; justify-content: center !important; gap: 8px !important; width: 100% !important;
+  transition: background-color .15s ease, transform .1s ease !important;
+}
+html body #coach .help-actions > button:active { transform: scale(0.98); }
+html body #coach #btn-hear { background: var(--cp-accent) !important; color: var(--cp-accent-ink) !important; }
+html body #coach #btn-hear::before {
+  content: ""; width: 0; height: 0; border-style: solid; border-width: 6px 0 6px 10px;
+  border-color: transparent transparent transparent currentColor; margin-left: 2px;
+}
+html body #coach #btn-hear.is-playing::before, html body #coach #btn-hear[aria-pressed="true"]::before {
+  border: 0; width: 10px; height: 12px; background: linear-gradient(90deg, currentColor 0 35%, transparent 35% 65%, currentColor 65%);
+}
+html body #coach #btn-practise-bar { background: var(--cp-raise) !important; color: var(--cp-text) !important; }
+html body #coach #btn-practise-bar:hover { background: var(--cp-raise-2) !important; }
+
+html body #coach #help-body { order: 2; padding: 6px 22px 32px !important; border-top: 1px solid var(--cp-line) !important; background: transparent !important; color: var(--cp-text) !important; }
+html body #coach #help-body h4, html body #coach #help-body .lp-h {
+  font: 600 13px/1.2 var(--ui) !important; color: var(--cp-faint) !important; text-transform: none !important; letter-spacing: 0.01em !important;
+  margin: 22px 0 10px !important; padding: 0 !important; border: 0 !important;
+}
+html body #coach #help-body h4:has(+ .coach-advice) { margin-top: 18px !important; }
+html body #coach .coach-advice { background: none !important; border: 0 !important; padding: 0 !important; margin: 0 !important; }
+html body #coach .coach-advice p { color: var(--cp-text) !important; font: 400 17px/1.55 var(--ui) !important; margin: 0 !important; border: 0 !important; padding: 0 !important; }
+
+/* how it went: one segmented control */
+html body #coach .lp-rate { background: none !important; border: 0 !important; padding: 0 !important; }
+html body #coach .lp-grades {
+  display: grid !important; grid-template-columns: repeat(5, 1fr) !important; gap: 2px !important;
+  background: var(--cp-raise) !important; border-radius: 11px !important; padding: 3px !important; border: 0 !important;
+}
+html body #coach .lp-grade {
+  height: 34px !important; min-height: 0 !important; padding: 0 2px !important; border-radius: 8px !important; border: 0 !important;
+  background: transparent !important; color: var(--cp-dim) !important; font: 500 13.5px var(--ui) !important; box-shadow: none !important;
+  transition: background-color .15s ease, color .15s ease !important;
+}
+html body #coach .lp-grade:hover { color: var(--cp-text) !important; background: var(--cp-raise) !important; }
+html body #coach .lp-grade.picked { background: var(--cp-accent) !important; color: var(--cp-accent-ink) !important; font-weight: 600 !important; }
+html body #coach .lp-due { font: 400 13px/1.45 var(--ui) !important; color: var(--cp-faint) !important; margin: 10px 2px 0 !important; }
+
+/* notes: quiet chips, finger numbers as small superscripts */
+html body #coach .hand-label { font: 500 13px var(--ui) !important; color: var(--cp-dim) !important; margin: 4px 0 6px !important; text-transform: none !important; letter-spacing: 0 !important; }
+html body #coach .notes { display: flex !important; flex-wrap: wrap !important; gap: 6px !important; margin: 0 0 10px !important; }
+html body #coach .chip.letter {
+  background: var(--cp-raise) !important; border: 0 !important; color: var(--cp-text) !important; border-radius: 10px !important;
+  padding: 6px 9px !important; font: 500 14px/1.3 var(--ui) !important; box-shadow: none !important; display: inline-flex !important; flex-direction: column !important; gap: 1px !important;
+}
+html body #coach .chord-tone { display: flex !important; align-items: baseline !important; gap: 3px !important; }
+html body #coach .tone-letter { color: var(--cp-text) !important; font-weight: 500 !important; }
+html body #coach .tone-finger {
+  color: var(--cp-accent) !important; border: 0 !important; background: none !important; font: 600 10.5px var(--ui) !important;
+  font-style: normal !important; padding: 0 !important; min-width: 0 !important; height: auto !important; transform: translateY(-4px);
+}
+
+/* Ask Lune: a single rounded field like Claude's composer */
+html body #coach .lp-askbar {
+  display: flex !important; align-items: center !important; gap: 4px !important; min-height: 48px !important;
+  padding: 4px 5px 4px 16px !important; border-radius: 24px !important; background: var(--cp-raise) !important;
+  border: 1px solid var(--cp-line) !important; box-shadow: none !important; transition: border-color .15s ease !important;
+}
+html body #coach .lp-askbar:focus-within { border-color: color-mix(in srgb, var(--cp-accent) 55%, transparent) !important; }
+html body #coach .lp-askbar-orb { display: none !important; }
+html body #coach #lp-ask-input {
+  flex: 1 1 auto !important; min-width: 0 !important; background: transparent !important; border: 0 !important; outline: 0 !important; box-shadow: none !important;
+  color: var(--cp-text) !important; font: 400 15.5px var(--ui) !important; padding: 0 !important; height: 38px !important;
+}
+html body #coach #lp-ask-input::placeholder { color: var(--cp-faint) !important; }
+html body #coach .lp-askbar .lc-tool { width: 34px !important; height: 34px !important; border-radius: 50% !important; background: transparent !important; color: var(--cp-dim) !important; border: 0 !important; display: grid !important; place-items: center !important; padding: 0 !important; }
+html body #coach .lp-askbar .lc-tool:hover { background: var(--cp-raise-2) !important; color: var(--cp-text) !important; }
+html body #coach .lp-askbar .lc-round { width: 36px !important; height: 36px !important; border-radius: 50% !important; background: var(--cp-accent) !important; color: var(--cp-accent-ink) !important; border: 0 !important; display: grid !important; place-items: center !important; padding: 0 !important; flex: 0 0 auto !important; }
+html body #coach .lp-askbar svg { width: 17px !important; height: 17px !important; }
+
+/* note field */
+html body #coach .lp-note-form { display: flex !important; gap: 8px !important; align-items: flex-end !important; }
+html body #coach .lp-note-grow { flex: 1 1 auto !important; position: relative !important; background: var(--cp-raise) !important; border-radius: 14px !important; border: 1px solid transparent !important; display: flex !important; align-items: center !important; }
+html body #coach .lp-note-grow:focus-within { border-color: var(--cp-line) !important; }
+html body #coach #lp-note-input {
+  flex: 1 1 auto !important; background: transparent !important; border: 0 !important; outline: 0 !important; box-shadow: none !important; resize: none !important;
+  color: var(--cp-text) !important; font: 400 15px/1.4 var(--ui) !important; padding: 11px 6px 11px 14px !important; min-height: 44px !important;
+}
+html body #coach #lp-note-input::placeholder { color: var(--cp-faint) !important; }
+html body #coach .lp-mic { background: transparent !important; color: var(--cp-dim) !important; border: 0 !important; width: 36px !important; height: 36px !important; border-radius: 50% !important; }
+html body #coach .lp-save {
+  height: 44px !important; min-height: 0 !important; border-radius: 12px !important; padding: 0 16px !important; border: 0 !important;
+  background: var(--cp-raise-2) !important; color: var(--cp-text) !important; font: 600 14.5px var(--ui) !important;
+}
+html body #coach .lp-notes { list-style: none !important; padding: 0 !important; margin: 0 0 8px !important; display: grid !important; gap: 6px !important; }
+html body #coach .lp-notes li { background: var(--cp-raise) !important; border: 0 !important; border-radius: 12px !important; padding: 10px 12px !important; color: var(--cp-text) !important; font: 400 14.5px/1.45 var(--ui) !important; }
+html body #coach .lp-notes li * { color: inherit; }
+html body #coach .lp-notes li :is(small, time, .dim, button) { color: var(--cp-faint) !important; background: none !important; border: 0 !important; }
+html body #coach .lp-teacher { background: var(--cp-raise) !important; border: 0 !important; border-radius: 14px !important; padding: 12px 14px !important; color: var(--cp-text) !important; margin: 14px 0 0 !important; order: 0; }
+html body #coach .lp-teacher * { color: inherit !important; }
+
+/* small extras at the end */
+html body #coach #help-body .lp-tools { gap: 6px !important; margin-top: 16px !important; }
+html body #coach #help-body .lp-tools button {
+  background: transparent !important; border: 1px solid var(--cp-line) !important; color: var(--cp-dim) !important;
+  min-height: 32px !important; border-radius: 999px !important; font: 500 13.5px var(--ui) !important;
+}
+html body #coach #help-body .lp-tools button:hover { color: var(--cp-text) !important; background: var(--cp-raise) !important; }
+
+/* scrollbars inside the panel stay out of the way */
+html body #coach #help-body { scrollbar-width: thin; scrollbar-color: var(--cp-raise-2) transparent; }
+html body #coach .chip.letter:not(.chord) { flex-direction: row !important; align-items: baseline !important; gap: 3px !important; }
+html body #coach .chip.letter .tone-finger { transform: none !important; vertical-align: super !important; font-size: 10.5px !important; line-height: 1 !important; }
+html body #coach .chip.letter.chord { padding: 5px 9px !important; }
+html body #coach .lp-askbar button[hidden], html body #coach .help-actions > button[hidden], html body #coach #help-body [hidden] { display: none !important; }
+
+/* Score toolbar: labels never wrap; the extra toggles drop to their own row under the main one */
+html body .score-tools-head :is(button, .lp-tool-label, .access-chip, .anno-opt span, .kbd-tog-label, .pedal-tog-label) { white-space: nowrap !important; }
+html body:not(.studio-compact) .score-tools-head.tools-open { flex-wrap: wrap !important; row-gap: 4px !important; justify-content: center !important; border-radius: 22px !important; }
+html body:not(.studio-compact) .score-tools-head.tools-open #score-toggles { display: contents !important; }
+html body:not(.studio-compact) .score-tools-head .anno-control { order: 0; }
+html body:not(.studio-compact) .score-tools-head .lp-tools-bar { order: 1; flex: 0 0 auto !important; }
+html body:not(.studio-compact) .score-tools-head.tools-open::after { content: ""; order: 2; flex-basis: 100%; height: 0; }
+html body:not(.studio-compact) .score-tools-head.tools-open :is(#score-access, #btn-toggle-kbd, #btn-pedal) { order: 3; }
+html body:not(.studio-compact) .score-tools-head.tools-open #score-access { display: flex !important; gap: 2px !important; }
+
+/* Practice room: the title chooses the bars; Listen pauses and resumes */
+html body .lr .lr-pickbtn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px 2px 14px; margin: 0; border: 0; border-radius: 999px;
+  background: transparent; color: inherit; font: inherit; cursor: pointer; transition: background-color .15s ease;
+}
+html body .lr .lr-pickbtn:hover, html body .lr .lr-pickbtn[aria-expanded="true"] { background: rgba(255, 255, 255, 0.07); }
+html body .lr .lr-pickbtn svg { opacity: 0.55; transition: transform .2s ease; }
+html body .lr .lr-pickbtn[aria-expanded="true"] svg { transform: rotate(180deg); }
+html body .lr .lr-picker {
+  position: absolute; z-index: 5; top: calc(max(10px, env(safe-area-inset-top)) + 64px); left: 50%; transform: translateX(-50%);
+  width: min(520px, calc(100vw - 28px)); max-width: none; margin: 0; padding: 18px 18px 16px; border-radius: 20px;
+  background: rgba(22, 25, 36, 0.96); backdrop-filter: blur(24px) saturate(1.4); -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 30px 80px -20px rgba(0, 0, 0, 0.8);
+  animation: lr-pk-in .22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+html body .lr .lr-picker[hidden] { display: none !important; }
+@keyframes lr-pk-in { from { opacity: 0; transform: translate(-50%, -6px) scale(0.98); } to { opacity: 1; transform: translateX(-50%); } }
+html body .lr .lr-pk-head { text-align: center; margin-bottom: 12px; }
+html body .lr .lr-pk-title { margin: 0; font: 600 17px var(--ui); color: #f5f5f7; }
+html body .lr .lr-pk-hint { margin: 4px 0 0; font: 400 14px var(--ui); color: rgba(235, 235, 245, 0.6); }
+html body .lr .lr-pk-grid {
+  display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; max-height: min(260px, 42vh); overflow-y: auto; padding: 2px;
+  scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+html body .lr .lr-pk-grid button {
+  position: relative; height: 40px; padding: 0; border: 0; border-radius: 10px; background: rgba(255, 255, 255, 0.05);
+  color: rgba(245, 245, 247, 0.85); font: 500 15px var(--nums, var(--ui)); cursor: pointer; transition: background-color .12s ease, color .12s ease;
+}
+html body .lr .lr-pk-grid button:hover { background: rgba(255, 255, 255, 0.11); }
+html body .lr .lr-pk-grid button.is-in { background: rgba(159, 178, 228, 0.22); color: #fff; }
+html body .lr .lr-pk-grid button:is(.is-a, .is-b) { background: #f5f5f7; color: #0b0d14; font-weight: 600; }
+html body .lr .lr-pk-grid button.is-hard::after {
+  content: ""; position: absolute; top: 6px; right: 6px; width: 5px; height: 5px; border-radius: 50%; background: #e8a87c;
+}
+html body .lr .lr-pk-act { display: flex; gap: 8px; margin-top: 14px; }
+html body .lr .lr-pk-act .lr-quiet, html body .lr .lr-pk-act .lr-main { height: 46px; font-size: 16px; box-shadow: none; }
+html body .lr .lr-pk-act .lr-quiet { flex: 0 0 auto; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14); }
+
+html body .lr .lr-play { display: inline-flex; align-items: center; gap: 6px; }
+html body .lr .lr-listen { min-width: 140px; transition: background-color .15s ease; }
+html body .lr .lr-listen.is-on { background: rgba(159, 178, 228, 0.22); }
+html body .lr .lr-restart {
+  width: 44px; height: 44px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06); color: rgba(245, 245, 247, 0.75); cursor: pointer; animation: lr-pk-pop .2s ease both;
+}
+html body .lr .lr-restart:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
+@keyframes lr-pk-pop { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: none; } }
+@media (max-width: 640px) {
+  html body .lr .lr-play { flex: 1; }
+  html body .lr .lr-play .lr-listen { flex: 1; }
+  html body .lr .lr-pk-grid { grid-template-columns: repeat(6, 1fr); }
+  html body .lr .lr-picker { top: calc(max(10px, env(safe-area-inset-top)) + 54px); }
+}
+html body #lune-room > .lr-picker { width: min(520px, calc(100vw - 28px)); max-width: none; margin: 0; }
+html body #lune-room > .lr-picker { z-index: 50; background: #161924; backdrop-filter: none; -webkit-backdrop-filter: none; }
+html body #lune-room #lr-stage { isolation: isolate; z-index: 0; }
+html body #lune-room #lr-stage .lr-sheet { z-index: auto !important; }
+
+/* a button at work: the moon in the button's own text colour, never a white blot */
+html body button.is-busy::after { background: var(--busy-c, currentColor) !important; opacity: 0.9; }
+html body button.is-busy { transition: none !important; }
+html body #panel-score.is-engraving .score-scroll::before {
+  width: 96px !important; height: 3px !important; margin-left: -48px !important; border-radius: 3px !important;
+  background: linear-gradient(90deg, transparent, rgba(201, 213, 245, 0.55), transparent) 0 0 / 200% 100% !important;
+  opacity: 1 !important; animation: lune-engrave-line 1.4s ease-in-out infinite !important;
+}
+html[data-theme="light"] body #panel-score.is-engraving .score-scroll::before {
+  background: linear-gradient(90deg, transparent, rgba(29, 43, 82, 0.4), transparent) 0 0 / 200% 100% !important;
+}
+@keyframes lune-engrave-line { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+
+/* the opening screen: the moon breathing over a thin line of light (no bright keys) */
+html body .lune-loader { background: var(--bg, #000) !important; animation-delay: 0.25s !important; }
+html body .lune-loader-stage { gap: 18px !important; }
+html body .lune-loader-mark { width: 30px !important; height: 30px !important; color: #e9ecf7 !important; opacity: 1 !important; animation: lune-breathe 2.2s ease-in-out infinite !important; }
+html[data-theme="light"] body .lune-loader-mark { color: #1d2b52 !important; }
+html body .lune-loader-keys { width: 120px !important; height: 2px !important; gap: 0 !important; border-radius: 2px !important; overflow: hidden !important;
+  background: linear-gradient(90deg, transparent, rgba(201, 213, 245, 0.7), transparent) 0 0 / 200% 100% !important; animation: lune-engrave-line 1.4s ease-in-out infinite !important; }
+html[data-theme="light"] body .lune-loader-keys { background: linear-gradient(90deg, transparent, rgba(29, 43, 82, 0.45), transparent) 0 0 / 200% 100% !important; }
+html body .lune-loader-keys > * { display: none !important; }
+html body .lune-loader-text { font: 400 15px var(--ui) !important; letter-spacing: 0 !important; text-transform: none !important; -webkit-text-fill-color: currentColor !important; background: none !important; color: rgba(235, 235, 245, 0.55) !important; animation: none !important; }
+html[data-theme="light"] body .lune-loader-text { color: rgba(60, 60, 67, 0.6) !important; }
+@keyframes lune-breathe { 0%, 100% { opacity: 0.55; transform: scale(0.96); } 50% { opacity: 1; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { html body .lune-loader-mark, html body .lune-loader-keys { animation: none !important; } }
+
+/* sign-up: who Lune is for, as two clear cards */
+html body .auth-role { display: grid !important; grid-template-columns: 1fr !important; gap: 8px !important; padding: 0 !important; background: none !important; border: 0 !important; margin: 0 0 18px !important; }
+html body .auth-role legend { margin: 0 0 10px !important; font: 500 14px var(--ui) !important; color: rgba(235, 235, 245, 0.6) !important; }
+html body .auth-role label {
+  display: flex !important; place-items: initial !important; align-items: center !important; min-height: 60px !important; padding: 12px 16px 12px 46px !important;
+  border-radius: 14px !important; background: rgba(255, 255, 255, 0.05) !important; color: #f5f5f7 !important; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+  transition: background-color .15s ease, box-shadow .15s ease !important; text-align: left !important;
+}
+html body .auth-role label::before {
+  content: ""; position: absolute; left: 16px; top: 50%; width: 18px; height: 18px; margin-top: -9px; border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px rgba(235, 235, 245, 0.35); transition: box-shadow .15s ease;
+}
+html body .auth-role label:has(input:checked) { background: rgba(201, 213, 245, 0.1) !important; color: #fff !important; box-shadow: inset 0 0 0 1.5px #c9d5f5 !important; }
+html body .auth-role label:has(input:checked)::before { box-shadow: inset 0 0 0 5.5px #c9d5f5; }
+html body .auth-role label > span { display: flex; flex-direction: column; gap: 2px; }
+html body .auth-role label b { font: 600 16px var(--ui); }
+html body .auth-role label small { font: 400 13.5px var(--ui); color: rgba(235, 235, 245, 0.6); }
+html[data-theme="light"] body .auth-role label { background: #f4f4f6 !important; color: #1c1c1e !important; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06) !important; }
+html[data-theme="light"] body .auth-role label:has(input:checked) { background: rgba(29, 43, 82, 0.06) !important; color: #1c1c1e !important; box-shadow: inset 0 0 0 1.5px #1d2b52 !important; }
+html[data-theme="light"] body .auth-role label:has(input:checked)::before { box-shadow: inset 0 0 0 5.5px #1d2b52; }
+html[data-theme="light"] body .auth-role label small, html[data-theme="light"] body .auth-role legend { color: rgba(60, 60, 67, 0.65) !important; }
+
+/* Studio: a student, and their homework email */
+html body .sd2-add { cursor: pointer; text-align: left; font: inherit; color: inherit; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+html body .sd2-add:hover { background: rgba(255, 255, 255, 0.03); }
+html body .sd2-add .sd2-add-note { font: 400 14px/1.45 var(--ui); color: rgba(235, 235, 245, 0.55); }
+html body .sd2-card header .sd2-edit { margin-left: auto; }
+html body .sd2-card header .sd2-edit + .sd2-x { margin-left: 4px; }
+html body .sd2-mailline { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 2px 0 10px; font: 400 14px/1.4 var(--ui); color: rgba(235, 235, 245, 0.6); }
+html body .sd2-mailline svg { flex: none; opacity: 0.7; }
+html body .sd2-mailline .sd2-link { padding: 0; font-size: 14px; }
+html body .sd2-mailline span + .sd2-link::before { content: "·"; margin-right: 6px; color: rgba(235, 235, 245, 0.35); }
+
+html body dialog#sd2-student { width: min(520px, calc(100vw - 24px)); }
+html body .sd2-stu .sd2-pair { display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px; }
+html body .sd2-stu .sd2-field { margin-bottom: 14px; }
+html body .sd2-stu .sd2-field span i { font-style: normal; color: rgba(235, 235, 245, 0.38); }
+html body .sd2-stu .sd2-field input, html body .sd2-stu .sd2-field select {
+  height: 46px; width: 100%; box-sizing: border-box; border: 1px solid transparent; border-radius: 12px; padding: 0 14px;
+  background: rgba(118, 118, 128, 0.2); color: #f5f5f7; font: 400 16px var(--ui); outline: none; transition: border-color .15s ease;
+}
+html body .sd2-stu .sd2-field input:focus, html body .sd2-stu .sd2-field select:focus { border-color: rgba(201, 213, 245, 0.55); }
+html body .sd2-stu .sd2-field input::placeholder { color: rgba(235, 235, 245, 0.3); }
+html body .sd2-sched { margin: 4px 0 0; padding: 16px; border-radius: 16px; background: rgba(255, 255, 255, 0.04); transition: opacity .2s ease; }
+html body .sd2-sched.is-dim { opacity: 0.55; }
+html body .sd2-sched-k { margin: 0 0 10px; font: 600 15px var(--ui); color: #f5f5f7; }
+html body .sd2-stu .sd2-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 3px; border-radius: 11px; background: rgba(118, 118, 128, 0.22); margin-bottom: 12px; }
+html body .sd2-stu .sd2-seg label { position: relative; display: grid; place-items: center; height: 34px; border-radius: 8px; font: 500 14px var(--ui); color: rgba(235, 235, 245, 0.7); cursor: pointer; white-space: nowrap; }
+html body .sd2-stu .sd2-seg input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+html body .sd2-stu .sd2-seg label:has(input:checked) { background: #f5f5f7; color: #0b0d14; }
+html body .sd2-stu .sd2-seg label:has(input:focus-visible) { outline: 2px solid #9fb2e4; outline-offset: 1px; }
+html body .sd2-stu .sd2-seg label:has(input:disabled) { cursor: default; }
+html body .sd2-sched-when { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+html body .sd2-sched-when[hidden] { display: none; }
+html body .sd2-sched-when .sd2-field { margin-bottom: 0; }
+html body .sd2-sched-when .sd2-day[hidden] { display: none; }
+html body .sd2-sched-when:has(.sd2-day[hidden]) { grid-template-columns: 1fr; }
+html body .sd2-sched-note { margin: 12px 0 0; font: 400 14px/1.5 var(--ui); color: rgba(235, 235, 245, 0.6); }
+html body .sd2-err { min-height: 1.2em; margin: 10px 2px 0; font: 400 14px var(--ui); color: #f2a7a0; }
+html body .sd2-err:empty { min-height: 0; margin: 0; }
+html body .sd2-stu-act { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+html body .sd2-stu-act button { height: 44px; padding: 0 20px; }
+@media (max-width: 520px) {
+  html body .sd2-stu .sd2-pair { grid-template-columns: 1fr; gap: 0; }
+  html body .sd2-stu-act button { flex: 1; }
+}
+
+/* homework dialog: Email it now */
+html body #assign-dialog .as-mail { width: 100%; height: 48px; margin: 0 0 8px; border-radius: 14px; font: 600 16px var(--ui); }
+html body #assign-dialog .as-mail.is-sent { background: rgba(159, 178, 228, 0.2) !important; color: #fff !important; }
+html body #assign-dialog .as-mail-note { margin: 0 0 14px; font: 400 14px/1.5 var(--ui); color: rgba(235, 235, 245, 0.6); text-align: center; }
+html body #home-studio .sd2-card p.sd2-mailline { display: flex !important; align-items: center; flex-wrap: wrap; gap: 4px 6px; }
+html body #home-studio button.sd2-add { border: 0 !important; outline: none; box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.08) !important; background: transparent !important; }
+html body #home-studio button.sd2-add:hover { background: rgba(255, 255, 255, 0.03) !important; box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.14) !important; }
+html body #home-studio button.sd2-add:focus-visible { box-shadow: inset 0 0 0 2px #9fb2e4 !important; }
+
+/* ==========================================================================
+   Lune AI, laid out like Claude: warm charcoal, a quiet sidebar, one reading
+   column, plain answers, your messages in soft bubbles, one rounded composer
+   ========================================================================== */
+html body #lune-chat {
+  --cc-bg: #1f1f1e; --cc-side: #181817; --cc-raise: #2b2b29; --cc-bubble: #2f2f2c; --cc-line: rgba(255, 255, 255, 0.08);
+  --cc-text: #ecebe6; --cc-dim: #a3a199; --cc-faint: #74726b; --cc-accent: #c9d5f5; --cc-accent-ink: #0b0d14;
+  background: var(--cc-bg) !important; color: var(--cc-text) !important;
+}
+html[data-theme="light"] body #lune-chat {
+  --cc-bg: #faf9f5; --cc-side: #f3f2ec; --cc-raise: #ffffff; --cc-bubble: #efeee8; --cc-line: rgba(0, 0, 0, 0.09);
+  --cc-text: #1f1e1c; --cc-dim: #6f6d66; --cc-faint: #9a988f; --cc-accent: #1d2b52; --cc-accent-ink: #ffffff;
+}
+/* sidebar */
+html body #lune-chat #chat-hist { background: var(--cc-side) !important; border-right: 1px solid var(--cc-line) !important; padding: 10px 8px 12px !important; }
+html body #lune-chat .ch-top { padding: 4px 8px 8px !important; }
+html body #lune-chat .ch-h { font: 500 13px var(--ui) !important; color: var(--cc-faint) !important; letter-spacing: 0 !important; text-transform: none !important; }
+html body #lune-chat .ch-new {
+  height: 38px !important; padding: 0 10px !important; gap: 10px !important; border-radius: 9px !important; background: transparent !important;
+  color: var(--cc-text) !important; font: 500 15px var(--ui) !important; border: 0 !important; box-shadow: none !important; margin-bottom: 10px !important;
+}
+html body #lune-chat .ch-new:hover { background: var(--cc-raise) !important; }
+html body #lune-chat .ch-new svg { width: 22px !important; height: 22px !important; padding: 4px; border-radius: 50%; background: var(--cc-accent); color: var(--cc-accent-ink); box-sizing: border-box; }
+html body #lune-chat .ch-list::before { content: "Recents"; display: block; padding: 6px 10px 6px; font: 500 12.5px var(--ui); color: var(--cc-faint); }
+html body #lune-chat .ch-item { background: transparent !important; border-radius: 8px !important; min-height: 34px !important; }
+html body #lune-chat .ch-item:hover { background: var(--cc-raise) !important; }
+html body #lune-chat .ch-item.on { background: var(--cc-raise) !important; }
+html body #lune-chat .ch-item > button:first-child { font: 400 14.5px var(--ui) !important; color: var(--cc-text) !important; padding: 0 10px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html body #lune-chat .ch-item:not(.on) > button:first-child { color: var(--cc-dim) !important; }
+html body #lune-chat .ch-del { opacity: 0; color: var(--cc-dim) !important; background: transparent !important; }
+html body #lune-chat .ch-item:hover .ch-del, html body #lune-chat .ch-item.on .ch-del { opacity: 1; }
+html body #lune-chat .ch-foot { font: 400 12.5px var(--ui) !important; color: var(--cc-faint) !important; }
+
+/* header: small and quiet */
+html body #lune-chat .chat-head { background: var(--cc-bg) !important; border-bottom: 0 !important; box-shadow: none !important; height: 52px !important; }
+html body #lune-chat .chat-head .fx-shiny { background: none !important; -webkit-text-fill-color: currentColor !important; animation: none !important; }
+html body #lune-chat #chat-h { font: 500 15px var(--ui) !important; color: var(--cc-text) !important; letter-spacing: 0 !important; }
+html body #lune-chat .chat-head .lc-tool { width: 34px !important; height: 34px !important; border-radius: 8px !important; color: var(--cc-dim) !important; background: transparent !important; }
+html body #lune-chat .chat-head .lc-tool:hover { background: var(--cc-raise) !important; color: var(--cc-text) !important; }
+
+/* the conversation: one column, answers as plain text */
+html body #lune-chat #chat-log { width: min(768px, 100%) !important; max-width: 768px !important; margin-inline: auto !important; padding-left: 24px !important; padding-right: 24px !important; box-sizing: border-box; gap: 26px !important; }
+html body #lune-chat .chat-row { max-width: 100% !important; }
+html body #lune-chat .chat-from-you { justify-content: flex-end !important; }
+html body #lune-chat .chat-from-you .chat-bubble {
+  max-width: min(80%, 560px) !important; background: var(--cc-bubble) !important; color: var(--cc-text) !important;
+  border-radius: 18px !important; padding: 10px 16px !important; font: 400 16.5px/1.55 var(--ui) !important; box-shadow: none !important; border: 0 !important;
+}
+html body #lune-chat .chat-from-lune .chat-bubble {
+  max-width: 100% !important; background: none !important; padding: 0 !important; border: 0 !important; box-shadow: none !important;
+  color: var(--cc-text) !important; font: 400 18px/1.7 var(--ui) !important;
+}
+html body #lune-chat .chat-from-lune .chat-bubble :is(p, li) { color: var(--cc-text) !important; font: inherit !important; }
+html body #lune-chat .chat-from-lune .chat-bubble p { margin: 0 0 0.85em !important; }
+html body #lune-chat .chat-from-lune .chat-bubble p:last-child { margin-bottom: 0 !important; }
+html body #lune-chat .chat-from-lune .chat-bubble :is(h3, h4, strong) { color: var(--cc-text) !important; }
+html body #lune-chat .chat-from-lune .chat-bubble :is(ul, ol) { padding-left: 1.3em !important; margin: 0.4em 0 0.9em !important; }
+html body #lune-chat .chat-from-lune .chat-bubble li { margin: 0.3em 0 !important; }
+html body #lune-chat .chat-row .ask-actions { gap: 2px !important; margin-top: 8px !important; opacity: 0.85; }
+html body #lune-chat .chat-row .lc-mini { width: 30px !important; height: 30px !important; border-radius: 7px !important; color: var(--cc-faint) !important; background: transparent !important; }
+html body #lune-chat .chat-row .lc-mini:hover { background: var(--cc-raise) !important; color: var(--cc-text) !important; }
+html body #lune-chat .la-replies { gap: 8px !important; margin-top: 14px !important; }
+html body #lune-chat :is(.la-reply, .la-own) {
+  height: 36px !important; padding: 0 14px !important; border-radius: 10px !important; border: 1px solid var(--cc-line) !important;
+  background: transparent !important; color: var(--cc-text) !important; font: 400 15px var(--ui) !important;
+}
+html body #lune-chat :is(.la-reply, .la-own):hover { background: var(--cc-raise) !important; }
+html body #lune-chat .la-own { color: var(--cc-dim) !important; }
+
+/* the composer: text on top, tools along the bottom */
+html body #lune-chat #chat-form { background: linear-gradient(to bottom, transparent, var(--cc-bg) 30%) !important; }
+html body #lune-chat #chat-composer {
+  width: min(720px, calc(100% - 32px)) !important; max-width: 720px !important; margin-inline: auto !important; box-sizing: border-box;
+  display: grid !important; grid-template-columns: auto 1fr auto auto auto !important; grid-template-rows: auto auto !important; align-items: center !important;
+  column-gap: 6px !important; row-gap: 6px !important; padding: 14px 12px 10px !important; border-radius: 20px !important;
+  background: var(--cc-raise) !important; border: 1px solid var(--cc-line) !important;
+  box-shadow: 0 4px 24px -8px rgba(0, 0, 0, 0.35) !important; transition: border-color .15s ease, box-shadow .15s ease !important;
+}
+html body #lune-chat #chat-composer:focus-within { border-color: rgba(255, 255, 255, 0.16) !important; box-shadow: 0 6px 28px -8px rgba(0, 0, 0, 0.45) !important; }
+html[data-theme="light"] body #lune-chat #chat-composer { box-shadow: 0 4px 20px -10px rgba(0, 0, 0, 0.15) !important; }
+html[data-theme="light"] body #lune-chat #chat-composer:focus-within { border-color: rgba(0, 0, 0, 0.18) !important; }
+html body #lune-chat #chat-input {
+  grid-column: 1 / -1 !important; grid-row: 1 !important; width: 100% !important; min-height: 28px !important; max-height: 220px;
+  padding: 0 6px !important; margin: 0 !important; font: 400 17px/1.55 var(--ui) !important; color: var(--cc-text) !important; background: transparent !important; border: 0 !important; outline: 0 !important; resize: none !important;
+}
+html body #lune-chat #chat-input::placeholder { color: var(--cc-faint) !important; }
+html body #lune-chat #chat-attach { grid-column: 1 !important; grid-row: 2 !important; }
+html body #lune-chat #chat-mic { grid-column: 3 !important; grid-row: 2 !important; }
+html body #lune-chat #chat-talk, html body #lune-chat .chat-send, html body #lune-chat .lc-stop { grid-column: 5 !important; grid-row: 2 !important; }
+html body #lune-chat #chat-composer :is(#chat-attach, #chat-mic) {
+  width: 32px !important; height: 32px !important; border-radius: 8px !important; border: 1px solid var(--cc-line) !important;
+  background: transparent !important; color: var(--cc-dim) !important; display: grid !important; place-items: center !important; padding: 0 !important;
+}
+html body #lune-chat #chat-composer #chat-mic { border: 0 !important; }
+html body #lune-chat #chat-composer :is(#chat-attach, #chat-mic):hover { background: var(--cc-bubble) !important; color: var(--cc-text) !important; }
+html body #lune-chat #chat-composer :is(#chat-talk, .chat-send, .lc-stop) {
+  width: 32px !important; height: 32px !important; border-radius: 8px !important; background: var(--cc-accent) !important; color: var(--cc-accent-ink) !important;
+  display: grid !important; place-items: center !important; padding: 0 !important; border: 0 !important; box-shadow: none !important;
+}
+html body #lune-chat #chat-composer :is(#chat-talk, .chat-send, .lc-stop)[hidden] { display: none !important; }
+html body #lune-chat #chat-composer .chat-send:disabled { opacity: 0.4; }
+html body #lune-chat #chat-composer svg { width: 17px !important; height: 17px !important; }
+html body #lune-chat #chat-fine { color: var(--cc-faint) !important; text-align: center !important; }
+
+/* a new chat: the greeting and the composer meet in the middle, as on Claude */
+html body #lune-chat.is-empty .ask-empty { margin: auto 0 22px !important; }
+html body #lune-chat.is-empty .ask-empty :is(h3, p, .ask-empty-h) { color: var(--cc-text) !important; }
+html body #lune-chat #chat-starters { width: min(720px, calc(100% - 32px)) !important; margin-inline: auto !important; justify-content: center !important; gap: 8px !important; }
+html body #lune-chat #chat-starters button {
+  height: 34px !important; padding: 0 14px !important; border-radius: 10px !important; border: 1px solid var(--cc-line) !important;
+  background: transparent !important; color: var(--cc-dim) !important; font: 400 14.5px var(--ui) !important;
+}
+html body #lune-chat #chat-starters button:hover { background: var(--cc-raise) !important; color: var(--cc-text) !important; }
+html body #lune-chat #chat-composer:not(.is-writing) .lc-stop { display: none !important; }
+html body #lune-chat #chat-composer.is-writing :is(#chat-talk, .chat-send) { display: none !important; }
+html body #lune-chat #chat-log { scrollbar-width: thin; scrollbar-color: var(--cc-raise) transparent; }
+html body #lune-chat.lune-chat .chat-main > header.chat-head { background: var(--cc-bg) !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+html body #lune-chat .ch-h { visibility: hidden; }
+html body #lune-chat #chat-composer:not(.is-writing) :is(.lc-stop, #chat-no-such) { display: none !important; }
+html body #lune-chat #chat-composer.is-writing :is(#chat-talk, .chat-send, #chat-no-such) { display: none !important; }
+html body #lune-chat #chat-composer :is(.chat-send, #chat-no-such)[hidden] { display: none !important; }
+html body #lune-chat #chat-composer :is(#chat-talk, #chat-no-such)[hidden] { display: none !important; }
+/* new chat: greeting sits just above the composer, the pair centred, like Claude */
+html body #lune-chat.is-empty .chat-main { justify-content: center !important; }
+html body #lune-chat.is-empty #chat-log { flex: 0 0 auto !important; padding-top: 0 !important; padding-bottom: 8px !important; min-height: 0 !important; overflow: visible !important; }
+html body #lune-chat.is-empty #chat-log .ask-empty { margin: 0 0 18px !important; padding: 0 !important; }
+html body #lune-chat.is-empty #chat-starters { margin-bottom: 0 !important; }
+html body #lune-chat.is-empty .chat-main::after { content: ""; flex: 0 0 9vh; }
+@media (max-width: 899px) {
+  html body #lune-chat.hist-open .chat-main::before { content: ""; position: absolute; inset: 0; z-index: 20; background: rgba(0, 0, 0, 0.5); animation: lr-in .2s ease both; }
+  html body #lune-chat #chat-hist { box-shadow: 12px 0 40px -12px rgba(0, 0, 0, 0.6) !important; }
+}
+
+/* ==========================================================================
+   Signed in: deep grey instead of black, and the muted blue as the accent
+   (the same palette as Lune AI). Light mode is untouched.
+   ========================================================================== */
+html:not([data-theme="light"]) body.is-signed-in {
+  --g-bg: #1f1f1e; --g-side: #181817; --g-card: #262624; --g-raise: #2b2b29; --g-raise-2: #343431;
+  --g-line: rgba(255, 255, 255, 0.08); --g-text: #ecebe6; --g-dim: #a3a199; --g-faint: #74726b;
+  --bg: var(--g-bg); --d-bg: var(--g-bg); --surface: var(--g-card); --d-surface: var(--g-card); --d-surface-2: var(--g-raise); --d-surface-3: var(--g-raise-2);
+  --line: var(--g-line); --d-sep: var(--g-line);
+  --navy-mid: #c9d5f5; --navy-hi: #c9d5f5; --on-navy: #0b0d14;
+  background: var(--g-bg) !important;
+}
+html:not([data-theme="light"]):has(body.is-signed-in) { background: #1f1f1e !important; }
+html:not([data-theme="light"]) body.is-signed-in :is(#home, #home-member, #home-studio, main, .studio, .studio-panel, #panel-score, #panel-explain, #panel-piano, .score-scroll, .score-pane, #piano-dock, #companion-bar, #st-bottom) {
+  background-color: var(--g-bg) !important;
+}
+html:not([data-theme="light"]) body.is-signed-in header.bar { background: rgba(31, 31, 30, 0.86) !important; border-bottom: 1px solid var(--g-line) !important; backdrop-filter: saturate(1.4) blur(18px) !important; -webkit-backdrop-filter: saturate(1.4) blur(18px) !important; }
+html:not([data-theme="light"]) body.is-signed-in .score-tools-head { background: transparent !important; }
+/* the score page itself is inverted in dark mode: this light grey prints as the deep grey */
+html:not([data-theme="light"]) body.is-signed-in :is(.score-page, .fx-paper) { background-color: #e0e0e1 !important; border-color: #e0e0e1 !important; }
+/* cards, sheets and fields on grey */
+html:not([data-theme="light"]) body.is-signed-in :is(.sd2-card:not(.sd2-add), .sd2-mail, .member-rec, .member-homework, .rep-card, #home-member form#home-ask, .home-ask, dialog.sd2-sheet, #assign-dialog, #settings-dialog, .settings-dialog, .studio-menu) {
+  background-color: var(--g-card) !important;
+}
+html:not([data-theme="light"]) body.is-signed-in :is(.sd2-card, .member-rec, .member-homework, .rep-card, #home-member form#home-ask) { border-color: var(--g-line) !important; }
+html:not([data-theme="light"]) body.is-signed-in #home-member .member-rec { background: var(--g-card) !important; }
+/* the bar panel and the practice room in the same palette */
+html:not([data-theme="light"]) body.is-signed-in #coach { --cp-bg: #262624; --cp-raise: rgba(255, 255, 255, 0.06); --cp-raise-2: rgba(255, 255, 255, 0.11); --cp-text: #ecebe6; --cp-dim: #a3a199; --cp-faint: #74726b; }
+html:not([data-theme="light"]) body.is-signed-in #lune-room.lr { background: radial-gradient(120% 70% at 50% 0%, #2a2b2f 0%, #1f1f1e 60%, #1b1b1a 100%) !important; }
+html:not([data-theme="light"]) body.is-signed-in #lune-room > .lr-picker { background: #2b2b29; }
+html:not([data-theme="light"]) body.is-signed-in .lr .lr-chip.on .lr-n b, html:not([data-theme="light"]) body.is-signed-in .lr .lr-chip.on .lr-n small { color: #0b0d14 !important; }
+html:not([data-theme="light"]) body.is-signed-in .lr .lr-chip.on .lr-n i { background: var(--g-card, #0b0d14); color: #c9d5f5; }
+html:not([data-theme="light"]) body.is-signed-in .lune-loader { background: var(--g-bg) !important; }
+/* the toolbar's Practise and the other accent buttons: muted blue, dark ink */
+html:not([data-theme="light"]) body.is-signed-in #btn-session.ls-start, html:not([data-theme="light"]) body.is-signed-in #btn-session.ls-start * { color: #0b0d14 !important; }
+html:not([data-theme="light"]) body.is-signed-in .lp-switch input:checked::after, html:not([data-theme="light"]) body.is-signed-in .lp-switch input:checked::before { background-color: var(--g-card, #0b0d14); }
+html:not([data-theme="light"]) body.is-signed-in #home-studio .sd2-card:not(.sd2-add) { background: var(--g-card) !important; background-image: none !important; box-shadow: inset 0 0 0 1px var(--g-line) !important; }
+html:not([data-theme="light"]) body.is-signed-in #home-studio .sd2-av:not(.sd2-av-add) { background: rgba(201, 213, 245, 0.14) !important; background-image: none !important; color: #c9d5f5 !important; box-shadow: none !important; }
+html:not([data-theme="light"]) body.is-signed-in #home-studio .sd2-pill.is-done { background: rgba(201, 213, 245, 0.16) !important; color: #c9d5f5 !important; }
+html:not([data-theme="light"]) body.is-signed-in #home-studio .sd2-primary, html:not([data-theme="light"]) body.is-signed-in dialog.sd2-sheet .sd2-primary { background: #c9d5f5 !important; color: #0b0d14 !important; box-shadow: none !important; }
+html:not([data-theme="light"]) body.is-signed-in :is(#home-studio, dialog.sd2-sheet) .sd2-quiet { background: var(--g-raise) !important; color: var(--g-text) !important; }
+html:not([data-theme="light"]) body.is-signed-in :is(#home-studio, dialog.sd2-sheet) .sd2-quiet:hover { background: var(--g-raise-2) !important; }
+html:not([data-theme="light"]) body.is-signed-in dialog.sd2-sheet { background: #262624 !important; }
+html:not([data-theme="light"]) body.is-signed-in #home-member .member-next, html:not([data-theme="light"]) body.is-signed-in #home-member [class*="member-week"] { background-color: var(--g-card) !important; }
+@media (max-width: 760px) {
+  html body #coach { border-radius: 20px 20px 0 0 !important; border-left: 0 !important; border-top: 1px solid var(--cp-line) !important; box-shadow: 0 -20px 50px -20px rgba(0, 0, 0, 0.6) !important; overflow: hidden; }
+  html body #coach .coach-head { padding-top: 14px !important; }
+}
+html body .auth-role label, html body .auth-role label :is(b, small, span) { text-transform: none !important; letter-spacing: 0 !important; }
+html body .auth-role label b { font: 600 16px/1.25 var(--ui) !important; }
+html body .auth-role label small { font: 400 13.5px/1.35 var(--ui) !important; }

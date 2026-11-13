@@ -21,6 +21,9 @@ window.LuneSession = (function () {
     back: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     play: '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M8.5 5.5v13l10.5-6.5z" fill="currentColor"/></svg>',
     stop: '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M7 7h10v10H7z" fill="currentColor"/></svg>',
+    pause: '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M7 5.5h3.4v13H7zM13.6 5.5H17v13h-3.4z" fill="currentColor"/></svg>',
+    restart: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 12a7 7 0 1 0 2.05-4.95M5 4.5V8h3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    chev: '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     loop: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M17 4l3 3-3 3M4 11V9a2 2 0 0 1 2-2h14M7 20l-3-3 3-3M20 13v2a2 2 0 0 1-2 2H4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     click: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9 3h6l3 18H6zM12 16l4-9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     prev: '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
@@ -59,15 +62,16 @@ window.LuneSession = (function () {
   const unitKey = (u) => `${u[0]}-${u[u.length - 1]}`;
   const unitLabel = (u) => (u.length === 1 ? `Bar ${u[0]}` : `Bars ${u[0]}–${u[u.length - 1]}`);
   const pct = () => Math.round(LADDER[room.level] * 100);
+  const MAX_SPAN = 8;
 
   /* ---------------- what to practise ---------------- */
 
   async function lineUp(p, picked = []) {
-    // bars selected on the score: exactly those, as one passage (four at most)
+    // bars selected on the score: exactly those, as one passage (eight at most)
     const sel = picked.filter((b) => barData(b));
     if (sel.length) {
       const from = sel[0];
-      const to = Math.min(sel[sel.length - 1], from + 3);
+      const to = Math.min(sel[sel.length - 1], from + MAX_SPAN - 1);
       const span = [];
       for (let b = from; b <= to; b++) if (barData(b)) span.push(b);
       return [span];
@@ -246,11 +250,38 @@ window.LuneSession = (function () {
     }
   }
 
+  function pauseListening() {
+    if (!room?.listening || room.paused) return;
+    room.paused = true;
+    room.pausedEnd = st()?.snippetEnd ?? null;
+    try {
+      window.LunePiano?.pause?.();
+      syncPlayButton?.();
+    } catch {
+      /* not playing */
+    }
+    paintControls();
+  }
+  function resumeListening() {
+    if (!room?.paused) return;
+    room.paused = false;
+    const s = st();
+    if (s && room.pausedEnd != null) s.snippetEnd = room.pausedEnd;
+    try {
+      window.LunePiano?.resume?.();
+      syncPlayButton?.();
+    } catch {
+      /* nothing to resume */
+    }
+    paintControls();
+  }
+
   async function listen() {
-    if (room.listening) return stopListening();
+    if (room.listening) return room.paused ? resumeListening() : pauseListening();
     hush();
     const g = gen;
     room.listening = true;
+    room.paused = false;
     paintControls();
     const u = unit();
     do {
@@ -280,9 +311,13 @@ window.LuneSession = (function () {
         break;
       }
       await new Promise((resolve) => {
-        const t0 = performance.now();
+        let t0 = performance.now();
         let started = false;
         const iv = setInterval(() => {
+          if (room?.paused && g === gen) {
+            t0 += 30;
+            return;
+          }
           const playing = !!window.LunePiano?.isPlaying?.();
           if (playing) started = true;
           const p = window.LunePiano?.progress?.() || 0;
@@ -312,7 +347,10 @@ window.LuneSession = (function () {
   }
   function stopListening() {
     hush();
-    if (room) room.listening = false;
+    if (room) {
+      room.listening = false;
+      room.paused = false;
+    }
     paintControls();
   }
 
@@ -409,7 +447,7 @@ window.LuneSession = (function () {
         <button type="button" class="lr-back" data-r="close" aria-label="Back to the score">${ICON.back}<span>Score</span></button>
         <div class="lr-id">
           <p class="lr-piece">${esc(p?.overview?.title || p?.title || "")}</p>
-          <h2 id="lr-title">${esc(unitLabel(u))}</h2>
+          <h2 id="lr-title"><button type="button" class="lr-pickbtn" data-r="pick" aria-expanded="false" aria-controls="lr-picker" title="Choose which bars to practise">${esc(unitLabel(u))}${ICON.chev}</button></h2>
         </div>
         <div class="lr-queue">${
           room.units.length > 1
@@ -417,6 +455,7 @@ window.LuneSession = (function () {
             : ""
         }</div>
       </header>
+      <div class="lr-picker" id="lr-picker" role="dialog" aria-label="Choose bars" hidden></div>
       <div class="lr-goal" id="lr-goal"></div>
       <div class="lr-stage" id="lr-stage" role="img" aria-label="${esc(unitLabel(u))}, drawn large"></div>
       <div class="lr-meter" aria-hidden="true"><i></i></div>
@@ -468,7 +507,10 @@ window.LuneSession = (function () {
         <button type="button" class="lr-tog" data-r="click" aria-pressed="${!!room.click}" title="Metronome">${ICON.click}<span>Click</span></button>
       </div>
       <div class="lr-act">
-        <button type="button" class="lr-listen" data-r="listen" aria-keyshortcuts="Space">${room.listening ? ICON.stop : ICON.play}<span>${room.listening ? "Stop" : "Listen"}</span></button>
+        <div class="lr-play">
+          <button type="button" class="lr-listen${room.listening && !room.paused ? " is-on" : ""}" data-r="listen" aria-keyshortcuts="Space">${room.listening && !room.paused ? ICON.pause : ICON.play}<span>${room.listening ? (room.paused ? "Resume" : "Pause") : "Listen"}</span></button>
+          ${room.listening ? `<button type="button" class="lr-restart" data-r="restart" aria-label="Stop and go back to the start" title="Back to the start">${ICON.restart}</button>` : ""}
+        </div>
         <button type="button" class="lr-quiet" data-r="miss" aria-keyshortcuts="N">Not yet</button>
         <button type="button" class="lr-main" data-r="clean" aria-keyshortcuts="Enter">Played it clean</button>
       </div>`;
@@ -493,9 +535,103 @@ window.LuneSession = (function () {
     setTimeout(() => card.querySelector("button")?.focus(), 60);
   }
 
+  /* ---------------- choosing the bars, in the room ---------------- */
+
+  function allBars() {
+    let from = 1;
+    let to = 1;
+    try {
+      [from, to] = pieceBarSpan();
+    } catch {
+      /* single bar */
+    }
+    const out = [];
+    for (let b = from; b <= to; b++) if (barData(b)) out.push(b);
+    return out;
+  }
+  function togglePicker(force) {
+    const pk = $("lr-picker");
+    const btn = document.querySelector("#lune-room .lr-pickbtn");
+    if (!pk || !room) return;
+    const open = force ?? pk.hidden;
+    if (!open) {
+      pk.hidden = true;
+      btn?.setAttribute("aria-expanded", "false");
+      room.pk = null;
+      return;
+    }
+    const u = unit();
+    room.pk = { a: u[0], b: u[u.length - 1], next: "start" };
+    stopListening();
+    pk.hidden = false;
+    btn?.setAttribute("aria-expanded", "true");
+    paintPicker();
+    pk.querySelector(".lr-pk-grid .is-a")?.scrollIntoView({ block: "center" });
+    setTimeout(() => pk.querySelector(".lr-pk-grid .is-a")?.focus({ preventScroll: true }), 30);
+  }
+  function paintPicker() {
+    const pk = $("lr-picker");
+    if (!pk || !room?.pk) return;
+    const { a, b, next } = room.pk;
+    const n = b - a + 1;
+    const hard = new Set();
+    try {
+      for (const s of piece()?.hardSpots || []) hard.add(Number(typeof s === "object" ? s.measure : s));
+    } catch {
+      /* none */
+    }
+    const grid = allBars()
+      .map((x) => {
+        const cls = [x === a ? "is-a" : "", x === b ? "is-b" : "", x > a && x < b ? "is-in" : "", hard.has(x) ? "is-hard" : ""].filter(Boolean).join(" ");
+        return `<button type="button" data-pk="${x}" class="${cls}" aria-pressed="${x >= a && x <= b}" aria-label="Bar ${x}${hard.has(x) ? ", a hard spot" : ""}">${x}</button>`;
+      })
+      .join("");
+    pk.innerHTML = `
+      <div class="lr-pk-head">
+        <p class="lr-pk-title">Choose bars</p>
+        <p class="lr-pk-hint">${next === "end" ? `Now tap the last bar (up to ${MAX_SPAN}).` : "Tap the first bar, then the last."}</p>
+      </div>
+      <div class="lr-pk-grid">${grid}</div>
+      <div class="lr-pk-act">
+        <button type="button" class="lr-quiet" data-r="pick-cancel">Cancel</button>
+        <button type="button" class="lr-main" data-r="pick-go">Practise ${n === 1 ? `bar ${a}` : `bars ${a}–${b}`}</button>
+      </div>`;
+  }
+  function pickBar(x) {
+    if (!room?.pk) return;
+    const pk = room.pk;
+    if (pk.next === "end" && x !== pk.a) {
+      const lo = Math.min(pk.a, x);
+      const hi = Math.max(pk.a, x);
+      pk.a = lo;
+      pk.b = Math.min(hi, lo + MAX_SPAN - 1);
+      if (hi - lo + 1 > MAX_SPAN) window.toast?.(`Up to ${MAX_SPAN} bars at a time`);
+      pk.next = "start";
+    } else {
+      pk.a = pk.b = x;
+      pk.next = "end";
+    }
+    const keep = document.activeElement?.dataset?.pk;
+    const grid = $("lr-picker")?.querySelector(".lr-pk-grid");
+    const top = grid?.scrollTop || 0;
+    paintPicker();
+    const g2 = $("lr-picker")?.querySelector(".lr-pk-grid");
+    if (g2) g2.scrollTop = top;
+    if (keep) g2?.querySelector(`[data-pk="${keep}"]`)?.focus({ preventScroll: true });
+  }
+  function applyPick() {
+    if (!room?.pk) return;
+    const span = allBars().filter((x) => x >= room.pk.a && x <= room.pk.b);
+    if (!span.length) return togglePicker(false);
+    room.units = [span];
+    go(0);
+  }
+
   function go(i) {
     hush();
     room.listening = false;
+    room.paused = false;
+    room.pk = null;
     room.u = Math.max(0, Math.min(room.units.length - 1, i));
     const best = bestLevel(unit());
     room.level = best != null ? Math.min(best, LADDER.length - 1) : 0;
@@ -512,11 +648,18 @@ window.LuneSession = (function () {
   }
 
   function onClick(e) {
+    const pk = $("lr-picker");
+    if (pk && !pk.hidden && !e.target.closest(".lr-picker, .lr-pickbtn")) return togglePicker(false);
     const b = e.target.closest("button");
     if (!b || !room) return;
     const r = b.dataset.r;
     if (r === "close") return close();
     if (r === "listen") return listen();
+    if (r === "restart") return stopListening();
+    if (r === "pick") return togglePicker();
+    if (r === "pick-cancel") return togglePicker(false);
+    if (r === "pick-go") return applyPick();
+    if (b.dataset.pk) return pickBar(Number(b.dataset.pk));
     if (r === "clean") return clean();
     if (r === "miss") return notYet();
     if (r === "prev") return go(room.u - 1);
@@ -555,7 +698,9 @@ window.LuneSession = (function () {
         e.preventDefault();
         e.stopImmediatePropagation();
       };
+      if (k === "Escape" && !$("lr-picker")?.hidden) return stop(), togglePicker(false);
       if (k === "Escape") return stop(), close();
+      if (!$("lr-picker")?.hidden) return;
       if (document.querySelector("#lune-room .lr-done")) return;
       if ((k === " " || e.code === "Space") && !e.target.closest?.("button")) return stop(), listen();
       if (k === "Enter" && !e.target.closest?.("button")) return stop(), clean();
