@@ -3072,3 +3072,11 @@ html body #coach #help-body.is-multi .coach-bar-block h4:has(+ .coach-advice) { 
 html body #coach #help-body.is-multi .coach-bar-block .coach-advice { order: 2; }
 html body #coach #help-body.is-multi .coach-bar-block :is(h4:not(:has(+ .coach-advice)), .hand-label, .notes) { order: 3; }
 html body #coach #help-body.is-multi .coach-advice p { font-size: 16px !important; }
+html:not([data-theme="light"]) body .fx-seg button:not(.on) { color: #b3b0a8 !important; }
+
+/* one calm entrance for every sheet and dialog */
+@keyframes lune-dlg-in { from { opacity: 0; transform: translateY(10px) scale(0.99); } to { opacity: 1; transform: none; } }
+@keyframes lune-dlg-fade { from { opacity: 0; } to { opacity: 1; } }
+html body dialog[open]:not(.sch):not(#lune-chat):not(.lune-talk) { animation: lune-dlg-in .28s cubic-bezier(0.22, 1, 0.36, 1) both; }
+html body dialog[open]::backdrop { animation: lune-dlg-fade .24s ease both; }
+@media (prefers-reduced-motion: reduce) { html body dialog[open], html body dialog[open]::backdrop { animation: none !important; } }
