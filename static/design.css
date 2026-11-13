@@ -1291,3 +1291,22 @@ html[data-theme="light"] body .lp-pilot { color: rgba(0, 0, 0, 0.7); background:
 html[data-theme="light"] body .lp-pilot a { color: #111; border-color: var(--navy-mid); }
 html[data-theme="light"] body .lp-partner-line { color: rgba(0, 0, 0, 0.6); }
 @media (max-width: 480px) { html body .lp-pilot { font-size: 14px; } }
+
+/* ---------- QC: hero headline centred on its own text; notes fade in instead of colliding with the buttons ---------- */
+html body #hero-h.mr-h { max-width: none !important; width: auto !important; margin-left: auto !important; margin-right: auto !important; }
+@media (max-width: 760px) { html body #hero-h.mr-h .mr-l1, html body #hero-h.mr-h .mr-l2 { white-space: normal !important; } }
+html body #hero .mr-fall { -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 70%); mask-image: linear-gradient(to bottom, transparent 0, #000 70%); }
+html body #hero .hero-cta { margin-bottom: 8px; }
+/* QC: the headline is not held back by three wrapper fades on top of its own reveal; only the moon and the words animate */
+html body.is-home:not(.is-signed-in) main#home, html body #home-guest, html body #hero .mr-inner, html body #hero h1.mr-h { animation: none !important; }
+/* QC (phone): the live demo's controls meet the 36pt touch minimum and read at 14px; carousel dots get a larger hit area without growing */
+@media (max-width: 600px) {
+  html body #home-guest .fx-seg button, html body #home-guest .fx-transport button { min-height: 36px !important; font-size: 14px !important; padding-inline: 14px !important; }
+  html body #home-guest .fx-transport .fx-bpm, html body #home-guest .fx-transport .fx-orig { font-size: 13px !important; }
+  html body #home-guest .ai-dots button { position: relative; }
+  html body #home-guest .ai-dots button::after { content: ""; position: absolute; inset: -14px -8px; }
+  html body .home-footer .home-footer-line { font-size: 14px !important; }
+}
+/* QC: the home mark is a 44pt target, drawn the same size */
+html body header.bar #btn-home.brand { position: relative; }
+html body header.bar #btn-home.brand::after { content: ""; position: absolute; inset: -13px; }
