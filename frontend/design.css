@@ -1209,3 +1209,61 @@ html body #ask-lune .lc-attach:hover { color: var(--d-label); background: var(--
 html body #ask-lune:not(:has(#ask-log .ask-row)) .ask-log { flex: 0 0 auto !important; margin-top: auto !important; padding-bottom: 18px !important; }
 html body #ask-lune:not(:has(#ask-log .ask-row)) .ask-form { order: 3; }
 html body #ask-lune:not(:has(#ask-log .ask-row)) #ask-chips { order: 4; margin-bottom: auto !important; padding-top: 12px !important; justify-content: center; }
+
+/* ==========================================================================
+   Practise with Lune: a mini-player at the bottom of the score
+   ========================================================================== */
+.ls-panel {
+  position: fixed; z-index: 1300; left: 50%; bottom: 24px; transform: translateX(-50%);
+  width: min(560px, calc(100vw - 24px)); box-sizing: border-box; padding: 16px 20px 18px; border-radius: 22px;
+  background: rgba(18, 20, 30, 0.86); border: 1px solid rgba(159, 178, 228, 0.22); color: #f5f5f7;
+  -webkit-backdrop-filter: blur(24px) saturate(150%); backdrop-filter: blur(24px) saturate(150%);
+  box-shadow: 0 30px 70px -24px rgba(0, 0, 0, 0.85); animation: ls-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.ls-panel[hidden] { display: none !important; }
+@keyframes ls-in { from { opacity: 0; transform: translate(-50%, 16px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.ls-head { display: flex; align-items: center; gap: 10px; }
+.ls-moon {
+  width: 16px; height: 16px; background: var(--navy-hi); flex: none;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='4 3 26 26'%3E%3Cpath d='M17.61 4.58A12 12 0 1 0 27.70 24.77A11.4 11.4 0 1 1 17.61 4.58Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='4 3 26 26'%3E%3Cpath d='M17.61 4.58A12 12 0 1 0 27.70 24.77A11.4 11.4 0 1 1 17.61 4.58Z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.ls-title { font: italic 500 15px var(--ui); color: var(--navy-hi); }
+.ls-steps { display: inline-flex; gap: 5px; margin-left: auto; }
+.ls-steps i { width: 18px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.16); }
+.ls-steps i.done { background: var(--navy-hi); }
+.ls-steps i.on { background: #f5f5f7; }
+.ls-x { width: 32px; height: 32px; border-radius: 50%; border: 0; background: rgba(255, 255, 255, 0.08); color: #f5f5f7; font: 400 20px/1 var(--ui); cursor: pointer; margin-left: 6px; }
+.ls-bar { margin: 10px 0 4px; font: 400 30px/1.1 var(--display); }
+.ls-say { margin: 0 0 14px; font: 400 17px/1.5 var(--ui); color: rgba(245, 245, 247, 0.86); }
+.ls-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.ls-main { min-height: 42px; padding: 0 20px; border-radius: 999px; border: 0; background: #f5f5f7; color: #000; font: 600 15.5px var(--ui); cursor: pointer; }
+.ls-quiet { min-height: 42px; padding: 0 18px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.18); background: transparent; color: #f5f5f7; font: 500 15px var(--ui); cursor: pointer; }
+.ls-turn { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.ls-clock {
+  --p: 1; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; flex: none;
+  background: conic-gradient(var(--navy-hi) calc(var(--p) * 360deg), rgba(255, 255, 255, 0.1) 0); -webkit-mask: radial-gradient(circle, transparent 55%, #000 56%); position: relative;
+}
+.ls-clock b { position: absolute; font: 500 16px var(--nums); color: #f5f5f7; -webkit-mask: none; }
+.ls-grades { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.ls-grades button { min-height: 42px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.14); background: rgba(255, 255, 255, 0.04); color: #f5f5f7; font: 500 15px var(--ui); cursor: pointer; }
+.ls-grades button:hover { background: rgba(255, 255, 255, 0.1); }
+.ls-grades button.on { background: var(--navy-mid); border-color: var(--navy-mid); }
+body.ls-on #companion-bar, body.ls-on #st-bottom { visibility: hidden; }
+/* the entry button above the score: navy, the one way to start */
+html body #btn-session.ls-start { background: var(--navy-mid) !important; color: #fff !important; border: 0 !important; border-radius: 999px !important; }
+html body #btn-session svg { width: 14px !important; height: 14px !important; }
+@media (max-width: 560px) { .ls-panel { bottom: 12px; padding: 14px 16px 16px; } .ls-bar { font-size: 26px; } }
+@media (prefers-reduced-motion: reduce) { .ls-panel { animation: none; } }
+html body .score-tools #btn-session, html body #btn-session.lp-tool.ls-start {
+  background: var(--navy-mid) !important; color: #fff !important; border: 0 !important; border-radius: 999px !important; padding: 0 14px !important; min-height: 34px !important;
+}
+/* during a session the session asks how it went; the bar panel doesn't ask twice */
+body.ls-on #help-body .lp-rate { display: none !important; }
+.ls-clock { background: none !important; -webkit-mask: none !important; mask: none !important; }
+.ls-clock::before {
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(var(--navy-hi) calc(var(--p) * 360deg), rgba(255, 255, 255, 0.1) 0);
+  -webkit-mask: radial-gradient(circle, transparent 58%, #000 59%); mask: radial-gradient(circle, transparent 58%, #000 59%);
+}
+.ls-clock b { position: relative; z-index: 1; }

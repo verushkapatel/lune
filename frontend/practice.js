@@ -2348,7 +2348,10 @@ window.LunePractice = (function () {
         <span class="lp-tool-label">More</span></button>
       <button type="button" class="quiet lp-tool" id="btn-tell" title="Ask about a bar, leave a remark, or add to your plan — type or speak">
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-        <span class="lp-tool-label">Ask Lune</span></button>`;
+        <span class="lp-tool-label">Ask Lune</span></button>
+      <button type="button" class="lp-tool ls-start" id="btn-session" data-session-start title="A guided session on the bars that need you">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>
+        <span class="lp-tool-label">Practise with Lune</span></button>`;
     head.appendChild(bar);
     bar.querySelector("#btn-tell")?.addEventListener("click", () => window.LuneAsk?.open?.());
     // the extra tools stay folded away until asked for
@@ -3519,6 +3522,8 @@ window.LunePractice = (function () {
       ${n.detail ? `<p class="member-next-detail">${esc(n.detail)}</p>` : ""}
       <p class="member-next-why">${esc(n.why)}</p>
       <div class="member-next-actions"><button type="button" class="primary" data-next-go>${esc(n.label)}</button>${
+        n.kind !== "new" ? `<button type="button" class="quiet ls-home" data-next-session>Practise with Lune</button>` : ""
+      }${
         n.kind === "new" ? `<button type="button" class="quiet" data-open-piece="debussy-clair-de-lune" data-open-panel="score">Try Clair de lune</button>` : ""
       }</div>`;
     host.dataset.kind = n.kind;
@@ -3527,6 +3532,28 @@ window.LunePractice = (function () {
       host.innerHTML = html;
     }
     host.onclick = async (e) => {
+      // Practise with Lune: open the piece the same way, then the guided session starts on the score
+      if (e.target.closest("[data-next-session]")) {
+        try {
+          sessionStorage.setItem("lune.session.start", "1");
+        } catch {
+          /* private mode: the piece still opens */
+        }
+        e.target.closest("[data-next-session]").disabled = true;
+        if (n.open) location.hash = `#/${n.open.id}/score`;
+        else if (n.key) await openFromRepertoire(n.key, {});
+        if (window.LuneSession && sessionStorage.getItem("lune.session.start") === "1") {
+          sessionStorage.removeItem("lune.session.start");
+          const wait = setInterval(() => {
+            if (document.querySelector("#osmd svg")) {
+              clearInterval(wait);
+              window.LuneSession.start();
+            }
+          }, 500);
+          setTimeout(() => clearInterval(wait), 20000);
+        }
+        return;
+      }
       const b = e.target.closest("[data-next-go]");
       if (!b || b.disabled) return;
       b.disabled = true;

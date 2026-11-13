@@ -147,7 +147,7 @@ window.LunePlans = (function () {
       const piece = (await store().getPiece?.(s.key).catch?.(() => null)) || null;
       document.dispatchEvent(
         new CustomEvent("lune:session-report", {
-          detail: { key: s.key, title: s.title, composer: piece?.composer || "", mins, played: played.length, asked: asked.length, notes: notes.length, rated, soon, text: all[s.key].text, via },
+          detail: { key: s.key, title: s.title, composer: piece?.composer || (typeof state !== "undefined" ? state.piece?.overview?.composer || state.piece?.composer : "") || "", mins, played: played.length, asked: asked.length, notes: notes.length, rated, soon, text: all[s.key].text, via },
         })
       );
     } catch {
