@@ -2126,8 +2126,10 @@ How to answer
     const box = $("chat-hist-list");
     if (!box) return;
     const st = chatStore();
-    box.innerHTML = st.convs.length
-      ? st.convs
+    // empty chats ("New chat" with nothing said) are not history
+    const convs = st.convs.filter((c) => (c.msgs || []).some((m) => m.who === "you"));
+    box.innerHTML = convs.length
+      ? convs
           .map(
             (c) => `<div class="ch-item${c.id === st.cur ? " on" : ""}"><button type="button" data-conv="${esc(c.id)}">${esc(c.title || "New chat")}</button><button type="button" class="ch-del" data-conv-del="${esc(c.id)}" aria-label="Delete “${esc(c.title)}”">${ICON.close}</button></div>`
           )
@@ -2554,9 +2556,10 @@ How to answer
   const PLAN_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const PLAN_DAY_NAMES = { Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday", Fri: "Friday", Sat: "Saturday", Sun: "Sunday" };
 
-  function plannerSay(html, replies = []) {
+  function plannerSay(html, replies = [], ownHint = "Type your answer…") {
     const bubble = chatLine("lune", "");
-    bubble.innerHTML = String(html).replace(/>\s+</g, "><").trim() + (replies.length ? `<div class="la-replies" role="group" aria-label="Quick replies">${replies.map((r) => `<button type="button" class="la-reply">${esc(r)}</button>`).join("")}</div>` : "");
+    const own = replies.length ? `<button type="button" class="la-own" data-own="${esc(ownHint)}"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>Type my own</button>` : "";
+    bubble.innerHTML = String(html).replace(/>\s+</g, "><").trim() + (replies.length ? `<div class="la-replies" role="group" aria-label="Quick replies">${replies.map((r) => `<button type="button" class="la-reply">${esc(r)}</button>`).join("")}${own}</div>` : "");
     const log = chatLog();
     log.push({ who: "lune", text: bubble.textContent.replace(/\s+/g, " ").trim(), via: "note", t: Date.now() });
     saveChat(log);
@@ -2612,26 +2615,41 @@ How to answer
     } catch {
       pieces = [];
     }
-    const goals = [...pieces.map((p) => `Learn more of ${String(p.title).replace(/\s*\(.*\)$/, "").slice(0, 34)}`), "Fix my hardest bars", "Get a piece ready to perform"].slice(0, 4);
-    plannerSay(`<p>Let’s plan your week. <strong>What do you want to get done by Sunday?</strong></p>`, goals);
+    // "Liebestraum no. 3 in A-flat major, S. 541" → "Liebestraum no. 3"
+    const short = (t) => {
+      let x = String(t || "").split(/\s*[,(:–—]\s*|\s+-\s+/)[0].replace(/\s+in\s+[A-G](?:[-‐ ]?(?:flat|sharp|♭|♯))?\s+(?:major|minor)\b.*$/i, "").trim();
+      // a bare form name ("Nocturne") keeps its opus so it means one piece
+      const op = String(t || "").match(/\b(Op\.?\s*\d+[a-z]?(?:,?\s*No\.?\s*\d+)?|BWV\s*\d+|K\.?\s*\d+|S\.?\s*\d+)/i);
+      if (!/\d/.test(x) && op) x = `${x} ${op[1].replace(/,\s*/, " ")}`;
+      if (x.length > 30) x = `${x.slice(0, 29).replace(/\s+\S*$/, "")}…`;
+      return x;
+    };
+    const goals = [...new Set(pieces.map((p) => `Learn more of ${short(p.title)}`))].concat(["Fix my hardest bars", "Get a piece ready to perform"]).slice(0, 4);
+    plannerSay(`<p>Let’s plan your week. <strong>What do you want to get done by Sunday?</strong></p><p class="la-sub">Pick one, or type exactly what you want, like “Clair de lune up to bar 27, hands together”.</p>`, goals, "Type what you want to get done this week…");
     setTimeout(() => $("chat-input")?.focus({ preventScroll: true }), 120);
   }
 
   async function plannerReply(text) {
     const p = planner;
     if (!p) return;
+    // the question is answered: its replies settle, and the box goes back to its own hint
+    document.querySelectorAll("#chat-log .la-replies").forEach((row) => {
+      row.classList.add("is-done");
+      row.querySelectorAll("button").forEach((x) => (x.disabled = true));
+    });
+    if ($("chat-input")) $("chat-input").placeholder = "Ask anything about piano…";
     plannerHeard(text);
     if (p.step === "goal") {
       p.goal = text.slice(0, 300);
       p.step = "days";
-      return plannerSay(`<p>Good goal. <strong>Which days can you practise?</strong></p>`, ["Every day", "Weekdays", "Mon, Wed, Fri", "Weekends"]);
+      return plannerSay(`<p>Good goal. <strong>Which days can you practise?</strong></p>`, ["Every day", "Weekdays", "Mon, Wed, Fri", "Weekends"], "Type your days, like “Tue, Thu, Sat”…");
     }
     if (p.step === "days") {
       const days = parsePlanDays(text);
       if (!days.length) return plannerSay(`<p>Which days, for example “Mon, Wed, Fri” or “weekdays”?</p>`, ["Every day", "Weekdays", "Mon, Wed, Fri", "Weekends"]);
       p.days = days;
       p.step = "mins";
-      return plannerSay(`<p>${days.length === 7 ? "Every day" : days.map((d) => PLAN_DAY_NAMES[d]).join(", ")}. <strong>About how long each day?</strong></p>`, ["15 minutes", "20 minutes", "30 minutes", "45 minutes", "1 hour"]);
+      return plannerSay(`<p>${days.length === 7 ? "Every day" : days.map((d) => PLAN_DAY_NAMES[d]).join(", ")}. <strong>About how long each day?</strong></p>`, ["15 minutes", "20 minutes", "30 minutes", "45 minutes", "1 hour"], "Type how long, like “25 minutes”…");
     }
     if (p.step === "mins") {
       const mins = parsePlanMins(text);
@@ -2648,6 +2666,7 @@ How to answer
       }
       wait.closest(".chat-row")?.remove();
       planner = null;
+      if ($("chat-input")) $("chat-input").placeholder = "Ask anything about piano…";
       if (!plan) return plannerSay(`<p>I couldn’t make the plan just now. Try again in a moment.</p>`);
       document.dispatchEvent(new CustomEvent("lune:plan-mode", { detail: { mode: "plan" } }));
       const rows = plan.days
@@ -2668,6 +2687,18 @@ How to answer
       return;
     }
   }
+
+  // "Type my own": the box takes the answer, with a hint of what to write
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest?.(".la-own");
+    if (!b) return;
+    const box = $("chat-input");
+    if (!box) return;
+    box.placeholder = b.dataset.own || "Type your answer…";
+    box.focus();
+    // not "on": that class means a reply was chosen, and hides the others
+    b.classList.add("is-typing");
+  });
 
   // "Email me each morning", wherever it is offered
   document.addEventListener("click", async (e) => {
