@@ -3226,6 +3226,14 @@ window.LunePractice = (function () {
   }
 
   const GOALS = { clean3: "3 clean in a row", full: "Perfect it at full tempo", daily: "Play it every day" };
+  /** The student chosen in the Studio's Send homework, if any. */
+  const pendingFor = () => {
+    try {
+      return sessionStorage.getItem("lune.assign.for") || "";
+    } catch {
+      return "";
+    }
+  };
   /** Only for teachers: who it is for, then tempo, goal and bar notes folded away until wanted. */
   function teacherExtras(bars) {
     if (window.LuneStudio?.role?.() !== "teacher") return "";
@@ -3238,7 +3246,7 @@ window.LunePractice = (function () {
       shown = "";
     }
     return `
-      <div class="as-field"><label for="as-for">For</label><select id="as-for"><option value="">Anyone with the link</option>${students.map((s) => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("")}</select></div>
+      <div class="as-field"><label for="as-for">For</label><select id="as-for"><option value="">Anyone with the link</option>${students.map((s) => `<option value="${esc(s.id)}"${s.id === pendingFor() ? " selected" : ""}>${esc(s.name)}</option>`).join("")}</select></div>
       <details class="as-more">
         <summary>Tempo, goal and notes for single bars</summary>
         <div class="as-two">
@@ -3352,6 +3360,12 @@ window.LunePractice = (function () {
       const payload = { v: 1, id, p: key, t: titleFor(piece).slice(0, 120), c: composerFor(piece).slice(0, 80), by, m, bars, notes, tb, tu: beat.sign || "", tf: beat.factor || 1, g, to: forName || "" };
       const url = assignmentUrl(payload);
       writeJSON(SENT, [{ id, key, t: payload.t, bars, by, m, at: new Date().toISOString() }, ...readJSON(SENT, [])].slice(0, 60));
+      try {
+        sessionStorage.removeItem("lune.assign.for");
+      } catch {
+        /* fine */
+      }
+      document.getElementById("sd2-guide")?.setAttribute("hidden", "");
       window.LuneStudio?.recordAssignment?.({ id, sid, key, t: payload.t, c: payload.c, bars, m, tb: tb ? `${beat.sign || "♩"} = ${tb}` : null, goal: g, at: new Date().toISOString(), url });
       d.querySelector("form.as-form").hidden = true;
       d.querySelector(".as-out").hidden = false;
