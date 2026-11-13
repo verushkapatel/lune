@@ -3415,3 +3415,20 @@ html body #lune-chat #chat-listen:not([hidden]) {
   border-radius: 20px !important; background: var(--cc-raise) !important; border: 1px solid var(--cc-line) !important; min-height: 64px;
 }
 html body #lune-chat #chat-listen .lc-wave { color: var(--cc-accent); }
+
+/* Repertoire card: Open on its own row, then four equal actions */
+html body .rep-card .rep-card-actions { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: 8px !important; margin-top: 16px !important; align-items: stretch !important; }
+html body .rep-card .rep-card-actions [hidden] { display: none !important; }
+html body .rep-card .rep-card-actions > button[data-open] { grid-column: 1 / -1; order: -1; }
+html body .rep-card .rep-card-actions > :is(button, select) {
+  width: 100% !important; min-width: 0 !important; height: 44px !important; min-height: 44px !important; margin: 0 !important; padding: 0 10px !important;
+  border-radius: 12px !important; font: 500 15px var(--ui) !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: inline-flex !important; align-items: center !important; justify-content: center !important; text-align: center; box-shadow: none !important;
+}
+html:not([data-theme="light"]) body .rep-card .rep-card-actions > button.primary { background: #dde5f2 !important; color: #10131a !important; border: 0 !important; }
+html:not([data-theme="light"]) body .rep-card .rep-card-actions > :is(button.quiet, select) { background: rgba(255, 255, 255, 0.07) !important; color: #ecebe6 !important; border: 0 !important; }
+html[data-theme="light"] body .rep-card .rep-card-actions > :is(button.quiet, select) { background: #f0f0f3 !important; color: #1c1c1e !important; border: 0 !important; }
+html body .rep-card .rep-card-actions > select { text-align-last: center; appearance: none; -webkit-appearance: none; background-image: none !important; cursor: pointer; }
+@media (max-width: 600px) {
+  html body .rep-card .rep-card-actions { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
