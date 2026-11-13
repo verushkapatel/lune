@@ -3288,3 +3288,74 @@ html body #lune-chat .chat-from-lune .chat-bubble ul.la-week .la-wm { font: 400 
 html body #lune-chat .chat-from-lune .chat-bubble ul.la-week li > span:last-child { font: 400 15px/1.45 var(--ui) !important; }
 html body #lune-chat .chat-from-lune .chat-bubble ul.la-week > li { padding: 12px 16px !important; align-items: baseline; }
 html body .sch-item textarea { min-height: 2.9em; }
+
+/* guests: no Repertoire or Lune AI controls, just an invitation where Lune AI would be */
+html body:not(.is-signed-in) :is(#btn-repertoire, .lp-tools-bar #btn-tell, .st-ask, #coach .lp-ai-row) { display: none !important; }
+html body:not(.is-signed-in) #coach .lp-askbar { cursor: pointer; justify-content: center !important; }
+html body:not(.is-signed-in) #coach .lp-askbar > * { display: none !important; }
+html body:not(.is-signed-in) #coach .lp-askbar::after {
+  content: "Sign in to ask Lune AI about this bar"; display: block; font: 500 15px var(--ui); color: var(--cp-dim);
+}
+html body:not(.is-signed-in) #coach .lp-askbar:hover::after { color: var(--cp-text); }
+
+/* ==========================================================================
+   Landing: Practise with Lune, and Plan my schedule (product miniatures)
+   ========================================================================== */
+html body .home-feat-device:is(.fx-room, .fx-plan) {
+  --m-bg: #1d1d1c; --m-card: #262624; --m-raise: #2e2e2c; --m-line: rgba(255, 255, 255, 0.08); --m-text: #ecebe6; --m-dim: #a3a199; --m-acc: #dde5f2; --m-ink: #10131a;
+  background: var(--m-bg) !important; color: var(--m-text); border-radius: 22px !important; padding: 18px !important; box-shadow: 0 0 0 1px var(--m-line), 0 40px 80px -40px rgba(0, 0, 0, 0.7) !important;
+  font-family: var(--ui);
+}
+/* the practice room */
+html body .fx-room-top { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin-bottom: 8px; }
+html body .fx-room-back { font-size: 14px; color: var(--m-dim); }
+html body .fx-room-id { text-align: center; font: 400 22px/1.1 var(--display); color: var(--m-text); }
+html body .fx-room-id small { display: block; font: 400 12.5px var(--ui); color: var(--m-dim); margin-bottom: 2px; }
+html body .fx-room-id i { font-style: normal; font-size: 13px; color: var(--m-dim); }
+html body .fx-room-goal { text-align: center; margin: 4px 0 12px; font-size: 14px; color: var(--m-dim); }
+html body .fx-room-goal b { color: var(--m-text); font-weight: 500; }
+html body .fx-room-row { display: flex; justify-content: center; align-items: center; gap: 16px; margin-bottom: 16px; }
+html body .fx-ladder { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(118, 118, 128, 0.22); }
+html body .fx-ladder i { font: 400 12.5px var(--nums); font-style: normal; padding: 4px 9px; border-radius: 999px; color: var(--m-dim); }
+html body .fx-ladder i.on { background: var(--m-text); color: var(--m-ink); }
+html body .fx-streak { display: inline-flex; gap: 6px; }
+html body .fx-streak i { width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px rgba(236, 235, 230, 0.4); }
+html body .fx-streak i.on { background: var(--m-acc); box-shadow: 0 0 10px rgba(221, 229, 242, 0.5); }
+html body .fx-room-notes { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; padding: 18px 8px; margin-bottom: 16px; border-radius: 14px; background: var(--m-card); }
+html body .fx-room-notes .fx-k { font-size: 12.5px; font-style: italic; color: var(--m-dim); margin-right: 4px; }
+html body .fx-chip { display: inline-flex; align-items: baseline; gap: 1px; padding: 7px 9px; border-radius: 10px; background: rgba(255, 255, 255, 0.05); font: 500 17px var(--ui); color: var(--m-text);
+  animation: fx-lit 3.6s ease-in-out infinite; animation-delay: calc(var(--d) * 0.45s); }
+html body .fx-chip sup { font: 400 9.5px var(--nums); color: var(--m-dim); vertical-align: baseline; }
+html body .fx-chip em { margin-left: 4px; font: 600 9.5px var(--nums); font-style: normal; width: 15px; height: 15px; display: inline-grid; place-items: center; border-radius: 50%; background: rgba(221, 229, 242, 0.85); color: var(--m-ink); align-self: center; }
+@keyframes fx-lit {
+  0%, 9%, 100% { background: rgba(255, 255, 255, 0.05); color: var(--m-text); transform: none; }
+  3%, 7% { background: var(--m-acc); color: var(--m-ink); transform: translateY(-3px); }
+}
+html body .fx-room-act { display: flex; gap: 8px; }
+html body .fx-btn { flex: none; height: 40px; padding: 0 16px; display: inline-flex; align-items: center; border-radius: 999px; background: rgba(255, 255, 255, 0.1); font: 500 14.5px var(--ui); color: var(--m-text); white-space: nowrap; }
+html body .fx-btn.fx-quiet { background: transparent; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14); color: var(--m-dim); }
+html body .fx-btn.fx-main { flex: 1; justify-content: center; background: var(--m-text); color: var(--m-ink); }
+/* the schedule */
+html body .fx-plan-head { display: flex; align-items: baseline; justify-content: space-between; margin: 2px 4px 12px; }
+html body .fx-plan-head b { font: 400 22px var(--display); }
+html body .fx-plan-head span { font-size: 13.5px; color: var(--m-dim); }
+html body .fx-plan-days { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+html body .fx-day { border-radius: 14px; background: var(--m-card); padding: 12px 10px 10px; box-shadow: inset 0 0 0 1px var(--m-line); }
+html body .fx-day.is-today { box-shadow: inset 0 0 0 1.5px rgba(221, 229, 242, 0.5); }
+html body .fx-day p { display: flex; justify-content: space-between; align-items: baseline; margin: 0 2px 8px; font: 500 14px var(--ui); color: var(--m-text); }
+html body .fx-day p span { font: 400 11.5px var(--ui); color: var(--m-dim); }
+html body .fx-day.is-today p span { padding: 1px 7px; border-radius: 999px; background: var(--m-acc); color: var(--m-ink); font-weight: 600; }
+html body .fx-day ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+html body .fx-day li { position: relative; padding: 7px 8px 7px 12px; border-radius: 9px; background: var(--m-raise); font: 400 12.5px/1.35 var(--ui); color: var(--m-dim); }
+html body .fx-day li::before { content: ""; position: absolute; left: 0; top: 7px; bottom: 7px; width: 2.5px; border-radius: 0 2px 2px 0; background: #8d8a82; }
+html body .fx-day li.k-l::before { background: #9ec5a8; }
+html body .fx-day li.k-p::before { background: #e3b48c; }
+html body .fx-day li.k-f::before { background: var(--m-acc); }
+html body .fx-day li b { display: block; font: 500 11.5px var(--nums); color: var(--m-text); margin-bottom: 1px; }
+html body .fx-day li b::after { content: " min"; font-weight: 400; color: var(--m-dim); }
+@media (max-width: 640px) {
+  html body .fx-plan-days { grid-template-columns: 1fr; }
+  html body .fx-day:not(.is-today) { display: none; }
+  html body .fx-room-act .fx-btn.fx-quiet { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { html body .fx-chip { animation: none; } }

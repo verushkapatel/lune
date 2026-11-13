@@ -2035,6 +2035,12 @@ window.LunePractice = (function () {
   }
 
   function showRepertoire({ push = true } = {}) {
+    // the Repertoire belongs to an account
+    if (window.LuneOnboard && !LuneOnboard.signedIn?.()) {
+      if (location.hash === "#/repertoire") history.replaceState(null, "", `${location.pathname}${location.search}#/`);
+      LuneOnboard.requireSignIn?.("Sign in to keep a Repertoire. It’s free while Lune is in pilot.");
+      return;
+    }
     if (window.LuneOnboard && !LuneOnboard.requireUnlock()) return;
     ensureRepertoireView();
     stopAll();

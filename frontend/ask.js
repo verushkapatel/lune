@@ -2985,6 +2985,11 @@ How to answer
 
   /** Go to the Lune AI page: its own address, so it can be bookmarked and Back leaves it. */
   let aiReturn = null;
+  // where the reader was before #/ai, so a guest who is asked to sign in stays there
+  let lastPlace = location.hash !== "#/ai" ? location.hash : "";
+  window.addEventListener("hashchange", () => {
+    if (location.hash !== "#/ai") lastPlace = location.hash;
+  });
   function goAiPage() {
     if (location.hash === "#/ai") openChatPage();
     else {
@@ -3021,6 +3026,12 @@ How to answer
   window.addEventListener("load", wrapShowView, { once: true });
   /** The Lune AI page (#/ai): the same chat, full screen, with its history at the side. */
   function openChatPage() {
+    // Lune AI belongs to an account
+    if (window.LuneOnboard && !window.LuneOnboard.signedIn?.()) {
+      if (location.hash === "#/ai") window.history.replaceState(null, "", `${location.pathname}${location.search}${aiReturn || lastPlace || "#/"}`);
+      window.LuneOnboard.requireSignIn?.("Sign in to use Lune AI. It’s free while Lune is in pilot.");
+      return;
+    }
     const d = ensureChat();
     d.classList.add("is-page");
     d.classList.toggle("hist-open", wide());
