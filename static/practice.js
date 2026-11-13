@@ -1062,15 +1062,16 @@ window.LunePractice = (function () {
     // Short labels for the Lune AI actions, as suggestion chips
     const SHORT = { explainBar: "Explain", whyHard: "Why it’s hard", suggestPractice: "How to practise", explainFingering: "Fingering" };
     const many = bars.length > 1;
+    const span = many ? `bars ${bars[0]}–${bars[bars.length - 1]}` : `bar ${primary}`;
     wrap.innerHTML = `
       <div class="lp-teacher" hidden></div>
       <div class="lp-askbar">
         <span class="lp-askbar-orb" aria-hidden="true"></span>
-        <label class="visually-hidden" for="lp-ask-input">Ask Lune about bar ${primary}</label>
-        <input id="lp-ask-input" type="text" maxlength="600" placeholder="Ask Lune about bar ${primary}…" enterkeyhint="send">
+        <label class="visually-hidden" for="lp-ask-input">Ask Lune about ${span}</label>
+        <input id="lp-ask-input" type="text" maxlength="600" placeholder="Ask Lune about ${span}…" enterkeyhint="send">
         <button type="button" class="lc-tool lp-ask-mic" data-lp="ask-mic" aria-label="Ask by voice: dictate a question"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
         <button type="button" class="lc-round lp-ask-talk" data-lp="ask-talk" aria-label="Voice chat with Lune about bar ${primary}"><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
-        <button type="button" class="lc-round lp-ask-go" data-lp="ask" hidden aria-label="Ask Lune about bar ${primary}"><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button type="button" class="lc-round lp-ask-go" data-lp="ask" hidden aria-label="Ask Lune about ${span}"><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </div>
       ${
         window.LuneAsk?.modelConnected?.()
@@ -1236,7 +1237,7 @@ window.LunePractice = (function () {
         } finally {
           btn.classList.remove("on");
           btn.setAttribute("aria-pressed", "false");
-          q.placeholder = `Ask Lune about bar ${primary}…`;
+          q.placeholder = `Ask Lune about ${span}…`;
           syncAskButtons();
         }
       }
@@ -1578,7 +1579,7 @@ window.LunePractice = (function () {
         <section class="rep-section rep-week" aria-labelledby="rep-week-h">
           <div class="rep-today-head">
             <h2 id="rep-week-h">This week</h2>
-            <button type="button" class="quiet rep-plan-week" data-wp-open><span aria-hidden="true">＋</span> Plan my week</button>
+            <button type="button" class="quiet rep-plan-week" data-wp-open><span aria-hidden="true">＋</span> Plan your piano schedule</button>
           </div>
           <div id="rep-week-plan"></div>
         </section>
@@ -1804,17 +1805,17 @@ window.LunePractice = (function () {
       const bar = window.LuneImpact?.weekBarHtml ? `<div class="wk">${window.LuneImpact.weekBarHtml()}</div>` : "";
       const mode = window.LunePlans?.planMode?.();
       weekHost.innerHTML = mode === "free"
-        ? `<div class="rep-empty wk-choose-row"><p>No schedule. Practise whenever it suits you.</p><span class="wk-opts"><button type="button" class="quiet" data-wp-choose="plan">Plan my week instead</button></span></div>`
+        ? `<div class="rep-empty wk-choose-row"><p>No schedule. Practise whenever it suits you.</p><span class="wk-opts"><button type="button" class="quiet" data-wp-choose="plan">Plan your piano schedule</button></span></div>`
         : wp
           ? bar + window.LunePlans.planHtml(wp)
           : mode === "plan"
             ? `<p class="rep-empty">Lune is making this week’s plan from your goal…</p>`
-            : `<div class="rep-empty wk-choose-row"><p>Lune can plan your week around your goal, or you can play whenever it suits you.</p><span class="wk-opts"><button type="button" class="quiet wk-go" data-wp-choose="plan">Plan my week</button><button type="button" class="quiet" data-wp-choose="free">No schedule</button></span></div>`;
+            : `<div class="rep-empty wk-choose-row"><p>Lune can build your piano schedule around your goal, or you can play whenever it suits you.</p><span class="wk-opts"><button type="button" class="quiet wk-go" data-wp-choose="plan">Plan your piano schedule</button><button type="button" class="quiet" data-wp-choose="free">No schedule</button></span></div>`;
       // P1-23: one "Plan my week" per card. The header button only appears once there is a plan to change.
       const headBtn = document.querySelector(".rep-plan-week[data-wp-open]");
       if (headBtn) {
         headBtn.hidden = !wp;
-        headBtn.innerHTML = `<span aria-hidden="true">＋</span> Change plan`;
+        headBtn.innerHTML = `Edit schedule`;
       }
       if (!wp && mode === "plan") window.LunePlans?.ensureWeekPlan?.().then((made) => made && renderRepertoire()).catch(() => {});
     }
@@ -2554,7 +2555,7 @@ window.LunePractice = (function () {
           <select id="set-mins" aria-describedby="set-mins-note">${[10, 15, 20, 30, 45, 60, 90].map((n) => `<option ${n === mins ? "selected" : ""}>${n}</option>`).join("")}</select>
         </div>
         <p class="settings-note" id="set-mins-note">Plans fit this. Lune never times you.</p>
-        ${window.LunePlans?.planMode?.() === "free" ? row("plan-week", "Plan my week", "Turn on a weekly plan") : row("plan-week", "Change my week’s plan", "Days, minutes and goal")}
+        ${window.LunePlans?.planMode?.() === "free" ? row("plan-week", "Plan your piano schedule", "Days, minutes, pieces, reminders") : row("plan-week", "Edit your piano schedule", "Days, minutes and goal")}
         ${window.LunePlans?.planMode?.() === "free" ? "" : row("plan-free", "No schedule", "Play whenever it suits you")}
         ${signedIn ? row("week", "This week", "Your progress") : ""}
         ${signedIn ? row("daily-email", "Morning email from Lune", "Today’s practice in your inbox at 7 am") : ""}
@@ -2770,7 +2771,8 @@ window.LunePractice = (function () {
       else if (act === "chat") window.LuneAsk?.goAiPage?.();
       else if (act === "plan-week") {
         d.close?.();
-        if (window.LuneAsk?.planWeek && window.LuneAsk.modelConnected?.()) window.LuneAsk.planWeek();
+        if (window.LuneSchedule) window.LuneSchedule.open();
+        else if (window.LuneAsk?.planWeek && window.LuneAsk.modelConnected?.()) window.LuneAsk.planWeek();
         else window.LunePlans?.openWizard?.();
       }
       else if (act === "daily-email") {

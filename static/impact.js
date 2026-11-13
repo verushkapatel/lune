@@ -272,15 +272,15 @@ window.LuneImpact = (function () {
     if (streak) {
       const mode = window.LunePlans?.planMode?.();
       if (mode === "plan") {
-        streak.innerHTML = weekBarHtml() + `<button type="button" class="link-btn wk-change" data-wp-new>Change plan</button>`;
+        streak.innerHTML = weekBarHtml() + `<button type="button" class="link-btn wk-change" data-wp-new>Edit schedule</button>`;
         // a week without a plan gets one, made from the goal set at the start
-        window.LunePlans?.ensureWeekPlan?.().then((made) => { if (made) streak.innerHTML = weekBarHtml() + `<button type="button" class="link-btn wk-change" data-wp-new>Change plan</button>`; }).catch(() => {});
+        window.LunePlans?.ensureWeekPlan?.().then((made) => { if (made) streak.innerHTML = weekBarHtml() + `<button type="button" class="link-btn wk-change" data-wp-new>Edit schedule</button>`; }).catch(() => {});
       } else if (mode === "free") {
         streak.innerHTML = await piecesOverviewHtml();
       } else {
         streak.innerHTML = `<span class="wk-choose"><span class="wk-k">Your week</span>
-          <span class="wk-q">Should Lune plan your week around your goal, or would you rather play whenever it suits you?</span>
-          <span class="wk-opts"><button type="button" class="quiet wk-go" data-wp-choose="plan">Plan my week</button><button type="button" class="quiet" data-wp-choose="free">No schedule</button></span></span>`;
+          <span class="wk-q">Should Lune build your piano schedule around your goal, or would you rather play whenever it suits you?</span>
+          <span class="wk-opts"><button type="button" class="quiet wk-go" data-wp-choose="plan">Plan your piano schedule</button><button type="button" class="quiet" data-wp-choose="free">No schedule</button></span></span>`;
       }
     }
 

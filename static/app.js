@@ -194,10 +194,15 @@ function toast(msg) {
   const el = $("toast");
   if (!el) return;
   el.textContent = msg;
-  el.hidden = false;
   clearTimeout(toast.t);
-  // long messages stay long enough to read
-  toast.t = setTimeout(() => (el.hidden = true), Math.max(2800, String(msg).length * 55));
+  clearTimeout(toast.h);
+  el.hidden = false;
+  requestAnimationFrame(() => el.classList.add("is-in"));
+  // long messages stay long enough to read; then it settles away instead of vanishing
+  toast.t = setTimeout(() => {
+    el.classList.remove("is-in");
+    toast.h = setTimeout(() => (el.hidden = true), 260);
+  }, Math.max(2800, String(msg).length * 55));
 }
 
 /* ---------- piano loader (shown while scores / samples load) ---------- */
@@ -5072,14 +5077,12 @@ function openBarCoach() {
     return;
   }
   let html = "";
-  if (bars.length > 1) {
-    html += `<p class="coach-lead">Coaching covers ${escapeHtml(
-      selectionTitle(bars)
-    )}. \u201cPlay bars\u201d below plays just this span.</p>`;
-  }
+  // several bars: each one its own titled block, in order
+  body.classList.toggle("is-multi", bars.length > 1);
   for (const num of bars) {
     const d = debriefFor(num);
-    html += barSectionHtml(num, d);
+    const one = barSectionHtml(num, d);
+    html += bars.length > 1 ? one.replace('<section class="coach-bar-block">', `<section class="coach-bar-block"><p class="coach-bar-k">Bar ${num}</p>`) : one;
   }
   body.innerHTML = html;
   body.querySelector("[data-coach-more]")?.addEventListener("click", (e) => {
