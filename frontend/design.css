@@ -2783,37 +2783,37 @@ html:not([data-theme="light"]) body {
   background: var(--g-bg) !important;
 }
 html:not([data-theme="light"]) { background: #191918 !important; }
-html:not([data-theme="light"]) body.is-signed-in :is(#home, #home-member, #home-studio, main, .studio, .studio-panel, #panel-score, #panel-explain, #panel-piano, .score-scroll, .score-pane, #piano-dock, #companion-bar, #st-bottom) {
+html:not([data-theme="light"]) body :is(#home, #home-member, #home-studio, main, .studio, .studio-panel, #panel-score, #panel-explain, #panel-piano, .score-scroll, .score-pane, #piano-dock, #companion-bar, #st-bottom) {
   background-color: var(--g-bg) !important;
 }
-html:not([data-theme="light"]) body.is-signed-in header.bar { background: rgba(25, 25, 24, 0.86) !important; border-bottom: 1px solid var(--g-line) !important; backdrop-filter: saturate(1.4) blur(18px) !important; -webkit-backdrop-filter: saturate(1.4) blur(18px) !important; }
-html:not([data-theme="light"]) body.is-signed-in .score-tools-head { background: transparent !important; }
+html:not([data-theme="light"]) body header.bar { background: rgba(25, 25, 24, 0.86) !important; border-bottom: 1px solid var(--g-line) !important; backdrop-filter: saturate(1.4) blur(18px) !important; -webkit-backdrop-filter: saturate(1.4) blur(18px) !important; }
+html:not([data-theme="light"]) body .score-tools-head { background: transparent !important; }
 /* the score page itself is inverted in dark mode: this light grey prints as the deep grey */
-html:not([data-theme="light"]) body.is-signed-in :is(.score-page, .fx-paper) { background-color: #e6e6e7 !important; border-color: #e6e6e7 !important; }
+html:not([data-theme="light"]) body :is(.score-page, .fx-paper) { background-color: #e6e6e7 !important; border-color: #e6e6e7 !important; }
 /* cards, sheets and fields on grey */
-html:not([data-theme="light"]) body.is-signed-in :is(.sd2-card:not(.sd2-add), .sd2-mail, .member-rec, .member-homework, .rep-card, #home-member form#home-ask, .home-ask, dialog.sd2-sheet, #assign-dialog, #settings-dialog, .settings-dialog, .studio-menu) {
+html:not([data-theme="light"]) body :is(.sd2-card:not(.sd2-add), .sd2-mail, .member-rec, .member-homework, .rep-card, #home-member form#home-ask, .home-ask, dialog.sd2-sheet, #assign-dialog, #settings-dialog, .settings-dialog, .studio-menu) {
   background-color: var(--g-card) !important;
 }
-html:not([data-theme="light"]) body.is-signed-in :is(.sd2-card, .member-rec, .member-homework, .rep-card, #home-member form#home-ask) { border-color: var(--g-line) !important; }
-html:not([data-theme="light"]) body.is-signed-in #home-member .member-rec { background: var(--g-card) !important; }
+html:not([data-theme="light"]) body :is(.sd2-card, .member-rec, .member-homework, .rep-card, #home-member form#home-ask) { border-color: var(--g-line) !important; }
+html:not([data-theme="light"]) body #home-member .member-rec { background: var(--g-card) !important; }
 /* the bar panel and the practice room in the same palette */
-html:not([data-theme="light"]) body.is-signed-in #coach { --cp-bg: #212120; --cp-raise: rgba(255, 255, 255, 0.06); --cp-raise-2: rgba(255, 255, 255, 0.11); --cp-text: #ecebe6; --cp-dim: #a3a199; --cp-faint: #74726b; }
-html:not([data-theme="light"]) body.is-signed-in #lune-room.lr { background: radial-gradient(120% 70% at 50% 0%, #2a2b2f 0%, #191918 60%, #1b1b1a 100%) !important; }
-html:not([data-theme="light"]) body.is-signed-in #lune-room > .lr-picker { background: #272725; }
-html:not([data-theme="light"]) body.is-signed-in .lr .lr-chip.on .lr-n b, html:not([data-theme="light"]) body.is-signed-in .lr .lr-chip.on .lr-n small { color: #10131a !important; }
-html:not([data-theme="light"]) body.is-signed-in .lr .lr-chip.on .lr-n i { background: var(--g-card, #10131a); color: #dde5f2; }
-html:not([data-theme="light"]) body.is-signed-in .lune-loader { background: var(--g-bg) !important; }
+html:not([data-theme="light"]) body #coach { --cp-bg: #212120; --cp-raise: rgba(255, 255, 255, 0.06); --cp-raise-2: rgba(255, 255, 255, 0.11); --cp-text: #ecebe6; --cp-dim: #a3a199; --cp-faint: #74726b; }
+html:not([data-theme="light"]) body #lune-room.lr { background: radial-gradient(120% 70% at 50% 0%, #2a2b2f 0%, #191918 60%, #1b1b1a 100%) !important; }
+html:not([data-theme="light"]) body #lune-room > .lr-picker { background: #272725; }
+html:not([data-theme="light"]) body .lr .lr-chip.on .lr-n b, html:not([data-theme="light"]) body .lr .lr-chip.on .lr-n small { color: #10131a !important; }
+html:not([data-theme="light"]) body .lr .lr-chip.on .lr-n i { background: var(--g-card, #10131a); color: #dde5f2; }
+html:not([data-theme="light"]) body .lune-loader { background: var(--g-bg) !important; }
 /* the toolbar's Practise and the other accent buttons: muted blue, dark ink */
-html:not([data-theme="light"]) body.is-signed-in #btn-session.ls-start, html:not([data-theme="light"]) body.is-signed-in #btn-session.ls-start * { color: #10131a !important; }
-html:not([data-theme="light"]) body.is-signed-in .lp-switch input:checked::after, html:not([data-theme="light"]) body.is-signed-in .lp-switch input:checked::before { background-color: var(--g-card, #10131a); }
-html:not([data-theme="light"]) body.is-signed-in #home-studio .sd2-card:not(.sd2-add) { background: var(--g-card) !important; background-image: none !important; box-shadow: inset 0 0 0 1px var(--g-line) !important; }
-html:not([data-theme="light"]) body.is-signed-in #home-studio .sd2-av:not(.sd2-av-add) { background: rgba(221, 229, 242, 0.14) !important; background-image: none !important; color: #dde5f2 !important; box-shadow: none !important; }
-html:not([data-theme="light"]) body.is-signed-in #home-studio .sd2-pill.is-done { background: rgba(221, 229, 242, 0.16) !important; color: #dde5f2 !important; }
-html:not([data-theme="light"]) body.is-signed-in #home-studio .sd2-primary, html:not([data-theme="light"]) body.is-signed-in dialog.sd2-sheet .sd2-primary { background: #dde5f2 !important; color: #10131a !important; box-shadow: none !important; }
-html:not([data-theme="light"]) body.is-signed-in :is(#home-studio, dialog.sd2-sheet) .sd2-quiet { background: var(--g-raise) !important; color: var(--g-text) !important; }
-html:not([data-theme="light"]) body.is-signed-in :is(#home-studio, dialog.sd2-sheet) .sd2-quiet:hover { background: var(--g-raise-2) !important; }
-html:not([data-theme="light"]) body.is-signed-in dialog.sd2-sheet { background: #212120 !important; }
-html:not([data-theme="light"]) body.is-signed-in #home-member .member-next, html:not([data-theme="light"]) body.is-signed-in #home-member [class*="member-week"] { background-color: var(--g-card) !important; }
+html:not([data-theme="light"]) body #btn-session.ls-start, html:not([data-theme="light"]) body #btn-session.ls-start * { color: #10131a !important; }
+html:not([data-theme="light"]) body .lp-switch input:checked::after, html:not([data-theme="light"]) body .lp-switch input:checked::before { background-color: var(--g-card, #10131a); }
+html:not([data-theme="light"]) body #home-studio .sd2-card:not(.sd2-add) { background: var(--g-card) !important; background-image: none !important; box-shadow: inset 0 0 0 1px var(--g-line) !important; }
+html:not([data-theme="light"]) body #home-studio .sd2-av:not(.sd2-av-add) { background: rgba(221, 229, 242, 0.14) !important; background-image: none !important; color: #dde5f2 !important; box-shadow: none !important; }
+html:not([data-theme="light"]) body #home-studio .sd2-pill.is-done { background: rgba(221, 229, 242, 0.16) !important; color: #dde5f2 !important; }
+html:not([data-theme="light"]) body #home-studio .sd2-primary, html:not([data-theme="light"]) body dialog.sd2-sheet .sd2-primary { background: #dde5f2 !important; color: #10131a !important; box-shadow: none !important; }
+html:not([data-theme="light"]) body :is(#home-studio, dialog.sd2-sheet) .sd2-quiet { background: var(--g-raise) !important; color: var(--g-text) !important; }
+html:not([data-theme="light"]) body :is(#home-studio, dialog.sd2-sheet) .sd2-quiet:hover { background: var(--g-raise-2) !important; }
+html:not([data-theme="light"]) body dialog.sd2-sheet { background: #212120 !important; }
+html:not([data-theme="light"]) body #home-member .member-next, html:not([data-theme="light"]) body #home-member [class*="member-week"] { background-color: var(--g-card) !important; }
 @media (max-width: 760px) {
   html body #coach { border-radius: 20px 20px 0 0 !important; border-left: 0 !important; border-top: 1px solid var(--cp-line) !important; box-shadow: 0 -20px 50px -20px rgba(0, 0, 0, 0.6) !important; overflow: hidden; }
   html body #coach .coach-head { padding-top: 14px !important; }
