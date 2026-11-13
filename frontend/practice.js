@@ -1062,15 +1062,16 @@ window.LunePractice = (function () {
     // Short labels for the Lune AI actions, as suggestion chips
     const SHORT = { explainBar: "Explain", whyHard: "Why it’s hard", suggestPractice: "How to practise", explainFingering: "Fingering" };
     const many = bars.length > 1;
+    const span = many ? `bars ${bars[0]}–${bars[bars.length - 1]}` : `bar ${primary}`;
     wrap.innerHTML = `
       <div class="lp-teacher" hidden></div>
       <div class="lp-askbar">
         <span class="lp-askbar-orb" aria-hidden="true"></span>
-        <label class="visually-hidden" for="lp-ask-input">Ask Lune about bar ${primary}</label>
-        <input id="lp-ask-input" type="text" maxlength="600" placeholder="Ask Lune about bar ${primary}…" enterkeyhint="send">
+        <label class="visually-hidden" for="lp-ask-input">Ask Lune about ${span}</label>
+        <input id="lp-ask-input" type="text" maxlength="600" placeholder="Ask Lune about ${span}…" enterkeyhint="send">
         <button type="button" class="lc-tool lp-ask-mic" data-lp="ask-mic" aria-label="Ask by voice: dictate a question"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
         <button type="button" class="lc-round lp-ask-talk" data-lp="ask-talk" aria-label="Voice chat with Lune about bar ${primary}"><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
-        <button type="button" class="lc-round lp-ask-go" data-lp="ask" hidden aria-label="Ask Lune about bar ${primary}"><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button type="button" class="lc-round lp-ask-go" data-lp="ask" hidden aria-label="Ask Lune about ${span}"><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </div>
       ${
         window.LuneAsk?.modelConnected?.()
@@ -1236,7 +1237,7 @@ window.LunePractice = (function () {
         } finally {
           btn.classList.remove("on");
           btn.setAttribute("aria-pressed", "false");
-          q.placeholder = `Ask Lune about bar ${primary}…`;
+          q.placeholder = `Ask Lune about ${span}…`;
           syncAskButtons();
         }
       }

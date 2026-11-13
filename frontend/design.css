@@ -3060,3 +3060,15 @@ html body #settings-dialog #set-account-ai br { display: none; }
 html body #settings-dialog #set-account-ai .set-ai-note { display: block; margin-top: 2px; font: 400 14px var(--ui); color: var(--d-label-3, rgba(235,235,245,0.56)); }
 html body #settings-dialog .settings-sec > .settings-goal { padding-top: 0 !important; padding-bottom: 0 !important; }
 html body #settings-dialog .settings-goal label { min-height: 48px !important; }
+/* secondary and tertiary text that always reads */
+html:not([data-theme="light"]) body :is(#home-studio .sd2-status, #home-studio .sd2-note, #home-studio .sd2-mailline, dialog.sd2-sheet .sd2-sheet-foot, dialog.sd2-sheet .sd2-pieces span, dialog.sd2-sheet .sd2-field span, #sd2-student .sd2-sched-note) { color: #b3b0a8 !important; }
+html:not([data-theme="light"]) body :is(#home-studio .sd2-chips .is-none, #sd2-student .sd2-field span i, #home-studio .sd2-hw-row p) { color: #9a978e !important; }
+html:not([data-theme="light"]) body #coach .coach-lead { color: var(--cp-dim) !important; }
+/* the bar panel with several bars: one block per bar */
+html body #coach #help-body.is-multi > section.coach-bar-block { display: flex !important; flex-direction: column !important; order: 0; padding: 16px 0 6px !important; border-bottom: 1px solid var(--cp-line) !important; }
+html body #coach #help-body.is-multi > section.coach-bar-block:first-child { padding-top: 6px !important; }
+html body #coach #help-body.is-multi .coach-bar-k { order: 0; margin: 0 0 2px !important; font: 500 19px var(--display, var(--ui)) !important; color: var(--cp-text) !important; }
+html body #coach #help-body.is-multi .coach-bar-block h4:has(+ .coach-advice) { order: 1; margin-top: 8px !important; }
+html body #coach #help-body.is-multi .coach-bar-block .coach-advice { order: 2; }
+html body #coach #help-body.is-multi .coach-bar-block :is(h4:not(:has(+ .coach-advice)), .hand-label, .notes) { order: 3; }
+html body #coach #help-body.is-multi .coach-advice p { font-size: 16px !important; }
