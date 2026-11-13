@@ -369,7 +369,8 @@ window.LuneStudioUI = (function () {
     row.id = "st-bottom";
     row.className = "st-bottom";
     row.innerHTML = `
-      <button type="button" class="st-ask" data-b="ask"><span class="lune-orb-sm" aria-hidden="true"></span>Ask Lune</button>
+      <button type="button" class="st-practise" data-session-start><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>Practise</button>
+      <button type="button" class="st-ask" data-b="ask" aria-label="Ask Lune"><span class="lune-orb-sm" aria-hidden="true"></span><span class="st-ask-t">Ask Lune</span></button>
       <span class="st-tempo" role="group" aria-label="Tempo">
         <button type="button" class="st-bbtn" data-b="metro" aria-pressed="false" aria-label="Metronome"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M8 20h8l-3.2-14h-1.6L8 20z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M10.2 11.5l5.2-3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
         <button type="button" class="st-bbtn" data-b="slower" aria-label="Slower"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 12h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>

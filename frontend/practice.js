@@ -3940,7 +3940,7 @@ window.LunePractice = (function () {
     const face = window.luneFace?.(n.composer);
     const html = `${face ? `<span class="member-next-face" aria-hidden="true" style="background-image:url('${face}')"></span>` : ""}<p class="member-next-k">Next</p>
       <h2 id="member-next-h">${esc(n.title)}</h2>
-      ${n.composer ? `<p class="member-next-by">${esc(n.composer)}</p>` : ""}
+      ${n.composer ? `<p class="member-next-by">${esc(String(n.composer).replace(/(\S)\(/, "$1 ("))}</p>` : ""}
       ${n.detail ? `<p class="member-next-detail">${esc(n.detail)}</p>` : ""}
       <p class="member-next-why">${esc(n.why)}</p>
       <div class="member-next-actions">${

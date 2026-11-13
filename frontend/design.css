@@ -3359,3 +3359,59 @@ html body .fx-day li b::after { content: " min"; font-weight: 400; color: var(--
   html body .fx-room-act .fx-btn.fx-quiet { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { html body .fx-chip { animation: none; } }
+
+/* the Next card: grey, calm, and its buttons always fit */
+html:not([data-theme="light"]) body #home-member #member-next { background: #212120 !important; background-image: none !important; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07) !important; }
+html body #home-member #member-next .member-next-face { opacity: 0.55 !important; mask-image: linear-gradient(90deg, transparent 0%, #000 55%) !important; -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 55%) !important; }
+html body #home-member #member-next .member-next-actions { display: flex !important; flex-wrap: wrap !important; gap: 8px !important; position: relative; z-index: 1; }
+html body #home-member #member-next .member-next-actions button { white-space: nowrap; max-width: 100%; }
+html:not([data-theme="light"]) body #home-member #member-next .member-next-actions .primary { background: #dde5f2 !important; color: #10131a !important; }
+html:not([data-theme="light"]) body #home-member #member-next .member-next-actions .quiet { background: rgba(255, 255, 255, 0.08) !important; color: #ecebe6 !important; border: 0 !important; }
+@media (max-width: 600px) {
+  html body #home-member #member-next { padding: 22px 20px 20px !important; border-radius: 22px !important; min-height: 0 !important; }
+  html body #home-member #member-next h2 { font-size: 34px !important; line-height: 1.05 !important; }
+  html body #home-member #member-next .member-next-by { font-size: 16px !important; }
+  html body #home-member #member-next .member-next-detail, html body #home-member #member-next .member-next-why { font-size: 16px !important; line-height: 1.45 !important; max-width: 70% ; }
+  html body #home-member #member-next .member-next-actions { flex-direction: column !important; margin-top: 18px !important; }
+  html body #home-member #member-next .member-next-actions button { width: 100% !important; height: 48px !important; min-height: 48px !important; justify-content: center !important; font-size: 16px !important; padding: 0 16px !important; border-radius: 14px !important; }
+  html body #home-member #member-next .member-next-face { width: 62% !important; opacity: 0.4 !important; }
+}
+/* phone polish: scrolling chip rows fade at the edge; quiet text links in sentence case */
+@media (max-width: 600px) {
+  html body #home-ask-chips { -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); scrollbar-width: none; padding-right: 24px !important; }
+  html body #home-ask-chips::-webkit-scrollbar { display: none; }
+}
+html body .wk-change, html body #member-streak .link-btn {
+  text-transform: none !important; letter-spacing: 0 !important; text-decoration: none !important; font: 500 15px var(--ui) !important;
+  color: var(--navy-mid, #dde5f2) !important; padding: 6px 0 !important;
+}
+html[data-theme="light"] body .wk-change, html[data-theme="light"] body #member-streak .link-btn { color: #1d2b52 !important; }
+@media (max-width: 600px) {
+  html body #home-member #home-ask-chips { margin-bottom: 22px !important; }
+  html body #home-member #member-homework { margin: 0 0 14px !important; border-radius: 22px !important; padding: 20px !important; }
+  html body #home-member #member-homework + * { margin-top: 0 !important; }
+  html body #home-member #member-next { margin-top: 0 !important; margin-bottom: 14px !important; }
+  html body #home-member #member-homework .primary { width: 100% !important; height: 48px !important; justify-content: center !important; border-radius: 14px !important; }
+}
+/* phone bottom bar: Practise leads */
+html body #st-bottom { gap: 8px !important; }
+html body #st-bottom .st-practise {
+  flex: none; display: inline-flex; align-items: center; gap: 7px; height: 40px; padding: 0 16px; border: 0; border-radius: 999px;
+  background: #dde5f2; color: #10131a; font: 600 15px var(--ui); cursor: pointer;
+}
+html[data-theme="light"] body #st-bottom .st-practise { background: #1d2b52; color: #fff; }
+html body #st-bottom .st-ask { flex: 0 1 auto; min-width: 0; }
+@media (max-width: 480px) {
+  html body #st-bottom .st-ask { flex: none !important; width: 40px !important; height: 40px !important; padding: 0 !important; border-radius: 50% !important; font-size: 0 !important; justify-content: center !important; gap: 0 !important; }
+  html body #st-bottom .st-ask .lune-orb-sm { display: inline-block !important; margin: 0 !important; }
+  html body #st-bottom .st-tempo .st-bpm small { display: none; }
+}
+@media (max-width: 480px) { html body #st-bottom .st-ask .st-ask-t { display: none !important; } }
+
+/* dictation: the composer gives way to the live waveform (hidden must win over the layout rules) */
+html body #lune-chat #chat-composer[hidden], html body #lune-chat .lc-composer[hidden], html body #coach .lp-askbar[hidden], html body .lc-composer[hidden] { display: none !important; }
+html body #lune-chat #chat-listen:not([hidden]) {
+  display: flex !important; width: min(720px, calc(100% - 32px)); margin-inline: auto; box-sizing: border-box;
+  border-radius: 20px !important; background: var(--cc-raise) !important; border: 1px solid var(--cc-line) !important; min-height: 64px;
+}
+html body #lune-chat #chat-listen .lc-wave { color: var(--cc-accent); }
