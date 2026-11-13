@@ -1524,3 +1524,12 @@ html body #lune-chat.is-page .chat-head .ask-head-end { justify-self: end; }
 html[data-theme="light"] body #lune-chat.is-page .chat-head { background: rgba(255, 255, 255, 0.85) !important; }
 html body #lune-chat .chat-bubble .la-week + p, html body #lune-chat .chat-bubble > p + p { margin-top: 10px; }
 html body #lune-chat.is-page .chat-head { max-width: none !important; width: auto !important; margin: 0 !important; }
+/* the keyboard makes room for the bar panel, as the score and the play bar already do */
+@media (min-width: 801px) {
+  html body.coach-open.is-panel-score #piano-dock { padding-right: min(380px, 42vw) !important; box-sizing: border-box; transition: padding-right .25s ease; }
+}
+/* phone hero: the two actions stack at one width */
+@media (max-width: 520px) {
+  html body #hero .hero-cta { display: grid !important; grid-template-columns: 1fr; width: min(300px, 100%); margin-inline: auto; }
+  html body #hero .hero-cta button { width: 100% !important; }
+}
