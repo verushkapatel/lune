@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- lune76 -->
-  <!-- deploy-lune76 -->
-  <!-- deploy-lune76 -->
+  <!-- lune77 -->
+  <!-- deploy-lune77 -->
+  <!-- deploy-lune77 -->
 
 <meta charset="UTF-8">
   <script>
@@ -22,26 +22,26 @@
   <meta property="og:title" content="Lune — so practice feels right again">
   <meta property="og:description" content="Piano scores that explain themselves: every note named, every hard bar made clear. 3,700+ free scores, braille music, works offline.">
   <meta property="og:url" content="https://lune.page/">
-  <meta property="og:image" content="https://lune.page/static/assets/og.png?v=lune76">
+  <meta property="og:image" content="https://lune.page/static/assets/og.png?v=lune77">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="Lune — so practice feels right again">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Lune — so practice feels right again">
   <meta name="twitter:description" content="Piano scores that explain themselves: every note named, every hard bar made clear. Free.">
-  <meta name="twitter:image" content="https://lune.page/static/assets/og.png?v=lune76">
+  <meta name="twitter:image" content="https://lune.page/static/assets/og.png?v=lune77">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Lune">
-  <link rel="icon" href="static/assets/favicon.svg?v=lune76" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=lune76">
+  <link rel="icon" href="static/assets/favicon.svg?v=lune77" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=lune77">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="preload" href="static/assets/fonts/ebgaramond-var.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="static/assets/fonts/ebgaramond-italic-var.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="static/styles.css?v=lune76">
-  <link rel="stylesheet" href="static/theme-light.css?v=lune76">
-  <link rel="stylesheet" href="static/design.css?v=lune76">
+  <link rel="stylesheet" href="static/styles.css?v=lune77">
+  <link rel="stylesheet" href="static/theme-light.css?v=lune77">
+  <link rel="stylesheet" href="static/design.css?v=lune77">
   <script>window.luneSearchIndexJson = () => window.__luneSearchIndex || (window.__luneSearchIndex = fetch(window.luneUrl ? window.luneUrl("/static/search-index.json?v=catalog03") : "static/search-index.json?v=catalog03").then((r) => (r.ok ? r.json() : null)).catch(() => null));</script>
 </head>
 <body>
@@ -542,29 +542,79 @@
         </div>
       </section>
 
-      <section class="home-for" id="for" aria-labelledby="home-for-h" data-reveal>
-        <p class="about-kicker">Who it’s for</p>
-        <h2 id="home-for-h">Three kinds of practice Lune is built around.</h2>
-        <div class="home-for-grid">
-          <article>
-            <h3>Piano teachers</h3>
-            <p>Select the bars, write a note, and send it on WhatsApp. Your student opens the piece at those bars, marks it practised, and you see which bars felt hard. Neither of you needs an account.</p>
-            <button type="button" class="link-btn" data-open-piece="debussy-clair-de-lune" data-open-panel="score">Try it on Clair de lune</button>
+      <section class="lp-show" id="for" aria-labelledby="lp-show-h" data-reveal>
+        <p class="about-kicker">What Lune does</p>
+        <h2 id="lp-show-h">Made for the practice room. And the teaching studio.</h2>
+        <div class="lp-show-switch" role="tablist" aria-label="Who it’s for">
+          <button type="button" role="tab" id="show-tab-s" aria-controls="show-s" aria-selected="true" data-show="s">For students</button>
+          <button type="button" role="tab" id="show-tab-t" aria-controls="show-t" aria-selected="false" data-show="t" tabindex="-1">For teachers</button>
+        </div>
+
+        <div class="lp-bento" id="show-s" role="tabpanel" aria-labelledby="show-tab-s">
+          <article class="lp-tile lp-tile-wide">
+            <p class="lp-tile-k">The score</p>
+            <h3>Every note, named. Every bar, explained.</h3>
+            <p>Letter names or finger numbers under every note. Tap any bar for what’s in it, why it’s hard and how to practise it.</p>
+            <div class="lp-viz lp-viz-notes" aria-hidden="true"><span>E♭</span><span>F</span><span>A♭<i>3</i></span><span>D♭</span><span class="on">C<i>1</i></span><span>B♭</span></div>
           </article>
-          <article>
-            <h3>ABRSM candidates</h3>
-            <p>Made by a Grade&nbsp;7 candidate. Letter names and fingering for the bars that stall you, and Today’s bars to bring them back before the exam. Lune is independent of ABRSM.</p>
+          <article class="lp-tile">
+            <p class="lp-tile-k">The practice room</p>
+            <h3>Three clean, then faster.</h3>
+            <p>Just your bars, drawn large. Play it clean three times and the tempo steps up, until it’s perfected.</p>
+            <div class="lp-viz lp-viz-ladder" aria-hidden="true"><b class="done">60</b><b class="done">70</b><b class="on">80</b><b>90</b><b>100</b><em><i class="on"></i><i class="on"></i><i></i></em></div>
           </article>
-          <article>
-            <h3>Blind and low-vision musicians</h3>
-            <p>Bars described aloud, arrow keys from bar to bar, large print, high contrast, and braille music files for library pieces.</p>
-            <button type="button" class="link-btn" data-lp-access>Reading &amp; access</button>
+          <article class="lp-tile">
+            <p class="lp-tile-k">Lune AI</p>
+            <h3>A teacher between lessons.</h3>
+            <p>Ask about the bar in front of you, in words or out loud. It reads the actual notes.</p>
+            <div class="lp-viz lp-viz-chat" aria-hidden="true"><span class="me">Why is bar 15 hard?</span><span class="lune">Chords in both hands: set each shape before you play it.</span></div>
+          </article>
+          <article class="lp-tile">
+            <p class="lp-tile-k">Every morning</p>
+            <h3>A letter at 7 am.</h3>
+            <p>Today’s practice, the bars due back, one tip. Written for you. Yours to turn on.</p>
+            <div class="lp-viz lp-viz-mail" aria-hidden="true"><b>Good morning.</b><span>1  Bars 15–18, hands separately</span><span>2  Bar 9 is due back</span></div>
+          </article>
+          <article class="lp-tile">
+            <p class="lp-tile-k">For every reader</p>
+            <h3>Braille, large print, easy-read.</h3>
+            <p>835 scores as braille music, spoken bar walkthroughs, and letters every reader can tell apart.</p>
+            <div class="lp-viz lp-viz-braille" aria-hidden="true">⠼⠁⠃ ⠙⠑⠋ ⠛⠓</div>
           </article>
         </div>
-        <p class="home-for-ask">
-          Do you teach, or work with blind or low-vision musicians at a school or organisation?
-          <button type="button" class="link-btn" data-open-feedback="teacher">Tell me what’s missing</button> — I read every note.
-        </p>
+
+        <div class="lp-bento" id="show-t" role="tabpanel" aria-labelledby="show-tab-t" hidden>
+          <article class="lp-tile lp-tile-wide">
+            <p class="lp-tile-k">Homework</p>
+            <h3>Select the bars. Send it on WhatsApp.</h3>
+            <p>A note, a target tempo, a goal. Your student opens the piece at those bars, with no account and nothing to install.</p>
+            <div class="lp-viz lp-viz-wa" aria-hidden="true"><b>🎹 Piano Practice Assignment</b><span>Piece: Clair de lune – Debussy</span><span>Focus Bars: 15–18 · Target ♩. = 40</span><span>Goal: 3 clean in a row</span></div>
+          </article>
+          <article class="lp-tile">
+            <p class="lp-tile-k">Your Studio</p>
+            <h3>Know before the lesson.</h3>
+            <p>Who practised, on how many days, and which bars still feel hard.</p>
+            <div class="lp-viz lp-viz-roster" aria-hidden="true"><span><b>Meera</b> 2 days · <em class="h">Hard 3, 4</em> <em class="g">Good 1, 2</em></span><span><b>Aarav</b> not practised yet</span></div>
+          </article>
+          <article class="lp-tile">
+            <p class="lp-tile-k">Lesson prep</p>
+            <h3>The next lesson, in three lines.</h3>
+            <p>One tap and Lune AI reads the week and tells you where to start.</p>
+            <div class="lp-viz lp-viz-prep" aria-hidden="true"><span>1  Start with bars 3–4: still hard</span><span>2  Bars 1–2 are ready to move on</span><span>3  Agree a short daily routine</span></div>
+          </article>
+          <article class="lp-tile">
+            <p class="lp-tile-k">Your words, everywhere</p>
+            <h3>Lune AI follows your note.</h3>
+            <p>Between lessons, your student’s AI teacher starts from what you asked, never against it.</p>
+            <div class="lp-viz lp-viz-chat" aria-hidden="true"><span class="lune">Ms Rao asked: “Hands separately at 60.” Start there.</span></div>
+          </article>
+          <article class="lp-tile">
+            <p class="lp-tile-k">On your schedule</p>
+            <h3>A summary before you teach.</h3>
+            <p>On the days you choose. Or just tell Lune AI: “email me every Sunday at 6.”</p>
+            <div class="lp-viz lp-viz-days" aria-hidden="true"><b class="on">Su</b><b>Mo</b><b>Tu</b><b class="on">We</b><b>Th</b><b>Fr</b><b>Sa</b></div>
+          </article>
+        </div>
       </section>
 
       <section class="about-maker about-maker-cinema" id="about" data-reveal>
@@ -860,7 +910,8 @@
       <div class="coach-body" id="help-body"></div>
       <div class="help-actions">
         <button type="button" class="primary" id="btn-hear">Play bar</button>
-        <button type="button" class="quiet" id="btn-line">Play line</button>
+        <button type="button" class="quiet" id="btn-line" hidden>Play line</button>
+        <button type="button" class="quiet" id="btn-practise-bar" data-session-start>Practise</button>
         <button type="button" class="icon-btn" id="btn-coach-more" aria-label="More" title="More">
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
             <circle cx="6" cy="12" r="1.4" fill="currentColor"/>
@@ -938,35 +989,36 @@
   <div class="toast" id="toast" hidden></div>
   <script defer src="static/vendor/opensheetmusicdisplay.min.js"></script>
   <script defer src="static/vendor/Tone.js"></script>
-  <script defer src="static/piano.js?v=lune76"></script>
-  <script defer src="static/annotate.js?v=lune76"></script>
-  <script defer src="static/lite-analyze.js?v=lune76"></script>
-  <script defer src="static/fetch-score.js?v=lune76"></script>
-  <script defer src="static/lyric-lane.js?v=lune76"></script>
-  <script defer src="static/menu.js?v=lune76"></script>
-  <script defer src="static/lune-fx.js?v=lune76"></script>
-  <script defer src="static/lune-config.js?v=lune76"></script>
-  <script defer src="static/store.js?v=lune76"></script>
-  <script defer src="static/onboard.js?v=lune76"></script>
-  <script defer src="static/impact.js?v=lune76"></script>
-  <script defer src="static/feedback.js?v=lune76"></script>
-  <script defer src="static/ai-device.js?v=lune76"></script>
-  <script defer src="static/ask.js?v=lune76"></script>
-  <script defer src="static/markings.js?v=lune76"></script>
-  <script defer src="static/plans.js?v=lune76"></script>
-  <script defer src="static/score-facts.js?v=lune76"></script>
-  <script defer src="static/piece-notes.js?v=lune76"></script>
-  <script defer src="static/app.js?v=lune76"></script>
-  <script defer src="static/studio-ui.js?v=lune76"></script>
-  <script defer src="static/landing-score.js?v=lune76"></script>
-  <script defer src="static/moonrise.js?v=lune76"></script>
-  <script defer src="static/practice.js?v=lune76"></script>
-  <script defer src="static/study.js?v=lune76"></script>
-  <script defer src="static/install.js?v=lune76"></script>
-  <script defer src="static/hero-demo.js?v=lune76"></script>
-  <script defer src="static/tour.js?v=lune76"></script>
-  <script defer src="static/report.js?v=lune76"></script>
-  <script defer src="static/session.js?v=lune76"></script>
-  <script defer src="static/walkthrough.js?v=lune76"></script>
+  <script defer src="static/piano.js?v=lune77"></script>
+  <script defer src="static/annotate.js?v=lune77"></script>
+  <script defer src="static/lite-analyze.js?v=lune77"></script>
+  <script defer src="static/fetch-score.js?v=lune77"></script>
+  <script defer src="static/lyric-lane.js?v=lune77"></script>
+  <script defer src="static/menu.js?v=lune77"></script>
+  <script defer src="static/lune-fx.js?v=lune77"></script>
+  <script defer src="static/lune-config.js?v=lune77"></script>
+  <script defer src="static/store.js?v=lune77"></script>
+  <script defer src="static/onboard.js?v=lune77"></script>
+  <script defer src="static/impact.js?v=lune77"></script>
+  <script defer src="static/feedback.js?v=lune77"></script>
+  <script defer src="static/ai-device.js?v=lune77"></script>
+  <script defer src="static/ask.js?v=lune77"></script>
+  <script defer src="static/markings.js?v=lune77"></script>
+  <script defer src="static/plans.js?v=lune77"></script>
+  <script defer src="static/score-facts.js?v=lune77"></script>
+  <script defer src="static/piece-notes.js?v=lune77"></script>
+  <script defer src="static/app.js?v=lune77"></script>
+  <script defer src="static/studio-ui.js?v=lune77"></script>
+  <script defer src="static/landing-score.js?v=lune77"></script>
+  <script defer src="static/moonrise.js?v=lune77"></script>
+  <script defer src="static/practice.js?v=lune77"></script>
+  <script defer src="static/study.js?v=lune77"></script>
+  <script defer src="static/install.js?v=lune77"></script>
+  <script defer src="static/hero-demo.js?v=lune77"></script>
+  <script defer src="static/tour.js?v=lune77"></script>
+  <script defer src="static/report.js?v=lune77"></script>
+  <script defer src="static/session.js?v=lune77"></script>
+  <script defer src="static/studio.js?v=lune77"></script>
+  <script defer src="static/walkthrough.js?v=lune77"></script>
 </body>
 </html>

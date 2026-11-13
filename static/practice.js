@@ -2345,15 +2345,23 @@ window.LunePractice = (function () {
     bar.innerHTML = `
       <button type="button" class="quiet lp-tool lp-more-tools" id="btn-tools-more" aria-expanded="false" aria-controls="score-toggles" title="More score tools: letters, braille, piano, pedal">
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="6" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="18" cy="12" r="1.6" fill="currentColor"/></svg>
-        <span class="lp-tool-label">More</span></button>
+        <span class="lp-tool-label visually-hidden">More</span></button>
       <button type="button" class="quiet lp-tool" id="btn-tell" title="Ask about a bar, leave a remark, or add to your plan — type or speak">
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
         <span class="lp-tool-label">Ask Lune</span></button>
-      <button type="button" class="lp-tool ls-start" id="btn-session" data-session-start title="A guided session on the bars that need you">
+      <button type="button" class="quiet lp-tool lp-assign" id="btn-assign" title="Send these bars as homework">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 12l16-7-6 16-3-7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+        <span class="lp-tool-label">Assign</span></button>
+      <button type="button" class="lp-tool ls-start" id="btn-session" data-session-start title="Practise the bars you’ve selected, or the ones that need you">
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>
-        <span class="lp-tool-label">Practise with Lune</span></button>`;
+        <span class="lp-tool-label">Practise</span></button>`;
     head.appendChild(bar);
     bar.querySelector("#btn-tell")?.addEventListener("click", () => window.LuneAsk?.open?.());
+    bar.querySelector("#btn-assign")?.addEventListener("click", () => {
+      const bars = selectedBarsSorted();
+      if (!bars.length) return toast("Select the bars to assign first: tap a bar, then shift-tap the last one.");
+      openAssignDialog(bars);
+    });
     // the extra tools stay folded away until asked for
     const more = bar.querySelector("#btn-tools-more");
     more?.addEventListener("click", () => {
@@ -2550,6 +2558,7 @@ window.LunePractice = (function () {
         ${window.LunePlans?.planMode?.() === "free" ? "" : row("plan-free", "No schedule", "Play whenever it suits you")}
         ${signedIn ? row("week", "This week", "Your progress") : ""}
         ${signedIn ? row("daily-email", "Morning email from Lune", "Today’s practice in your inbox at 7 am") : ""}
+        ${signedIn ? row("role", window.LuneStudio?.role?.() === "teacher" ? "Using Lune as a teacher" : "Using Lune as a student", window.LuneStudio?.role?.() === "teacher" ? "Switch to the student home" : "Switch to the teacher Studio") : ""}
         ${row("tour", "Show me around", "Three steps on a real score")}
         ${row("example-week", "How this week works", "A quick example")}
       </section>
@@ -2742,6 +2751,13 @@ window.LunePractice = (function () {
       else if (act === "signin") window.LuneOnboard?.openCreateAccount?.();
       else if (act === "week") window.LuneImpact?.openWeeklyReview?.();
       else if (act === "example-week") openExampleWeek();
+      else if (act === "role") {
+        const next = window.LuneStudio?.role?.() === "teacher" ? "student" : "teacher";
+        window.LuneStudio?.setRole?.(next);
+        d.close?.();
+        window.toast?.(next === "teacher" ? "Your home is now the Studio" : "Your home is now the student home");
+        if (typeof goHome === "function") goHome({ forceApp: true });
+      }
       else if (act === "tour") {
         d.close();
         // on a score: tour now; elsewhere: open Clair de lune first
@@ -3167,6 +3183,9 @@ window.LunePractice = (function () {
       `*Piece:* ${a.t}${a.c ? ` – ${a.c}` : ""}`,
       `*Focus Bars:* ${capital(barsText(a.bars))}`,
     ];
+    if (a.to) lines.splice(1, 0, `*For:* ${a.to}`);
+    if (a.tb) lines.push(`*Target tempo:* ${a.tu || "♩"} = ${a.tb}`);
+    if (a.g && GOALS[a.g]) lines.push(`*Goal:* ${GOALS[a.g]}`);
     if (a.m) lines.push(`*Teacher's Note:* "${a.m}"`);
     lines.push("", "Open interactive score (no login needed):", url);
     return lines.join("\n");
@@ -3206,6 +3225,59 @@ window.LunePractice = (function () {
     return polishByRules(text);
   }
 
+  const GOALS = { clean3: "3 clean in a row", full: "Perfect it at full tempo", daily: "Play it every day" };
+  /** Only for teachers: who it is for, then tempo, goal and bar notes folded away until wanted. */
+  function teacherExtras(bars) {
+    if (window.LuneStudio?.role?.() !== "teacher") return "";
+    const students = window.LuneStudio.data().students;
+    let shown = "";
+    try {
+      const beat = printedBeat();
+      shown = `${beat.sign || "♩"} = ${Math.round(practiceTempoBpm() / beat.factor)}`;
+    } catch {
+      shown = "";
+    }
+    return `
+      <div class="as-field"><label for="as-for">For</label><select id="as-for"><option value="">Anyone with the link</option>${students.map((s) => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("")}</select></div>
+      <details class="as-more">
+        <summary>Tempo, goal and notes for single bars</summary>
+        <div class="as-two">
+          <div class="as-field"><label for="as-tb">Target tempo</label><input id="as-tb" inputmode="numeric" maxlength="3" placeholder="${esc(shown || "e.g. 60")}"></div>
+          <div class="as-field"><label for="as-goal">Goal</label><select id="as-goal">${Object.entries(GOALS).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select></div>
+        </div>
+        ${bars.slice(0, 8).map((b) => `<div class="as-field"><label for="as-b-${b}">Bar ${b}</label><input id="as-b-${b}" maxlength="200" placeholder="A note for bar ${b} (optional)"></div>`).join("")}
+      </details>`;
+  }
+  /** A first draft of the note, from what is actually in the bars. */
+  async function draftNote(piece, bars) {
+    try {
+      if (window.LuneAsk?.modelConnected?.()) {
+        const ctx = await window.LuneAsk.buildContext(bars[0]);
+        const out = await window.LuneAsk.askModel(
+          `I am a piano teacher setting homework on ${barsText(bars)} of ${titleFor(piece)}. Using only the score facts for these bars (notes, leaps, chords, fingering, what makes them tricky), write ONE or TWO short, encouraging sentences telling my student exactly how to practise them. Address the student. Reply with the sentences only.`,
+          ctx
+        );
+        const t = String(out || "").replace(/^["“]|["”]$/g, "").trim();
+        if (t && t.length < 400) return t;
+      }
+    } catch {
+      /* Lune's own reading below */
+    }
+    // from Lune's own reading of the bars
+    const tips = bars
+      .map((b) => {
+        try {
+          const d = debriefFor(b);
+          return String((Array.isArray(d?.advice) ? d.advice : [d?.advice]).find(Boolean) || "").split(/(?<=[.!?])\s/)[0];
+        } catch {
+          return "";
+        }
+      })
+      .filter(Boolean);
+    const first = tips[0] ? tips[0].replace(/\s*—\s*/g, ": ") : "Practise hands separately first, slowly, then together";
+    return `${first.replace(/[.!]$/, "")}. Take ${barsText(bars)} slowly at first, and stop as soon as it feels steady three times in a row.`;
+  }
+
   async function openAssignDialog(bars) {
     const piece = state.piece;
     if (!piece) return;
@@ -3224,10 +3296,11 @@ window.LunePractice = (function () {
       <form class="as-form" autocomplete="off">
         <div class="as-field"><label for="as-name">From</label><input id="as-name" maxlength="40" value="${esc(savedName)}" placeholder="Your name, as your student knows you"></div>
         <div class="as-field">
-          <div class="as-label"><label for="as-msg">Note</label><button type="button" class="as-polish" id="as-polish" aria-label="Polish the note into one clear sentence"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M12 3l2 5.5L19.5 10 14 12l-2 5.5L10 12 4.5 10 10 8.5z" fill="currentColor"/></svg>Polish</button></div>
+          <div class="as-label"><label for="as-msg">Note</label><button type="button" class="as-polish" id="as-polish" aria-label="Write the note with Lune AI: drafts one from the bars, or polishes yours"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M12 3l2 5.5L19.5 10 14 12l-2 5.5L10 12 4.5 10 10 8.5z" fill="currentColor"/></svg>Write with AI</button></div>
           <textarea id="as-msg" rows="3" maxlength="400" placeholder="e.g. lh jumps bar 15 slow"></textarea>
         </div>
         ${mine.length ? `<label class="as-row"><span>Include my ${mine.length} bar note${mine.length === 1 ? "" : "s"}</span><input type="checkbox" id="as-notes" role="switch" checked><span class="as-sw" aria-hidden="true"></span></label>` : ""}
+        ${teacherExtras(bars)}
         <button type="submit" class="primary as-make" id="as-create">Create homework</button>
       </form>
       <div class="as-out" hidden>
@@ -3241,11 +3314,11 @@ window.LunePractice = (function () {
     const msg = d.querySelector("#as-msg");
     d.querySelector("#as-polish").addEventListener("click", async (e) => {
       const b = e.currentTarget;
-      if (!msg.value.trim()) return msg.focus();
       b.disabled = true;
       b.classList.add("is-busy");
       try {
-        const out = await polishNote(msg.value, piece, bars);
+        // an empty note is drafted from the bars themselves; a written one is polished
+        const out = msg.value.trim() ? await polishNote(msg.value, piece, bars) : await draftNote(piece, bars);
         if (out) msg.value = out.slice(0, 400);
       } finally {
         b.disabled = false;
@@ -3259,10 +3332,27 @@ window.LunePractice = (function () {
       const m = msg.value.trim().slice(0, 400);
       store.setPref("teacherName", by);
       const notes = d.querySelector("#as-notes")?.checked ? mine.map((n) => ({ b: n.bar, x: n.body.slice(0, 300) })) : [];
+      // notes for single bars, from the teacher's own fields
+      for (const b of bars) {
+        const v = d.querySelector(`#as-b-${b}`)?.value.trim();
+        if (v) notes.push({ b, x: v.slice(0, 300) });
+      }
+      const tb = Number(d.querySelector("#as-tb")?.value) || null;
+      const g = d.querySelector("#as-goal")?.value || null;
+      const sid = d.querySelector("#as-for")?.value || null;
+      const forName = sid ? (window.LuneStudio?.data?.().students || []).find((s) => s.id === sid)?.name?.split(/[,\s]/)[0] : "";
       const id = newId();
-      const payload = { v: 1, id, p: key, t: titleFor(piece).slice(0, 120), c: composerFor(piece).slice(0, 80), by, m, bars, notes };
+      const beat = (() => {
+        try {
+          return printedBeat();
+        } catch {
+          return { factor: 1, sign: "" };
+        }
+      })();
+      const payload = { v: 1, id, p: key, t: titleFor(piece).slice(0, 120), c: composerFor(piece).slice(0, 80), by, m, bars, notes, tb, tu: beat.sign || "", tf: beat.factor || 1, g, to: forName || "" };
       const url = assignmentUrl(payload);
       writeJSON(SENT, [{ id, key, t: payload.t, bars, by, m, at: new Date().toISOString() }, ...readJSON(SENT, [])].slice(0, 60));
+      window.LuneStudio?.recordAssignment?.({ id, sid, key, t: payload.t, c: payload.c, bars, m, tb: tb ? `${beat.sign || "♩"} = ${tb}` : null, goal: g, at: new Date().toISOString(), url });
       d.querySelector("form.as-form").hidden = true;
       d.querySelector(".as-out").hidden = false;
       const copy = async (text, done) => {
@@ -3300,12 +3390,21 @@ window.LunePractice = (function () {
       title: String(a.t || ""),
       composer: String(a.c || ""),
       id: /^[A-Za-z0-9]{8,24}$/.test(String(a.id || "")) ? String(a.id) : null,
+      tb: Number(a.tb) > 0 && Number(a.tb) < 400 ? Number(a.tb) : null,
+      tu: String(a.tu || "").slice(0, 4),
+      tf: Number(a.tf) > 0 ? Number(a.tf) : 1,
+      goal: ["clean3", "full", "daily"].includes(a.g) ? a.g : null,
+      to: String(a.to || "").slice(0, 30),
       by: String(a.by || "").slice(0, 40),
       message: String(a.m || "").slice(0, 400),
       raw: a,
       bars: a.bars.map(Number).filter((n) => n >= 0 && n < 5000).slice(0, 64),
       notes: (a.notes || []).slice(0, 64).map((n) => ({ b: Number(n.b), x: String(n.x || "").slice(0, 300) })),
     };
+    if (assignment.id) {
+      const got = readJSON("lune.homework.received", []).filter((x) => x.id !== assignment.id);
+      writeJSON("lune.homework.received", [{ id: assignment.id, key: assignment.key, t: assignment.title, by: assignment.by, m: assignment.message, bars: assignment.bars, hash: `#/assign/${encoded}`, at: new Date().toISOString() }, ...got].slice(0, 20));
+    }
     try {
       history.replaceState({ lune: assignment.key }, "", `${location.pathname}${location.search}#/${assignment.key}/score`);
     } catch {
@@ -3347,6 +3446,25 @@ window.LunePractice = (function () {
     return ["Hard", "Okay", "Good"].filter((k) => by[k]).map((k) => `${k} ${by[k].sort((x, y) => x - y).join(", ")}`).join(" · ");
   }
 
+  /** The homework stays with the student: the piece in Repertoire, the teacher's words on the bars. Once. */
+  async function keepHomework(a) {
+    const kept = readJSON("lune.homework.kept", []);
+    if (kept.includes(a.id)) return;
+    try {
+      await store.addPiece({ piece_key: a.key, title: a.title || titleFor(state.piece), composer: a.composer || composerFor(state.piece) });
+      const who = a.by ? `${a.by}: ` : "";
+      if (a.message) await store.addNote({ pieceKey: a.key, bar: a.bars[0] || 0, body: `${who}${a.message}`.slice(0, 500), tags: tagsFor(a.message), source: "teacher" });
+      for (const n of a.notes) await store.addNote({ pieceKey: a.key, bar: n.b, body: `${who}${n.x}`.slice(0, 500), tags: tagsFor(n.x), source: "teacher" });
+      for (const bar of a.bars) await store.queueBar(a.key, bar);
+      repertoireKeys.add(a.key);
+      syncAddButtons();
+      refreshBadge();
+      writeJSON("lune.homework.kept", [...kept, a.id].slice(-100));
+    } catch {
+      /* it can be saved next time */
+    }
+  }
+
   function showAssignmentBanner() {
     if (!assignment) return;
     let el = $("lp-assign-banner");
@@ -3359,7 +3477,7 @@ window.LunePractice = (function () {
     }
     const a = assignment;
     flushCheckins();
-    const sent = a.id ? readJSON(SENT, []).find((x) => x.id === a.id) : null;
+    const sent = a.id && !window.LuneStudio?.previewingStudent?.() ? readJSON(SENT, []).find((x) => x.id === a.id) : null;
     const done = a.id ? readJSON(DONE, {})[a.id] : null;
     el.setAttribute("aria-label", sent ? "Your homework and its progress" : "Homework from your teacher");
     el.hidden = false;
@@ -3390,9 +3508,11 @@ window.LunePractice = (function () {
           .join("")}</ul>`;
       });
     } else {
+      const meta = [a.tb ? `Target ${esc(a.tu || "♩")} = ${a.tb}` : "", a.goal ? `Goal: ${esc(GOALS[a.goal])}` : ""].filter(Boolean).join(" · ");
       el.innerHTML = `<div class="hw-main">
-          <p class="hw-k">Homework${a.by ? ` from ${esc(a.by)}` : ""}</p>
+          <p class="hw-k">Homework${a.by ? ` from ${esc(a.by)}` : ""}${a.to ? ` for ${esc(a.to)}` : ""}</p>
           <p class="hw-note">${a.message ? esc(a.message) : `Practise ${esc(barsText(a.bars))}.`}</p>
+          ${meta ? `<p class="hw-meta">${meta}</p>` : ""}
           ${bars}
           <form class="hw-check" hidden>
             <label class="visually-hidden" for="hw-name">Your first name (optional)</label>
@@ -3408,8 +3528,8 @@ window.LunePractice = (function () {
           }</p>
         </div>
         <div class="hw-side">
-          ${a.id ? `<button type="button" class="primary" data-x="check">${done ? "Practised again" : "Mark practised"}</button>` : ""}
-          <button type="button" class="quiet" data-x="save">Save</button>
+          <button type="button" class="primary" data-session-start>Practise</button>
+          ${a.id ? `<button type="button" class="quiet" data-x="check">${done ? "Practised again" : "Mark practised"}</button>` : `<button type="button" class="quiet" data-x="save">Save</button>`}
           ${hide}
         </div>`;
     }
@@ -3429,6 +3549,8 @@ window.LunePractice = (function () {
       const msg = el.querySelector(".hw-done");
       try {
         await store.checkIn(a.id, who, ratings);
+        el.querySelector('[data-x="save"]')?.click();
+        keepHomework(a);
         const at = new Date().toISOString();
         writeJSON(DONE, { ...readJSON(DONE, {}), [a.id]: at });
         msg.textContent = `Practised ${when(at)}. ${a.by || "Your teacher"} can see it.`;
@@ -3918,7 +4040,30 @@ window.LunePractice = (function () {
     b64urlEncode,
     b64urlDecode,
     /** The teacher's homework open on this score, if any: its note, bars and teacher. */
-    homework: () => (assignment && assignment.key === keyFor(state.piece) ? { by: assignment.by, note: assignment.message, bars: assignment.bars.slice(), notes: assignment.notes.slice() } : null),
+    homework: () =>
+      assignment && assignment.key === keyFor(state.piece)
+        ? { id: assignment.id, by: assignment.by, note: assignment.message, bars: assignment.bars.slice(), notes: assignment.notes.slice(), tb: assignment.tb, tu: assignment.tu, tf: assignment.tf, goal: assignment.goal ? GOALS[assignment.goal] : null }
+        : null,
+    /** A check-in for the open homework, from the practice room: quietly, with the student's ratings. */
+    homeworkCheckIn: async () => {
+      const a = assignment;
+      if (!a?.id || (!window.LuneStudio?.previewingStudent?.() && readJSON(SENT, []).some((x) => x.id === a.id))) return false;
+      let who = "";
+      try {
+        who = localStorage.getItem("lune.student.name") || "";
+      } catch {
+        /* fine */
+      }
+      const ratings = await ratingsFor(a);
+      try {
+        await store.checkIn(a.id, who, ratings);
+      } catch {
+        writeJSON(QUEUE, [...readJSON(QUEUE, []).filter((q) => q.aid !== a.id), { aid: a.id, who, ratings }].slice(-20));
+      }
+      writeJSON(DONE, { ...readJSON(DONE, {}), [a.id]: new Date().toISOString() });
+      keepHomework(a);
+      return true;
+    },
     __test: { wordsToNumber, barsText },
   };
 })();
