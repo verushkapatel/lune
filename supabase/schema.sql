@@ -343,3 +343,47 @@ create policy "my morning email" on public.daily_emails for all to authenticated
 -- the token is for the unsubscribe link only: signed-in clients can read every column but it
 revoke select on public.daily_emails from authenticated, anon;
 grant select (user_id, enabled, send_hour, tz, last_sent, updated_at) on public.daily_emails to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Added November 2026: homework check-ins, with no account on either side.
+-- A teacher's assignment link carries a random id. The student may tap
+-- "Mark practised" (with a first name if they like); the teacher, opening the
+-- same link, sees when it was practised and which bars felt hard or good.
+-- Only a first name, the ratings of the assigned bars and the time are kept,
+-- and every check-in is deleted after 120 days (about a school term).
+-- The table has no policies: nobody can list it. Two functions are the only
+-- way in, and each touches one assignment id at a time.
+create table if not exists public.assignment_checkins (
+  id bigint generated always as identity primary key,
+  assignment_id text not null check (assignment_id ~ '^[A-Za-z0-9]{8,24}$'),
+  who text not null default '' check (char_length(who) <= 40),
+  ratings jsonb not null default '{}'::jsonb check (jsonb_typeof(ratings) = 'object' and pg_column_size(ratings) <= 4000),
+  created_at timestamptz not null default now()
+);
+create index if not exists assignment_checkins_aid on public.assignment_checkins (assignment_id, created_at desc);
+alter table public.assignment_checkins enable row level security;
+revoke all on public.assignment_checkins from anon, authenticated;
+
+create or replace function public.assignment_checkin(aid text, who text, ratings jsonb)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if aid is null or aid !~ '^[A-Za-z0-9]{8,24}$' then raise exception 'bad assignment id'; end if;
+  delete from public.assignment_checkins where created_at < now() - interval '120 days';
+  -- a flood guard: at most 30 check-ins per assignment per day
+  if (select count(*) from public.assignment_checkins where assignment_id = aid and created_at > now() - interval '1 day') >= 30 then return; end if;
+  insert into public.assignment_checkins (assignment_id, who, ratings)
+  values (aid, left(coalesce(btrim(who), ''), 40), case when jsonb_typeof(ratings) = 'object' then ratings else '{}'::jsonb end);
+end $$;
+
+create or replace function public.assignment_progress(aid text)
+returns table (who text, ratings jsonb, created_at timestamptz)
+language sql stable security definer set search_path = public as $$
+  select c.who, c.ratings, c.created_at from public.assignment_checkins c
+  where aid ~ '^[A-Za-z0-9]{8,24}$' and c.assignment_id = aid and c.created_at > now() - interval '120 days'
+  order by c.created_at desc limit 30;
+$$;
+
+revoke all on function public.assignment_checkin(text, text, jsonb) from public;
+revoke all on function public.assignment_progress(text) from public;
+grant execute on function public.assignment_checkin(text, text, jsonb) to anon, authenticated;
+grant execute on function public.assignment_progress(text) to anon, authenticated;

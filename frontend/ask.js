@@ -219,6 +219,34 @@ How to answer
   }
 
   /** Everything Lune knows that is relevant to this question, as plain data. */
+  /**
+   * The teacher's homework, when it is open on this score: high-priority guidance.
+   * The instruction travels with it, so the model lines its steps up with the teacher.
+   */
+  function homeworkContext(bar = null) {
+    const hw = P()?.homework?.();
+    if (!hw) return null;
+    const bars = hw.bars || [];
+    return {
+      from: hw.by || "the pianist's teacher",
+      note: hw.note || null,
+      focusBars: bars,
+      notesOnBars: (hw.notes || []).filter((n) => !bar || n.b === Number(bar)).map((n) => ({ bar: n.b, note: n.x })),
+      thisBarIsAssigned: bar ? bars.includes(Number(bar)) : undefined,
+      howToUse:
+        "This is the teacher's homework and outranks everything else in this section. Keep to the teacher's note and wording; work on the focus bars first; when a plan is asked for, start with the focus bars; never contradict the teacher. Mention the teacher's note naturally, without quoting it in full every time.",
+    };
+  }
+  /** One line for Lune's built-in answers when the bar is homework. */
+  function homeworkLine(bar) {
+    const hw = P()?.homework?.();
+    if (!hw || (bar && !hw.bars.includes(Number(bar)))) return "";
+    const who = hw.by || "Your teacher";
+    const own = (hw.notes || []).find((n) => bar && n.b === Number(bar))?.x;
+    const said = own || hw.note;
+    return said ? `${who} asked: “${said}” Start there.` : `${who} set this bar as homework.`;
+  }
+
   async function buildContext(bar) {
     const p = state.piece || {};
     const key = keyFor();
@@ -262,6 +290,8 @@ How to answer
         .map((h) => ({ question: h.q, answer: h.a })),
       fingeringNote: FINGERING_NOTE,
     };
+    const hw = homeworkContext(bar);
+    if (hw) ctx.teacherAssignment = hw;
     // bars the pianist keeps finding hard (from their own ratings)
     const struggling = cards.filter((c) => (c.lapses || 0) >= 2 || /again|hard/i.test(String(c.last_grade || ""))).map((c) => c.bar);
     if (struggling.length) ctx.barsRatedHardOrAgain = [...new Set(struggling)].sort((a, b) => a - b).slice(0, 12);
@@ -590,7 +620,8 @@ How to answer
     } catch {
       /* no history yet */
     }
-    const picked = (bars.length ? bars : [...new Set([...struggling, ...hardest(3).map((h) => h.bar)])]).slice(0, 5).sort((a, b) => a - b);
+    const hw = P()?.homework?.();
+    const picked = (bars.length ? bars : [...new Set([...(hw?.bars || []), ...struggling, ...hardest(3).map((h) => h.bar)])]).slice(0, 5).sort((a, b) => a - b);
     if (!picked.length) return "Open a score with notes first, then ask me for a plan.";
     let remarks = [];
     try {
@@ -599,6 +630,7 @@ How to answer
       /* no remarks yet */
     }
     const steps = [{ kind: "hear", title: "Hear it once", detail: "Listen to these bars before you play them." }];
+    if (hw && picked.some((b) => hw.bars.includes(b))) steps.unshift({ kind: "teacher", title: `${hw.by || "Your teacher"}’s homework`, detail: hw.note || `Focus on ${hw.bars.length === 1 ? `bar ${hw.bars[0]}` : `bars ${hw.bars.join(", ")}`}.` });
     for (const b of picked) {
       const d = debriefFor(b);
       const tip = first(d?.advice, 1)[0] || "Hands separately, slowly, then together.";
@@ -802,6 +834,8 @@ How to answer
     if (!a) {
       note = fallbackNote(failure);
       a = act.fallback ? (await reply(act.fallback)).a : "Lune’s built-in answers can’t summarise practice. This week shows the days, bars and ratings instead.";
+      const hwl = act.bar ? homeworkLine(forBar) : "";
+      if (hwl && act.fallback) a = `${hwl}\n\n${a}`;
       if (said) {
         richText(said, a);
         setSrc(said, "rules");
@@ -1909,10 +1943,14 @@ How to answer
         said.dataset.via = "model";
       } else {
         out.note = [out.note, fallbackNote(res.error)].filter(Boolean).join(" ");
+        const hwl = out.saved !== "plan" ? homeworkLine(forBar) : "";
+        if (hwl) out.a = `${hwl}\n\n${out.a}`;
         richText(said, out.a);
         setSrc(said, "rules");
       }
     } else {
+      const hwl = out.question && out.saved !== "plan" ? homeworkLine(out.bar || selectedBarsSorted()[0] || null) : "";
+      if (hwl) out.a = `${hwl}\n\n${out.a}`;
       // every answer says where it came from: the score through Lune's rules, or a language model
       said = line("lune", out.a, { src: out.question ? "rules" : "lune" });
     }
@@ -2176,6 +2214,11 @@ How to answer
         if (one?.bar) details.push(one.bar);
       }
       if (details.length) ctx.barsAskedAbout = details;
+    }
+    // the teacher's homework on the open piece guides every chat answer, bar named or not
+    if (p && p === state.piece) {
+      const hwc = homeworkContext();
+      if (hwc) ctx.teacherAssignment = hwc;
     }
     if (p) {
       const facts = window.LuneScoreFacts?.forPiece?.(p) || null;
