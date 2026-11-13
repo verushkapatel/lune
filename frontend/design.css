@@ -1310,3 +1310,100 @@ html body.is-home:not(.is-signed-in) main#home, html body #home-guest, html body
 /* QC: the home mark is a 44pt target, drawn the same size */
 html body header.bar #btn-home.brand { position: relative; }
 html body header.bar #btn-home.brand::after { content: ""; position: absolute; inset: -13px; }
+
+/* ---------- QC round 3 ---------- */
+/* access chips: one line, text optically centred (the old layer stacked them as columns, pinning the text to the top) */
+html body #explain-access .access-option { flex-direction: row !important; justify-content: center !important; gap: 6px; min-height: 38px !important; padding: 0 16px !important; line-height: 1 !important; }
+html body #explain-access .access-option strong { line-height: 1 !important; padding-top: 2px; display: inline-flex; align-items: center; gap: 6px; }
+html body #explain-access .access-option[aria-pressed="true"] strong::after { content: "" !important; width: 7px; height: 7px; border-radius: 50%; background: #fff; opacity: 0.9; margin-left: 2px; }
+html body #explain-access .access-option[aria-pressed="true"] strong { color: #fff !important; }
+
+/* hero: the column is the page's width (capped), so its centre is the page's centre at every size;
+   the headline scales with the window instead of overflowing it */
+html body #hero .mr-inner { width: 100% !important; max-width: 1100px !important; margin-inline: auto !important; padding-inline: 24px !important; box-sizing: border-box; align-self: center; }
+html body #hero h1.mr-h, html body #hero h1.mr-h .mr-l1, html body #hero h1.mr-h .mr-l2 { font-size: clamp(40px, 6.2vw, 92px) !important; }
+html body #hero h1.mr-h .mr-l2 { margin-top: 0.04em; }
+/* the falling notes were cut off short of the keys and read as a glitch: the keys alone carry the moment */
+html body #hero .mr-fall { display: none !important; }
+html body #hero .mr-stage { justify-content: flex-end; }
+html body #hero .mr-hint { margin: 28px 0 14px !important; }
+
+/* ---------- Lune AI page, Claude-grade ---------- */
+/* the header and the fine print belong to the conversation column, not the window: they no longer cover the sidebar */
+html body #lune-chat.is-page .chat-main { contain: layout; position: relative; }
+html body #lune-chat.is-page .chat-head { left: 0 !important; right: 0 !important; width: auto !important; background: transparent !important; border: 0 !important; backdrop-filter: none !important; }
+html body #lune-chat.is-page .chat-fine { left: 0 !important; right: 0 !important; margin-inline: auto !important; text-align: center; }
+/* no model names on screen: it is Lune, not a build */
+html body #lune-chat .chat-sub { display: none !important; }
+html body #lune-chat .chat-id h2 { font: 500 17px var(--ui) !important; letter-spacing: 0.01em; margin-top: 8px !important; }
+/* sidebar: Claude's quiet rail */
+html body #lune-chat .chat-hist { padding-top: 6px !important; }
+html body #lune-chat .ch-new { font: 500 16px var(--ui) !important; border-radius: 12px !important; }
+html body #lune-chat .ch-empty, html body #lune-chat .ch-foot { font-size: 14px !important; color: rgba(245, 245, 247, 0.42) !important; }
+
+/* empty state: the crescent beside the greeting, as Claude sets its mark beside "Good evening" */
+html body #lune-chat.is-empty .ask-empty { display: flex !important; flex-direction: row !important; align-items: center !important; justify-content: center !important; gap: 16px !important; }
+html body #lune-chat.is-empty .ask-empty-orb { margin: 0 !important; width: 36px !important; height: 36px !important; flex: none; }
+html body #lune-chat.is-empty .ask-empty-h { font: 400 clamp(32px, 3.4vw, 44px)/1.1 var(--display) !important; margin: 0 !important; width: auto !important; letter-spacing: -0.01em; }
+
+/* the composer: two rows like Claude's, words on top and tools beneath */
+html body #lune-chat .lc-composer {
+  display: grid !important; grid-template-columns: auto 1fr auto auto; grid-template-areas: "input input input input" "attach . mic talk";
+  align-items: center; row-gap: 4px; column-gap: 6px; min-height: 112px; padding: 14px 12px 10px 16px !important;
+  border-radius: 24px !important; background: #17171a !important; border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 18px 50px -24px rgba(0, 0, 0, 0.9) !important; transition: border-color .2s ease, box-shadow .2s ease;
+}
+html body #lune-chat .lc-composer:focus-within { border-color: rgba(159, 178, 228, 0.42) !important; box-shadow: 0 0 0 4px rgba(34, 56, 110, 0.35), 0 18px 50px -24px rgba(0, 0, 0, 0.9) !important; }
+html body #lune-chat .lc-composer textarea { grid-area: input; width: 100% !important; min-height: 48px; padding: 4px 4px 0 !important; font: 400 18px/1.5 var(--ui) !important; background: transparent !important; border: 0 !important; resize: none; }
+html body #lune-chat .lc-composer .lc-attach { grid-area: attach; justify-self: start; }
+html body #lune-chat .lc-composer .lc-mic { grid-area: mic; }
+html body #lune-chat .lc-composer .lc-talk { grid-area: talk; }
+html body #lune-chat .lc-composer .lc-tool { border-radius: 10px !important; color: rgba(245, 245, 247, 0.62) !important; }
+html body #lune-chat .lc-composer .lc-tool:hover { background: rgba(255, 255, 255, 0.07) !important; color: #fff !important; }
+html body #lune-chat .lc-composer .lc-round { width: 36px !important; height: 36px !important; border-radius: 12px !important; }
+html body #lune-chat .chat-starters button { border-radius: 12px !important; font-size: 15px !important; }
+html[data-theme="light"] body #lune-chat .lc-composer { background: #fff !important; border-color: rgba(0, 0, 0, 0.12) !important; box-shadow: 0 10px 40px -20px rgba(0, 0, 0, 0.25) !important; }
+html[data-theme="light"] body #lune-chat .ch-empty, html[data-theme="light"] body #lune-chat .ch-foot { color: rgba(0, 0, 0, 0.45) !important; }
+
+/* ---------- voice mode: a living orb, not a radar ---------- */
+html body dialog#lune-talk.lune-talk[open] { background: #000 !important; }
+@property --lt-a { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+html body #lune-talk .lt-orb { width: min(300px, 66vw) !important; height: min(300px, 66vw) !important; }
+html body #lune-talk .lt-ring { border: 0 !important; animation: none; }
+/* the outer halo: a slow aurora of navy and moonlight, breathing with your voice */
+html body #lune-talk .lt-ring.r3 {
+  opacity: 0.9 !important; filter: blur(34px);
+  background: conic-gradient(from var(--lt-a), #22386e, #9fb2e4 18%, #16244a 36%, #5b74c4 58%, #0b1430 76%, #22386e) !important;
+  transform: scale(calc(1.02 + var(--lv) * 0.22)) !important; animation: lt-spin 14s linear infinite !important;
+}
+/* the sphere itself: deep glass with a lit edge */
+html body #lune-talk .lt-ring.r2 {
+  opacity: 1 !important; width: 74% !important; height: 74% !important;
+  background: radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 32%), radial-gradient(circle at 50% 60%, #1b2c5c 0%, #0a1230 58%, #050814 100%) !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.28), inset 0 -18px 40px rgba(0, 0, 0, 0.6), 0 0 60px rgba(91, 116, 196, 0.35) !important;
+  transform: scale(calc(1 + var(--lv) * 0.08)) !important; animation: lt-breathe2 5.5s ease-in-out infinite !important;
+}
+html body #lune-talk .lt-ring.r1 { display: none !important; }
+html body #lune-talk .lt-moon { width: 26% !important; height: 26% !important; z-index: 3; }
+html body #lune-talk .lt-orb[data-mode="listening"] .lt-ring.r3 { animation-duration: 7s !important; opacity: 1 !important; }
+html body #lune-talk .lt-orb[data-mode="thinking"] .lt-ring.r3 { animation-duration: 2.4s !important; opacity: 0.75 !important; }
+html body #lune-talk .lt-orb[data-mode="thinking"] .lt-ring.r2 { animation: lt-breathe2 1.4s ease-in-out infinite !important; }
+html body #lune-talk .lt-orb[data-mode="speaking"] .lt-ring.r3 { animation-duration: 5s !important; filter: blur(28px); }
+@keyframes lt-spin { to { --lt-a: 360deg; } }
+@keyframes lt-breathe2 { 0%, 100% { scale: 1; } 50% { scale: 1.035; } }
+/* words: the state quiet, the caption large and readable, like live captions */
+html body #lune-talk .lt-state { font: 400 17px var(--ui) !important; font-style: normal !important; color: rgba(245, 245, 247, 0.55) !important; max-width: 36ch !important; margin-top: 44px !important; line-height: 1.45; }
+html body #lune-talk .lt-caption { font: 400 24px/1.4 var(--display) !important; max-width: 30ch !important; color: #f5f5f7 !important; }
+/* controls: glass circles with their names beneath, as on a FaceTime call */
+html body #lune-talk .lt-actions { gap: 72px !important; bottom: max(56px, calc(env(safe-area-inset-bottom) + 28px)) !important; }
+html body #lune-talk .lt-round { position: relative; width: 64px !important; height: 64px !important; border-radius: 50% !important; background: rgba(255, 255, 255, 0.14) !important; color: #fff !important; border: 0 !important; backdrop-filter: blur(20px); transition: transform .15s ease, background .2s ease; }
+html body #lune-talk .lt-round:hover { background: rgba(255, 255, 255, 0.22) !important; }
+html body #lune-talk .lt-round:active { transform: scale(0.94); }
+html body #lune-talk .lt-round.off { background: #f5f5f7 !important; color: #000 !important; }
+html body #lune-talk .lt-round.lt-end { background: #e5484d !important; color: #fff !important; }
+html body #lune-talk .lt-round::after { content: attr(aria-label); position: absolute; top: calc(100% + 10px); left: 50%; translate: -50% 0; white-space: nowrap; font: 400 14px var(--ui); color: rgba(245, 245, 247, 0.7); }
+@media (prefers-reduced-motion: reduce) { html body #lune-talk .lt-ring { animation: none !important; } }
+html body #lune-talk .lt-ring.r3 { z-index: 0; opacity: 0.62 !important; filter: blur(42px) !important; }
+html body #lune-talk .lt-ring.r2 { z-index: 1; }
+html body #lune-talk .lt-moon { z-index: 2 !important; position: relative; }
+html body #lune-talk .lt-orb[data-mode="listening"] .lt-ring.r3 { opacity: 0.85 !important; }
