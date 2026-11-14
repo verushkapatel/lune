@@ -3825,3 +3825,15 @@ html[data-theme="light"] body.lp-contrast :is(input, textarea)::placeholder { co
 html[data-theme="light"] body #home-member form#home-ask input#home-ask-input::placeholder { color: rgba(0,0,0,.42) !important; }
 html[data-theme="light"] body.lp-contrast #home-member form#home-ask input#home-ask-input::placeholder { color: #333 !important; }
 html:not([data-theme="light"]) body.lp-contrast #home-member form#home-ask input#home-ask-input::placeholder { color: #d6d3cb !important; }
+html[data-theme="light"] body.lp-contrast dialog#settings-dialog#settings-dialog :is(span, p, h3, h4, small, label):not(button.primary *) { color: #111 !important; opacity: 1 !important; }
+html:not([data-theme="light"]) body.lp-contrast dialog#settings-dialog#settings-dialog :is(span, p, h3, h4, small, label) { color: #ecebe6 !important; opacity: 1 !important; }
+html[data-theme="light"] body.lp-contrast #home-member .today #member-next :is(.member-next-by, .member-next-why) { color: #222 !important; }
+/* high contrast: the bar panel */
+html:not([data-theme="light"]) body.lp-contrast :is(#coach, #help-body) :is(h3, h4, p, span, li, label, .lp-grade, .lp-due, .coach-diff, .hand-label) { color: #fff !important; opacity: 1 !important; }
+html[data-theme="light"] body.lp-contrast :is(#coach, #help-body) :is(h3, h4, p, span, li, label, .lp-grade, .lp-due, .coach-diff, .hand-label) { color: #000 !important; opacity: 1 !important; }
+html body.lp-contrast :is(#coach, #help-body) .lp-grade { box-shadow: inset 0 0 0 1.5px currentColor !important; }
+html body.lp-contrast :is(.piece-tab-label, .seg span, [role="radiogroup"] span) { color: var(--g-text) !important; opacity: 1 !important; }
+@media (max-width: 640px) {
+  html body #s3-detail .s3-back { min-height: 44px !important; }
+  html body #s3-detail .s3-d-act :is(.sd2-quiet, .sd2-x) { min-height: 44px !important; min-width: 44px !important; }
+}
