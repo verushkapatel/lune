@@ -3564,3 +3564,45 @@ html body .s3-top h1, html body .s3-hello { max-width: none !important; }
 html body .s3-hello { flex: 1 1 420px; min-width: 0; }
 html body .s3-stats { max-width: none !important; width: 100% !important; }
 @media (max-width: 760px) { html body .s3-hello { flex: none !important; width: 100%; } }
+
+/* signed-in boot: an outline of the home, shimmering, instead of a blank page */
+html body .boot-skel { display: none; }
+html.boot-signed:not(.signed-ready) body .boot-skel { display: grid; gap: 14px; width: min(720px, calc(100% - 32px)); margin: 0 auto; padding: 12vh 0 40px; justify-items: center; }
+html.boot-signed:not(.signed-ready) #home::before { content: none !important; }
+html body .boot-skel .bs-k { width: 120px; height: 14px; }
+html body .boot-skel .bs-h { width: min(360px, 80%); height: 44px; border-radius: 12px; margin-bottom: 10px; }
+html body .boot-skel .bs-ask { width: 100%; height: 108px; border-radius: 24px; }
+html body .boot-skel .bs-chips { display: flex; gap: 8px; justify-content: center; }
+html body .boot-skel .bs-chips .sk { width: 92px; height: 32px; border-radius: 999px; }
+html body .boot-skel .bs-card { width: 100%; height: 150px; border-radius: 22px; margin-top: 8px; }
+html body .boot-skel .bs-tall { height: 240px; }
+
+/* opening a score: staff lines shimmer where the music is about to be drawn */
+html body #panel-score .score-page:not(:has(#osmd svg)) { position: relative; min-height: 72vh; }
+html body #panel-score .score-page:not(:has(#osmd svg))::before {
+  content: ""; position: absolute; inset: 56px 7% 40px; pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='190' viewBox='0 0 800 190'%3E%3Cg stroke='%23a9a9ad' stroke-width='1.4'%3E%3Cpath d='M0 20h800M0 32h800M0 44h800M0 56h800M0 68h800M0 112h800M0 124h800M0 136h800M0 148h800M0 160h800'/%3E%3Cpath d='M0.7 20v140M799.3 20v140M200 20v48M200 112v48M400 20v48M400 112v48M600 20v48M600 112v48'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 100% auto; background-repeat: repeat-y; animation: score-skel 1.6s ease-in-out infinite;
+}
+@keyframes score-skel { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.8; } }
+@media (prefers-reduced-motion: reduce) { html body #panel-score .score-page::before { animation: none !important; } }
+html body .lt-moment { background: radial-gradient(60% 50% at 50% 38%, rgba(221, 229, 242, 0.07), rgba(20, 20, 19, 0.94)) !important; }
+
+/* Settings: an icon tile for every row, as on an iPhone */
+html body #settings-dialog .settings-sec > .settings-row[data-set], html body #settings-dialog .settings-sec > #set-install { padding-left: 62px !important; }
+html body #settings-dialog .settings-sec > .settings-row[data-set]::before, html body #settings-dialog .settings-sec > #set-install::before { content: ''; position: absolute; left: 16px; top: 50%; width: 30px; height: 30px; margin-top: -15px; border-radius: 8px; background-color: var(--ic, #8e8e93); background-image: var(--gl); background-size: 20px 20px; background-position: center; background-repeat: no-repeat; }
+html body #settings-dialog .settings-row[data-set="account"] { --ic: #8e8e93; --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='8.5' r='3.6'/%3E%3Cpath d='M4.8 19.5c1.2-3.4 4-5 7.2-5s6 1.6 7.2 5'/%3E%3C/svg%3E"); }
+html body #settings-dialog .settings-row[data-set="signin"] { --ic: #8e8e93; --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='8.5' r='3.6'/%3E%3Cpath d='M4.8 19.5c1.2-3.4 4-5 7.2-5s6 1.6 7.2 5'/%3E%3C/svg%3E"); }
+html body #settings-dialog .settings-row[data-set="chat"] { --ic: #5e5ce6; --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.5 6.5h15v9h-9l-4 3.5v-3.5h-2z'/%3E%3C/svg%3E"); }
+html body #settings-dialog .settings-row[data-set="plan-week"] { --ic: #30a46c; --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4.5' y='5.5' width='15' height='14' rx='2'/%3E%3Cpath d='M4.5 9.5h15M8.5 3.5v4M15.5 3.5v4'/%3E%3C/svg%3E"); }
+html body #settings-dialog .settings-row[data-set="plan-free"] { --ic: #636366; --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 17.5V6.5l9-2v10'/%3E%3Ccircle cx='7' cy='17.5' r='2'/%3E%3Ccircle cx='16' cy='14.5' r='2'/%3E%3C/svg%3E"); }
+html body #settings-dialog .settings-row[data-set="week"] { --ic: #ff9f0a; --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5.5 19.5v-6M10 19.5v-10M14.5 19.5v-7M19 19.5v-13'/%3E%3C/svg%3E"); }
+html body #settings-dialog .settings-row[data-set="daily-email"] { --ic: #0a84ff; --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4' y='6.5' width='16' height='11' rx='2'/%3E%3Cpath d='M4.5 7.5l7.5 6 7.5-6'/%3E%3C/svg%3E"); }
+html body #settings-dialog .settings-row[data-set="role"] { --ic: #bf5af2; --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 8h11l-3-3M17 16H6l3 3'/%3E%3C/svg%3E"); }
+html body #settings-dialog .settings-row[data-set="tour"] { --ic: #32ade6; --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='8'/%3E%3Cpath d='M14.8 9.2l-1.8 4.8-4.8 1.8 1.8-4.8z'/%3E%3C/svg%3E"); }
+html body #settings-dialog .settings-row[data-set="example-week"] { --ic: #ffb340; --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 5.5h10M7 10h10M7 14.5h6M7 19h8'/%3E%3C/svg%3E"); }
+html body #settings-dialog .settings-row[data-set="feedback"] { --ic: #ff375f; --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 19s-7-4.4-7-9.3A3.9 3.9 0 0 1 12 7.5a3.9 3.9 0 0 1 7 2.2c0 4.9-7 9.3-7 9.3z'/%3E%3C/svg%3E"); }
+html body #settings-dialog .settings-row[data-set="privacy"] { --ic: #64748b; --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='6' y='10.5' width='12' height='9' rx='2'/%3E%3Cpath d='M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5'/%3E%3C/svg%3E"); }
+html body #settings-dialog .settings-row[data-set="credits"] { --ic: #a2845e; --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='8'/%3E%3Cpath d='M12 11v5.5M12 7.8v.2'/%3E%3C/svg%3E"); }
+html body #settings-dialog #set-install { --ic: #34c759; --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 4.5v10M8 10.5l4 4 4-4M5.5 19.5h13'/%3E%3C/svg%3E"); }
+html body #settings-dialog .settings-sec > .settings-row[data-set] + .settings-row, html body #settings-dialog .settings-sec > .settings-row[data-set] + #set-install { background-size: calc(100% - 62px) 1px !important; }
