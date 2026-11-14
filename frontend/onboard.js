@@ -1729,6 +1729,9 @@ window.LuneOnboard = (function () {
     if (guest) guest.hidden = !!authed && !story;
     if (member) member.hidden = !authed || story;
     document.body.classList.toggle("is-signed-in", authed);
+    // the boot screen gives way only once the right home is on screen
+    if (authed) requestAnimationFrame(() => document.documentElement.classList.add("signed-ready"));
+    else if (!Object.keys(localStorage).some((k) => /^sb-.*-auth-token$/.test(k))) document.documentElement.classList.remove("boot-signed");
 
     if (!authed) {
       // Guests keep the marketing landing; leave #home-continue alone for practice.js.

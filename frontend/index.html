@@ -9,6 +9,17 @@
   <script>
     // Light or dark, before the first paint.
     try { if (localStorage.getItem("lune.theme") === "light") document.documentElement.dataset.theme = "light"; } catch (e) {}
+    // Signed in? Then the landing page is never drawn: the home waits, calm, until it is ready.
+    try {
+      var d = JSON.parse(localStorage.getItem("lune.local.v1") || "null"), a = d && d.localAccount;
+      var sb = Object.keys(localStorage).some(function (k) { return /^sb-.*-auth-token$/.test(k); });
+      var front = !location.hash || location.hash === "#" || location.hash === "#/";
+      if (front && ((a && a.email && !a.awaitingCode && !a.awaitingLink) || sb)) {
+        document.documentElement.classList.add("boot-signed");
+        // never stuck: if the account can't be confirmed, the landing appears after all
+        setTimeout(function () { if (!document.documentElement.classList.contains("signed-ready")) document.documentElement.classList.remove("boot-signed"); }, 5000);
+      }
+    } catch (e) {}
     // Installing, offline use and the microphone all need https.
     if (location.protocol === "http:" && /(^|\.)lune\.page$/.test(location.hostname)) location.replace("https://" + location.host + location.pathname + location.search + location.hash);
   </script>
@@ -22,26 +33,26 @@
   <meta property="og:title" content="Lune — so practice feels right again">
   <meta property="og:description" content="Piano scores that explain themselves: every note named, every hard bar made clear. 3,700+ free scores, braille music, works offline.">
   <meta property="og:url" content="https://lune.page/">
-  <meta property="og:image" content="https://lune.page/static/assets/og.png?v=lune107">
+  <meta property="og:image" content="https://lune.page/static/assets/og.png?v=lune108">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="Lune — so practice feels right again">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Lune — so practice feels right again">
   <meta name="twitter:description" content="Piano scores that explain themselves: every note named, every hard bar made clear. Free.">
-  <meta name="twitter:image" content="https://lune.page/static/assets/og.png?v=lune107">
+  <meta name="twitter:image" content="https://lune.page/static/assets/og.png?v=lune108">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Lune">
-  <link rel="icon" href="static/assets/favicon.svg?v=lune107" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=lune107">
+  <link rel="icon" href="static/assets/favicon.svg?v=lune108" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="static/assets/apple-touch-icon.png?v=lune108">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="preload" href="static/assets/fonts/ebgaramond-var.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="static/assets/fonts/ebgaramond-italic-var.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="static/styles.css?v=lune107">
-  <link rel="stylesheet" href="static/theme-light.css?v=lune107">
-  <link rel="stylesheet" href="static/design.css?v=lune107">
+  <link rel="stylesheet" href="static/styles.css?v=lune108">
+  <link rel="stylesheet" href="static/theme-light.css?v=lune108">
+  <link rel="stylesheet" href="static/design.css?v=lune108">
   <script>window.luneSearchIndexJson = () => window.__luneSearchIndex || (window.__luneSearchIndex = fetch(window.luneUrl ? window.luneUrl("/static/search-index.json?v=catalog03") : "static/search-index.json?v=catalog03").then((r) => (r.ok ? r.json() : null)).catch(() => null));</script>
 </head>
 <body>
@@ -74,7 +85,7 @@
       try { seen = sessionStorage.getItem("lune.intro") === "1"; sessionStorage.setItem("lune.intro", "1"); } catch (e) {}
       var still = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
       // only on the front door: a link to a piece, or a second visit this session, goes straight in
-      if (seen || still || (location.hash && location.hash !== "#" && location.hash !== "#/")) { el.parentNode.removeChild(el); return; }
+      if (seen || still || document.documentElement.classList.contains("boot-signed") || (location.hash && location.hash !== "#" && location.hash !== "#/")) { el.parentNode.removeChild(el); return; }
       // P0-09: a brief mark, not a wait; the landing is already painted underneath
       setTimeout(function () { el.classList.add("gone"); }, 450);
       setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 1200);
@@ -1020,37 +1031,37 @@
   <div class="toast" id="toast" hidden></div>
   <script defer src="static/vendor/opensheetmusicdisplay.min.js"></script>
   <script defer src="static/vendor/Tone.js"></script>
-  <script defer src="static/piano.js?v=lune107"></script>
-  <script defer src="static/annotate.js?v=lune107"></script>
-  <script defer src="static/lite-analyze.js?v=lune107"></script>
-  <script defer src="static/fetch-score.js?v=lune107"></script>
-  <script defer src="static/lyric-lane.js?v=lune107"></script>
-  <script defer src="static/menu.js?v=lune107"></script>
-  <script defer src="static/lune-fx.js?v=lune107"></script>
-  <script defer src="static/lune-config.js?v=lune107"></script>
-  <script defer src="static/store.js?v=lune107"></script>
-  <script defer src="static/onboard.js?v=lune107"></script>
-  <script defer src="static/impact.js?v=lune107"></script>
-  <script defer src="static/feedback.js?v=lune107"></script>
-  <script defer src="static/ai-device.js?v=lune107"></script>
-  <script defer src="static/ask.js?v=lune107"></script>
-  <script defer src="static/markings.js?v=lune107"></script>
-  <script defer src="static/plans.js?v=lune107"></script>
-  <script defer src="static/schedule.js?v=lune107"></script>
-  <script defer src="static/score-facts.js?v=lune107"></script>
-  <script defer src="static/piece-notes.js?v=lune107"></script>
-  <script defer src="static/app.js?v=lune107"></script>
-  <script defer src="static/studio-ui.js?v=lune107"></script>
-  <script defer src="static/landing-score.js?v=lune107"></script>
-  <script defer src="static/moonrise.js?v=lune107"></script>
-  <script defer src="static/practice.js?v=lune107"></script>
-  <script defer src="static/study.js?v=lune107"></script>
-  <script defer src="static/install.js?v=lune107"></script>
-  <script defer src="static/hero-demo.js?v=lune107"></script>
-  <script defer src="static/tour.js?v=lune107"></script>
-  <script defer src="static/report.js?v=lune107"></script>
-  <script defer src="static/session.js?v=lune107"></script>
-  <script defer src="static/studio.js?v=lune107"></script>
-  <script defer src="static/walkthrough.js?v=lune107"></script>
+  <script defer src="static/piano.js?v=lune108"></script>
+  <script defer src="static/annotate.js?v=lune108"></script>
+  <script defer src="static/lite-analyze.js?v=lune108"></script>
+  <script defer src="static/fetch-score.js?v=lune108"></script>
+  <script defer src="static/lyric-lane.js?v=lune108"></script>
+  <script defer src="static/menu.js?v=lune108"></script>
+  <script defer src="static/lune-fx.js?v=lune108"></script>
+  <script defer src="static/lune-config.js?v=lune108"></script>
+  <script defer src="static/store.js?v=lune108"></script>
+  <script defer src="static/onboard.js?v=lune108"></script>
+  <script defer src="static/impact.js?v=lune108"></script>
+  <script defer src="static/feedback.js?v=lune108"></script>
+  <script defer src="static/ai-device.js?v=lune108"></script>
+  <script defer src="static/ask.js?v=lune108"></script>
+  <script defer src="static/markings.js?v=lune108"></script>
+  <script defer src="static/plans.js?v=lune108"></script>
+  <script defer src="static/schedule.js?v=lune108"></script>
+  <script defer src="static/score-facts.js?v=lune108"></script>
+  <script defer src="static/piece-notes.js?v=lune108"></script>
+  <script defer src="static/app.js?v=lune108"></script>
+  <script defer src="static/studio-ui.js?v=lune108"></script>
+  <script defer src="static/landing-score.js?v=lune108"></script>
+  <script defer src="static/moonrise.js?v=lune108"></script>
+  <script defer src="static/practice.js?v=lune108"></script>
+  <script defer src="static/study.js?v=lune108"></script>
+  <script defer src="static/install.js?v=lune108"></script>
+  <script defer src="static/hero-demo.js?v=lune108"></script>
+  <script defer src="static/tour.js?v=lune108"></script>
+  <script defer src="static/report.js?v=lune108"></script>
+  <script defer src="static/session.js?v=lune108"></script>
+  <script defer src="static/studio.js?v=lune108"></script>
+  <script defer src="static/walkthrough.js?v=lune108"></script>
 </body>
 </html>
