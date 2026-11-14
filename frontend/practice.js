@@ -3385,12 +3385,8 @@ window.LunePractice = (function () {
       d.querySelector("form.as-form").hidden = true;
       d.querySelector(".as-out").hidden = false;
       const copy = async (text, done) => {
-        try {
-          await navigator.clipboard.writeText(text);
-          toast(done);
-        } catch {
-          toast("Couldn’t copy. Press and hold to copy instead.");
-        }
+        if (await window.luneCopy(text)) toast(done);
+        else toast("Couldn’t copy. Press and hold to copy instead.");
       };
       // the student has a homework email: one tap sends it now (their schedule sends it again later)
       const mailBtn = d.querySelector("#as-mail");
@@ -3633,12 +3629,7 @@ window.LunePractice = (function () {
         scrollToBar(Number(b.dataset.bar));
       } else if (b.dataset.x === "dismiss") el.hidden = true;
       else if (b.dataset.x === "wa") {
-        try {
-          await navigator.clipboard.writeText(whatsAppText(a.raw, assignmentUrl(a.raw)));
-          toast("Copied for WhatsApp");
-        } catch {
-          toast("Couldn’t copy just now");
-        }
+        toast((await window.luneCopy(whatsAppText(a.raw, assignmentUrl(a.raw)))) ? "Copied for WhatsApp" : "Couldn’t copy just now");
       } else if (b.dataset.x === "check") {
         const f = el.querySelector(".hw-check");
         f.hidden = false;

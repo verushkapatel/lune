@@ -5243,6 +5243,20 @@ async function applyRoute() {
       document.title = "Lune — so practice feels right again";
       return;
     }
+    // words people type for Lune's own pages are never piece searches
+    if (/^(chat|ask|lune-?ai|assistant)$/i.test(r.id)) {
+      location.replace("#/ai");
+      return;
+    }
+    if (/^(home|today|settings|account|profile|login|signin|sign-in|privacy|plan|schedule|index(\.html)?)$/i.test(r.id)) {
+      try {
+        window.history.replaceState(null, "", location.pathname + location.search);
+      } catch {
+        /* the hash stays; home still shows */
+      }
+      goHome({ keepTabs: true });
+      return;
+    }
     if (window.LuneOnboard && !LuneOnboard.requirePieceAccess?.(r.id)) {
       goHome({ keepTabs: true });
       return;
@@ -5780,6 +5794,28 @@ function bind() {
 window.goHome = goHome;
 window.openPieceSession = openPieceSession;
 window.toast = toast;
+/** Copy text: the Clipboard API, then the old way for browsers and frames that block it. */
+window.luneCopy = async function luneCopy(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const t = document.createElement("textarea");
+    t.value = text;
+    t.setAttribute("readonly", "");
+    t.style.cssText = "position:fixed;top:0;left:0;opacity:0;pointer-events:none";
+    (document.querySelector("dialog[open]") || document.body).appendChild(t);
+    t.select();
+    let ok = false;
+    try {
+      ok = document.execCommand("copy");
+    } catch {
+      ok = false;
+    }
+    t.remove();
+    return ok;
+  }
+};
 window.showView = showView;
 
 // Lune decides where each view starts; the browser must not drop a reload mid-page

@@ -265,22 +265,114 @@ window.LuneImpact = (function () {
     return null;
   }
 
+  /* ---------------- Today: the week at a glance, then today's plan ---------------- */
+  const WD = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const WD_NAME = { Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday", Fri: "Friday", Sat: "Saturday", Sun: "Sunday" };
+  function todayKey() {
+    return WD[(new Date().getDay() + 6) % 7];
+  }
+  /** Which weekdays this week Lune saw real practice on (a rated bar, a finished task), plus days ticked off. */
+  function practisedDays(plan) {
+    const s = store();
+    const out = new Set();
+    try {
+      const week = s?.weekStartKey?.();
+      const rows = (s?.listActivity?.({ week }) || []).filter((r) => r.kind === "review" || r.kind === "task" || r.kind === "practice");
+      for (const r of rows) {
+        const [y, m, d] = String(r.day || "").split("-").map(Number);
+        if (y) out.add(WD[(new Date(y, m - 1, d).getDay() + 6) % 7]);
+      }
+    } catch {
+      /* no activity yet */
+    }
+    for (const [d, on] of Object.entries(plan?.done || {})) if (on) out.add(d);
+    return out;
+  }
+  function stripHtml(plan) {
+    const now = todayKey();
+    const ti = WD.indexOf(now);
+    const done = practisedDays(plan);
+    const planned = new Set((plan?.days || []).map((d) => d.day));
+    const n = done.size;
+    const goal = plan?.days?.length || store()?.weekSnapshot?.()?.goalDays || 4;
+    return `<div class="td-strip" role="img" aria-label="This week: practised on ${n} of ${goal} days">${WD.map((d, i) => {
+      const cls = [done.has(d) ? "is-done" : "", d === now ? "is-today" : "", planned.has(d) ? "is-plan" : "", i > ti ? "is-ahead" : ""].filter(Boolean).join(" ");
+      return `<span class="td-d ${cls}"><b>${d[0]}</b><i>${done.has(d) ? `<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>` : ""}</i></span>`;
+    }).join("")}</div>
+    <p class="td-count"><strong>${n}</strong> of ${goal} day${goal === 1 ? "" : "s"} this week</p>`;
+  }
+  const KIND = { warmup: "Warm-up", technique: "Technique", learn: "Learn", polish: "Polish", fresh: "Keep fresh", sight: "Sight-reading", perform: "Play-through", goal: "Your goal" };
+  function todayPlanHtml(plan) {
+    const now = todayKey();
+    const day = plan?.days?.find((d) => d.day === now);
+    const doneToday = !!plan?.done?.[now];
+    if (!day) {
+      const ti = WD.indexOf(now);
+      const next = (plan?.days || []).find((d) => WD.indexOf(d.day) > ti) || plan?.days?.[0];
+      return `<p class="td-ph">A rest day</p>
+        <p class="td-rest">Nothing planned for today. Let the music settle${next ? `. Next: <strong>${esc(WD_NAME[next.day])}</strong>${next.items?.[0]?.title ? `, ${esc(next.items.find((x) => x.title)?.title || "")}` : ""}` : ""}.</p>
+        <div class="td-acts"><button type="button" class="link-btn" data-wp-new>Edit schedule</button></div>`;
+    }
+    const mins = day.items.reduce((n, it) => n + (Number(it.mins) || 0), 0) || Number(plan.mins) || 0;
+    return `<p class="td-ph">Today’s plan${mins ? `<span>${mins} min</span>` : ""}</p>
+      <ol class="td-items${doneToday ? " is-complete" : ""}">${day.items
+        .map(
+          (it) => `<li${it.piece_key ? ` data-td-open="${esc(it.piece_key)}"` : ""}>
+            <span class="td-min">${it.mins ? `${esc(it.mins)}<small>min</small>` : "·"}</span>
+            <span class="td-t"><span class="td-kind">${esc(it.title || KIND[it.kind] || "Practice")}</span><span class="td-what">${esc(it.title ? it.text : String(it.text || "").replace(/^(Warm-up|Technique|Sight-read[a-z]*|Play-through)\s*:\s*/i, "").replace(/^./, (c) => c.toUpperCase()))}</span></span>
+          </li>`
+        )
+        .join("")}</ol>
+      <div class="td-acts"><button type="button" class="td-tick${doneToday ? " is-on" : ""}" data-wp-day="${now}" aria-pressed="${doneToday}"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>${doneToday ? "Done for today" : "Mark today done"}</span></button><button type="button" class="link-btn" data-wp-new>Edit schedule</button></div>`;
+  }
+  async function paintToday() {
+    const streak = $("member-streak");
+    if (!streak) return;
+    const mode = window.LunePlans?.planMode?.();
+    const plan = window.LunePlans?.currentPlan?.();
+    let body;
+    if (mode === "plan") {
+      body = plan ? todayPlanHtml(plan) : `<p class="td-ph">Today’s plan</p><p class="td-rest">Building this week from your schedule…</p>`;
+    } else if (mode === "free") {
+      body = await piecesOverviewHtml();
+    } else {
+      body = `<p class="td-ph">Your schedule</p>
+        <p class="td-rest">Lune can build each week around your goal, pieces and time, or you can play whenever it suits you.</p>
+        <div class="td-acts"><button type="button" class="primary" data-wp-choose="plan">Plan my schedule</button><button type="button" class="quiet" data-wp-choose="free">No schedule</button></div>`;
+    }
+    const html = `<div class="td-week">${stripHtml(plan)}</div><div class="td-body">${body}</div>`;
+    if (streak.dataset.painted !== html) {
+      streak.dataset.painted = html;
+      streak.innerHTML = html;
+    }
+  }
+  document.addEventListener("click", (e) => {
+    const tick = e.target.closest?.(".td-tick[data-wp-day]");
+    // plans.js toggles the day; repaint once its state has landed
+    if (tick) {
+      const was = tick.getAttribute("aria-pressed") === "true";
+      setTimeout(() => {
+        paintToday().catch?.(() => {});
+        if (!was) {
+          const plan = window.LunePlans?.currentPlan?.();
+          const n = practisedDays(plan).size;
+          const goal = plan?.days?.length || 4;
+          toast(n >= goal ? "That’s the week’s practice done. Lovely work" : `Done for today. ${n} of ${goal} days this week`);
+        }
+      }, 0);
+    }
+    const li = e.target.closest?.("[data-td-open]");
+    if (li) window.LunePractice?.openFromRepertoire?.(li.dataset.tdOpen);
+  });
+
   async function paintHomeImpact() {
     if (!window.LuneOnboard?.signedIn?.()) return;
     window.LuneMoon?.paintMember?.();
-    const streak = $("member-streak");
-    if (streak) {
-      const mode = window.LunePlans?.planMode?.();
-      if (mode === "plan") {
-        streak.innerHTML = weekBarHtml() + `<button type="button" class="link-btn wk-change" data-wp-new>Edit schedule</button>`;
-        // a week without a plan gets one, made from the goal set at the start
-        window.LunePlans?.ensureWeekPlan?.().then((made) => { if (made) streak.innerHTML = weekBarHtml() + `<button type="button" class="link-btn wk-change" data-wp-new>Edit schedule</button>`; }).catch(() => {});
-      } else if (mode === "free") {
-        streak.innerHTML = await piecesOverviewHtml();
-      } else {
-        streak.innerHTML = `<span class="wk-choose"><span class="wk-k">Your week</span>
-          <span class="wk-q">Should Lune build your schedule around your goal, or would you rather play whenever it suits you?</span>
-          <span class="wk-opts"><button type="button" class="quiet wk-go" data-wp-choose="plan">Plan my schedule</button><button type="button" class="quiet" data-wp-choose="free">No schedule</button></span></span>`;
+    if ($("member-streak")) {
+      await paintToday();
+      // a week without a plan gets one, made from the goal set at the start
+      if (window.LunePlans?.planMode?.() === "plan" && !window.LunePlans?.currentPlan?.()) {
+        window.LunePlans?.ensureWeekPlan?.().then((made) => { if (made) paintToday(); }).catch(() => {});
       }
     }
 

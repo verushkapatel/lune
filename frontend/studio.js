@@ -589,7 +589,7 @@ window.LuneStudio = (function () {
         <div class="sd2-prep" id="s3-prep"><i class="sk sk-line"></i><i class="sk sk-line"></i><i class="sk sk-line sk-short"></i></div>
       </div>
       <div class="s3-card">
-        <div class="s3-card-h"><h3>Homework</h3><span>${hw.length || ""}</span></div>
+        <div class="s3-card-h"><h3>Homework</h3>${hw.length ? `<button type="button" class="sd2-link sd2-wa-latest" data-sd="wa" data-hw-id="${esc(hw[0].id)}"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M5 19l1.2-3.6A7.5 7.5 0 1 1 9 18.3z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><span>Copy latest for WhatsApp</span></button>` : ""}</div>
         <div class="sd2-hw">${hw.length ? hw.slice(0, 6).map((a) => homeworkRow(a, d)).join("") : `<p class="s3-note">Nothing sent to ${esc(p.first)} yet.</p>`}</div>
       </div>
       <div class="s3-card">
@@ -762,6 +762,15 @@ window.LuneStudio = (function () {
     window.toast?.(d.dataset.sid ? "Saved" : `${name} added`);
   }
 
+  /** The homework as a WhatsApp message: WhatsApp shows *stars* as bold. */
+  function whatsAppText(a) {
+    const who = data().students.find((s) => s.id === a.sid);
+    const lines = [`🎹 *Piano homework${who ? ` for ${split(who.name).first}` : ""}*`, `*Piece:* ${a.t}${a.c ? ` – ${a.c}` : ""}`, `*${a.bars.length === 1 ? "Bar" : "Bars"}:* ${barList(a.bars)}`];
+    if (a.tb) lines.push(`*Target tempo:* ${a.tb}`);
+    if (a.m) lines.push(`*Note:* “${a.m}”`);
+    if (a.url) lines.push("", "Open the interactive score (no login needed):", a.url);
+    return lines.join("\n");
+  }
   function homeworkRow(a, d) {
     const who = d.students.find((s) => s.id === a.sid);
     return `<article class="sd2-hw-row" data-hw="${a.id}">
@@ -770,6 +779,7 @@ window.LuneStudio = (function () {
           <p>${esc(who ? split(who.name).first : "Anyone with the link")} · sent ${esc(when(a.at))}${a.tb ? ` · ${esc(a.tb)}` : ""}</p>
         </div>
         <span class="sd2-pill">…</span>
+        <button type="button" class="sd2-icon sd2-wa" data-sd="wa" data-hw-id="${esc(a.id)}" aria-label="Copy for WhatsApp" title="Copy for WhatsApp"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 19l1.2-3.6A7.5 7.5 0 1 1 9 18.3z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button>
         ${a.url ? `<button type="button" class="sd2-icon" data-sd="open-hw" data-url="${esc(a.url)}" aria-label="Open this homework" title="Open"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>` : ""}
       </article>`;
   }
@@ -1023,6 +1033,16 @@ window.LuneStudio = (function () {
         removeStudent(s.id);
         paint();
       }
+      return;
+    }
+    if (act === "wa") {
+      const a = data().assignments.find((x) => x.id === b.dataset.hwId);
+      if (!a) return;
+      if (await window.luneCopy(whatsAppText(a))) {
+        b.classList.add("is-copied");
+        setTimeout(() => b.classList.remove("is-copied"), 1600);
+        window.toast?.("Copied. Paste it into WhatsApp");
+      } else window.toast?.("Couldn’t copy just now");
       return;
     }
     if (act === "open-hw" && b.dataset.url) {
