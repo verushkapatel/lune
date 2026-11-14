@@ -3606,3 +3606,39 @@ html body #settings-dialog .settings-row[data-set="privacy"] { --ic: #64748b; --
 html body #settings-dialog .settings-row[data-set="credits"] { --ic: #a2845e; --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='8'/%3E%3Cpath d='M12 11v5.5M12 7.8v.2'/%3E%3C/svg%3E"); }
 html body #settings-dialog #set-install { --ic: #34c759; --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 4.5v10M8 10.5l4 4 4-4M5.5 19.5h13'/%3E%3C/svg%3E"); }
 html body #settings-dialog .settings-sec > .settings-row[data-set] + .settings-row, html body #settings-dialog .settings-sec > .settings-row[data-set] + #set-install { background-size: calc(100% - 62px) 1px !important; }
+
+/* ==========================================================================
+   Type, as Claude, ChatGPT and apple.com set it: a crisp sans for every control
+   and label (San Francisco on Apple devices), Garamond kept for headings,
+   Lune AI's answers and the music itself. That is where Lune's charm lives.
+   ========================================================================== */
+:root {
+  --ui: "Lune Accidentals", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Manrope", "Segoe UI", Roboto, sans-serif;
+  --read: "Lune Accidentals", "EB Garamond", "Cormorant Garamond", Garamond, Georgia, serif;
+}
+html body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; letter-spacing: -0.003em; }
+/* the reading voice: Lune AI's answers, practice advice, notes and the landing's long lines */
+html body #lune-chat .chat-from-lune .chat-bubble, html body #lune-chat .chat-from-lune .chat-bubble :is(p, li, h3, h4, em),
+html body #coach .coach-advice p, html body .lune-chat .ask-empty-h, html body #lune-chat .ask-empty :is(h2, h3, p:first-child) { font-family: var(--read) !important; }
+html body #lune-chat .chat-from-lune .chat-bubble { font-size: 18.5px !important; }
+/* kickers stay in Garamond italic, quiet and literary */
+html body :is(.s3-k, .member-next-k, .mh-k, .about-kicker, .kicker, .sd2-kicker, .lp-tile-k, .rep-sum-k, .sch-goal) { font-family: var(--display) !important; font-style: italic !important; letter-spacing: 0 !important; }
+/* numbers line up */
+html body :is(.s3-stats b, .sch-step output, .wp-min, .wp-dmins, .lr-step, .fx-ladder i) { font-variant-numeric: tabular-nums; }
+/* QC fixes */
+html:not([data-theme="light"]) body #member-week li, html:not([data-theme="light"]) body .member-week-how li { color: #b3b0a8 !important; }
+html[data-theme="light"] body .member-week-how li { color: #5e5e63 !important; }
+@media (max-width: 600px) {
+  html body header.bar .brand { min-width: 44px; min-height: 44px; display: inline-flex !important; align-items: center; justify-content: center; }
+  html body header.bar .st-seg .st-seg-panels button { font-size: 13.5px !important; letter-spacing: -0.01em; padding: 0 2px !important; text-overflow: clip !important; }
+}
+html body :is(.member-next-k, .mh-k, .s3-k).member-next-k, html body #home-member #member-next .member-next-k, html body #home-member #member-homework .mh-k { font-family: var(--display) !important; font-style: italic !important; font-weight: 500 !important; }
+@media (max-width: 600px) {
+  html body :is(#home-studio, dialog.sd2-sheet) .sd2-link { display: inline-flex !important; align-items: center; min-height: 44px; padding: 0 4px !important; }
+  html body :is(dialog.sd2-sheet, dialog.sch) :is(.sd2-x, .sch-x) { width: 40px !important; height: 40px !important; }
+}
+html body #lune-chat .ch-empty { color: var(--cc-dim) !important; font: 400 14px/1.5 var(--ui) !important; padding: 6px 10px !important; }
+html:not([data-theme="light"]) body .lp-tile { background: #212120 !important; background-image: none !important; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06) !important; }
+html body .lp-tile h3 { letter-spacing: -0.02em !important; }
+html[data-theme="light"] body .s3-back { color: #1d2b52 !important; }
+html:not([data-theme="light"]) body .s3-back { color: #dde5f2 !important; }
