@@ -168,7 +168,7 @@ window.LuneStudio = (function () {
     const days = new Set(rows.filter((r) => Date.parse(r.created_at) > weekAgo).map((r) => String(r.created_at).slice(0, 10)));
     const bars = {};
     for (const r of [...rows].reverse()) for (const [b, g] of Object.entries(r.ratings || {})) bars[`${r.a.key}|${b}`] = { bar: Number(b), piece: r.a.t, grade: String(g) };
-    return { last: rows[0]?.created_at || null, days: days.size, checkins: rows.length, bars: Object.values(bars), assignments: mine };
+    return { last: rows[0]?.created_at || null, days: days.size, dates: [...days], checkins: rows.length, bars: Object.values(bars), assignments: mine };
   }
   const hardish = (g) => /again|hard/i.test(g);
   const when = (iso) => {
@@ -438,112 +438,182 @@ window.LuneStudio = (function () {
   };
   const barList = (bars) => (bars.length > 1 && bars[bars.length - 1] - bars[0] === bars.length - 1 ? `${bars[0]}–${bars[bars.length - 1]}` : bars.join(", "));
 
+  let selected = null; // the student open on the right
+  const snapCache = new Map();
   async function paint() {
     const el = host();
     const d = data();
     // "Ms Rao" stays whole; "Anika Shah" is greeted as Anika
     const full = String(store()?.prefs?.()?.teacherName || store()?.prefs?.()?.displayName || "").trim();
     const name = /^(ms|mr|mrs|miss|mx|dr|prof)\.?\s/i.test(full) ? full.split(/\s+/).slice(0, 2).join(" ") : full.split(/\s+/)[0];
+    if (!d.students.some((x) => x.id === selected)) selected = d.students[0]?.id || null;
     el.innerHTML = `
-      <section class="sd2-hero">
-        <p class="sd2-kicker">Studio</p>
-        <h1>${greeting()}${name ? `, ${esc(name)}` : ""}.</h1>
-        <p class="sd2-lede" id="sd2-lede">${d.students.length ? "Reading your students’ week…" : "Your teaching studio. Add your students, send homework from any score, and see how the week went before each lesson."}</p>
-        <div class="sd2-stats" aria-live="polite">
-          <div><b id="sd2-n-students">${d.students.length}</b><span>${d.students.length === 1 ? "student" : "students"}</span></div>
-          <div><b id="sd2-n-week">–</b><span>practised this week</span></div>
-          <div><b id="sd2-n-hard">–</b><span>bars still hard</span></div>
-        </div>
-        <div class="sd2-cta">
-          <button type="button" class="sd2-primary" data-sd="send" id="sd2-send">Send homework</button>
-          <button type="button" class="sd2-quiet" data-sd="ask">Ask Lune</button>
-        </div>
-      </section>
-
-      <section class="sd2-sec" aria-labelledby="sd2-students-h">
-        <div class="sd2-head"><h2 id="sd2-students-h">Students</h2></div>
-        <div class="sd2-grid" id="sd2-students">
-          ${d.students.map((s) => studentCard(s)).join("")}
-          <button type="button" class="sd2-card sd2-add" id="sd2-add" data-sd="student">
-            <span class="sd2-av sd2-av-add" aria-hidden="true">+</span>
-            <span class="sd2-add-k">Add a student</span>
-            <span class="sd2-add-note">Name, level and, if you like, an email for homework. Students never need an account.</span>
-          </button>
-        </div>
-      </section>
-
-      <section class="sd2-sec" aria-labelledby="sd2-hw-h">
-        <div class="sd2-head"><h2 id="sd2-hw-h">Homework</h2></div>
-        <div class="sd2-hw" id="sd2-homework">${
-          d.assignments.length
-            ? d.assignments.slice(0, 12).map((a) => homeworkRow(a, d)).join("")
-            : `<p class="sd2-empty">Nothing sent yet. <button type="button" class="sd2-link" data-sd="send">Send the first piece of homework</button></p>`
-        }</div>
-      </section>
-
-      <section class="sd2-sec" aria-labelledby="sd2-mail-h" id="sd2-mail-sec">
-        <div class="sd2-head"><h2 id="sd2-mail-h">Before your lessons</h2></div>
-        <div class="sd2-mail">
-          <label class="sd2-switch"><span><strong>Email me a summary</strong><small>Who practised, which bars are still hard, and where to start.</small></span><input type="checkbox" id="sd-mail-on" role="switch"${d.email.on ? " checked" : ""}><span class="sd2-sw" aria-hidden="true"></span></label>
-          <div class="sd2-when"${d.email.on ? "" : " hidden"}>
-            <div class="sd2-days" role="group" aria-label="Days">${DAYS.map((x, i) => `<button type="button" data-day="${i}" aria-pressed="${d.email.days.includes(i)}" aria-label="${DAY_NAMES[i]}">${x.slice(0, 2)}</button>`).join("")}</div>
-            <label class="sd2-hour">at <select id="sd-mail-hour">${Array.from({ length: 24 }, (_, h) => `<option value="${h}"${h === d.email.hour ? " selected" : ""}>${String(h).padStart(2, "0")}:00</option>`).join("")}</select></label>
+      <div class="s3">
+        <header class="s3-top sd2-hero">
+          <div class="s3-hello">
+            <p class="s3-k">Studio</p>
+            <h1>${greeting()}${name ? `, ${esc(name)}` : ""}</h1>
+            <p class="s3-lede" id="sd2-lede">${d.students.length ? "Reading your students’ week…" : "Add your students, send homework from any score, and see how the week went before each lesson."}</p>
           </div>
-          <p class="sd2-note" id="sd-mail-note">${d.email.on ? `${esc(emailLine(d.email))}.` : "Off."} Or just tell Lune AI: “email me a summary every Sunday at 6 pm”.</p>
+          <div class="s3-cta">
+            <button type="button" class="sd2-primary" data-sd="send" id="sd2-send">Send homework</button>
+            <button type="button" class="sd2-quiet" data-sd="ask">Ask Lune</button>
+          </div>
+        </header>
+        <div class="s3-stats sd2-stats" aria-live="polite">
+          <div><b id="sd2-n-students">${d.students.length}</b><span>${d.students.length === 1 ? "student" : "students"}</span></div>
+          <div><b id="sd2-n-week">${d.students.length ? '<i class="sk sk-num"></i>' : "0"}</b><span>practised this week</span></div>
+          <div><b id="sd2-n-hard">${d.students.length ? '<i class="sk sk-num"></i>' : "0"}</b><span>bars still hard</span></div>
         </div>
-      </section>
-      <p class="sd2-foot"><button type="button" class="sd2-link" data-sd="tour">Take the Studio tour</button></p>`;
+        <div class="s3-main${selected ? "" : " is-empty"}" id="s3-main">
+          <aside class="s3-list" id="sd2-students" aria-label="Students">
+            <div class="s3-list-h"><h2>Students</h2><button type="button" class="s3-add" id="sd2-add" data-sd="student" aria-label="Add a student"><span aria-hidden="true">+</span> Add</button></div>
+            ${
+              d.students.length
+                ? `<ul class="s3-rows">${d.students.map((s) => studentRow(s)).join("")}</ul>`
+                : `<div class="s3-none"><p>No students yet.</p><button type="button" class="sd2-primary" data-sd="student">Add your first student</button><p class="s3-none-note">A name and a level is enough. Students never need an account.</p></div>`
+            }
+          </aside>
+          <section class="s3-detail" id="s3-detail" aria-live="polite">${selected ? detailSkeleton() : `<div class="s3-none s3-none-detail"><p>Your students appear here with their week: who practised, which bars are still hard, and a plan for the next lesson.</p></div>`}</section>
+        </div>
+        <section class="s3-sec" aria-labelledby="sd2-mail-h" id="sd2-mail-sec">
+          <div class="s3-sec-h"><h2 id="sd2-mail-h">Before your lessons</h2></div>
+          <div class="sd2-mail">
+            <label class="sd2-switch"><span><strong>Email me a summary</strong><small>Who practised, which bars are still hard, and where to start.</small></span><input type="checkbox" id="sd-mail-on" role="switch"${d.email.on ? " checked" : ""}><span class="sd2-sw" aria-hidden="true"></span></label>
+            <div class="sd2-when"${d.email.on ? "" : " hidden"}>
+              <div class="sd2-days" role="group" aria-label="Days">${DAYS.map((x, i) => `<button type="button" data-day="${i}" aria-pressed="${d.email.days.includes(i)}" aria-label="${DAY_NAMES[i]}">${x.slice(0, 2)}</button>`).join("")}</div>
+              <label class="sd2-hour">at <select id="sd-mail-hour">${Array.from({ length: 24 }, (_, h) => `<option value="${h}"${h === d.email.hour ? " selected" : ""}>${String(h).padStart(2, "0")}:00</option>`).join("")}</select></label>
+            </div>
+            <p class="sd2-note" id="sd-mail-note">${d.email.on ? `${esc(emailLine(d.email))}.` : "Off."} Or just tell Lune AI: “email me a summary every Sunday at 6 pm”.</p>
+          </div>
+        </section>
+        <p class="sd2-foot"><button type="button" class="sd2-link" data-sd="tour">Take the Studio tour</button></p>
+      </div>`;
 
-    // each student's homework email
+    // the homework emails, then each student's week as the check-ins arrive
     loadMail().then(() => {
       if (!el.isConnected) return;
-      for (const s of d.students) {
-        const line = el.querySelector(`[data-student="${s.id}"] .sd2-mailline`);
-        if (line) line.innerHTML = mailLineHtml(s);
-      }
+      if (selected) paintDetail();
     });
-    // each student's week, as the check-ins arrive
-    const snaps = await Promise.all(d.students.map((s) => snapshot(s).then((snap) => ({ s, snap }))));
+    const snaps = await Promise.all(d.students.map((s) => snapshot(s).then((snap) => (snapCache.set(s.id, snap), { s, snap }))));
     if (!el.isConnected) return;
     let week = 0;
     let hardAll = 0;
     const said = [];
     for (const { s, snap } of snaps) {
-      const card = el.querySelector(`[data-student="${s.id}"]`);
-      const hard = snap.bars.filter((b) => hardish(b.grade)).map((b) => b.bar);
-      const good = snap.bars.filter((b) => !hardish(b.grade)).map((b) => b.bar);
+      const hard = snap.bars.filter((b) => hardish(b.grade));
       if (snap.days) week += 1;
       hardAll += hard.length;
       const first = split(s.name).first;
       if (snap.last) said.push(`${first} practised ${when(snap.last)}.`);
       else if (snap.assignments.length) said.push(`${first} hasn’t started ${first.endsWith("s") ? "their" : "the"} homework yet.`);
-      if (!card) continue;
-      card.querySelector(".sd2-status").textContent = snap.last
-        ? `Practised ${when(snap.last)} · ${snap.days} ${snap.days === 1 ? "day" : "days"} this week`
-        : snap.assignments.length
-          ? "Homework sent · not started yet"
-          : "No homework yet";
-      card.querySelector(".sd2-chips").innerHTML =
-        [...hard.map((b) => `<span class="is-hard" title="Still hard">${b}</span>`), ...good.map((b) => `<span class="is-good" title="Feels good">${b}</span>`)].join("") ||
-        `<span class="is-none">${snap.assignments.length ? "Waiting for the first practice" : "Send homework to see how it goes"}</span>`;
-      card.classList.toggle("is-quiet", !snap.last);
+      const row = el.querySelector(`.s3-row[data-student="${s.id}"]`);
+      if (row) {
+        row.querySelector(".s3-row-s").textContent = snap.last ? `Practised ${when(snap.last)}` : snap.assignments.length ? "Not started yet" : "No homework yet";
+        const dot = row.querySelector(".s3-dot");
+        dot.className = `s3-dot ${snap.days ? "is-on" : snap.assignments.length ? "is-wait" : ""}`;
+        row.querySelector(".s3-row-n").textContent = hard.length ? `${hard.length} hard` : "";
+      }
     }
     const set = (id, v) => {
       const x = $(id);
       if (x) x.textContent = v;
     };
-    set("sd2-n-week", d.students.length ? String(week) : "0");
+    set("sd2-n-week", String(week));
     set("sd2-n-hard", String(hardAll));
-    if (d.students.length) set("sd2-lede", said.length ? said.slice(0, 3).join(" ") : "Send your first homework and each student’s week shows here.");
-    for (const a of d.assignments.slice(0, 12)) {
+    if (d.students.length) set("sd2-lede", said.length ? said.slice(0, 2).join(" ") : "Send your first homework and each student’s week shows here.");
+    if (selected) paintDetail();
+    maybeTour();
+  }
+
+  function studentRow(s) {
+    const p = split(s.name);
+    return `<li><button type="button" class="s3-row${s.id === selected ? " on" : ""}" data-sd="pick" data-student="${s.id}" data-id="${s.id}" aria-current="${s.id === selected}">
+      <span class="sd2-av" aria-hidden="true">${esc(p.first.charAt(0).toUpperCase())}</span>
+      <span class="s3-row-t"><b>${esc(p.name)}</b><span class="s3-row-s"><i class="sk sk-line"></i></span></span>
+      <span class="s3-row-n"></span><span class="s3-dot" aria-hidden="true"></span>
+    </button></li>`;
+  }
+  function detailSkeleton() {
+    return `<div class="s3-d-skel" aria-label="Loading"><i class="sk sk-av"></i><i class="sk sk-h"></i><i class="sk sk-line"></i><i class="sk sk-block"></i><i class="sk sk-block"></i></div>`;
+  }
+  const WEEK = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  async function paintDetail() {
+    const box = $("s3-detail");
+    const s = data().students.find((x) => x.id === selected);
+    if (!box || !s) return;
+    const snap = snapCache.get(s.id);
+    if (!snap) {
+      box.innerHTML = detailSkeleton();
+      return;
+    }
+    const p = split(s.name);
+    const hard = snap.bars.filter((b) => hardish(b.grade));
+    const good = snap.bars.filter((b) => !hardish(b.grade));
+    // this week, Monday first, with the days practised lit
+    const now = new Date();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+    const dates = new Set(snap.dates || []);
+    const dots = WEEK.map((w, i) => {
+      const day = new Date(monday);
+      day.setDate(monday.getDate() + i);
+      const key = day.toISOString().slice(0, 10);
+      const future = day > now;
+      return `<span class="s3-wd${dates.has(key) ? " is-on" : ""}${future ? " is-future" : ""}${day.toDateString() === now.toDateString() ? " is-today" : ""}"><i></i>${w.charAt(0)}</span>`;
+    }).join("");
+    const hw = snap.assignments;
+    const d = data();
+    box.innerHTML = `
+      <button type="button" class="s3-back" data-sd="back"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Students</button>
+      <div class="s3-d-head">
+        <span class="sd2-av s3-av-lg" aria-hidden="true">${esc(p.first.charAt(0).toUpperCase())}</span>
+        <div class="s3-d-who"><h2>${esc(p.name)}</h2><p>${esc(p.level || "Student")}</p></div>
+        <div class="s3-d-act">
+          <button type="button" class="sd2-primary" data-sd="send" data-id="${s.id}">Send homework</button>
+          <button type="button" class="sd2-quiet" data-sd="student" data-id="${s.id}">Edit</button>
+          <button type="button" class="sd2-x" data-sd="remove" data-id="${s.id}" aria-label="Remove ${esc(p.name)}" title="Remove"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+        </div>
+      </div>
+      <div class="s3-card">
+        <div class="s3-card-h"><h3>This week</h3><span>${snap.days} ${snap.days === 1 ? "day" : "days"} practised</span></div>
+        <div class="s3-weekrow" role="img" aria-label="Practised on ${snap.days} days this week">${dots}</div>
+        <p class="s3-note">${snap.last ? `Last practised ${esc(when(snap.last))}.` : hw.length ? "Homework sent, not started yet." : "No homework sent yet."}</p>
+      </div>
+      <div class="s3-card">
+        <div class="s3-card-h"><h3>Bars</h3><span>${hard.length ? `${hard.length} still hard` : snap.bars.length ? "All feeling good" : ""}</span></div>
+        <div class="sd2-chips">${[...hard.map((b) => `<span class="is-hard" title="Still hard">${b.bar}</span>`), ...good.map((b) => `<span class="is-good" title="Feels good">${b.bar}</span>`)].join("") || `<span class="is-none">${hw.length ? "Waiting for the first practice" : "Send homework to see how each bar goes"}</span>`}</div>
+      </div>
+      <div class="s3-card">
+        <div class="s3-card-h"><h3>Next lesson</h3><button type="button" class="sd2-link" data-sd="replan" data-id="${s.id}">Refresh</button></div>
+        <div class="sd2-prep" id="s3-prep"><i class="sk sk-line"></i><i class="sk sk-line"></i><i class="sk sk-line sk-short"></i></div>
+      </div>
+      <div class="s3-card">
+        <div class="s3-card-h"><h3>Homework</h3><span>${hw.length || ""}</span></div>
+        <div class="sd2-hw">${hw.length ? hw.slice(0, 6).map((a) => homeworkRow(a, d)).join("") : `<p class="s3-note">Nothing sent to ${esc(p.first)} yet.</p>`}</div>
+      </div>
+      <div class="s3-card">
+        <div class="s3-card-h"><h3>Homework email</h3></div>
+        <p class="sd2-mailline">${mailLineHtml(s)}</p>
+      </div>`;
+    for (const a of hw.slice(0, 6)) {
       progressFor(a.id).then((rows) => {
-        const st = el.querySelector(`[data-hw="${a.id}"] .sd2-pill`);
+        const st = box.querySelector(`[data-hw="${a.id}"] .sd2-pill`);
         if (!st) return;
         st.textContent = rows?.length ? `Practised ${rows.length}×` : "Not started";
         st.classList.toggle("is-done", !!rows?.length);
       });
     }
-    maybeTour();
+    paintPlan(s);
+  }
+  const planCache = new Map();
+  async function paintPlan(s, fresh = false) {
+    if (fresh) planCache.delete(s.id);
+    if (!planCache.has(s.id)) planCache.set(s.id, prepareLesson(s));
+    const out = await planCache.get(s.id);
+    const box = $("s3-prep");
+    if (!box || selected !== s.id) return;
+    box.innerHTML = `<ol>${out.points.map((x) => `<li>${esc(x)}</li>`).join("")}</ol><p class="sd2-via">From ${esc(out.via)}, using ${esc(split(s.name).first)}’s check-ins.</p>`;
   }
 
   function studentCard(s) {
@@ -827,7 +897,7 @@ window.LuneStudio = (function () {
     { sel: ".sd2-hero", title: "Welcome to your Studio", body: "Your teaching studio in Lune. In a minute you’ll know your way around." },
     { sel: "#sd2-add", title: "Add your students", body: "A name and a level is all it takes. Students never need an account." },
     { sel: "#sd2-send", title: "Send homework from any score", body: "Choose the student and the piece, select the bars, add a note and a target tempo, then copy it for WhatsApp." },
-    { sel: "#sd2-students", title: "Know before the lesson", body: "Each card shows who practised, on how many days, and which bars are still hard. Lesson plan writes your next lesson in three lines." },
+    { sel: "#s3-detail", title: "Know before the lesson", body: "Pick a student to see their week: the days they practised, the bars still hard, their homework, and a plan for the next lesson in three lines." },
     { sel: "#sd2-mail-sec", title: "A summary before you teach", body: "Pick the days and Lune emails you where each student stands. Or just ask Lune AI." },
   ];
   function maybeTour() {
@@ -901,6 +971,25 @@ window.LuneStudio = (function () {
     const b = e.target.closest("button");
     if (!b) return;
     const act = b.dataset.sd;
+    if (act === "pick") {
+      selected = b.dataset.id;
+      $("home-studio")?.querySelectorAll(".s3-row").forEach((r) => {
+        r.classList.toggle("on", r.dataset.id === selected);
+        r.setAttribute("aria-current", String(r.dataset.id === selected));
+      });
+      $("s3-main")?.classList.add("show-detail");
+      paintDetail();
+      if (innerWidth <= 760) window.scrollTo?.({ top: 0 }), $("home")?.scrollTo?.({ top: 0 });
+      return;
+    }
+    if (act === "back") return $("s3-main")?.classList.remove("show-detail");
+    if (act === "replan") {
+      const s = data().students.find((x) => x.id === b.dataset.id);
+      const box = $("s3-prep");
+      if (s && box) box.innerHTML = '<i class="sk sk-line"></i><i class="sk sk-line"></i><i class="sk sk-line sk-short"></i>';
+      if (s) paintPlan(s, true);
+      return;
+    }
     if (act === "send") return openSendSheet(b.dataset.id || "");
     if (act === "student") return openStudentSheet(b.dataset.id || "");
     if (act === "mail-now") {
